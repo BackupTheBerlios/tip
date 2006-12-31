@@ -278,11 +278,18 @@ class tipRcbt extends tipSource
 	    break;
 	  }
 
-	$Module->ResetRow ();
-	$OldModule =& $Context->MODULE;
-	$Context->MODULE =& $Module;
-	$UnclosedBody = $this->EchoParsed ($Context);
-	$Context->MODULE =& $OldModule;
+	if ($Module->ResetRow ())
+	  {
+	    $OldModule =& $Context->MODULE;
+	    $Context->MODULE =& $Module;
+	    $UnclosedBody = $this->EchoParsed ($Context);
+	    $Context->MODULE =& $OldModule;
+	  }
+	else
+	  {
+	    $UnclosedBody = $this->SkipParsed ($Context);
+	  }
+
 	$Module->EndQuery ();
 	break;
 
@@ -300,33 +307,33 @@ class tipRcbt extends tipSource
 	    break;
 	  }
 
-	$Module->ResetRow ();
-	$OldModule =& $Context->MODULE;
-	$Context->MODULE =& $Module;
-	$UnclosedBody = $this->EchoParsed ($Context);
-	$Context->MODULE =& $OldModule;
+	if ($Module->ResetRow ())
+	  {
+	    $OldModule =& $Context->MODULE;
+	    $Context->MODULE =& $Module;
+	    $UnclosedBody = $this->EchoParsed ($Context);
+	    $Context->MODULE =& $OldModule;
+	  }
+	else
+	  {
+	    $UnclosedBody = $this->SkipParsed ($Context);
+	  }
+
 	$Module->EndQuery ();
 	break;
 
       case 'forquery':
-	if ($Context->DISCARD)
+	if ($Context->DISCARD || ! $Module->StartQuery ($Params))
 	  {
 	    $UnclosedBody = $this->SkipParsed ($Context);
 	    break;
 	  }
 
-	if (! $Module->StartQuery ($Params))
-	  break;
-
-	if ($Module->RowsCount () == 0)
-	  $UnclosedBody = $this->SkipParsed ($Context);
-	else
+	if ($Module->RowsCount () > 0)
 	  {
 	    $OldModule =& $Context->MODULE;
 	    $Context->MODULE =& $Module;
 	    $Context->LASTFORPOS = $ParserPos;
-
-	    $Module->UnsetRow ();
 	    while ($Module->NextRow () && ! $UnclosedBody)
 	      {
 		$Context->PARSERPOS = $ParserPos;
@@ -335,37 +342,35 @@ class tipRcbt extends tipSource
 
 	    $Context->MODULE =& $OldModule;
 	    $Context->LASTFORPOS = FALSE;
+	  }
+	else
+	  {
+	    $UnclosedBody = $this->SkipParsed ($Context);
 	  }
 
 	$Module->EndQuery ();
 	break;
 
       case 'foreach':
-	if ($Context->DISCARD)
+	if ($Context->DISCARD || ! $Module->RowsCount ())
 	  {
 	    $UnclosedBody = $this->SkipParsed ($Context);
 	    break;
 	  }
 
-	if ($Module->RowsCount () == 0)
-	  $UnclosedBody = $this->SkipParsed ($Context);
-	else
+	$OldModule =& $Context->MODULE;
+	$Context->MODULE =& $Module;
+	$Context->LASTFORPOS = $ParserPos;
+
+	$Module->UnsetRow ();
+	while ($Module->NextRow () && ! $UnclosedBody)
 	  {
-	    $OldModule =& $Context->MODULE;
-	    $Context->MODULE =& $Module;
-	    $Context->LASTFORPOS = $ParserPos;
-
-	    $Module->UnsetRow ();
-	    while ($Module->NextRow () && ! $UnclosedBody)
-	      {
-		$Context->PARSERPOS = $ParserPos;
-		$UnclosedBody = $this->EchoParsed ($Context);
-	      }
-
-	    $Context->MODULE =& $OldModule;
-	    $Context->LASTFORPOS = FALSE;
+	    $Context->PARSERPOS = $ParserPos;
+	    $UnclosedBody = $this->EchoParsed ($Context);
 	  }
 
+	$Context->MODULE =& $OldModule;
+	$Context->LASTFORPOS = FALSE;
 	break;
 
       case 'recurseif':

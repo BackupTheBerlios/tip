@@ -7,98 +7,40 @@
  **/
 class tipModuleView extends tip
 {
-  /// @privatesection
-
-  var $CURSOR;
-
-
   /// @publicsection
 
   var $ROWS;
   var $SUMMARY_FIELDS;
 
 
-  function tipModuleView (&$Rows, &$SummaryFields)
+  function tipModuleView ()
   {
-    $this->ROWS =& $Rows;
-    $this->SUMMARY_FIELDS =& $SummaryFields;
-    $this->CURSOR = NULL;
+    $this->ROWS = NULL;
+    $this->SUMMARY_FIELDS['COUNT'] = 0;
   }
 
-  function& GetRow ($Id)
+  function Populate ($Query, &$Module)
   {
-    if (@array_key_exists ($Id, $this->ROWS))
+    $this->ROWS =& $Module->DATA_ENGINE->GetRows ($Query, $Module);
+    if (is_null ($this->ROWS))
+      return TRUE;
+
+    if (! $Module->SummaryFields ($this->ROWS, $this->SUMMARY_FIELDS))
+      return FALSE;
+
+    $nRow = 0;
+    foreach (array_keys ($this->ROWS) as $Id)
       {
 	$Row =& $this->ROWS[$Id];
-	// Not really correct, but any chance to do it in a better way?
-	$this->CURSOR = $Id;
-      }
-    else
-      {
-	$Row = NULL;
-      }
+	++ $nRow;
+	$Row['ROW'] = $nRow;
+	$Row['ODDEVEN'] = ($nRow & 1) > 0 ? 'odd' : 'even';
 
-    return $Row;
-  }
-
-  function& GetCurrentRow ()
-  {
-    return $this->GetRow ($this->CURSOR);
-  }
-
-  function ResetRow ()
-  {
-    if ($this->SUMMARY_FIELDS['COUNT'] == 0)
-      return FALSE;
-
-    reset ($this->ROWS);
-    $this->CURSOR = key ($this->ROWS);
-    return TRUE;
-  }
-
-  function EndRow ()
-  {
-    if ($this->SUMMARY_FIELDS['COUNT'] == 0)
-      return FALSE;
-
-    end ($this->ROWS);
-    $this->CURSOR = key ($this->ROWS);
-    return TRUE;
-  }
-
-  function UnsetRow ()
-  {
-    $this->CURSOR = NULL;
-    return TRUE;
-  }
-
-  function PrevRow ()
-  {
-    if (is_null ($this->CURSOR))
-      return $this->EndRow ();
-
-    if (prev ($this->ROWS) === FALSE)
-      {
-	$this->CURSOR = NULL;
-	return FALSE;
+	if (! $Module->CalculatedFields ($Row))
+	  return FALSE;
       }
 
-    $this->CURSOR = key ($this->ROWS);
-    return TRUE;
-  }
-
-  function NextRow ()
-  {
-    if (is_null ($this->CURSOR))
-      return $this->ResetRow ();
-
-    if (next ($this->ROWS) === FALSE)
-      {
-	$this->CURSOR = NULL;
-	return FALSE;
-      }
-
-    $this->CURSOR = key ($this->ROWS);
+    $this->SUMMARY_FIELDS['COUNT'] = $nRow;
     return TRUE;
   }
 }
@@ -125,22 +67,7 @@ class tipModule extends tipType
 
   var $VIEW_CACHE;
   var $VIEW_STACK;
-
-  function& GetLastView ()
-  {
-    $Last = @count ($this->VIEW_STACK);
-    if ($Last > 0)
-      {
-	$Result =& $this->VIEW_STACK[$Last - 1];
-      }
-    else
-      {
-	$this->SetError ('no current query');
-	$Result = NULL;
-      }
-
-    return $Result;
-  }
+  var $VIEW;
 
 
   /// @protectedsection
@@ -161,6 +88,7 @@ class tipModule extends tipType
 
     $this->VIEW_STACK = array ();
     $this->VIEW_CACHE = array ();
+    $this->VIEW = NULL;
   }
 
 
@@ -181,11 +109,11 @@ class tipModule extends tipType
    *
    * The following summary fields are added by this module:
    * \li <b>COUNT</b>\n
-   *     The number of rows matching the query.
+   *     The number of rows matching the query. This field is directly added
+   *     by the StartQuery() call.
    **/
   function SummaryFields (&$Rows, &$Fields)
   {
-    $Fields['COUNT'] = count ($Rows);
     return TRUE;
   }
 
@@ -194,7 +122,7 @@ class tipModule extends tipType
    * @param[in,out] $Row \c array A row
    *
    * Called for every row retrieved by the data engine. You can override this
-   * method to add some calculated field to every rows. Returning \c FALSE will
+   * method to add some calculated field to every row. Returning \c FALSE will
    * a single row will invalidate the whole query, so usually you must ever
    * return \c TRUE.
    *
@@ -204,11 +132,11 @@ class tipModule extends tipType
    *
    * The following calculated fields are added by this module:
    * \li <b>ROW</b>\n
-   *     The row number, starting from 1. This field is added directly by the
-   *     StartQuery() method.
+   *     The row number, starting from 1. This field is directly added by the
+   *     StartQuery() call.
    * \li <b>ODDEVEN</b>\n
-   *     A field that will be set to 'odd' for every odd rows and to 'even' for
-   *     the even rows.
+   *     A field that will be set to 'odd' for every odd row and to 'even' for
+   *     the even rows. This field is directly added by the StartQuery() call.
    **/
   function CalculatedFields (&$Row)
   {
@@ -225,18 +153,17 @@ class tipModule extends tipType
    **/
   function& GetCurrentRows ()
   {
-    $Row = NULL;
-    $View =& $this->GetLastView ();
-    if (is_null ($View))
-      return $Row;
+    $Rows = NULL;
+    if (is_null ($this->VIEW))
+      return $Rows;
 
-    return $View->ROWS;
+    return $this->VIEW->ROWS;
   }
 
   /**
    * Gets the current row.
    *
-   * Gets a reference to the current row.
+   * Gets a reference to the row pointed by the internal cursor.
    *
    * @return The reference to the current row, or a reference to a variable
    *         containing \c NULL on errors.
@@ -244,13 +171,18 @@ class tipModule extends tipType
   function& GetCurrentRow ()
   {
     $Row = NULL;
-    $View =& $this->GetLastView ();
-    if (is_null ($View))
+    if (is_null ($this->VIEW))
       return $Row;
 
-    $Row =& $View->GetCurrentRow ();
-    if (is_null ($Row))
-      $this->SetError ('no current row');
+    if (current ($this->VIEW->ROWS) === FALSE)
+      {
+	$this->SetError ('no current row');
+      }
+    else
+      {
+	$Key = key ($this->VIEW->ROWS);
+	$Row =& $this->VIEW->ROWS[$Key];
+      }
 
     return $Row;
   }
@@ -259,7 +191,8 @@ class tipModule extends tipType
    * Gets a specified row.
    * @param[in] Id \c mixed The row id
    *
-   * Gets a referece to a specific row.
+   * Gets a referece to a specific row. This function does not move the
+   * internal cursor.
    *
    * @return The reference to the current row, or a reference to a variable
    *         containing \c NULL on errors.
@@ -267,12 +200,12 @@ class tipModule extends tipType
   function& GetRow ($Id)
   {
     $Row = NULL;
-    $View =& $this->GetLastView ();
-    if (is_null ($View))
+    if (is_null ($this->VIEW))
       return $Row;
 
-    $Row =& $View->GetRow ($Id);
-    if (is_null ($Row))
+    if (@array_key_exists ($Id, $this->VIEW->ROWS))
+      $Row =& $this->VIEW->ROWS[$Id];
+    else
       $this->SetError ("`$Id' row id not found");
 
     return $Row;
@@ -289,7 +222,7 @@ class tipModule extends tipType
   function GetField ($Field)
   {
     $Row =& $this->GetCurrentRow ();
-    if (is_null ($Row) || ! @array_key_exists ($Field, $Row))
+    if (! @array_key_exists ($Field, $Row))
       return NULL;
 
     return $Row[$Field];
@@ -305,11 +238,10 @@ class tipModule extends tipType
    **/
   function GetSummaryField ($Field)
   {
-    $View =& $this->GetLastView ();
-    if (! $View || ! @array_key_exists ($Field, $View->SUMMARY_FIELDS))
+    if (! @array_key_exists ($Field, $this->VIEW->SUMMARY_FIELDS))
       return NULL;
 
-    return $View->SUMMARY_FIELDS[$Field];
+    return $this->VIEW->SUMMARY_FIELDS[$Field];
   }
 
   /**
@@ -622,7 +554,7 @@ http://www.example.org/?module=news&action=view&id=23
    *     Checks if the there is a current query and if it has a summary field
    *     matching the requested one. If yes, returns the field content.
    * \li <b>Module fields</b>\n
-   *     Every module has a protected variable ($FIELDS) that can be filled
+   *     Every module has a public variable ($FIELDS) that can be filled
    *     with arbitrary key => values pairs. If a \p Field key exists in
    *     $FIELDS, its value it is returned.
    * \li <b>Global fields</b>\n
@@ -686,7 +618,7 @@ http://www.example.org/?module=news&action=view&id=23
    *
    * @attention After starting a query, there no current row, so trying to
    *            retrieve some data will fail. You must use ResetRow() or
-   *            NextRow() to set the cursor before.
+   *            NextRow() to set the cursor position.
    *
    * When the query is succesful executed, this function returns \c TRUE.
    * When finished to use the results, close the query with EndQuery().
@@ -701,35 +633,19 @@ http://www.example.org/?module=news&action=view&id=23
     if (array_key_exists ($Query, $this->VIEW_CACHE))
       {
 	$View =& $this->VIEW_CACHE[$Query];
-	$View->UnsetRow ();
       }
     else
       {
-	$Rows =& $this->DATA_ENGINE->GetRows ($Query, $this);
-	if (is_null ($Rows))
+	$View =& new tipModuleView;
+	if (! $View->Populate ($Query, $this))
 	  return FALSE;
-
-	$SummaryFields = array ();
-	if (! $this->SummaryFields ($Rows, $SummaryFields))
-	  return FALSE;
-
-	$View =& new tipModuleView ($Rows, $SummaryFields);
-	$nRow = 0;
-	foreach (array_keys ($Rows) as $Id)
-	  {
-	    $Row =& $Rows[$Id];
-	    ++ $nRow;
-	    $Row['ROW'] = $nRow;
-	    $Row['ODDEVEN'] = ($nRow & 1) > 0 ? 'odd' : 'even';
-
-	    if (! $this->CalculatedFields ($Row))
-	      return FALSE;
-	  }
 
 	$this->VIEW_CACHE[$Query] =& $View;
       }
 
     $this->VIEW_STACK[count ($this->VIEW_STACK)] =& $View;
+    $this->VIEW =& $View;
+    $this->UnsetRow ();
     return TRUE;
   }
 
@@ -738,15 +654,14 @@ http://www.example.org/?module=news&action=view&id=23
    *
    * Returns the rows count of the results of the current query.
    *
-   * @returns The number of rows, or \c FALSE if there is no query active.
+   * @returns The number of rows, or \c NULL on errors.
    **/
   function RowsCount ()
   {
-    $View =& $this->GetLastView ();
-    if (is_null ($View))
+    $Result = $this->GetSummaryField ('COUNT');
+    if (is_null ($Result))
       return FALSE;
-
-    return $View->SUMMARY_FIELDS['COUNT'];
+    return $this->GetSummaryField ('COUNT');
   }
 
   /**
@@ -759,11 +674,10 @@ http://www.example.org/?module=news&action=view&id=23
    **/
   function ResetRow ()
   {
-    $View =& $this->GetLastView ();
-    if (is_null ($View))
+    if (is_null ($this->VIEW))
       return FALSE;
 
-    return $View->ResetRow ();
+    return reset ($this->VIEW->ROWS) !== FALSE;
   }
 
   /**
@@ -776,11 +690,10 @@ http://www.example.org/?module=news&action=view&id=23
    **/
   function EndRow ()
   {
-    $View =& $this->GetLastView ();
-    if (is_null ($View))
+    if (is_null ($this->VIEW))
       return FALSE;
 
-    return $View->EndRow ();
+    return end ($this->VIEW->ROWS) !== FALSE;
   }
 
   /**
@@ -792,11 +705,11 @@ http://www.example.org/?module=news&action=view&id=23
    **/
   function UnsetRow ()
   {
-    $View =& $this->GetLastView ();
-    if (is_null ($View))
+    if (is_null ($this->VIEW))
       return FALSE;
 
-    return $View->UnsetRow ();
+    end ($this->VIEW->ROWS);
+    return next ($this->VIEW->ROWS) === FALSE;
   }
 
   /**
@@ -810,11 +723,13 @@ http://www.example.org/?module=news&action=view&id=23
    **/
   function PrevRow ()
   {
-    $View =& $this->GetLastView ();
-    if (is_null ($View))
+    if (is_null ($this->VIEW))
       return FALSE;
 
-    return $View->PrevRow ();
+    if (current ($this->VIEW->ROWS) === FALSE)
+      return end ($this->VIEW->ROWS) !== FALSE;
+
+    return prev ($this->VIEW->ROWS) !== FALSE;
   }
 
   /**
@@ -828,11 +743,13 @@ http://www.example.org/?module=news&action=view&id=23
    **/
   function NextRow ()
   {
-    $View =& $this->GetLastView ();
-    if (is_null ($View))
+    if (is_null ($this->VIEW))
       return FALSE;
 
-    return $View->NextRow ();
+    if (current ($this->VIEW->ROWS) === FALSE)
+      return reset ($this->VIEW->ROWS) !== FALSE;
+
+    return next ($this->VIEW->ROWS) !== FALSE;
   }
 
   /**
@@ -851,6 +768,8 @@ http://www.example.org/?module=news&action=view&id=23
    **/
   function EndQuery ()
   {
+    $this->VIEW = NULL;
+
     $Last = count ($this->VIEW_STACK);
     if ($Last < 1)
       {
@@ -859,6 +778,11 @@ http://www.example.org/?module=news&action=view&id=23
       }
 
     unset ($this->VIEW_STACK[$Last - 1]);
+
+    if ($Last > 1)
+      $this->VIEW =& $this->VIEW_STACK[$Last-2];
+
+    return TRUE;
   }
 
   /**

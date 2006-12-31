@@ -121,6 +121,10 @@ class tipAdvertisement extends tipModule
   /**
    * Executes an action.
    * @copydoc tipModule::RunAction()
+   *
+   * @todo Find a better (and overall a portable) approach to update the
+   *       statistics of the advertisement owner while signaling, legalizing
+   *       or illegalizing an advertisement.
    **/
   function RunAction ($Action)
   {
@@ -367,11 +371,6 @@ class tipAdvertisement extends tipModule
 		$Query = $User->DATA_ENGINE->QueryById ($Row['_user'], $User);
 		if ($Query)
 		  {
-		    /**
-		     * @todo Find a better (and overall a portable) approach
-		     *       to update the statistics of the advertisement
-		     *       owner while signaling an advertisement.
-		     **/
 		    $RealQuery = "UPDATE `tip_user` SET `_ownsignaled`=`_ownsignaled`+1 $Query";
 		    $User->DATA_ENGINE->RunQuery ($RealQuery);
 		  }
@@ -475,12 +474,6 @@ class tipAdvertisement extends tipModule
 		$Query = $User->DATA_ENGINE->QueryById ($Row['_user'], $User);
 		if ($Query)
 		  {
-		    /**
-		     * @todo Find a better (and overall a portable) approach
-		     *       to update the statistics of the advertisement
-		     *       owner and of the signalling user while
-		     *       illegalizing an advertisement.
-		     **/
 		    $RealQuery = "UPDATE `tip_user` SET `_ownillegalized`=`_ownillegalized`+1 $Query";
 		    $User->DATA_ENGINE->RunQuery ($RealQuery);
 		  }

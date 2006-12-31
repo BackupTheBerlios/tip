@@ -5,11 +5,6 @@
  *
  * Base class for all the tip hierarchy. It provides some global useful
  * functions.
- *
- * @todo Implement the private LogGeneric method to use a customizable logger
- *       (such as a MySql table, for instance) instead of just appending to a
- *       log file. Anyway, consider this as a customizable feature to be set by
- *       one or more application option.
  **/
 class tip
 {
