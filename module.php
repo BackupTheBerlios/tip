@@ -204,8 +204,9 @@ class tipModule extends tipType
    *
    * The following calculated fields are added by this module:
    * \li <b>ROW</b>\n
-   *     The row number, starting from 1.
-   * \li <b> ODDEVEN</b>\n
+   *     The row number, starting from 1. This field is added directly by the
+   *     StartQuery() method.
+   * \li <b>ODDEVEN</b>\n
    *     A field that will be set to 'odd' for every odd rows and to 'even' for
    *     the even rows.
    **/
@@ -476,7 +477,6 @@ class tipModule extends tipType
 
 	echo str_replace ($From, $To, $Buffer);
 	return TRUE;
-
       }
 
     $this->SetError ("command `$Command' not found");
@@ -720,9 +720,7 @@ http://www.example.org/?module=news&action=view&id=23
 	    $Row =& $Rows[$Id];
 	    ++ $nRow;
 	    $Row['ROW'] = $nRow;
-	    /* Cursor starts from 0, but the natural ordering starts from 1,
-	     * so 'odd' and 'even' are swapped. */
-	    $Row['ODDEVEN'] = ($nRow & 1) > 0 ? 'even' : 'odd';
+	    $Row['ODDEVEN'] = ($nRow & 1) > 0 ? 'odd' : 'even';
 
 	    if (! $this->CalculatedFields ($Row))
 	      return FALSE;
