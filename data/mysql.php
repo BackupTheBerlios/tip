@@ -37,7 +37,7 @@ class tipMysql extends tipData
       return NULL;
 
     $this->RealQuerify ($Id, $Context);
-    return "WHERE `$Context->PRIMARYKEY` = $Id";
+    return "WHERE `$Context->PRIMARYKEY`=$Id";
   }
 
   function RealQuerify (&$Value, &$Context)

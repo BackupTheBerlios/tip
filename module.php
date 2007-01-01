@@ -846,7 +846,7 @@ class tipModule extends tipType
    **/
   function EndQuery ()
   {
-    $this->VIEW = NULL;
+    unset ($this->VIEW);
 
     $Last = count ($this->VIEW_STACK);
     if ($Last < 1)
