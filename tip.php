@@ -53,6 +53,12 @@ class tip
   {
     switch ($Format)
       {
+      case 'date_iso8601':
+	return strftime ('%F', $Timestamp);
+
+      case 'datetime_iso8601':
+	return strftime ('%F %H:%M:%S', $Timestamp);
+
       case 'date_it':
 	$SameYear = date ('Y', $Timestamp) == date ('Y');
 	$SameDay = date ('z', $Timestamp) == date ('z');
@@ -79,20 +85,16 @@ class tip
     return FALSE;
   }
 
-  function LogGeneric ($Domain, $Message)
+  function LogGeneric ($Domain, $Message, $Notify = FALSE)
   {
-    static $Handle = NULL;
-    if (is_null ($Handle))
-      {
-	$LogFile = tip::GetOption ('application', 'log_file');
+    $Logger =& tipType::GetInstance ('logger', FALSE);
 
-	$Handle = fopen ($LogFile, 'a');
-	if ($Handle === FALSE)
-	  tip::Quit ("unable to append log entry to `$LogFile'");
-      }
+    // No tipLogger module present: logging disabled
+    if (! is_object ($Logger))
+      return;
 
     $Uri = @$_SERVER['REQUEST_URI'];
-    fwrite ($Handle, date ('d-m-Y, H:i') . " $Domain in `$Uri': $Message\n");
+    $Logger->LogMessage ($Domain, $Message, $Uri, $Notify);
   }
 
   function Quit ($Message)
@@ -289,6 +291,10 @@ class tip
    *
    * The \p OutputFormat parameter can be one of the following values:
    *
+   * \li <b>date_iso8601</b>\n
+   *        Returns a string with a day description in ISO 8601 format.
+   * \li <b>datetime_iso8601</b>\n
+   *        Returns a string with day and hour description in ISO 8601 format.
    * \li <b>date_it</b>\n
    *        Returns a string with a day description (italian format).
    * \li <b>datetime_it</b>\n
