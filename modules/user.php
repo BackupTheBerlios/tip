@@ -7,24 +7,28 @@
  *
  * \li Logins and logouts
  * \li User management
- * \li Privilege management
  * \li Statistics on logged users
  *
- * Provided global fields:
+ * Provided module fields:
  *
  * \li <b>CID</b>\n
  *     The user id of the current user, that is the user logged in.
- * \li <b>CID_PRIVILEGES</b>\n
- *     A comma delimited list of privileges enabled for the current user.
- * \li <b>ISADMIN</b>\n
- *     \c TRUE if the current user is a user administrator, \c FALSE otherwise.
+ *     In anonymous sections, this field is not defined (it is \c NULL).
  **/
 class tipUser extends tipModule
 {
   /// @protectedsection
 
+  /**
+   * Adds calculated fields to the rows.
+   * @copydoc tipModule::CalculatedFields()
+   **/
   function CalculatedFields (&$Row)
   {
+    /**
+     * \li <b>OA</b>\n
+     *     Evaluates to 'a' if the field 'sex' is 'female', 'o' otherwise.
+     **/
     $Row['OA'] = $Row['sex'] == 'female' ? 'a' : 'o';
 
     return parent::CalculatedFields ($Row);
@@ -102,35 +106,26 @@ class tipUser extends tipModule
 
 	/**
 	 * \li <b>browse</b>\n
-	 *     Shows all the registered users. The current user must have the
-	 *     'user_admin' privilege to do this.
+	 *     Shows all the registered users.
 	 **/
       case 'browse':
-	if (! $APPLICATION->CheckPrivilege ('user_admin'))
-	  {
-	    $APPLICATION->Error ('E_DENIED');
-	    return FALSE;
-	  }
-
 	$this->AppendToContent ('browse.src');
 	return TRUE;
 
 	/**
 	 * \li <b>delete</b>\n
 	 *     Requests a delete of the specified user. You must specify in
-	 *     $_GET['id'] the user id. The user must be himself (or have
-	 *     the 'user_admin' privilege) to do this.
+	 *     $_GET['id'] the user id.
 	 **/
       case 'delete':
 	/**
 	 * \li <b>dodelete</b>\n
 	 *     Deletes the specified user. You must specify in $_GET['id'] the
-	 *     user id. The user must be himself (or have the 'user_admin'
-	 *     privilege) to do this.
+	 *     user id.
 	 **/
       case 'dodelete':
 	$Id = tip::GetGet ('id', 'integer');
-	$Row =& $this->GetOwnedUser ($Id);
+	$Row =& $this->GetMyself ($Id);
 	if (is_null ($Row))
 	  return FALSE;
 
@@ -206,19 +201,17 @@ class tipUser extends tipModule
 	/**
 	 * \li <b>privileges</b>\n
 	 *     Requests a privilege change of the specified user. You must
-	 *     specify in $_GET['id'] the user id. The user must be himself
-	 *     (or have the 'user_admin' privilege) to do this.
+	 *     specify in $_GET['id'] the user id.
 	 **/
       case 'privileges':
 	/**
 	 * \li <b>doprivileges</b>\n
 	 *     Changes the privileges of a user. You must specify in
-	 *     $_GET['id'] the user id. The user must be himself (or have the
-	 *     'user_admin' privilege) to do this.
+	 *     $_GET['id'] the user id.
 	 **/
       case 'doprivileges':
 	$Id = tip::GetGet ('id', 'integer');
-	$Row =& $this->GetOwnedUser ($Id, TRUE);
+	$Row =& $this->GetMyself ($Id);
 	if (is_null ($Row))
 	  return FALSE;
 
@@ -349,15 +342,15 @@ class tipUser extends tipModule
     $this->OLDROW = $Row;
     $this->NEWROW = $Row;
 
-    $this->FIELDS['CID'] = @array_key_exists ('id', $Row) ? $Row['id'] : 0;
-    $this->FIELDS['CID_PRIVILEGES'] = @array_key_exists ('privileges', $Row) ? $Row['privileges'] : '';
-    $this->FIELDS['ISADMIN'] = tip::ItemExists ('user_admin', $this->FIELDS['CID_PRIVILEGES']);
+    if (@array_key_exists ('id', $Row))
+      $this->FIELDS['CID'] = $Row['id'];
+    else
+      unset ($this->FIELDS['CID']);
 
     if (is_array ($Row))
       {
-	global $APPLICATION;
 	$this->NEWROW['_hits'] ++;
-	$this->NEWROW['_lasthit'] = $APPLICATION->FIELDS['NOW'];
+	$this->NEWROW['_lasthit'] = tip::FormatDate (FALSE, 'now', 'datetime_iso8601');
       }
   }
 
@@ -367,7 +360,7 @@ class tipUser extends tipModule
       $this->DATA_ENGINE->UpdateRow ($this->OLDROW, $this->NEWROW, $this);
   }
 
-  function& GetOwnedUser ($Id, $OnlyAdmin = FALSE)
+  function& GetMyself ($Id)
   {
     global $APPLICATION;
 
@@ -378,14 +371,8 @@ class tipUser extends tipModule
 	return $Row;
       }
 
-    if (! $OnlyAdmin && $Id == @$this->NEWROW['id'])
+    if ($Id == @$this->NEWROW['id'])
       return $this->NEWROW;
-
-    if (! $this->FIELDS['ISADMIN'])
-      {
-	$APPLICATION->Error ('E_DENIED');
-	return $Row;
-      }
 
     $Query = $this->DATA_ENGINE->QueryById ($Id, $this);
     if (! $this->StartQuery ($Query))
@@ -394,14 +381,14 @@ class tipUser extends tipModule
 	return $Row;
       }
 
-    if (! $this->ResetRow ())
+    if ($this->ResetRow ())
       {
-	$APPLICATION->Error ('E_NOTFOUND');
-	$this->EndQuery ();
+	$Row =& $this->GetCurrentRow ();
       }
     else
       {
-	$Row =& $this->GetCurrentRow ();
+	$APPLICATION->Error ('E_NOTFOUND');
+	$this->EndQuery ();
       }
 
     return $Row;

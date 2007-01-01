@@ -58,13 +58,36 @@ class tipModuleView extends tip
  *
  * Every TIP based site must have a starting point (in C terms, it must have a
  * \a main function), that is a module that runs a specified source program.
- * This module is an instance of the tipApplication type, the only one
- * automatically created by TIP.
+ * This module is an instance of the tipApplication type, the only class
+ * automatically instantiaded by TIP.
+ *
+ * Provided module fields:
+ *
+ * \li <b>SOURCE_PATH</b>\n
+ *     Expands to the source path of this module as specified in the
+ *     configuration file (logic/config.php).
+ * \li <b>DATA_PATH</b>\n
+ *     Expands to the data path of this module as specified in the
+ *     configuration file (logic/config.php).
+ * \li <b>IS_MANAGER</b>\n
+ *     Expands to <tt>TRUE</tt> if the current user has the 'manager' privilege
+ *     on this module, <tt>FALSE</tt> otherwise.
+ * \li <b>IS_ADMIN</b>\n
+ *     Expands to <tt>TRUE</tt> if the current user has the 'manager' or
+ *     'admin' privilege on this module, <tt>FALSE</tt> otherwise.
+ * \li <b>IS_TRUSTED</b>\n
+ *     Expands to <tt>TRUE</tt> if the current user has the 'manager', 'admin'
+ *     or 'trusted' privilege on this module, <tt>FALSE</tt> otherwise.
+ * \li <b>IS_UNTRUSTED</b>\n
+ *     Expands to <tt>TRUE</tt> if the current user has the 'manager', 'admin',
+ *     'trusted' or 'untrusted' privilege on this module, <tt>FALSE</tt>
+ *     otherwise.
  **/
 class tipModule extends tipType
 {
   /// @privatesection
 
+  var $PRIVILEGE;
   var $VIEW_CACHE;
   var $VIEW_STACK;
   var $VIEW;
@@ -83,12 +106,28 @@ class tipModule extends tipType
 
     $this->SOURCE_ENGINE =& tipType::GetInstance ($this->GetOption ('source_engine'));
     $this->DATA_ENGINE =& tipType::GetInstance ($this->GetOption ('data_engine'));
+    $this->PRIVILEGE = NULL;
+    $this->VIEW_CACHE = array ();
+    $this->VIEW_STACK = array ();
+    $this->VIEW = NULL;
+
     $this->FIELDS['SOURCE_PATH'] = $this->GetOption ('source_path');
     $this->FIELDS['DATA_PATH'] = $this->GetOption ('data_path');
+  }
 
-    $this->VIEW_STACK = array ();
-    $this->VIEW_CACHE = array ();
-    $this->VIEW = NULL;
+  function PostConstructor ()
+  {
+    if (is_null ($this->PRIVILEGE))
+      {
+	global $APPLICATION;
+	$this->PRIVILEGE = $APPLICATION->GetPrivilege ($this);
+      }
+
+    $Privilege =& $this->PRIVILEGE;
+    $this->FIELDS['IS_MANAGER'] = strcmp ($Privilege, 'manager') == 0;
+    $this->FIELDS['IS_ADMIN'] = strcmp ($Privilege, 'admin') == 0 || $this->FIELDS['IS_MANAGER'];
+    $this->FIELDS['IS_TRUSTED'] = strcmp ($Privilege, 'trusted') == 0 || $this->FIELDS['IS_ADMIN'];
+    $this->FIELDS['IS_UNTRUSTED'] = strcmp ($Privilege, 'untrusted') == 0 || $this->FIELDS['IS_TRUSTED'];
   }
 
 
@@ -416,33 +455,72 @@ class tipModule extends tipType
   }
 
   /**
-   * Executes an action.
+   * Executes a management action.
    * @param[in] Action \c string The action name.
    *
-   * Executes the \p Action action. An action is something that must be run
-   * before any output. Some examples are <tt>Add a row</tt>, <tt>Select a
-   * theme</tt> and so on.
+   * Executes an action that requires the 'manager' privilege.
    *
-   * Usually the actions are called adding variables to the URL, but this is not
-   * a strict rule.
-   * An example of call to an action is the following URL:
-   * @verbatim
-http://www.example.org/?module=news&action=view&id=23
-@endverbatim
+   * Here's the list of available actions:
    *
-   * This URL will call the "view" action on the "news" module, setting "id" to
-   * 23 (it is request to view a news and its comments). You must check the
-   * documentation of every module to see which actions are available and what
-   * variables they require.
+   **/
+  function RunManagerAction ($Action)
+  {
+    return FALSE;
+  }
+
+  /**
+   * Executes an administrator action.
+   * @param[in] Action \c string The action name.
    *
-   * @return \c TRUE on success, \c FALSE otherwise.
+   * Executes an action that requires at least the 'admin' privilege.
    *
-   * Here's the list of action provided by this module:
+   * Here's the list of available actions:
+   *
+   **/
+  function RunAdminAction ($Action)
+  {
+    return FALSE;
+  }
+
+  /**
+   * Executes a trusted action.
+   * @param[in] Action \c string The action name.
+   *
+   * Executes an action that requires at least the 'trusted' privilege.
+   *
+   * Here's the list of available actions:
+   *
+   **/
+  function RunTrustedAction ($Action)
+  {
+    return FALSE;
+  }
+
+  /**
+   * Executes an untrusted action.
+   * @param[in] Action \c string The action name.
+   *
+   * Executes an action that requires at least the 'untrusted' privilege.
+   *
+   * Here's the list of available actions:
+   *
+   **/
+  function RunUntrustedAction ($Action)
+  {
+    return FALSE;
+  }
+
+  /**
+   * Executes an unprivileged action.
+   * @param[in] Action \c string The action name.
+   *
+   * Executes an action that does not require any privileges.
+   *
+   * Here's the list of available actions:
    *
    **/
   function RunAction ($Action)
   {
-    tip::LogError ("action `$Action' not found");
     return FALSE;
   }
 
@@ -806,16 +884,60 @@ http://www.example.org/?module=news&action=view&id=23
    * Executes an action.
    * @param[in] Action \c string The action name
    *
-   * Executes the \p Action action. This function is merely a wrapper to
-   * RunAction(). Anyway, \p Action is converted to lowercase, so you can
-   * specify it in the way you prefer.
+   * Executes the \p Action action. This function tries to run \p Action
+   * by calling the following protected methods in this order:
+   *
+   * \li RunManagerAction()
+   * \li RunAdminAction()
+   * \li RunTrustedAction()
+   * \li RunUntrustedAction()
+   * \li RunAction()
+   *
+   * The first method called depends on the current privilege, get throught a
+   * tipApplication::GetPrivilege() call. The first method that returns \c TRUE
+   * (meaning the requested action is executed) stops the chain.
+   *
+   * Usually the actions are called adding variables to the URL. An example of
+   * an action call is the following URL:
+   * @verbatim
+http://www.example.org/?module=news&action=view&id=23
+@endverbatim
+   *
+   * This URL will call the "view" action on the "news" module, setting "id" to
+   * 23 (it is request to view a news and its comments). You must check the
+   * documentation of every module to see which actions are available and what
+   * variables they require.
    *
    * @return \c TRUE on success, \c FALSE otherwise.
    **/
   function CallAction ($Action = NULL)
   {
     $Action = strtolower ($Action);
-    return $this->RunAction ($Action);
+
+    switch ($this->PRIVILEGE)
+      {
+      case 'manager':
+	if ($this->RunManagerAction ($Action))
+	  return TRUE;
+      case 'admin':
+	if ($this->RunAdminAction ($Action))
+	  return TRUE;
+      case 'trusted':
+	if ($this->RunTrustedAction ($Action))
+	  return TRUE;
+      case 'untrusted':
+	if ($this->RunUntrustedAction ($Action))
+	  return TRUE;
+      case 'none':
+	if ($this->RunAction ($Action))
+	  return TRUE;
+
+	tip::LogError ("action `$Action' not found");
+	return FALSE;
+      }
+
+    $this->LogError ("invalid `$this->PRIVILEGE' privilege");
+    return FALSE;
   }
 }
 

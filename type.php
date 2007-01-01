@@ -89,6 +89,22 @@ class tipType extends tip
   }
 
   /**
+   * Overridable post construction method.
+   *
+   * Called after the construction happened. This can be overriden to do some
+   * post costruction operation. A good example of operation to do after the
+   * type instantiation is the initialization of the privileges of a tipModule
+   * class. Because this operation needs some modules yet instantiated, if this
+   * is done in the module constructor there will be a mutual recursion when
+   * instantiating these modules.
+   *
+   * @note Remember to always chain up the parent method.
+   **/
+  function PostConstructor ()
+  {
+  }
+
+  /**
    * Sets an error message.
    *
    * Sets or appends to the internal type error string a message. This error
@@ -159,7 +175,10 @@ class tipType extends tip
     $Type = strtolower ($Type);
 
     if (! array_key_exists ($Type, $Register))
-      $Register[$Type] =& tipType::CreateInstance ($Type, $Fatal);
+      {
+	$Register[$Type] =& tipType::CreateInstance ($Type, $Fatal);
+	$Register[$Type]->PostConstructor ();
+      }
 
     return $Register[$Type];
   }

@@ -8,7 +8,7 @@ class tipLogger extends tipModule
   {
     global $APPLICATION;
 
-    $UserId = $APPLICATION->GetCurrentUserId ();
+    $UserId = $APPLICATION->GetUserId ();
     if ($UserId > 0)
       $Row['user'] = $UserId;
 

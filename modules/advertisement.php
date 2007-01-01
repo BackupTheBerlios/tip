@@ -113,7 +113,7 @@ class tipAdvertisement extends tipModule
      *     \c TRUE if this advertisement is owned (was created by) the current
      *     logged in user, or \c FALSE otherwise.
      **/
-    $Row['ISOWNER'] = $Row['_user'] == $APPLICATION->GetCurrentUserId ();
+    $Row['ISOWNER'] = $Row['_user'] === $APPLICATION->GetUserId ();
 
     return parent::CalculatedFields ($Row);
   }
@@ -138,8 +138,8 @@ class tipAdvertisement extends tipModule
 	 *     The user must be registered to do this.
 	 **/
       case 'browse':
-	$UserId = $APPLICATION->GetCurrentUserId ();
-	if (is_null ($UserId))
+	$UserId = $APPLICATION->GetUserId ();
+	if (is_null ($UserId) || $UserId === FALSE)
 	  {
 	    $APPLICATION->Error ('E_RESERVED');
 	    return FALSE;
@@ -166,16 +166,9 @@ class tipAdvertisement extends tipModule
 
 	/**
 	 * \li <b>browseillegal</b>\n
-	 *     Shows the illegalized advertisements. The current user must have
-	 *     the 'advertisement_admin' privilege to do this.
+	 *     Shows the illegalized advertisements.
 	 **/
       case 'browseillegal':
-	if (! $APPLICATION->CheckPrivilege ('advertisement_admin'))
-	  {
-	    $APPLICATION->Error ('E_DENIED');
-	    return FALSE;
-	  }
-
 	$this->AppendToContent ('browse-illegal.src');
 	return TRUE;
 
@@ -225,8 +218,6 @@ class tipAdvertisement extends tipModule
 	 *     specify in $_GET['id'] the advertisement id. Update means to
 	 *     post the expiration date as the advertisement was published 
 	 *     today.
-	 *     The user must own the advertisement (or have the
-	 *     'advertisement_admin' privilege) to do this.
 	 **/
       case 'update':
 	/**
@@ -234,8 +225,6 @@ class tipAdvertisement extends tipModule
 	 *     Updates the specified advertisement. You must specify
 	 *     in $_GET['id'] the advertisement id. Update means to post the
 	 *     expiration date as the advertisement was published today.
-	 *     The user must own the advertisement (or have the
-	 *     'advertisement_admin' privilege) to do this.
 	 **/
       case 'doupdate':
 	$Id = tip::GetGet ('id', 'integer');
@@ -266,16 +255,12 @@ class tipAdvertisement extends tipModule
 	 * \li <b>delete</b>\n
 	 *     Requests a delete of the specified advertisement. You must
 	 *     specify in $_GET['id'] the advertisement id.
-	 *     The user must own the advertisement (or have the
-	 *     'advertisement_admin' privilege) to do this.
 	 **/
       case 'delete':
 	/**
 	 * \li <b>dodelete</b>\n
 	 *     Deletes the specified advertisement. You must specify in
 	 *     $_GET['id'] the advertisement id.
-	 *     The user must own the advertisement (or have the
-	 *     'advertisement_admin' privilege) to do this.
 	 **/
       case 'dodelete':
 	$Id = tip::GetGet ('id', 'integer');
@@ -323,9 +308,12 @@ class tipAdvertisement extends tipModule
 	 *     The user must be registered to do this.
 	 **/
       case 'doillegal':
-	$UserId = $APPLICATION->GetCurrentUserId ();
-	if (is_null ($UserId))
-	  return FALSE;
+	$UserId = $APPLICATION->GetUserId ();
+	if (is_null ($UserId) || $UserId === FALSE)
+	  {
+	    $APPLICATION->Error ('E_RESERVED');
+	    return FALSE;
+	  }
 
 	$Id = tip::GetGet ('id', 'integer');
 	if (is_null ($Id))
@@ -390,16 +378,14 @@ class tipAdvertisement extends tipModule
 	 * \li <b>legalize</b>\n
 	 *     Requests to check a specified advertisement to legalize or
 	 *     illegalize it. You must specify in $_GET['id'] the advertisement
-	 *     id. The current user must have the 'advertisement_admin'
-	 *     privilege to do this.
+	 *     id.
 	 **/
       case 'check':
 	/**
 	 * \li <b>dolegalize</b>\n
 	 *     Legalizes the specified advertisement. You must specify
 	 *     in $_GET['id'] the advertisement id. Legalize is the opposite
-	 *     of illegalize. The current user must have the
-	 *     'advertisement_admin' privilege to do this.
+	 *     of illegalize.
 	 **/
       case 'dolegalize':
 	/**
@@ -408,16 +394,9 @@ class tipAdvertisement extends tipModule
 	 *     in $_GET['id'] the advertisement id. Illegalize means to remove
 	 *     the advertisement from the public view (setting the '_public'
 	 *     field to 'no'). The advertisement will still be visible to its
-	 *     owner, but not to the public. The current user must have the
-	 *     'advertisement_admin' privilege to do this.
+	 *     owner, but not to the public.
 	 **/
       case 'doillegalize':
-	if (! $APPLICATION->CheckPrivilege ('advertisement_admin'))
-	  {
-	    $APPLICATION->Error ('E_DENIED');
-	    return FALSE;
-	  }
-
 	$Id = tip::GetGet ('id', 'integer');
 	if (is_null ($Id))
 	  {
@@ -516,11 +495,6 @@ class tipAdvertisement extends tipModule
      *     The estimated expiration date if updating an advertisement now.
      **/
     $this->FIELDS['EXPIRATION'] = date ('Y-m-d', strtotime ($this->GetOption ('expiration')));
-    /**
-     * \li <b>ISADMIN</b>\n
-     *     \c TRUE if the current user is the administrator, \c FALSE otherwise.
-     **/
-    $this->FIELDS['ISADMIN'] = $APPLICATION->CheckPrivilege ('advertisement_admin');
   }
 
   function& GetOwnedAdvertisement ($Id)
@@ -528,8 +502,8 @@ class tipAdvertisement extends tipModule
     global $APPLICATION;
 
     $Row = NULL;
-    $UserId = $APPLICATION->GetCurrentUserId ();
-    if (is_null ($UserId))
+    $UserId = $APPLICATION->GetUserId ();
+    if (is_null ($UserId) || $UserId === FALSE)
       return $Row;
 
     if (is_null ($Id))
@@ -538,41 +512,19 @@ class tipAdvertisement extends tipModule
 	return $Row;
       }
 
-    if ($this->FIELDS['ISADMIN'])
+    $this->DATA_ENGINE->Querify ($UserId, $this);
+    if (! $this->StartQuery ("WHERE `user`=$UserId"))
       {
-	$Query = $this->DATA_ENGINE->QueryById ($Id, $this);
-	if (! $this->StartQuery ($Query))
-	  {
-	    $Application->Error ('E_DATA_SELECT');
-	    return $Row;
-	  }
-
-	if (! $this->ResetRow ())
-	  {
-	    $APPLICATION->Error ('E_NOTFOUND');
-	    $this->EndQuery ();
-	  }
-	else
-	  {
-	    $Row =& $this->GetCurrentRow ();
-	  }
+	$Application->Error ('E_DATA_SELECT');
+	return $Row;
       }
-    else
-      {
-	$this->DATA_ENGINE->Querify ($UserId, $this);
-	if (! $this->StartQuery ("WHERE `user`=$UserId"))
-	  {
-	    $Application->Error ('E_DATA_SELECT');
-	    return $Row;
-	  }
 
-	$Row =& $this->GetRow ($Id);
-	if (is_null ($Row))
-	  {
-	    $APPLICATION->Error ('E_NOTFOUND');
-	    $this->AppendToContent ('browse-user.src');
-	    $this->EndQuery ();
-	  }
+    $Row =& $this->GetRow ($Id);
+    if (is_null ($Row))
+      {
+	$APPLICATION->Error ('E_NOTFOUND');
+	$this->AppendToContent ('browse-user.src');
+	$this->EndQuery ();
       }
 
     return $Row;

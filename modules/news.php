@@ -10,14 +10,14 @@ class tipNews extends tipModule
    **/
   function CalculatedFields (&$Row)
   {
-    $User =& tipType::GetInstance ('user');
+    global $APPLICATION;
 
     /**
      * \li <b>ISOWNER</b>\n
      *     \c TRUE if this news is owned (was created by) the current logged
      *     in user, or \c FALSE otherwise.
      **/
-    $Row['ISOWNER'] = $Row['_user'] == $User->FIELDS['CID'];
+    $Row['ISOWNER'] = $Row['_user'] === $APPLICATION->GetUserId ();
 
     return parent::CalculatedFields ($Row);
   }
@@ -204,14 +204,6 @@ class tipNews extends tipModule
   function tipNews ()
   {
     $this->tipModule ();
-
-    global $APPLICATION;
-
-    /**
-     * \li <b>ISADMIN</b>\n
-     *     \c TRUE if the current user is the administrator, \c FALSE otherwise.
-     **/
-    $this->FIELDS['ISADMIN'] = $APPLICATION->CheckPrivilege ('news_admin');
   }
 
 

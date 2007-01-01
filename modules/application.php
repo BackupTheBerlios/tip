@@ -161,6 +161,7 @@ class tipApplication extends tipModule
   function tipApplication ()
   {
     $this->tipModule ();
+    $this->PRIVILEGE = 'none';
 
     $this->CONTENT = '';
 
@@ -268,25 +269,49 @@ class tipApplication extends tipModule
    * logins done), a user error is notified (E_RESERVED) and \c NULL is
    * returned.
    *
-   * @return The current user id, or \c NULL on errors.
+   * @return The current user id, \c NULL if this is an anonymous session or
+   *         \c FALSE if the module 'user' is not present.
    **/
-  function GetCurrentUserId ()
+  function GetUserId ()
   {
     $User =& tipType::GetInstance ('user', FALSE);
-
-    // No tipUser module present: return 1 as dummy user id
     if (! is_object ($User))
-      return 1;
+      return FALSE;
 
-    // tipUser module present but no login done
     if (! array_key_exists ('CID', $User->FIELDS))
+      return NULL;
+
+    return $User->FIELDS['CID'];
+  }
+
+  /**
+   * Gets the privilege for the specified module.
+   * @param[in] Module \c tipModule The requesting module
+   *
+   * Returns the current privilege for the specified module. Check tipPrivilege
+   * to see how the privileges are used.
+   *
+   * @return The privilege, or \c FALSE on errors.
+   **/
+  function GetPrivilege (&$Module)
+  {
+    $UserId = $this->GetUserId ();
+
+    $Anonymous = is_null ($UserId) || $UserId === FALSE;
+    if (! $Anonymous)
       {
-	$APPLICATION->Error ('E_RESERVED');
-	return NULL;
+	$Privilege =& tipType::GetInstance ('privilege', FALSE);
+
+	$Anonymous = ! is_object ($Privilege);
+	if (! $Anonymous)
+	  {
+	    $StoredPrivilege = $Privilege->GetStoredPrivilege ($Module, $UserId);
+	    if ($StoredPrivilege !== FALSE)
+	      return $StoredPrivilege;
+	  }
       }
 
-    // tipUser present and login done
-    return $User->FIELDS['CID'];
+    return $Module->GetOption ($Anonymous ? 'anonymous_privilege' : 'default_privilege');
   }
 
   /**
