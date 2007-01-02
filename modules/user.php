@@ -45,37 +45,6 @@ class tipUser extends tipModule
     switch ($Action)
       {
 	/**
-	 * \li <b>privilege</b>\n
-	 *     Requests a privilege change of the specified user. You must
-	 *     specify in $_GET['id'] the user id.
-	 **/
-      case 'privilege':
-	/**
-	 * \li <b>doprivilege</b>\n
-	 *     Changes the privileges of a user. You must specify in
-	 *     $_GET['id'] the user id.
-	 **/
-      case 'doprivilege':
-	$Id = tip::GetGet ('id', 'integer');
-	$Row =& $this->GetMyself ($Id);
-	if (is_null ($Row))
-	  return FALSE;
-
-	if (substr ($Action, 0, 2) == 'do')
-	  {
-	    // todo
-	    $APPLICATION->Info ('I_DONE');
-	  }
-	else
-	  {
-	    $this->AppendToContent ('privilege.src');
-	  }
-
-	$this->EndQuery ();
-	return TRUE;
-
-
-	/**
 	 * \li <b>delete</b>\n
 	 *     Requests a delete of the specified user. You must specify in
 	 *     $_GET['id'] the user id.

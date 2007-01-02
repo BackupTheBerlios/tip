@@ -93,6 +93,16 @@ class tipModule extends tipType
   var $VIEW;
 
 
+  function GetLocale ($Id)
+  {
+    $Locale = tip::GetOption ('application', 'locale');
+    $LocaleRoot = tip::GetOption ('application', 'locale_root');
+    $ModuleName = $this->GetName ();
+    include "$LocaleRoot/$Locale/$ModuleName.php";
+    return @$Message[$Id];
+  }
+
+
   /// @protectedsection
 
   /**
@@ -190,7 +200,7 @@ class tipModule extends tipType
   function& GetCurrentRows ()
   {
     $Rows = NULL;
-    if (is_null ($this->VIEW))
+    if (@is_null ($this->VIEW))
       return $Rows;
 
     return $this->VIEW->ROWS;
@@ -207,7 +217,7 @@ class tipModule extends tipType
   function& GetCurrentRow ()
   {
     $Row = NULL;
-    if (is_null ($this->VIEW))
+    if (@is_null ($this->VIEW))
       return $Row;
 
     if (current ($this->VIEW->ROWS) === FALSE)
@@ -236,7 +246,7 @@ class tipModule extends tipType
   function& GetRow ($Id)
   {
     $Row = NULL;
-    if (is_null ($this->VIEW))
+    if (@is_null ($this->VIEW))
       return $Row;
 
     if (@array_key_exists ($Id, $this->VIEW->ROWS))
@@ -378,6 +388,16 @@ class tipModule extends tipType
        **/
       case 'iconurl':
 	echo "{$APPLICATION->FIELDS['SOURCE_ROOT']}/icons/$Params";
+	return TRUE;
+
+      /**
+       * \li <b>locale(</b>\a textid<b>)</b>\n
+       *     Outputs the content of a specified text id in the current locale.
+       *     Usually, the available text ids can be found in logic/locale/
+       *     subdirectories.
+       **/
+      case 'locale':
+	echo htmlentities ($this->GetLocale ($Params), ENT_QUOTES, 'UTF-8');
 	return TRUE;
 
       /**
@@ -766,7 +786,7 @@ class tipModule extends tipType
    **/
   function ResetRow ()
   {
-    if (is_null ($this->VIEW))
+    if (@is_null ($this->VIEW))
       return FALSE;
 
     return reset ($this->VIEW->ROWS) !== FALSE;
@@ -782,7 +802,7 @@ class tipModule extends tipType
    **/
   function EndRow ()
   {
-    if (is_null ($this->VIEW))
+    if (@is_null ($this->VIEW))
       return FALSE;
 
     return end ($this->VIEW->ROWS) !== FALSE;
@@ -797,7 +817,7 @@ class tipModule extends tipType
    **/
   function UnsetRow ()
   {
-    if (is_null ($this->VIEW))
+    if (@is_null ($this->VIEW))
       return FALSE;
 
     end ($this->VIEW->ROWS);
@@ -815,7 +835,7 @@ class tipModule extends tipType
    **/
   function PrevRow ()
   {
-    if (is_null ($this->VIEW))
+    if (@is_null ($this->VIEW))
       return FALSE;
 
     if (current ($this->VIEW->ROWS) === FALSE)
@@ -835,7 +855,7 @@ class tipModule extends tipType
    **/
   function NextRow ()
   {
-    if (is_null ($this->VIEW))
+    if (@is_null ($this->VIEW))
       return FALSE;
 
     if (current ($this->VIEW->ROWS) === FALSE)

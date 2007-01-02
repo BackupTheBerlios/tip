@@ -29,7 +29,7 @@
  *     similar to the following:\n
  *     <tt>$CFG['test']['logic'] = 'logic/sources/test.php';</tt>\n
  *     or whatever fit your needs.
- * \li <b><tt>include_once $Logic;</tt></b>\n
+ * \li <b><tt>require_once $Logic;</tt></b>\n
  *     The PHP file is included (of course only once).
  * \li <b><tt>$Class = "tip$Type";</tt></b>\n
  *     The class name is created prepending 'tip' to the type name. In this

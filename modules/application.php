@@ -300,17 +300,20 @@ class tipApplication extends tipModule
   /**
    * Gets the privilege for the specified module.
    * @param[in] Module \c tipModule The requesting module
+   * @param[in] UserId \c mixed     The user id
    *
-   * Returns the current privilege for the specified module. Check tipPrivilege
-   * to see how the privileges are used.
+   * Returns the privilege for the \p Module and \p UserId pair. If \p UserId
+   * is omitted, the current user id is used. Check tipPrivilege to see how the
+   * privileges are used.
    *
    * @note This is a static function: call with tipApplication::GetPrivilege()
    *
    * @return The privilege, or \c FALSE on errors.
    **/
-  function GetPrivilege (&$Module)
+  function GetPrivilege (&$Module, $UserId = FALSE)
   {
-    $UserId = tipApplication::GetUserId ();
+    if ($UserId === FALSE)
+      $UserId = tipApplication::GetUserId ();
 
     $Anonymous = is_null ($UserId) || $UserId === FALSE;
     if (! $Anonymous)

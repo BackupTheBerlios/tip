@@ -40,6 +40,87 @@
  **/
 class tipPrivilege extends tipModule
 {
+  /// @protectedsection
+
+  /**
+   * Executes a command.
+   * @copydoc tipModule::RunCommand()
+   **/
+  function RunCommand ($Command, &$Params)
+  {
+    switch ($Command)
+      {
+      /**
+       * \li <b>ForEachModule(</b>\a source<b>)</b>\n
+       *     For each module present in this site, run the \p source file.
+       **/
+      case 'foreachmodule':
+	$UserId = tip::GetGet ('user', 'integer');
+	if ($UserId === FALSE)
+	  $UserId = tipApplication::GetUserId ();
+
+	global $CFG;
+	$nRow = 1;
+	$this->FIELDS['LOCAL_USER'] = $UserId;
+
+	foreach (array_keys ($CFG) as $ModuleName)
+	  {
+	    $Module =& tipType::GetInstance ($ModuleName, FALSE);
+	    if (is_subclass_of ($Module, 'tipModule'))
+	      {
+		$this->FIELDS['LOCAL_ROW'] = $nRow;
+		$this->FIELDS['LOCAL_ODDEVEN'] = ($nRow & 1) > 0 ? 'odd' : 'even';
+		$this->FIELDS['LOCAL_MODULE'] = $ModuleName;
+		$this->FIELDS['LOCAL_NAME'] = $Module->GetLocale ('NAME');
+		$this->FIELDS['LOCAL_DESCRIPTION'] = $Module->GetLocale ('DESCRIPTION');
+		$this->FIELDS['LOCAL_PRIVILEGE'] = tipApplication::GetPrivilege ($Module, $UserId);
+		$this->FIELDS['LOCAL_DEFAULT'] = $CFG[$ModuleName]['default_privilege'];
+		if (! $this->Run ($Params))
+		  break;
+		++ $nRow;
+	      }
+	  }
+
+	unset ($this->FIELDS['LOCAL_MODULE']);
+	return TRUE;
+      }
+
+    return parent::RunCommand ($Command, $Params);
+  }
+
+  /**
+   * Executes a management action.
+   * @copydoc tipModule::RunManagerAction()
+   **/
+  function RunManagerAction ($Action)
+  {
+    switch ($Action)
+      {
+	/**
+	 * \li <b>edit</b>\n
+	 *     Requests a privilege change for a specified user. You must specify
+	 *     in $_GET['user'] the user id.
+	 **/
+      case 'edit':
+	$this->AppendToContent ('edit.src');
+	return TRUE;
+
+	/**
+	 * \li <b>doedit</b>\n
+	 *     Changes the privileges of a user. You must specify in $_GET['user']
+	 *     the user id, in $_GET['module'] the module name and in
+	 *     $_GET['privilege'] the new privilege descriptor.
+	 **/
+      case 'doedit':
+	// TODO
+	$this->AppendToContent ('edit.src');
+	return TRUE;
+      }
+
+    return parent::RunManagerAction ($Action);
+  }
+
+
   /// @publicsection
 
   /**
