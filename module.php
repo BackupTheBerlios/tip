@@ -337,6 +337,23 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
+       * \li <b>postorfield(</b>\a postid<b>)</b>\n
+       *     Outputs the content of the specified post. If the post is not
+       *     found, the field with the specified id will be used instead.
+       **/
+      case 'postorfield':
+	$Value = tip::GetPost ($Params, 'string');
+	if (is_null ($Value))
+	  {
+	    $Value = $this->FindField ($Params);
+	    if (! is_null ($Value))
+	      $Value = htmlentities ($Value, ENT_QUOTES, 'UTF-8');
+	  }
+	if (! is_null ($Value))
+	  echo $Value;
+	return TRUE;
+
+      /**
        * \li <b>url(</b>\a file<b>)</b>\n
        *     Prepends the source path of the current module to \p file and
        *     outputs the result. This command (or any of its variants) MUST be

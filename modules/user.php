@@ -35,84 +35,45 @@ class tipUser extends tipModule
   }
 
   /**
-   * Executes an action.
-   * @copydoc tipModule::RunAction()
+   * Executes a management action.
+   * @copydoc tipModule::RunManagerAction()
    **/
-  function RunAction ($Action)
+  function RunManagerAction ($Action)
   {
     global $APPLICATION;
 
     switch ($Action)
       {
-      /**
-       * \li <b>set</b>\n
-       *     Login request. You must specify the user name and its password in
-       *     $_POST['user'] and $_POST['password'].
-       **/
-      case 'set':
-	$User = tip::GetPost ('user', 'string');
-	if (empty ($User))
-	  {
-	    $APPLICATION->Error ('U_USERREQ');
-	    return FALSE;
-	  }
-
-	$Password = tip::GetPost ('password', 'string');
-	if (empty ($Password))
-	  {
-	    $APPLICATION->Error ('U_PWREQ');
-	    return FALSE;
-	  }
-
-	$this->DATA_ENGINE->Querify ($User, $this);
-	if (! $this->StartQuery ("WHERE `user`=$User"))
-	  {
-	    $APPLICATION->Error ('DB_SELECT');
-	    return FALSE;
-	  }
-
-	if ($this->RowsCount () < 1)
-	  {
-	    $APPLICATION->Error ('U_NOTFOUND');
-	    $this->EndQuery ();
-	    return FALSE;
-	  }
-
-	$this->ResetRow ();
-	$Row =& $this->GetCurrentRow ();
-	if ($Row['password'] != $Password)
-	  {
-	    $APPLICATION->Error ('U_PWINVALID');
-	    $this->EndQuery ();
-	    return FALSE;
-	  }
-
-	$Expiration = strtotime ($this->GetOption ('expiration'));
-	setcookie ('usrid', $Row['id'], $Expiration);
-	setcookie ('usrpwd', crypt ($Row['password']), $Expiration);
-	$this->SwitchUser ($Row);
-	$this->PostConstructor ();
-	// No EndQuery() call to retain this row as default row
-	return TRUE;
-
-      /**
-       * \li <b>unset</b>\n
-       *     Logout the current user (if any).
-       **/
-      case 'unset':
-	setcookie ('usrid', '', time () - 3600);
-	setcookie ('usrpwd', '', time () - 3600);
-	$this->SwitchUser ();
-	$this->PostConstructor ();
-	return TRUE;
-
 	/**
-	 * \li <b>browse</b>\n
-	 *     Shows all the registered users.
+	 * \li <b>privilege</b>\n
+	 *     Requests a privilege change of the specified user. You must
+	 *     specify in $_GET['id'] the user id.
 	 **/
-      case 'browse':
-	$this->AppendToContent ('browse.src');
+      case 'privilege':
+	/**
+	 * \li <b>doprivilege</b>\n
+	 *     Changes the privileges of a user. You must specify in
+	 *     $_GET['id'] the user id.
+	 **/
+      case 'doprivilege':
+	$Id = tip::GetGet ('id', 'integer');
+	$Row =& $this->GetMyself ($Id);
+	if (is_null ($Row))
+	  return FALSE;
+
+	if (substr ($Action, 0, 2) == 'do')
+	  {
+	    // todo
+	    $APPLICATION->Info ('I_DONE');
+	  }
+	else
+	  {
+	    $this->AppendToContent ('privilege.src');
+	  }
+
+	$this->EndQuery ();
 	return TRUE;
+
 
 	/**
 	 * \li <b>delete</b>\n
@@ -200,81 +161,165 @@ class tipUser extends tipModule
 
 	$this->EndQuery ();
 	return TRUE;
+      }
 
+    return parent::RunManagerAction ($Action);
+  }
+
+  /**
+   * Executes an administator action.
+   * @copydoc tipModule::RunAdminAction()
+   **/
+  function RunAdminAction ($Action)
+  {
+    global $APPLICATION;
+
+    switch ($Action)
+      {
 	/**
-	 * \li <b>privileges</b>\n
-	 *     Requests a privilege change of the specified user. You must
-	 *     specify in $_GET['id'] the user id.
+	 * \li <b>browse</b>\n
+	 *     Shows all the registered users.
 	 **/
-      case 'privileges':
-	/**
-	 * \li <b>doprivileges</b>\n
-	 *     Changes the privileges of a user. You must specify in
-	 *     $_GET['id'] the user id.
-	 **/
-      case 'doprivileges':
-	$Id = tip::GetGet ('id', 'integer');
-	$Row =& $this->GetMyself ($Id);
-	if (is_null ($Row))
-	  return FALSE;
+      case 'browse':
+	$this->AppendToContent ('browse.src');
+	return TRUE;
+      }
 
-	if (substr ($Action, 0, 2) == 'do')
-	  {
-	    // todo
-	    $APPLICATION->Info ('I_DONE');
-	  }
-	else
-	  {
-	    $this->AppendToContent ('privileges.src');
-	  }
+    return parent::RunAdminAction ($Action);
+  }
 
-	$this->EndQuery ();
+  /**
+   * Executes a trusted action.
+   * @copydoc tipModule::RunTrustedAction()
+   **/
+  function RunTrustedAction ($Action)
+  {
+    global $APPLICATION;
+
+    switch ($Action)
+      {
+      /**
+       * \li <b>unset</b>\n
+       *     Logout the current user (if any).
+       **/
+      case 'unset':
+	setcookie ('usrid', '', time () - 3600);
+	setcookie ('usrpwd', '', time () - 3600);
+	$this->SwitchUser ();
+	$this->PostConstructor ();
 	return TRUE;
 
-      case 'conditions':
-	return $this->AppendToContent ('conditions.src');
-
-      case 'add':
-	$this->Logout ();
-	$this->EchoInContent ('add-edit.html');
-	return TRUE;
-
-      case 'doadd':
-	global $FIELDS;
-
-	if (! $this->PopulateWithSource ($_POST) || ! $this->ValidateData ($_POST))
-	  {
-	    $FIELDS['ACTION'] = 'Add';
-	    $this->EchoInContent ('add-edit.html');
-	    return FALSE;
-	  }
-
-
-	$this->ROW['_registration'] = $FIELDS['TODAY'];
-	$this->ROW['_permissions'] = $GLOBALS['cfg']['U_PERMISSIONS'];
-
-	if (! $this->UpdateTable ())
-	  return FALSE;
-
-	$this->TABLE->ROW = $this->ROW;
-	$this->Login ();
-	return TRUE;
-
+      /**
+       * \li <b>edit</b>\n
+       *     Requests the modification of the current user profile.
+       **/
       case 'edit':
 	return $this->AppendToContent ('add-edit.src');
 
+      /**
+       * \li <b>doedit</b>\n
+       *     Modifies the current user profile with the data found in the
+       *     $_POST array.
+       **/
       case 'doedit':
-	if (! $this->ValidateData ($_POST) || ! $this->PopulateWithSource ($_POST))
-	  {
-	    $GLOBALS['FIELDS']['ACTION'] = 'Edit';
-	    $this->EchoInContent ('add-edit.html');
-	    return FALSE;
-	  }
+	// TODO: validation
+
+	foreach (array_keys ($this->NEW_ROW) as $Id)
+	  if (@array_key_exists ($Id, $_POST))
+	    $this->NEW_ROW[$Id] = $_POST[$Id];
 
 	return TRUE;
       }
 
-    return parent::RunAction ($Action);
+    return parent::RunTrustedAction ($Action);
+  }
+
+  /**
+   * Executes an untrusted action.
+   * @copydoc tipModule::RunUntrustedAction()
+   **/
+  function RunUntrustedAction ($Action)
+  {
+    global $APPLICATION;
+
+    switch ($Action)
+      {
+      /**
+       * \li <b>set</b>\n
+       *     Login request. You must specify the user name and its password in
+       *     $_POST['user'] and $_POST['password'].
+       **/
+      case 'set':
+	$User = tip::GetPost ('user', 'string');
+	if (empty ($User))
+	  {
+	    $APPLICATION->Error ('U_USERREQ');
+	    return FALSE;
+	  }
+
+	$Password = tip::GetPost ('password', 'string');
+	if (empty ($Password))
+	  {
+	    $APPLICATION->Error ('U_PWREQ');
+	    return FALSE;
+	  }
+
+	$this->DATA_ENGINE->Querify ($User, $this);
+	if (! $this->StartQuery ("WHERE `user`=$User"))
+	  {
+	    $APPLICATION->Error ('DB_SELECT');
+	    return FALSE;
+	  }
+
+	if ($this->RowsCount () < 1)
+	  {
+	    $APPLICATION->Error ('U_NOTFOUND');
+	    $this->EndQuery ();
+	    return FALSE;
+	  }
+
+	$this->ResetRow ();
+	$Row =& $this->GetCurrentRow ();
+	if ($Row['password'] != $Password)
+	  {
+	    $APPLICATION->Error ('U_PWINVALID');
+	    $this->EndQuery ();
+	    return FALSE;
+	  }
+
+	$Expiration = strtotime ($this->GetOption ('expiration'));
+	setcookie ('usrid', $Row['id'], $Expiration);
+	setcookie ('usrpwd', crypt ($Row['password']), $Expiration);
+	$this->SwitchUser ($Row);
+	$this->PostConstructor ();
+	// No EndQuery() call to retain this row as default row
+	return TRUE;
+
+      /**
+       * \li <b>conditions</b>\n
+       *     Shows the conditions imposed by the registration.
+       **/
+      case 'conditions':
+	return $this->AppendToContent ('conditions.src');
+
+      /**
+       * \li <b>add</b>\n
+       *     Registration request.
+       **/
+      case 'add':
+	return $this->AppendToContent ('add-edit.html');
+
+      /**
+       * \li <b>doadd</b>\n
+       *     New user registration. The user data must be filled in the $_POST
+       *     array (as for every module).
+       **/
+      case 'doadd':
+	// TODO
+	return TRUE;
+      }
+
+    return parent::RunUntrustedAction ($Action);
   }
 
 
