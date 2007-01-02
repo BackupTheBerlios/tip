@@ -91,6 +91,7 @@ class tipUser extends tipModule
 	setcookie ('usrid', $Row['id'], $Expiration);
 	setcookie ('usrpwd', crypt ($Row['password']), $Expiration);
 	$this->SwitchUser ($Row);
+	$this->PostConstructor ();
 	// No EndQuery() call to retain this row as default row
 	return TRUE;
 
@@ -102,6 +103,7 @@ class tipUser extends tipModule
 	setcookie ('usrid', '', time () - 3600);
 	setcookie ('usrpwd', '', time () - 3600);
 	$this->SwitchUser ();
+	$this->PostConstructor ();
 	return TRUE;
 
 	/**
@@ -185,6 +187,7 @@ class tipUser extends tipModule
 		    setcookie ('usrid', '', time () - 3600);
 		    setcookie ('usrpwd', '', time () - 3600);
 		    $this->SwitchUser ();
+		    $this->PostContructor ();
 		  }
 
 		$APPLICATION->Info ('I_DONE');
@@ -339,6 +342,7 @@ class tipUser extends tipModule
 
   function SwitchUser ($Row = FALSE)
   {
+    $this->PRIVILEGE = NULL;
     $this->OLDROW = $Row;
     $this->NEWROW = $Row;
 
