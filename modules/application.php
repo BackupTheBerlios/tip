@@ -146,10 +146,15 @@ class tipApplication extends tipModule
        **/
       case 'content':
 	if (empty ($this->CONTENT))
-	  return $this->DataRun ('welcome.src');
+	  $this->DataRun ('welcome.src');
+	else
+	  echo $this->CONTENT;
 
-	echo $this->CONTENT;
 	$this->CONTENT = FALSE;
+
+	if ($this->FIELDS['IS_MANAGER'])
+	  $this->Run ('logger.src');
+
 	return TRUE;
       }
 
@@ -161,7 +166,6 @@ class tipApplication extends tipModule
   function tipApplication ()
   {
     $this->tipModule ();
-    $this->PRIVILEGE = 'none';
 
     $this->CONTENT = '';
 
@@ -269,19 +273,28 @@ class tipApplication extends tipModule
    * logins done), a user error is notified (E_RESERVED) and \c NULL is
    * returned.
    *
+   * @note This is a static function: call with tipApplication::GetUserId()
+   *
    * @return The current user id, \c NULL if this is an anonymous session or
    *         \c FALSE if the module 'user' is not present.
    **/
   function GetUserId ()
   {
-    $User =& tipType::GetInstance ('user', FALSE);
-    if (! is_object ($User))
-      return FALSE;
+    static $Initialized = FALSE;
+    static $UserId;
 
-    if (! array_key_exists ('CID', $User->FIELDS))
-      return NULL;
-
-    return $User->FIELDS['CID'];
+    if (! $Initialized)
+      {
+	$User =& tipType::GetInstance ('user', FALSE);
+	if (! is_object ($User))
+	  $UserId = FALSE;
+	elseif (! array_key_exists ('CID', $User->FIELDS))
+	  $UserId = NULL;
+	else
+	  $UserId = $User->FIELDS['CID'];
+      }
+    
+    return $UserId;
   }
 
   /**
@@ -291,11 +304,13 @@ class tipApplication extends tipModule
    * Returns the current privilege for the specified module. Check tipPrivilege
    * to see how the privileges are used.
    *
+   * @note This is a static function: call with tipApplication::GetPrivilege()
+   *
    * @return The privilege, or \c FALSE on errors.
    **/
   function GetPrivilege (&$Module)
   {
-    $UserId = $this->GetUserId ();
+    $UserId = tipApplication::GetUserId ();
 
     $Anonymous = is_null ($UserId) || $UserId === FALSE;
     if (! $Anonymous)

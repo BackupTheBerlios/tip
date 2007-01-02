@@ -118,10 +118,7 @@ class tipModule extends tipType
   function PostConstructor ()
   {
     if (is_null ($this->PRIVILEGE))
-      {
-	global $APPLICATION;
-	$this->PRIVILEGE = $APPLICATION->GetPrivilege ($this);
-      }
+      $this->PRIVILEGE = tipApplication::GetPrivilege ($this);
 
     $Privilege =& $this->PRIVILEGE;
     $this->FIELDS['IS_MANAGER'] = strcmp ($Privilege, 'manager') == 0;

@@ -106,14 +106,12 @@ class tipAdvertisement extends tipModule
    **/
   function CalculatedFields (&$Row)
   {
-    global $APPLICATION;
-
     /**
      * \li <b>ISOWNER</b>\n
      *     \c TRUE if this advertisement is owned (was created by) the current
      *     logged in user, or \c FALSE otherwise.
      **/
-    $Row['ISOWNER'] = $Row['_user'] === $APPLICATION->GetUserId ();
+    $Row['ISOWNER'] = $Row['_user'] === tipApplication::GetUserId ();
 
     return parent::CalculatedFields ($Row);
   }
@@ -138,7 +136,7 @@ class tipAdvertisement extends tipModule
 	 *     The user must be registered to do this.
 	 **/
       case 'browse':
-	$UserId = $APPLICATION->GetUserId ();
+	$UserId = tipApplication::GetUserId ();
 	if (is_null ($UserId) || $UserId === FALSE)
 	  {
 	    $APPLICATION->Error ('E_RESERVED');
@@ -308,7 +306,7 @@ class tipAdvertisement extends tipModule
 	 *     The user must be registered to do this.
 	 **/
       case 'doillegal':
-	$UserId = $APPLICATION->GetUserId ();
+	$UserId = tipApplication::GetUserId ();
 	if (is_null ($UserId) || $UserId === FALSE)
 	  {
 	    $APPLICATION->Error ('E_RESERVED');
@@ -502,7 +500,7 @@ class tipAdvertisement extends tipModule
     global $APPLICATION;
 
     $Row = NULL;
-    $UserId = $APPLICATION->GetUserId ();
+    $UserId = tipApplication::GetUserId ();
     if (is_null ($UserId) || $UserId === FALSE)
       return $Row;
 

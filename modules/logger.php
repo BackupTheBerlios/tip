@@ -6,9 +6,7 @@ class tipLogger extends tipModule
 
   function LogMessage ($Domain, $Message, $Uri, $Notify = FALSE)
   {
-    global $APPLICATION;
-
-    $UserId = $APPLICATION->GetUserId ();
+    $UserId = tipApplication::GetUserId ();
     if ($UserId > 0)
       $Row['user'] = $UserId;
 

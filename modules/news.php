@@ -10,14 +10,12 @@ class tipNews extends tipModule
    **/
   function CalculatedFields (&$Row)
   {
-    global $APPLICATION;
-
     /**
      * \li <b>ISOWNER</b>\n
      *     \c TRUE if this news is owned (was created by) the current logged
      *     in user, or \c FALSE otherwise.
      **/
-    $Row['ISOWNER'] = $Row['_user'] === $APPLICATION->GetUserId ();
+    $Row['ISOWNER'] = $Row['_user'] === tipApplication::GetUserId ();
 
     return parent::CalculatedFields ($Row);
   }

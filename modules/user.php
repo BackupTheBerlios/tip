@@ -148,7 +148,6 @@ class tipUser extends tipModule
 		    setcookie ('usrid', '', time () - 3600);
 		    setcookie ('usrpwd', '', time () - 3600);
 		    $this->SwitchUser ();
-		    $this->PostContructor ();
 		  }
 
 		$APPLICATION->Info ('I_DONE');
@@ -206,7 +205,6 @@ class tipUser extends tipModule
 	setcookie ('usrid', '', time () - 3600);
 	setcookie ('usrpwd', '', time () - 3600);
 	$this->SwitchUser ();
-	$this->PostConstructor ();
 	return TRUE;
 
       /**
@@ -291,7 +289,6 @@ class tipUser extends tipModule
 	setcookie ('usrid', $Row['id'], $Expiration);
 	setcookie ('usrpwd', crypt ($Row['password']), $Expiration);
 	$this->SwitchUser ($Row);
-	$this->PostConstructor ();
 	// No EndQuery() call to retain this row as default row
 	return TRUE;
 
@@ -346,7 +343,11 @@ class tipUser extends tipModule
   function tipUser ()
   {
     $this->tipModule ();
-    $this->SwitchUser ();
+
+    $this->PRIVILEGE = NULL;
+    $this->OLDROW = FALSE;
+    $this->NEWROW = FALSE;
+
     register_shutdown_function (array (&$this, 'UpdateUser'));
 
     $Id = tip::GetCookie ('usrid', 'int');
@@ -381,13 +382,12 @@ class tipUser extends tipModule
       }
 
     $Row =& $this->GetCurrentRow ();
-    $this->SwitchUser ($Row);
+    $this->SwitchUser ($Row, TRUE);
     // No EndQuery() call to retain this query as the default one
   }
 
-  function SwitchUser ($Row = FALSE)
+  function SwitchUser ($Row = FALSE, $IsConstructor = FALSE)
   {
-    $this->PRIVILEGE = NULL;
     $this->OLDROW = $Row;
     $this->NEWROW = $Row;
 
@@ -401,8 +401,18 @@ class tipUser extends tipModule
 	$this->NEWROW['_hits'] ++;
 	$this->NEWROW['_lasthit'] = tip::FormatDate (FALSE, 'now', 'datetime_iso8601');
       }
-  }
 
+    if (! $IsConstructor)
+      {
+	global $APPLICATION;
+	$APPLICATION->PRIVILEGE = NULL;
+	$APPLICATION->PostConstructor ();
+
+	$this->PRIVILEGE = NULL;
+	$this->PostConstructor ();
+      }
+  }
+  
   function UpdateUser ()
   {
     if (is_array ($this->OLDROW) && is_array ($this->NEWROW))

@@ -57,10 +57,7 @@ class tipPrivilege extends tipModule
   function GetStoredPrivilege (&$Module, $UserId = FALSE)
   {
     if ($UserId === FALSE)
-      {
-	global $APPLICATION;
-	$UserId = $APPLICATION->GetUserId ();
-      }
+      $UserId = tipApplication::GetUserId ();
 
     if (is_null ($UserId) || $UserId === FALSE)
       return FALSE;
