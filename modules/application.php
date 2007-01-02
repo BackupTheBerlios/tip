@@ -313,36 +313,6 @@ class tipApplication extends tipModule
 
     return $Module->GetOption ($Anonymous ? 'anonymous_privilege' : 'default_privilege');
   }
-
-  /**
-   * Checks a privilege.
-   * @param[in] Privilege \c string A privilege descriptor
-   *
-   * Checks if the current user has a specified privilege.
-   * If there is no current user (no logins done), \c FALSE is returned in any
-   * case. If there is a current user, the 'privileges' field of the user data
-   * source is scanned for the \p Privilege substring, and \c TRUE is returned
-   * if it is found.
-   *
-   * @note If the module tipUser is not found, this function always returns
-   *       \c TRUE.
-   *
-   * @return \c TRUE if the privilege must be allowed, \c FALSE otherwise.
-   **/
-  function CheckPrivilege ($Privilege)
-  {
-    $User =& tipType::GetInstance ('user', FALSE);
-
-    // No tipUser module present: return TRUE
-    if (! is_object ($User))
-      return TRUE;
-
-    // tipUser module present but no login done: return FALSE
-    if (! array_key_exists ('CID_PRIVILEGES', $User->FIELDS))
-      return FALSE;
-
-    return tip::ItemExists ($Privilege, $User->FIELDS['CID_PRIVILEGES']);
-  }
 }
 
 ?>
