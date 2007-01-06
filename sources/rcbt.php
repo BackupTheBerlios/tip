@@ -1,102 +1,469 @@
 <?php
 
-/**
- * @private
- *
- * A context bookmark used by the tipRcbt source engine.
- **/
-class tipRcbtContext extends tip
+class tipRcbtContext
 {
+  /// @privatesection
+
+  var $SKIP;
+  var $START_CALLBACK;
+  var $STOP_CALLBACK;
+  var $LOOP_CALLBACK;
+  var $START_TP;
+  var $START_POS;
+  var $PRIVATE;
+
+
   /// @publicsection
 
-  var $BUFFER;
   var $MODULE;
-  var $IN_ERROR;
-  var $PARSERPOS;
-  var $TAGPOS;
-  var $TAGMODULE;
-  var $TAGCOMMAND;
-  var $TAGPARAMS;
-  var $DISCARD;
-  var $LASTFORPOS;
 
 
-  function tipRcbtContext (&$Buffer, &$Module)
+  function tipRcbtContext (&$Module)
   {
-    $this->BUFFER    =& $Buffer;
-    $this->MODULE    =& $Module;
-    $this->IN_ERROR  =  FALSE;
-    $this->PARSERPOS =  0;
-    $this->TAGPOS    =  FALSE;
-    $this->TAGMODULE =  FALSE;
-    $this->TAGCOMMAND=  FALSE;
-    $this->TAGPARAMS =  FALSE;
-    $this->DISCARD   =  FALSE;
-    $this->LASTFORPOS=  FALSE;
+    $this->MODULE =& $Module;
+    $this->SKIP = FALSE;
+    $this->START_CALLBACK = NULL;
+    $this->STOP_CALLBACK = NULL;
+    $this->LOOP_CALLBACK = NULL;
+    $this->START_TP = 0;
+    $this->START_POS = 0;
+    $this->PRIVATE = NULL;
   }
 
-  function GetTag ()
+  function Start (&$Parser)
   {
-    $this->TAGPOS = strpos ($this->BUFFER, '{', $this->PARSERPOS);
-
-    // No tags found
-    if ($this->TAGPOS === FALSE)
-      return FALSE;
-
-    $this->PARSERPOS = $this->TAGPOS;
-    $ClosedBraces = 0;
-
-    // Find the matching '}' brace
-    do
+    if (! is_null ($this->START_CALLBACK) && ! call_user_func ($this->START_CALLBACK, $this))
       {
-	$this->PARSERPOS = strpos ($this->BUFFER, '}', $this->PARSERPOS+1);
-
-	$this->IN_ERROR = $this->PARSERPOS === FALSE;
-	if ($this->IN_ERROR)
-	  {
-	    $Tag = substr ($this->BUFFER, $this->TAGPOS, 40);
-	    tip::LogError ("unclosed tag on pos $this->TAGPOS (...$Tag...)");
-	    return FALSE;
-	  }
-
-	++ $ClosedBraces;
-	$Tag = substr ($this->BUFFER, $this->TAGPOS+1, $this->PARSERPOS-$this->TAGPOS-1);
-      }
-    while (substr_count ($Tag, '{') >= $ClosedBraces);
-
-    ++ $this->PARSERPOS;
-    return $Tag;
-  }
-
-  function ParseTag ($Tag)
-  {
-    // Remember: ParseTag error are not fatals and don't set the IN_ERROR flag
-    if (! preg_match ('/(([\da-z_]*)\.)?([\da-z_]*)\s*(\((.*)\))?/iS', $Tag, $Result))
-      {
-	tip::LogWarning ("malformed tag on pos $this->TAGPOS (...$Tag...)");
+	if (! is_null ($this->STOP_CALLBACK))
+	  call_user_func_array ($this->STOP_CALLBACK, array (&$this, &$Parser));
 	return FALSE;
       }
 
-    if (! empty ($Result[2]))
-      {
-	$this->TAGMODULE =& tipType::GetInstance ($Result[2]);
+    if ($this->SKIP)
+      ob_start ();
 
-	if ($this->TAGMODULE === FALSE)
+    $this->START_TP = $Parser->TP;
+    $this->START_POS = $Parser->POS;
+    return TRUE;
+  }
+
+  function Stop (&$Parser)
+  {
+    if (! is_null ($this->LOOP_CALLBACK))
+      if (call_user_func_array ($this->LOOP_CALLBACK, array (&$this, &$Parser)))
+	{
+	  $Parser->Push (new tipRcbtContext ($this->MODULE));
+	  $Parser->TP = $this->START_TP;
+	  $Parser->POS = $this->START_POS;
+	  return;
+	}
+
+    if (! is_null ($this->STOP_CALLBACK))
+      call_user_func_array ($this->STOP_CALLBACK, array (&$this, &$Parser));
+
+    if ($this->SKIP)
+      ob_end_clean ();
+  }
+}
+
+
+class tipRcbtParser
+{
+  /// @privatesection
+
+  var $PRE_MESSAGE;
+  var $CONTEXT_STACK;
+  var $TP_STACK;
+
+
+  function BuildMessage ($Message)
+  {
+    $Line = substr_count (substr ($this->BUFFER, 0, $this->POS), "\n") + 1;
+    return "$this->PRE_MESSAGE: $Message on line $Line";
+  }
+
+
+  /// @publicsection
+
+  var $BUFFER;
+  var $NESTED_TEXT;
+  var $CONTEXT;
+  var $POS;
+  var $TP;
+
+
+  function tipRcbtParser (&$Buffer, &$Module, $PreMessage)
+  {
+    $this->PRE_MESSAGE = $PreMessage;
+    $this->CONTEXT_STACK = array ();
+    $this->TP_STACK = array ();
+    $this->BUFFER =& $Buffer;
+    $this->NESTED_TEXT = FALSE;
+    $this->POS = 0;
+    $this->TP = 0;
+    $this->CONTEXT =& new tipRcbtContext ($Module);
+  }
+
+  function Reset ()
+  {
+    if (count ($this->CONTEXT_STACK) > 0)
+      {
+	$this->POS = $this->CONTEXT->START_POS;
+	$this->LogError ('unclosed context');
+	return FALSE;
+      }
+
+    $this->POS = 0;
+    $this->TP = 0;
+    return TRUE;
+  }
+
+  function Nest ()
+  {
+    array_push ($this->TP_STACK, $this->TP);
+    $this->TP = 0;
+
+    if (count ($this->TP_STACK) > 1)
+      ob_start ();
+  }
+
+  function Unnest ()
+  {
+    if (count ($this->TP_STACK) > 1)
+      $this->NESTED_TEXT = ob_get_clean ();
+
+    $this->TP = array_pop ($this->TP_STACK);
+  }
+
+  function Push (&$NewContext)
+  {
+    if (! $NewContext->Start ($this))
+      return FALSE;
+
+    $Last = count ($this->CONTEXT_STACK);
+    $this->CONTEXT_STACK[$Last] =& $this->CONTEXT;
+    $this->CONTEXT =& $NewContext;
+    return TRUE;
+  }
+
+  function Pop ()
+  {
+    if (count ($this->CONTEXT_STACK) < 1)
+      return FALSE;
+
+    $this->CONTEXT->Stop ($this);
+    $Last = count ($this->CONTEXT_STACK) - 1;
+    $this->CONTEXT =& $this->CONTEXT_STACK[$Last];
+    unset ($this->CONTEXT_STACK[$Last]);
+    return TRUE;
+  }
+
+  function BeginParse (&$Tag)
+  {
+    echo substr ($this->BUFFER, $this->POS, $Tag->START - $this->POS);
+    $this->POS = $Tag->START;
+    if (count ($this->TP_STACK) > 0)
+      ++ $this->POS;
+    return TRUE;
+  }
+
+  function EndParse (&$Tag)
+  {
+    if ($Tag->END === FALSE)
+      {
+	echo substr ($this->BUFFER, $this->POS);
+	$this->POS = FALSE;
+	return TRUE;
+      }
+
+    $Text = $this->NESTED_TEXT . substr ($this->BUFFER, $this->POS, $Tag->END - $this->POS);
+    $this->NESTED_TEXT = FALSE;
+    $this->POS = $Tag->END+1;
+    return $Tag->ExplodeTag ($this, $Text) && $Tag->RunTag ($this);
+  }
+
+  function LogWarning ($Message)
+  {
+    tip::LogWarning ($this->BuildMessage ($Message));
+  }
+
+  function LogError ($Message)
+  {
+    tip::LogError ($this->BuildMessage ($Message));
+  }
+}
+
+class tipRcbtTag
+{
+  var $START;
+  var $END;
+  var $SUBTAG;
+  var $SUBTAGS;
+  var $MODULE_NAME;
+  var $COMMAND;
+  var $PARAMS;
+
+  function tipRcbtTag ()
+  {
+    $this->START = FALSE;
+    $this->END = FALSE;
+    $this->SUBTAG = array ();
+    $this->SUBTAGS = 0;
+    $this->MODULE_NAME = FALSE;
+    $this->COMMAND = FALSE;
+    $this->PARAMS = FALSE;
+  }
+
+  function BuildTag (&$Parser, $UnclosedTag = FALSE)
+  {
+    $this->START = $Parser->POS;
+    if (! $UnclosedTag)
+      ++ $Parser->POS;
+
+    for (;;)
+      {
+	$OpenBrace = strpos ($Parser->BUFFER, '{', $Parser->POS);
+	$CloseBrace = strpos ($Parser->BUFFER, '}', $Parser->POS);
+	if ($CloseBrace === FALSE)
 	  {
-	    tip::LogWarning ("module `$Result[2]' not found on pos $this->TAGPOS (...$Tag...)");
+	    if ($OpenBrace !== FALSE)
+	      $Parser->POS = $OpenBrace;
+	    elseif ($UnclosedTag)
+	      return TRUE;
+
+	    $Parser->LogError ('unclosed tag');
 	    return FALSE;
 	  }
+
+	if ($OpenBrace === FALSE || $OpenBrace > $CloseBrace)
+	  break;
+
+	$Parser->POS = $OpenBrace;
+	$Subtag =& new tipRcbtTag;
+	if (! $Subtag->BuildTag ($Parser))
+	    return FALSE;
+
+	$this->SUBTAG[$this->SUBTAGS] =& $Subtag;
+	++ $this->SUBTAGS;
       }
 
-    if (! @is_null ($Result[5]))
+    $this->END = $CloseBrace;
+    $Parser->POS = $CloseBrace+1;
+    return TRUE;
+  }
+
+  function RecurseTag (&$Parser)
+  {
+    if (! $Parser->BeginParse ($this))
+      return FALSE;
+
+    if ($this->SUBTAGS > 0)
       {
-	$this->TAGCOMMAND = $Result[3];
-	$this->TAGPARAMS = $Result[5];
+	$Parser->Nest ();
+	while ($Parser->TP < $this->SUBTAGS)
+	  {
+	    if (! $this->SUBTAG[$Parser->TP]->RecurseTag ($Parser))
+	      return FALSE;
+	    ++ $Parser->TP;
+	  }
+	$Parser->Unnest ();
       }
-    else if ($Result[1] == '.')
-      $this->TAGCOMMAND = $Result[3];
+
+    return $Parser->EndParse ($this);
+  }
+
+  function ExplodeTag (&$Parser, &$Text)
+  {
+    if ($this->END == $this->START+1)
+      return TRUE;
+
+    $OpenBrace = strpos ($Text, '(');
+    if ($OpenBrace === FALSE)
+      {
+	$this->PARAMS = FALSE;
+      }
     else
-      $this->TAGPARAMS = $Result[3];
+      {
+	$ParamsPos = $OpenBrace+1;
+	$CloseBrace = strrpos ($Text, ')');
+	if ($CloseBrace === FALSE)
+	  {
+	    $Parser->LogError ('unclosed parameter');
+	    return FALSE;
+	  }
+
+	$this->PARAMS = substr ($Text, $ParamsPos, $CloseBrace-$ParamsPos);
+	if (! $this->PARAMS)
+	  $this->PARAMS = '';
+
+	$Text = substr ($Text, 0, $ParamsPos-1);
+      }
+
+    $Token = explode ('.', trim ($Text));
+    switch (count ($Token))
+      {
+      case 0:
+	$this->MODULE_NAME = FALSE;
+	$this->COMMAND = FALSE;
+	break;
+      case 1:
+	$this->MODULE_NAME = FALSE;
+	if ($this->PARAMS === FALSE)
+	  {
+	    $this->COMMAND = 'field';
+	    $this->PARAMS = $Token[0];
+	  }
+	else
+	  {
+	    $this->COMMAND = strtolower ($Token[0]);
+	  }
+	break;
+      case 2:
+	$this->MODULE_NAME = $Token[0];
+	$this->COMMAND = strtolower ($Token[1]);
+	break;
+      default:
+	if (strlen ($Text) > 20)
+	  $Text = substr ($Text, 0, 15) . '...';
+	$Parser->LogError ("malformed tag ($Text)");
+	return FALSE;
+      }
+
+    return TRUE;
+  }
+
+  function RunTag (&$Parser)
+  {
+    if (! $this->COMMAND)
+      {
+	if (! $Parser->Pop ())
+	  $Parser->LogWarning ('too much {} tags');
+
+	return TRUE;
+      }
+
+    if ($this->MODULE_NAME)
+      $Module =& tipType::GetInstance ($this->MODULE_NAME);
+    else
+      $Module =& $Parser->CONTEXT->MODULE;
+
+    switch ($this->COMMAND)
+      {
+      case 'if':
+	$Context =& new tipRcbtContext ($Module);
+	$Condition = @create_function ('', "return $this->PARAMS;");
+	if (empty ($Condition))
+	  {
+	    $Parser->LogWarning ("invalid condition ($this->PARAMS)");
+	    $Context->SKIP = TRUE;
+	  }
+	else
+	  {
+	    $Context->SKIP = ! $Condition ();
+	  }
+	$Parser->Push ($Context);
+	return TRUE;
+
+      case 'query':
+	$Context =& new tipRcbtContext ($Module);
+	if ($Module->StartQuery ($this->PARAMS))
+	  {
+	    $Context->STOP_CALLBACK = array (&$Module, 'EndQuery');
+	    $Context->SKIP = ! $Module->ResetRow ();
+	  }
+	else
+	  {
+	    $Context->SKIP = TRUE;
+	  }
+	$Parser->Push ($Context);
+	return TRUE;
+
+      case 'querybyid':
+	$Context =& new tipRcbtContext ($Module);
+	$Query = $Module->DATA_ENGINE->QueryById ($this->PARAMS, $Module);
+	if ($Module->StartQuery ($Query))
+	  {
+	    $Context->STOP_CALLBACK = array (&$Module, 'EndQuery');
+	    $Context->SKIP = ! $Module->ResetRow ();
+	  }
+	else
+	  {
+	    $Context->SKIP = TRUE;
+	  }
+	$Parser->Push ($Context);
+	return TRUE;
+
+      case 'forquery':
+	$Context =& new tipRcbtContext ($Module);
+	if ($Module->StartQuery ($this->PARAMS))
+	  {
+	    $Context->STOP_CALLBACK = array (&$Module, 'EndQuery');
+	    if (! $Module->ResetRow ())
+	      $Context->SKIP = TRUE;
+	    else
+	      $Context->LOOP_CALLBACK = array (&$Module, 'NextRow');
+	  }
+	else
+	  {
+	    $Context->SKIP = TRUE;
+	  }
+	$Parser->Push ($Context);
+	return TRUE;
+
+      case 'foreach':
+	$Context =& new tipRcbtContext ($Module);
+	if ($Module->ResetRow ())
+	  $Context->LOOP_CALLBACK = array (&$Module, 'NextRow');
+	else
+	  $Context->SKIP = TRUE;
+	$Parser->Push ($Context);
+	return TRUE;
+
+      case 'recurseif':
+	if ($Parser->CONTEXT->SKIP)
+	  return TRUE;
+
+	$Pos = strpos ($this->PARAMS, ',');
+	if ($Pos === FALSE)
+	  {
+	    $this->LogWarning ('malformed recurseif tag');
+	    return TRUE;
+	  }
+
+	// Find the innermost loop
+	$n = count ($Parser->CONTEXT_STACK);
+	do
+	  $Context = $Parser->CONTEXT_STACK[--$n];
+	while (is_null ($Context->LOOP_CALLBACK));
+
+	$Field = substr ($this->PARAMS, 0, $Pos);
+	$Value = substr ($this->PARAMS, $Pos+1);
+
+	$Context->PRIVATE['field'] = $Field;
+	$Context->PRIVATE['value'] = $Value;
+	$Context->PRIVATE['tp'] = $Parser->TP;
+	$Context->PRIVATE['pos'] = $Parser->POS;
+
+	$ModuleRef = '$Context->MODULE';
+	$FieldRef = '$Context->PRIVATE[\'field\']';
+	$ValueRef = '$Context->PRIVATE[\'value\']';
+	$Condition = create_function ('&$Context', "return ${ModuleRef}->NextRow () && ${ModuleRef}->GetField ($FieldRef) == $ValueRef;");
+	$Context->START_CALLBACK =& $Condition;
+	$Context->LOOP_CALLBACK =& $Condition;
+
+	$Context->STOP_CALLBACK = create_function ('&$Context,&$Parser', '$Parser->TP = $Context->PRIVATE["tp"]; $Parser->POS = $Context->PRIVATE["pos"]; return $Context->MODULE->PrevRow ();');
+
+	$Parser->TP = $Context->START_TP;
+	$Parser->POS = $Context->START_POS;
+	$Parser->Push ($Context);
+	return TRUE;
+      }
+
+    if (! $Module->CallCommand ($this->COMMAND, $this->PARAMS))
+      {
+	$Parser->LogWarning ($Module->GetError ());
+	$Module->ResetError ();
+      }
 
     return TRUE;
   }
@@ -177,264 +544,19 @@ class tipRcbtContext extends tip
  *     default module will be \c module.
  * \li <b><tt>{}</tt></b>\n
  *     Special tag that specifies the end of an enclosed buffer.
- *
- * @todo The errors shows its position relative to the context, not the
- *       absolute position in the source file. Furthermore, in some situations
- *       I don't have access to the source file name. Consider creating an
- *       error context class.
- * @todo Needed code cleanup: the implementation is a bit confusing. Peraphs
- *	 the tipRcbtContext private class must be splitted in tipRcbtTag and
- *       tipRcbtFile (this could solve the missing information in the error
- *	 context).
  **/
 class tipRcbt extends tipSource
 {
   /// @protectedsection
 
-  function RealRun (&$Buffer, &$Module)
+  function RealRun (&$Buffer, &$Module, $PreMessage)
   {
-    return $this->EchoParsed (new tipRcbtContext ($Buffer, $Module));
-  }
+    $Parser =& new tipRcbtParser ($Buffer, $Module, $PreMessage);
+    $Source =& new tipRcbtTag;
 
-
-  /// @privatesection
-
-  function EchoParsed (&$Context)
-  {
-    while (TRUE)
-      {
-	$RunPos = $Context->PARSERPOS;
-
-	$Tag = $Context->GetTag ();
-	if ($Tag === FALSE)
-	  if ($Context->IN_ERROR)
-	    return FALSE;
-	  else
-	    break;
-
-	if (! $Context->DISCARD)
-	  echo substr ($Context->BUFFER, $RunPos, $Context->TAGPOS - $RunPos);
-
-	if (empty ($Tag))
-	  return FALSE;
-
-	$Context->TAGMODULE =& $Context->MODULE;
-	$Context->TAGCOMMAND = 'Field';
-	$Context->TAGPARAMS = FALSE;
-
-	// ParseTag errors are not fatals
-	if (! $Context->ParseTag ($Tag))
-	  continue;
-
-	// Also RunCommand errors are not fatals
-	$this->RunCommand ($Context);
-
-	// Instead, subparsing errors (set in RunCommand) are fatals
-	if ($Context->IN_ERROR)
-	  return FALSE;
-      }
-
-    if (! $Context->DISCARD)
-      echo substr ($Context->BUFFER, $Context->PARSERPOS);
-
-    return TRUE;
-  }
-
-  function GetParsed (&$Context, &$Destination)
-  {
-    ob_start ();
-    $Result = $this->EchoParsed ($Context);
-    $Destination = ob_get_clean ();
-    return $Result;
-  }
-
-  function SkipParsed (&$Context)
-  {
-    $OldDiscard = $Context->DISCARD;
-    $Context->DISCARD = TRUE;
-    $Result = $this->EchoParsed ($Context);
-    $Context->DISCARD = $OldDiscard;
-    return $Result;
-  }
-
-  function RunCommand (&$Context)
-  {
-    if ($Context->DISCARD)
-      $Params =& $Context->TAGPARAMS;
-    elseif (! $this->GetParsed (new tipRcbtContext ($Context->TAGPARAMS, $Context->MODULE), $Params))
-      return FALSE;
-    
-    $ParserPos = $Context->PARSERPOS;
-    $Module =& $Context->TAGMODULE;
-    $Command =& $Context->TAGCOMMAND;
-    $UnclosedBody = FALSE;
-
-    switch (strtolower ($Command))
-      {
-      case 'query':
-	if ($Context->DISCARD || ! $Module->StartQuery ($Params))
-	  {
-	    $UnclosedBody = $this->SkipParsed ($Context);
-	    break;
-	  }
-
-	if ($Module->ResetRow ())
-	  {
-	    $OldModule =& $Context->MODULE;
-	    $Context->MODULE =& $Module;
-	    $UnclosedBody = $this->EchoParsed ($Context);
-	    $Context->MODULE =& $OldModule;
-	  }
-	else
-	  {
-	    $UnclosedBody = $this->SkipParsed ($Context);
-	  }
-
-	$Module->EndQuery ();
-	break;
-
-      case 'querybyid':
-	if ($Context->DISCARD)
-	  {
-	    $UnclosedBody = $this->SkipParsed ($Context);
-	    break;
-	  }
-
-	$Query = $Module->DATA_ENGINE->QueryById ($Params, $Module);
-	if (! $Module->StartQuery ($Query))
-	  {
-	    $UnclosedBody = $this->SkipParsed ($Context);
-	    break;
-	  }
-
-	if ($Module->ResetRow ())
-	  {
-	    $OldModule =& $Context->MODULE;
-	    $Context->MODULE =& $Module;
-	    $UnclosedBody = $this->EchoParsed ($Context);
-	    $Context->MODULE =& $OldModule;
-	  }
-	else
-	  {
-	    $UnclosedBody = $this->SkipParsed ($Context);
-	  }
-
-	$Module->EndQuery ();
-	break;
-
-      case 'forquery':
-	if ($Context->DISCARD || ! $Module->StartQuery ($Params))
-	  {
-	    $UnclosedBody = $this->SkipParsed ($Context);
-	    break;
-	  }
-
-	if ($Module->RowsCount () > 0)
-	  {
-	    $OldModule =& $Context->MODULE;
-	    $Context->MODULE =& $Module;
-	    $Context->LASTFORPOS = $ParserPos;
-	    while ($Module->NextRow () && ! $UnclosedBody)
-	      {
-		$Context->PARSERPOS = $ParserPos;
-		$UnclosedBody = $this->EchoParsed ($Context);
-	      }
-
-	    $Context->MODULE =& $OldModule;
-	    $Context->LASTFORPOS = FALSE;
-	  }
-	else
-	  {
-	    $UnclosedBody = $this->SkipParsed ($Context);
-	  }
-
-	$Module->EndQuery ();
-	break;
-
-      case 'foreach':
-	if ($Context->DISCARD || ! $Module->RowsCount ())
-	  {
-	    $UnclosedBody = $this->SkipParsed ($Context);
-	    break;
-	  }
-
-	$OldModule =& $Context->MODULE;
-	$Context->MODULE =& $Module;
-	$Context->LASTFORPOS = $ParserPos;
-
-	$Module->UnsetRow ();
-	while ($Module->NextRow () && ! $UnclosedBody)
-	  {
-	    $Context->PARSERPOS = $ParserPos;
-	    $UnclosedBody = $this->EchoParsed ($Context);
-	  }
-
-	$Context->MODULE =& $OldModule;
-	$Context->LASTFORPOS = FALSE;
-	break;
-
-      case 'recurseif':
-	if ($Context->DISCARD)
-	  break;
-
-	$Pos = strpos ($Params, ',');
-	if ($Pos === FALSE)
-	  {
-	    $this->LogWarning ("malformed \{$Command($Context->TAGPARAMS)} command on pos $ParserPos");
-	    return FALSE;
-	  }
-
-	$Field = substr ($Params, 0, $Pos);
-	$Value = substr ($Params, $Pos+1);
-	$OldParserPos = $ParserPos;
-
-	while ($Module->NextRow () && $Module->GetField ($Field) == $Value)
-	  {
-	    $Context->PARSERPOS = $Context->LASTFORPOS;
-	    $this->EchoParsed ($Context);
-	  }
-
-	$Context->PARSERPOS = $OldParserPos;
-	$Module->PrevRow ();
-	break;
-
-      case 'if':
-	if ($Context->DISCARD)
-	  {
-	    $UnclosedBody = $this->SkipParsed ($Context);
-	    break;
-	  }
-
-	$Evaluate = create_function ('', "return $Params;");
-	if ($Evaluate ())
-	  $UnclosedBody = $this->EchoParsed ($Context);
-	else
-	  $UnclosedBody = $this->SkipParsed ($Context);
-	break;
-
-      default:
-	if (! $Context->DISCARD)
-	  $Module->CallCommand ($Command, $Params);
-	break;
-      }
-
-    // Unclosed bodies are fatals (IN_ERROR flag set)
-    if ($UnclosedBody)
-      {
-	$Context->IN_ERROR = TRUE;
-	$this->LogError ("unclosed \{$Command($Context->TAGPARAMS)} body on pos $ParserPos");
-	return FALSE;
-      }
-
-    // Module errors are not fatals
-    $ModuleError = $Module->GetError ();
-    if ($ModuleError)
-      {
-	$this->LogWarning ("\{$Command($Context->TAGPARAMS)} on pos $Context->TAGPOS reports: $ModuleError");
-	return FALSE;
-      }
-
-    return TRUE;
+    return $Source->BuildTag ($Parser, TRUE)
+        && $Parser->Reset ()
+        && $Source->RecurseTag ($Parser);
   }
 }
 

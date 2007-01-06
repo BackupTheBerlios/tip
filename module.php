@@ -200,7 +200,7 @@ class tipModule extends tipType
   function& GetCurrentRows ()
   {
     $Rows = NULL;
-    if (@is_null ($this->VIEW))
+    if (is_null ($this->VIEW))
       return $Rows;
 
     return $this->VIEW->ROWS;
@@ -217,7 +217,7 @@ class tipModule extends tipType
   function& GetCurrentRow ()
   {
     $Row = NULL;
-    if (@is_null ($this->VIEW))
+    if (is_null ($this->VIEW))
       return $Row;
 
     if (current ($this->VIEW->ROWS) === FALSE)
@@ -246,7 +246,7 @@ class tipModule extends tipType
   function& GetRow ($Id)
   {
     $Row = NULL;
-    if (@is_null ($this->VIEW))
+    if (is_null ($this->VIEW))
       return $Row;
 
     if (@array_key_exists ($Id, $this->VIEW->ROWS))
@@ -474,7 +474,10 @@ class tipModule extends tipType
       case 'nlreplace':
 	$Pos = strpos ($Params, ',');
 	if ($Pos === FALSE)
-	  return FALSE;
+	  {
+	    $this->SetError ('no text to replace');
+	    return FALSE;
+	  }
 
 	$From   = "\n";
 	$To     = substr ($Params, 0, $Pos);
@@ -786,7 +789,7 @@ class tipModule extends tipType
    **/
   function ResetRow ()
   {
-    if (@is_null ($this->VIEW))
+    if (is_null ($this->VIEW))
       return FALSE;
 
     return reset ($this->VIEW->ROWS) !== FALSE;
@@ -802,7 +805,7 @@ class tipModule extends tipType
    **/
   function EndRow ()
   {
-    if (@is_null ($this->VIEW))
+    if (is_null ($this->VIEW))
       return FALSE;
 
     return end ($this->VIEW->ROWS) !== FALSE;
@@ -817,7 +820,7 @@ class tipModule extends tipType
    **/
   function UnsetRow ()
   {
-    if (@is_null ($this->VIEW))
+    if (is_null ($this->VIEW))
       return FALSE;
 
     end ($this->VIEW->ROWS);
@@ -835,7 +838,7 @@ class tipModule extends tipType
    **/
   function PrevRow ()
   {
-    if (@is_null ($this->VIEW))
+    if (is_null ($this->VIEW))
       return FALSE;
 
     if (current ($this->VIEW->ROWS) === FALSE)
@@ -846,20 +849,21 @@ class tipModule extends tipType
 
   /**
    * Sets the cursor to the next row.
+   * @param[in] Rewind \c boolean  Reset the cursor when no more rows
    *
    * Increments the cursor so it referes to the next row. If the cursor was
-   * never set, this function moves it to the first row (same as ResetRow()).
-   * If there are no more rows, returns \c FALSE.
+   * never set and \p rewind is \c TRUE, this function moves it to the first
+   * row (same as ResetRow()). If there are no more rows, returns \c FALSE.
    *
    * @return \c TRUE on success, \c FALSE otherwise.
    **/
-  function NextRow ()
+  function NextRow ($Rewind = TRUE)
   {
-    if (@is_null ($this->VIEW))
+    if (is_null ($this->VIEW))
       return FALSE;
 
     if (current ($this->VIEW->ROWS) === FALSE)
-      return reset ($this->VIEW->ROWS) !== FALSE;
+      return $Rewind ? reset ($this->VIEW->ROWS) !== FALSE : FALSE;
 
     return next ($this->VIEW->ROWS) !== FALSE;
   }
@@ -881,6 +885,7 @@ class tipModule extends tipType
   function EndQuery ()
   {
     unset ($this->VIEW);
+    $this->VIEW = NULL;
 
     $Last = count ($this->VIEW_STACK);
     if ($Last < 1)
@@ -910,7 +915,6 @@ class tipModule extends tipType
    **/
   function CallCommand ($Command, &$Params)
   {
-    $Command = strtolower ($Command);
     return $this->RunCommand ($Command, $Params);
   }
 

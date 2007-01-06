@@ -20,9 +20,9 @@ class tipSource extends tipType
    *
    * This method MUST be overriden by all the types that inherits tipSource.
    *
-   * @return \c TRUE on success, \c FALSE otherwise.
+   * @return \c TRUE on success or a string containing an error message.
    **/
-  function RealRun (&$Buffer, &$Module)
+  function RealRun (&$Buffer, &$Module, $PreMessage)
   {
     $this->LogFatal ('method tipSource::RealRun() not implemented');
   }
@@ -43,15 +43,18 @@ class tipSource extends tipType
   {
     if (empty ($File))
       {
-	$this->LogError ("file not specified");
+	$this->LogError ('file not specified');
 	return FALSE;
       }
 
     $Source = file_get_contents ($File, 0);
     if (! $Source)
-      return FALSE;
+      {
+	$this->LogError ("file '$File' not found");
+	return FALSE;
+      }
 
-    return $this->RealRun ($Source, $Module);
+    return $this->RealRun ($Source, $Module, "Source '$File'");
   }
 
   /**

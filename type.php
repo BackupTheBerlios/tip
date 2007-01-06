@@ -112,10 +112,13 @@ class tipType extends tip
    **/
   function SetError ($Message)
   {
-    if (is_string ($this->ERROR))
-      $this->ERROR .= ", $Message";
-    else
+    if (empty ($Message))
+      return;
+
+    if (empty ($this->ERROR))
       $this->ERROR = $Message;
+    else
+      $this->ERROR .= "\n$Message";
   }
 
   /**
