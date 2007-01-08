@@ -186,11 +186,6 @@ class tipPrivilege extends tipModule
 	  return TRUE;
 
 	$Query = 'WHERE `_user`=' . $this->FIELDS['UID'];
-	$OldRow = FALSE;
-	$NewRow['privilege'] = $Privilege;
-	$NewRow['_user'] = $this->FIELDS['UID'];
-	$NewRow['_module'] = $ModuleName;
-
 	if ($this->DATA_ENGINE->DeleteRows ($Query, $this))
 	  $APPLICATION->Info ('I_DONE');
 	else
