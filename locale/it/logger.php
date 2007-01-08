@@ -1,13 +1,12 @@
 <?php
 
-$Message = array
+$Messages = array
   (
-   'NAME' => 'Log',
-   'DESCRIPTION' => 'Informazioni per il webmaster',
-   'MANAGER' => 'Abilita i privilegi da gestore',
-   'ADMIN' => 'Abilita i privilegi da amministratore',
-   'TRUSTED' => 'Abilita i privilegi da utente registrato',
-   'UNTRUSTED' => 'Abilita i privilegi da utente anonimo'
+   'DESCRIPTION' => 'Log degli errori',
+   'MANAGER_HELP' => 'Consente di abilitare o disabilitare il logger',
+   'ADMIN_HELP' => 'Abilita la possibilità di cancellare i logs',
+   'TRUSTED_HELP' => 'Può vedere il contenuto del logger',
+   'NONE_HELP' => 'Nessuna operazione disponibile'
   );
 
 ?>

@@ -1,13 +1,11 @@
 <?php
 
-$Message = array
+$Messages = array
   (
-   'NAME' => 'Notifiche',
-   'DESCRIPTION' => 'Notifiche trasmesse agli utenti',
-   'MANAGER' => 'Abilita i privilegi da gestore',
-   'ADMIN' => 'Abilita i privilegi da amministratore',
-   'TRUSTED' => 'Abilita i privilegi da utente registrato',
-   'UNTRUSTED' => 'Abilita i privilegi da utente anonimo'
+   'DESCRIPTION' => 'Messaggi di notifica per gli utenti',
+   'MANAGER_HELP' => 'Gestione completa notifiche (abilitazione log, aggiunta del messaggio "Contattare webmaster" a fine notifica ecc...)',
+   'ADMIN_HELP' => 'Consente la modifica del contenuto dei messaggi',
+   'NONE_HELP' => 'Nessuna operazione disponibile'
   );
 
 ?>

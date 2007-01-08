@@ -1,13 +1,12 @@
 <?php
 
-$Message = array
+$Messages = array
   (
-   'NAME' => 'Sondaggio',
-   'DESCRIPTION' => 'Gestione dei sondaggi',
-   'MANAGER' => 'Abilita i privilegi da gestore',
-   'ADMIN' => 'Abilita i privilegi da amministratore',
-   'TRUSTED' => 'Abilita i privilegi da utente registrato',
-   'UNTRUSTED' => 'Abilita i privilegi da utente anonimo'
+   'DESCRIPTION' => 'Sondaggi e classifiche',
+   'MANAGER_HELP' => 'Abilita i privilegi da gestore',
+   'ADMIN_HELP' => 'Abilita i privilegi da amministratore',
+   'TRUSTED_HELP' => 'Abilita i privilegi da utente registrato',
+   'UNTRUSTED_HELP' => 'Abilita i privilegi da utente anonimo'
   );
 
 ?>

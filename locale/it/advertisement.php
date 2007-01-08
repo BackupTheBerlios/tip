@@ -1,13 +1,12 @@
 <?php
 
-$Message = array
+$Messages = array
   (
-   'NAME' => 'Annunci',
    'DESCRIPTION' => 'Pubblicazione annunci',
-   'MANAGER' => 'Abilita i privilegi da gestore',
-   'ADMIN' => 'Abilita i privilegi da amministratore',
-   'TRUSTED' => 'Abilita i privilegi da utente registrato',
-   'UNTRUSTED' => 'Abilita i privilegi da utente anonimo'
+   'MANAGER_HELP' => 'Abilita i privilegi da gestore',
+   'ADMIN_HELP' => 'Abilita i privilegi da amministratore',
+   'TRUSTED_HELP' => 'Abilita i privilegi da utente registrato',
+   'UNTRUSTED_HELP' => 'Abilita i privilegi da utente anonimo'
   );
 
 ?>

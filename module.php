@@ -88,6 +88,7 @@ class tipModule extends tipType
   /// @privatesection
 
   var $PRIVILEGE;
+  var $LOCALES;
   var $VIEW_CACHE;
   var $VIEW_STACK;
   var $VIEW;
@@ -95,11 +96,16 @@ class tipModule extends tipType
 
   function GetLocale ($Id)
   {
-    $Locale = tip::GetOption ('application', 'locale');
-    $LocaleRoot = tip::GetOption ('application', 'locale_root');
-    $ModuleName = $this->GetName ();
-    include "$LocaleRoot/$Locale/$ModuleName.php";
-    return @$Message[$Id];
+    if (! $this->LOCALES)
+      {
+	$Locale = tip::GetOption ('application', 'locale');
+	$LocaleRoot = tip::GetOption ('application', 'locale_root');
+	$ModuleName = $this->GetName ();
+	include_once "$LocaleRoot/$Locale/$ModuleName.php";
+	$this->LOCALES = $Messages;
+      }
+
+    return @$this->LOCALES[$Id];
   }
 
 
@@ -114,12 +120,14 @@ class tipModule extends tipType
   {
     $this->tipType ();
 
-    $this->SOURCE_ENGINE =& tipType::GetInstance ($this->GetOption ('source_engine'));
-    $this->DATA_ENGINE =& tipType::GetInstance ($this->GetOption ('data_engine'));
     $this->PRIVILEGE = NULL;
+    $this->LOCALES = FALSE;
     $this->VIEW_CACHE = array ();
     $this->VIEW_STACK = array ();
     $this->VIEW = NULL;
+
+    $this->SOURCE_ENGINE =& tipType::GetInstance ($this->GetOption ('source_engine'));
+    $this->DATA_ENGINE =& tipType::GetInstance ($this->GetOption ('data_engine'));
 
     $this->FIELDS['SOURCE_PATH'] = $this->GetOption ('source_path');
     $this->FIELDS['DATA_PATH'] = $this->GetOption ('data_path');
@@ -397,7 +405,11 @@ class tipModule extends tipType
        *     subdirectories.
        **/
       case 'locale':
-	echo htmlentities ($this->GetLocale ($Params), ENT_QUOTES, 'UTF-8');
+	$Value = $this->GetLocale ($Params);
+	if ($Value)
+	  echo htmlentities ($this->GetLocale ($Params), ENT_QUOTES, 'UTF-8');
+	else
+	  $this->LogWarning ("locale message '$Params' not found");
 	return TRUE;
 
       /**
@@ -725,7 +737,8 @@ class tipModule extends tipType
 
   /**
    * Starts a query.
-   * @param[in] Query \c string The query to start.
+   * @param[in] Query \c string   The query to start
+   * @param[in] Force \c boolean  Do not check the cache contents
    *
    * Starts the \p Query query. Starting a query means you can traverse the
    * results of the query using the ResetRow() and NextRow() commands. Also,
@@ -743,9 +756,9 @@ class tipModule extends tipType
    *
    * @return \c TRUE on success, \c FALSE otherwise.
    **/
-  function StartQuery ($Query)
+  function StartQuery ($Query, $Force = FALSE)
   {
-    if (array_key_exists ($Query, $this->VIEW_CACHE))
+    if (! $Force && array_key_exists ($Query, $this->VIEW_CACHE))
       {
 	$View =& $this->VIEW_CACHE[$Query];
       }
@@ -754,7 +767,6 @@ class tipModule extends tipType
 	$View =& new tipModuleView;
 	if (! $View->Populate ($Query, $this))
 	  return FALSE;
-
 	$this->VIEW_CACHE[$Query] =& $View;
       }
 
@@ -890,7 +902,7 @@ class tipModule extends tipType
     $Last = count ($this->VIEW_STACK);
     if ($Last < 1)
       {
-	$this->LogWarning ('`EndQuery()\' requested without a previous `Query()\' call');
+	$this->LogWarning ('\'EndQuery()\' requested without a previous \'Query()\' call');
 	return FALSE;
       }
 

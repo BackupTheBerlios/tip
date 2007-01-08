@@ -459,6 +459,9 @@ class tipRcbtTag
 	return TRUE;
       }
 
+    if ($Parser->CONTEXT->SKIP)
+      return TRUE;
+
     if (! $Module->CallCommand ($this->COMMAND, $this->PARAMS))
       {
 	$Parser->LogWarning ($Module->GetError ());

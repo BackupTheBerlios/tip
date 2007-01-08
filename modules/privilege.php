@@ -55,33 +55,41 @@ class tipPrivilege extends tipModule
        *     For each module present in this site, run the \p source file.
        **/
       case 'foreachmodule':
-	$UserId = tip::GetGet ('user', 'integer');
-	if ($UserId === FALSE)
-	  $UserId = tipApplication::GetUserId ();
-
 	global $CFG;
 	$nRow = 1;
-	$this->FIELDS['LOCAL_USER'] = $UserId;
 
 	foreach (array_keys ($CFG) as $ModuleName)
 	  {
 	    $Module =& tipType::GetInstance ($ModuleName, FALSE);
 	    if (is_subclass_of ($Module, 'tipModule'))
 	      {
+		$From = $CFG[$ModuleName]['default_privilege'];
+		$To = $this->FIELDS['IS_MANAGER'] ? 'manager' : tipApplication::GetPrivilege ($Module);
+		$Available = $this->GetAvailablePrivileges ($Module, $From, $To);
+		if (count ($Available) <= 1)
+		  continue;
+
+		foreach ($this->PRIVILEGES as $Privilege)
+		  $this->FIELDS['LOCAL_' . strtoupper ($Privilege)] = in_array ($Privilege, $Available);
+
 		$this->FIELDS['LOCAL_ROW'] = $nRow;
 		$this->FIELDS['LOCAL_ODDEVEN'] = ($nRow & 1) > 0 ? 'odd' : 'even';
 		$this->FIELDS['LOCAL_MODULE'] = $ModuleName;
-		$this->FIELDS['LOCAL_NAME'] = $Module->GetLocale ('NAME');
-		$this->FIELDS['LOCAL_DESCRIPTION'] = $Module->GetLocale ('DESCRIPTION');
-		$this->FIELDS['LOCAL_PRIVILEGE'] = tipApplication::GetPrivilege ($Module, $UserId);
-		$this->FIELDS['LOCAL_DEFAULT'] = $CFG[$ModuleName]['default_privilege'];
+		$this->FIELDS['LOCAL_DEFAULT'] = $From;
+		$this->FIELDS['LOCAL_ACTIVE'] = tipApplication::GetPrivilege ($Module, $this->FIELDS['UID']);
 		if (! $this->Run ($Params))
 		  break;
 		++ $nRow;
 	      }
 	  }
 
+	foreach ($this->PRIVILEGES as $Privilege)
+	  unset ($this->FIELDS['LOCAL_' . strtoupper ($Privilege)]);
+	unset ($this->FIELDS['LOCAL_ROW']);
+	unset ($this->FIELDS['LOCAL_ODDEVEN']);
 	unset ($this->FIELDS['LOCAL_MODULE']);
+	unset ($this->FIELDS['LOCAL_DEFAULT']);
+	unset ($this->FIELDS['LOCAL_ACTIVE']);
 	return TRUE;
       }
 
@@ -89,35 +97,113 @@ class tipPrivilege extends tipModule
   }
 
   /**
-   * Executes a management action.
-   * @copydoc tipModule::RunManagerAction()
+   * Executes an administrator action.
+   * @copydoc tipModule::RunAdminAction()
    **/
-  function RunManagerAction ($Action)
+  function RunAdminAction ($Action)
   {
+    global $APPLICATION;
+
     switch ($Action)
       {
 	/**
 	 * \li <b>edit</b>\n
-	 *     Requests a privilege change for a specified user. You must specify
-	 *     in $_GET['user'] the user id.
+	 *     Requests a privilege change. You must specify in $_GET['user']
+	 *     the user id.
 	 **/
       case 'edit':
-	$this->AppendToContent ('edit.src');
+	if ($this->CheckUserId ())
+	  $this->AppendToContent ('edit.src');
 	return TRUE;
 
 	/**
 	 * \li <b>doedit</b>\n
 	 *     Changes the privileges of a user. You must specify in $_GET['user']
-	 *     the user id, in $_GET['module'] the module name and in
+	 *     the user id, in $_GET['where'] the module name and in
 	 *     $_GET['privilege'] the new privilege descriptor.
 	 **/
       case 'doedit':
-	// TODO
+	if (! $this->CheckUserId ())
+	  return TRUE;
+
+	$ModuleName = tip::GetGet ('where', 'string');
+	$Privilege = tip::GetGet ('privilege', 'string');
+	if (empty ($ModuleName) || empty ($Privilege))
+	  {
+	    $APPLICATION->Error ('E_NOTSPECIFIED');
+	    $this->AppendToContent ('edit.src');
+	    return TRUE;
+	  }
+
+	$Query = 'WHERE `_user`=' . $this->FIELDS['UID'];
+	$OldRow = FALSE;
+	$NewRow['privilege'] = $Privilege;
+	$NewRow['_user'] = $this->FIELDS['UID'];
+	$NewRow['_module'] = $ModuleName;
+
+	if ($this->StartQuery ($Query))
+	  {
+	    while ($this->NextRow ())
+	      {
+		$Row =& $this->GetCurrentRow ();
+		if ($ModuleName == @$Row['_module'])
+		  {
+		    $OldRow =& $Row;
+		    break;
+		  }
+	      }
+	    $this->EndQuery ();
+	  }
+
+	// Remove the query from the cache
+	unset ($this->VIEW_CACHE[$Query]);
+
+	if ($OldRow)
+	  {
+	    if ($this->DATA_ENGINE->UpdateRow ($OldRow, $NewRow, $this))
+	      $APPLICATION->Info ('I_DONE');
+	    else
+	      $APPLICATION->Error ('E_DATA_UPDATE');
+	  }
+	else
+	  {
+	    if ($this->DATA_ENGINE->PutRow ($NewRow, $this))
+	      $APPLICATION->Info ('I_DONE');
+	    else
+	      $APPLICATION->Error ('E_DATA_INSERT');
+	  }
+
+	$this->AppendToContent ('edit.src');
+	return TRUE;
+
+	/**
+	 * \li <b>restore</b>\n
+	 *     Restores all the privileges of a user to their defaults. You must
+	 *     specify in $_GET['user'] the user id.
+	 **/
+      case 'restore':
+	if (! $this->CheckUserId ())
+	  return TRUE;
+
+	$Query = 'WHERE `_user`=' . $this->FIELDS['UID'];
+	$OldRow = FALSE;
+	$NewRow['privilege'] = $Privilege;
+	$NewRow['_user'] = $this->FIELDS['UID'];
+	$NewRow['_module'] = $ModuleName;
+
+	if ($this->DATA_ENGINE->DeleteRows ($Query, $this))
+	  $APPLICATION->Info ('I_DONE');
+	else
+	  $APPLICATION->Error ('E_DATA_DELETE');
+
+	// Remove the query from the cache
+	unset ($this->VIEW_CACHE[$Query]);
+
 	$this->AppendToContent ('edit.src');
 	return TRUE;
       }
 
-    return parent::RunManagerAction ($Action);
+    return parent::RunAdminAction ($Action);
   }
 
 
@@ -172,9 +258,48 @@ class tipPrivilege extends tipModule
 
   /// @privatesection
 
+  var $PRIVILEGES;
+
+
   function tipPrivilege ()
   {
     $this->tipModule ();
+    $this->PRIVILEGES = array ('none', 'untrusted', 'trusted', 'admin', 'manager');
+    $this->FIELDS['UID'] = tip::GetGet ('user', 'integer');
+  }
+
+  function GetAvailablePrivileges (&$Module, $From, $To)
+  {
+    $Available = array ();
+    $Store = FALSE;
+
+    foreach ($this->PRIVILEGES as $Privilege)
+      {
+	$Store = $Store || $Privilege == $From;
+	if ($Store && $Module->GetLocale (strtoupper ($Privilege) . '_HELP'))
+	  $Available[] = $Privilege;
+
+	if ($Privilege == $To)
+	  break;
+      }
+
+    return $Available;
+  }
+
+  function CheckUserId ()
+  {
+    global $APPLICATION;
+    if (is_null ($this->FIELDS['UID']))
+      {
+	$APPLICATION->Error ('E_NOTSPECIFIED');
+	return FALSE;
+      }
+    if ($this->FIELDS['UID'] == tipApplication::GetUserId ())
+      {
+	$APPLICATION->Error ('E_DENIED');
+	return FALSE;
+      }
+    return TRUE;
   }
 }
 

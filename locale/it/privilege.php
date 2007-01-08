@@ -1,13 +1,11 @@
 <?php
 
-$Message = array
+$Messages = array
   (
-   'NAME' => 'Sicurezza',
-   'DESCRIPTION' => 'Gestione dei privilegi',
-   'MANAGER' => 'Abilita i privilegi da gestore',
-   'ADMIN' => 'Abilita i privilegi da amministratore',
-   'TRUSTED' => 'Abilita i privilegi da utente registrato',
-   'UNTRUSTED' => 'Abilita i privilegi da utente anonimo'
+   'DESCRIPTION' => 'Impostazione dei permessi utente',
+   'MANAGER_HELP' => 'Consente di modificare i privilegi a tutti gli utenti e per tutti i moduli',
+   'ADMIN_HELP' => 'Consente di modificare i privilegi a tutti gli utenti (escluso se stesso) e per tutti i moduli fino al proprio livello',
+   'NONE_HELP' => 'Nessuna operazione disponibile'
   );
 
 ?>

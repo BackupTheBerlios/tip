@@ -1,13 +1,11 @@
 <?php
 
-$Message = array
+$Messages = array
   (
-   'NAME' => 'Applicazione',
-   'DESCRIPTION' => 'Gestore del sito',
-   'MANAGER' => 'Abilita i privilegi da gestore',
-   'ADMIN' => 'Abilita i privilegi da amministratore',
-   'TRUSTED' => 'Abilita i privilegi da utente registrato',
-   'UNTRUSTED' => 'Abilita i privilegi da utente anonimo'
+   'DESCRIPTION' => 'Gestione del sito',
+   'MANAGER_HELP' => 'Abilita la visione dei messaggi di log alla fine di ogni pagina',
+   'ADMIN_HELP' => 'Consente di effettuare il backup del contenuto dell\'intero sito',
+   'NONE_HELP' => 'Nessuna operazione disponibile'
   );
 
 ?>
