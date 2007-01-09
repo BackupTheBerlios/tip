@@ -249,7 +249,7 @@ class tipData extends tipType
 
   function ForceFieldType (&$Row, &$Context)
   {
-    if (is_null ($Context->FIELDS) && ! $this->FillContextFields)
+    if (! $this->FillContextFields ($Context))
       return FALSE;
 
     foreach ($Context->FIELDS as $Id => $Meta)

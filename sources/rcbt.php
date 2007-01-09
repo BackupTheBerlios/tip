@@ -6,25 +6,26 @@ class tipRcbtContext
 
   var $MODULE;
   var $SKIP;
-  var $START_CALLBACK;
-  var $STOP_CALLBACK;
-  var $LOOP_CALLBACK;
+  var $ON_CREATE;
+  var $ON_DESTROY;
+  var $ON_START;
+  var $ON_STOP;
+  var $ON_LOOP;
   var $START_TP;
   var $START_POS;
-  var $PRIVATE;
-
 
 
   function tipRcbtContext (&$Module)
   {
     $this->MODULE =& $Module;
     $this->SKIP = FALSE;
-    $this->START_CALLBACK = NULL;
-    $this->STOP_CALLBACK = NULL;
-    $this->LOOP_CALLBACK = NULL;
+    $this->ON_CREATE =& new tipCallback;
+    $this->ON_DESTROY =& new tipCallback;
+    $this->ON_START =& new tipCallback;
+    $this->ON_STOP =& new tipCallback;
+    $this->ON_LOOP =& new tipCallback (FALSE);
     $this->START_TP = 0;
     $this->START_POS = 0;
-    $this->PRIVATE = NULL;
   }
 
   function SkipIf ($Skip)
@@ -40,31 +41,26 @@ class tipRcbtContext
 
   function Start (&$Parser)
   {
-    if (! is_null ($this->START_CALLBACK) && ! call_user_func ($this->START_CALLBACK, $this))
-      {
-	if (! is_null ($this->STOP_CALLBACK))
-	  call_user_func_array ($this->STOP_CALLBACK, array (&$this, &$Parser));
-	return FALSE;
-      }
-
     $this->START_TP = $Parser->TP;
     $this->START_POS = $Parser->POS;
-    return TRUE;
+    if (! $this->ON_CREATE->Go () || ! $this->ON_START->Go ())
+      $this->SkipIf (TRUE);
   }
 
   function Stop (&$Parser)
   {
-    if (! is_null ($this->LOOP_CALLBACK))
-      if (call_user_func_array ($this->LOOP_CALLBACK, array (&$this, &$Parser)))
-	{
-	  $Parser->Push (new tipRcbtContext ($this->MODULE));
-	  $Parser->TP = $this->START_TP;
-	  $Parser->POS = $this->START_POS;
-	  return;
-	}
+    if ($this->ON_LOOP->Go ())
+      {
+	$Parser->Push (new tipRcbtContext ($this->MODULE));
+	$Parser->TP = $this->START_TP;
+	$Parser->POS = $this->START_POS;
+	return;
+      }
 
-    if (! is_null ($this->STOP_CALLBACK))
-      call_user_func_array ($this->STOP_CALLBACK, array (&$this, &$Parser));
+    if ($this->ON_START->DONE)
+      $this->ON_STOP->Go ();
+    if ($this->ON_CREATE->DONE)
+      $this->ON_DESTROY->Go ();
 
     $this->SkipIf (FALSE);
   }
@@ -141,13 +137,10 @@ class tipRcbtParser
 
   function Push (&$NewContext)
   {
-    if (! $NewContext->Start ($this))
-      return FALSE;
-
+    $NewContext->Start ($this);
     $Last = count ($this->CONTEXT_STACK);
     $this->CONTEXT_STACK[$Last] =& $this->CONTEXT;
     $this->CONTEXT =& $NewContext;
-    return TRUE;
   }
 
   function Pop ()
@@ -389,56 +382,34 @@ class tipRcbtTag
 
       case 'query':
 	$Context =& new tipRcbtContext ($Module);
-	if ($Module->StartQuery ($this->PARAMS))
-	  {
-	    $Context->STOP_CALLBACK = array (&$Module, 'EndQuery');
-	    $Context->SkipIf (! $Module->ResetRow ());
-	  }
-	else
-	  {
-	    $Context->SkipIf (TRUE);
-	  }
+	$Context->ON_CREATE->Set (array (&$Module, 'StartQuery'), array ($this->PARAMS));
+	$Context->ON_START->Set (array (&$Module, 'ResetRow'));
+	$Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
 	$Parser->Push ($Context);
 	return TRUE;
 
       case 'querybyid':
-	$Context =& new tipRcbtContext ($Module);
 	$Query = $Module->DATA_ENGINE->QueryById ($this->PARAMS, $Module);
-	if ($Module->StartQuery ($Query))
-	  {
-	    $Context->STOP_CALLBACK = array (&$Module, 'EndQuery');
-	    $Context->SkipIf (! $Module->ResetRow ());
-	  }
-	else
-	  {
-	    $Context->SkipIf (TRUE);
-	  }
+	$Context =& new tipRcbtContext ($Module);
+	$Context->ON_CREATE->Set (array (&$Module, 'StartQuery'), array ($Query));
+	$Context->ON_START->Set (array (&$Module, 'ResetRow'));
+	$Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
 	$Parser->Push ($Context);
 	return TRUE;
 
       case 'forquery':
 	$Context =& new tipRcbtContext ($Module);
-	if ($Module->StartQuery ($this->PARAMS))
-	  {
-	    $Context->STOP_CALLBACK = array (&$Module, 'EndQuery');
-	    if (! $Module->ResetRow ())
-	      $Context->SkipIf (TRUE);
-	    else
-	      $Context->LOOP_CALLBACK = array (&$Module, 'NextRow');
-	  }
-	else
-	  {
-	    $Context->SkipIf (TRUE);
-	  }
+	$Context->ON_CREATE->Set (array (&$Module, 'StartQuery'), array ($this->PARAMS));
+	$Context->ON_START->Set (array (&$Module, 'ResetRow'));
+	$Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
+	$Context->ON_LOOP->Set (array (&$Module, 'NextRow'));
 	$Parser->Push ($Context);
 	return TRUE;
 
       case 'foreach':
 	$Context =& new tipRcbtContext ($Module);
-	if ($Module->ResetRow ())
-	  $Context->LOOP_CALLBACK = array (&$Module, 'NextRow');
-	else
-	  $Context->SkipIf (TRUE);
+	$Context->ON_START->Set (array (&$Module, 'ResetRow'));
+	$Context->ON_LOOP->Set (array (&$Module, 'NextRow'));
 	$Parser->Push ($Context);
 	return TRUE;
 
@@ -453,28 +424,26 @@ class tipRcbtTag
 	    return TRUE;
 	  }
 
+	$Field = substr ($this->PARAMS, 0, $Pos);
+	$Value = substr ($this->PARAMS, $Pos+1);
+	if (! $Module->NextRow () || $Module->GetField ($Field) != $Value)
+	  {
+	    $Module->PrevRow ();
+	    return TRUE;
+	  }
+
 	// Find the innermost loop
 	$n = count ($Parser->CONTEXT_STACK);
 	do
-	  $Context = $Parser->CONTEXT_STACK[--$n];
-	while (is_null ($Context->LOOP_CALLBACK));
+	  $LoopContext =& $Parser->CONTEXT_STACK[--$n];
+	while ($LoopContext->ON_LOOP->IsEmpty ());
 
-	$Field = substr ($this->PARAMS, 0, $Pos);
-	$Value = substr ($this->PARAMS, $Pos+1);
-
-	$Context->PRIVATE['field'] = $Field;
-	$Context->PRIVATE['value'] = $Value;
-	$Context->PRIVATE['tp'] = $Parser->TP;
-	$Context->PRIVATE['pos'] = $Parser->POS;
-
-	$ModuleRef = '$Context->MODULE';
-	$FieldRef = '$Context->PRIVATE[\'field\']';
-	$ValueRef = '$Context->PRIVATE[\'value\']';
-	$Condition = create_function ('&$Context', "return ${ModuleRef}->NextRow () && ${ModuleRef}->GetField ($FieldRef) == $ValueRef;");
-	$Context->START_CALLBACK =& $Condition;
-	$Context->LOOP_CALLBACK =& $Condition;
-
-	$Context->STOP_CALLBACK = create_function ('&$Context,&$Parser', '$Parser->TP = $Context->PRIVATE["tp"]; $Parser->POS = $Context->PRIVATE["pos"]; return $Context->MODULE->PrevRow ();');
+	$Context =& new tipRcbtContext ($Module);
+	$Context->START_POS = $LoopContext->START_POS;
+	$Context->START_TP = $LoopContext->START_TP;
+	$Context->ON_LOOP->Set (create_function ('&$Module,$Field,$Value', 'return $Module->NextRow () && $Module->GetField ($Field) == $Value;'), array (&$Module, $Field, $Value));
+	$Context->ON_STOP->Set (array (&$Module, 'PrevRow'));
+	$Context->ON_DESTROY->Set (create_function ('&$Parser,$TP,$Pos', '$Parser->TP = $TP; $Parser->POS = $Pos; return TRUE;'), array (&$Parser, $Parser->TP, $Parser->POS));
 
 	$Parser->TP = $Context->START_TP;
 	$Parser->POS = $Context->START_POS;

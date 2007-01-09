@@ -25,7 +25,7 @@
  * \b forquery method is by definition a read method (\a select, in SQL). This
  * means the command will expand to the real SQL query:
  *
- * <tt>SELECT * FROM `module_user` WHERE `user` LIKE 'c\%' LIMIT 10)</tt>
+ * <tt>SELECT * FROM `tip_user` WHERE `user` LIKE 'c\%' LIMIT 10)</tt>
  **/
 class tipMysql extends tipData
 {
@@ -263,7 +263,7 @@ class tipMysql extends tipData
 	    $Field['max_length'] = 4;
 	    break;
 	  default:
-	    $this->LogFatal ("`$Meta->type' field type not supported");
+	    $this->LogError ("'$Meta->type' field type not supported");
 	  }
 
 	$Field['required'] = FALSE;

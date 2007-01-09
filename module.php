@@ -228,7 +228,7 @@ class tipModule extends tipType
     if (is_null ($this->VIEW))
       return $Row;
 
-    if (current ($this->VIEW->ROWS) === FALSE)
+    if (@current ($this->VIEW->ROWS) === FALSE)
       {
 	$this->SetError ('no current row');
       }

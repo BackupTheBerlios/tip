@@ -357,4 +357,43 @@ class tip
   }
 }
 
+
+/**
+ * A generic callback.
+ *
+ * Base class for all the tip hierarchy. It provides some global useful
+ * functions.
+ **/
+class tipCallback extends tip
+{
+  var $CALLBACK;
+  var $PARAMS;
+  var $DONE;
+
+  function tipCallback ($Default = TRUE)
+  {
+    $this->CALLBACK = NULL;
+    $this->PARAMS = NULL;
+    $this->DONE = $Default;
+  }
+
+  function Set ($Callback, $Params = array ())
+  {
+    $this->CALLBACK = $Callback;
+    $this->PARAMS = $Params;
+  }
+
+  function IsEmpty ()
+  {
+    return is_null ($this->CALLBACK);
+  }
+
+  function Go ()
+  {
+    if (is_callable ($this->CALLBACK))
+      $this->DONE = call_user_func_array ($this->CALLBACK, $this->PARAMS) !== FALSE;
+    return $this->DONE;
+  }
+}
+
 ?>
