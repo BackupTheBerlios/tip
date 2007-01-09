@@ -361,15 +361,29 @@ class tip
 /**
  * A generic callback.
  *
- * Base class for all the tip hierarchy. It provides some global useful
- * functions.
+ * Provides some common stuff in callback management, such as a default return
+ * value for undefined callbacks.
  **/
 class tipCallback extends tip
 {
+  /// @privatesection
+
   var $CALLBACK;
   var $PARAMS;
+
+
+  /// @publicsection
+
   var $DONE;
 
+
+  /**
+   * Callback constructor
+   * @param[in] Default \c mixed  The default return value
+   *
+   * Initializes the callback class. The parameter \p Default is used as return
+   * value of the Go() method when the callback is not callable.
+   **/
   function tipCallback ($Default = TRUE)
   {
     $this->CALLBACK = NULL;
@@ -377,17 +391,42 @@ class tipCallback extends tip
     $this->DONE = $Default;
   }
 
+  /**
+   * Set a new callback
+   * @param[in] Callback \c callback  The new callback
+   * @param[in] Params   \c array     The params to pass to the callback
+   *
+   * Sets a new callback. If \p Params is omitted, no parameters will be passed
+   * to \p Callback.
+   **/
   function Set ($Callback, $Params = array ())
   {
     $this->CALLBACK = $Callback;
     $this->PARAMS = $Params;
   }
 
+  /**
+   * Callback check
+   *
+   * Returns \c TRUE if the callback is undefined. This method checks only
+   * if the internal callback is \c NULL, not if it is callable.
+   *
+   * @return \c TRUE if the callback is undefined or \c FALSE if it is defined.
+   **/
   function IsEmpty ()
   {
     return is_null ($this->CALLBACK);
   }
 
+  /**
+   * Callback call
+   *
+   * Performs the callback call. If the callback is undefined or is wrong
+   * (is_callable returns \c FALSE), the default value is returned.
+   *
+   * @return The callback return value or the default value if the callback
+   *         is not callable.
+   **/
   function Go ()
   {
     if (is_callable ($this->CALLBACK))

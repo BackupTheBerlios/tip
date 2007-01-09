@@ -11,12 +11,14 @@ class tipSource extends tipType
 
   /**
    * Parses and executes a buffer.
-   * @param[in] Buffer \c string    The buffer to run.
-   * @param[in] Module \c tipModule The caller module.
+   * @param[in] Buffer     \c string    The buffer to run
+   * @param[in] Module     \c tipModule The caller module
+   * @param[in] PreMessage \c string    A context description
    *
    * Parses and executes the commands specified in \p Buffer. Because of
    * \p Buffer can be a huge chunck of memory, it is passed by reference to
    * improve performances and avoid undesired copy overload.
+   * The \p PreMessage text is a context string to prepend in message logging.
    *
    * This method MUST be overriden by all the types that inherits tipSource.
    *
