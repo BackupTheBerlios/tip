@@ -2,8 +2,9 @@
 
 class tipRcbtContext
 {
-  /// @privatesection
+  /// @publicsection
 
+  var $MODULE;
   var $SKIP;
   var $START_CALLBACK;
   var $STOP_CALLBACK;
@@ -12,10 +13,6 @@ class tipRcbtContext
   var $START_POS;
   var $PRIVATE;
 
-
-  /// @publicsection
-
-  var $MODULE;
 
 
   function tipRcbtContext (&$Module)
@@ -30,6 +27,17 @@ class tipRcbtContext
     $this->PRIVATE = NULL;
   }
 
+  function SkipIf ($Skip)
+  {
+    if ($this->SKIP == $Skip)
+      return;
+    if ($Skip)
+      ob_start ();
+    else
+      ob_end_clean ();
+    $this->SKIP = $Skip;
+  }
+
   function Start (&$Parser)
   {
     if (! is_null ($this->START_CALLBACK) && ! call_user_func ($this->START_CALLBACK, $this))
@@ -38,9 +46,6 @@ class tipRcbtContext
 	  call_user_func_array ($this->STOP_CALLBACK, array (&$this, &$Parser));
 	return FALSE;
       }
-
-    if ($this->SKIP)
-      ob_start ();
 
     $this->START_TP = $Parser->TP;
     $this->START_POS = $Parser->POS;
@@ -61,8 +66,7 @@ class tipRcbtContext
     if (! is_null ($this->STOP_CALLBACK))
       call_user_func_array ($this->STOP_CALLBACK, array (&$this, &$Parser));
 
-    if ($this->SKIP)
-      ob_end_clean ();
+    $this->SkipIf (FALSE);
   }
 }
 
@@ -355,13 +359,32 @@ class tipRcbtTag
 	if (empty ($Condition))
 	  {
 	    $Parser->LogWarning ("invalid condition ($this->PARAMS)");
-	    $Context->SKIP = TRUE;
+	    $Context->SkipIf (TRUE);
 	  }
 	else
 	  {
-	    $Context->SKIP = ! $Condition ();
+	    $Context->SkipIf (! $Condition ());
 	  }
 	$Parser->Push ($Context);
+	return TRUE;
+
+      case 'else':
+	if (empty ($this->PARAMS))
+	  {
+	    $Parser->CONTEXT->SkipIf (! $Parser->CONTEXT->SKIP);
+	  }
+	elseif ($Parser->CONTEXT->SKIP)
+	  {
+	    $Condition = @create_function ('', "return $this->PARAMS;");
+	    if (empty ($Condition))
+	      $Parser->LogWarning ("invalid condition ($this->PARAMS)");
+	    else
+	      $Parser->CONTEXT->SkipIf (! $Condition ());
+	  }
+	else
+	  {
+	    $Parser->CONTEXT->SkipIf (TRUE);
+	  }
 	return TRUE;
 
       case 'query':
@@ -369,11 +392,11 @@ class tipRcbtTag
 	if ($Module->StartQuery ($this->PARAMS))
 	  {
 	    $Context->STOP_CALLBACK = array (&$Module, 'EndQuery');
-	    $Context->SKIP = ! $Module->ResetRow ();
+	    $Context->SkipIf (! $Module->ResetRow ());
 	  }
 	else
 	  {
-	    $Context->SKIP = TRUE;
+	    $Context->SkipIf (TRUE);
 	  }
 	$Parser->Push ($Context);
 	return TRUE;
@@ -384,11 +407,11 @@ class tipRcbtTag
 	if ($Module->StartQuery ($Query))
 	  {
 	    $Context->STOP_CALLBACK = array (&$Module, 'EndQuery');
-	    $Context->SKIP = ! $Module->ResetRow ();
+	    $Context->SkipIf (! $Module->ResetRow ());
 	  }
 	else
 	  {
-	    $Context->SKIP = TRUE;
+	    $Context->SkipIf (TRUE);
 	  }
 	$Parser->Push ($Context);
 	return TRUE;
@@ -399,13 +422,13 @@ class tipRcbtTag
 	  {
 	    $Context->STOP_CALLBACK = array (&$Module, 'EndQuery');
 	    if (! $Module->ResetRow ())
-	      $Context->SKIP = TRUE;
+	      $Context->SkipIf (TRUE);
 	    else
 	      $Context->LOOP_CALLBACK = array (&$Module, 'NextRow');
 	  }
 	else
 	  {
-	    $Context->SKIP = TRUE;
+	    $Context->SkipIf (TRUE);
 	  }
 	$Parser->Push ($Context);
 	return TRUE;
@@ -415,7 +438,7 @@ class tipRcbtTag
 	if ($Module->ResetRow ())
 	  $Context->LOOP_CALLBACK = array (&$Module, 'NextRow');
 	else
-	  $Context->SKIP = TRUE;
+	  $Context->SkipIf (TRUE);
 	$Parser->Push ($Context);
 	return TRUE;
 
@@ -545,6 +568,9 @@ class tipRcbtTag
  *     Executes the buffer enclosed by this tag and the <tt>{}</tt> tag
  *     only if \c conditions is true. During the execution of this buffer, the
  *     default module will be \c module.
+ * \li <b><tt>{[module.]else([conditions])}</tt></b>\n
+ *     Changes the skip condition of an enclosed buffer to \c conditions. If
+ *     \c conditions is not specified, reverts the previous skip condition.
  * \li <b><tt>{}</tt></b>\n
  *     Special tag that specifies the end of an enclosed buffer.
  **/
