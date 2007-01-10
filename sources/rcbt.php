@@ -57,9 +57,9 @@ class tipRcbtContext
 	return;
       }
 
-    if ($this->ON_START->DONE)
+    if ($this->ON_START->RESULT)
       $this->ON_STOP->Go ();
-    if ($this->ON_CREATE->DONE)
+    if ($this->ON_CREATE->RESULT)
       $this->ON_DESTROY->Go ();
 
     $this->SkipIf (FALSE);
@@ -410,6 +410,21 @@ class tipRcbtTag
 	$Context =& new tipRcbtContext ($Module);
 	$Context->ON_START->Set (array (&$Module, 'ResetRow'));
 	$Context->ON_LOOP->Set (array (&$Module, 'NextRow'));
+	if ($this->PARAMS == 'FIELD')
+	  {
+	    $Context->ON_CREATE->Set (array (&$Module, 'StartFields'));
+	    $Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
+	  }
+	elseif ($this->PARAMS == 'MODULE')
+	  {
+	    $Context->ON_CREATE->Set (array (&$Module, 'StartModules'));
+	    $Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
+	  }
+	elseif (! empty ($this->PARAMS))
+	  {
+	    $this->LogWarning ("undefined foreach mode ($this->PARAMS)");
+	    $Context->SkipIf (TRUE);
+	  }
 	$Parser->Push ($Context);
 	return TRUE;
 
@@ -420,7 +435,7 @@ class tipRcbtTag
 	$Pos = strpos ($this->PARAMS, ',');
 	if ($Pos === FALSE)
 	  {
-	    $this->LogWarning ('malformed recurseif tag');
+	    $this->LogWarning ("malformed recurseif tag ($this->PARAMS)");
 	    return TRUE;
 	  }
 
@@ -436,7 +451,7 @@ class tipRcbtTag
 	$n = count ($Parser->CONTEXT_STACK);
 	do
 	  $LoopContext =& $Parser->CONTEXT_STACK[--$n];
-	while ($LoopContext->ON_LOOP->IsEmpty ());
+	while ($LoopContext->ON_LOOP->IS_DEFAULT);
 
 	$Context =& new tipRcbtContext ($Module);
 	$Context->START_POS = $LoopContext->START_POS;
@@ -522,9 +537,12 @@ class tipRcbtTag
  *     Performs the specified \c query on \c module and, for every row, runs
  *     the buffer enclosed by this tag and the <tt>{}</tt> tag. During the
  *     execution of this buffer, the default module will be \c module.
- * \li <b><tt>{[module.]foreach()}</tt></b>\n
- *     Same as forquery, but traverses the current query instead of a specific
- *     one.
+ * \li <b><tt>{[module.]foreach([list])}</tt></b>\n
+ *     If you do not specify \p list, it is the same as forquery, but traverses
+ *     the current query instead of a specific one. If \p list is \b field,
+ *     a query that traverses all the fields is performed. If \p list is
+ *     \b module, a special query that traverses all the installed modules is
+ *     performed.
  * \li <b><tt>{recurseif(field,value)}</tt></b>\n
  *     Inside a \b forquery or a \b foreach command, you can recursively run
  *     the next rows that have the \c fieldid field equal to \c value.

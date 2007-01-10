@@ -43,60 +43,6 @@ class tipPrivilege extends tipModule
   /// @protectedsection
 
   /**
-   * Executes a command.
-   * @copydoc tipModule::RunCommand()
-   **/
-  function RunCommand ($Command, &$Params)
-  {
-    switch ($Command)
-      {
-      /**
-       * \li <b>ForEachModule(</b>\a source<b>)</b>\n
-       *     For each module present in this site, run the \p source file.
-       **/
-      case 'foreachmodule':
-	global $CFG;
-	$nRow = 1;
-
-	foreach (array_keys ($CFG) as $ModuleName)
-	  {
-	    $Module =& tipType::GetInstance ($ModuleName, FALSE);
-	    if (is_subclass_of ($Module, 'tipModule'))
-	      {
-		$From = $CFG[$ModuleName]['default_privilege'];
-		$To = $this->FIELDS['IS_MANAGER'] ? 'manager' : tipApplication::GetPrivilege ($Module);
-		$Available = $this->GetAvailablePrivileges ($Module, $From, $To);
-		if (count ($Available) <= 1)
-		  continue;
-
-		foreach ($this->PRIVILEGES as $Privilege)
-		  $this->FIELDS['LOCAL_' . strtoupper ($Privilege)] = in_array ($Privilege, $Available);
-
-		$this->FIELDS['LOCAL_ROW'] = $nRow;
-		$this->FIELDS['LOCAL_ODDEVEN'] = ($nRow & 1) > 0 ? 'odd' : 'even';
-		$this->FIELDS['LOCAL_MODULE'] = $ModuleName;
-		$this->FIELDS['LOCAL_DEFAULT'] = $From;
-		$this->FIELDS['LOCAL_ACTIVE'] = tipApplication::GetPrivilege ($Module, $this->FIELDS['UID']);
-		if (! $this->Run ($Params))
-		  break;
-		++ $nRow;
-	      }
-	  }
-
-	foreach ($this->PRIVILEGES as $Privilege)
-	  unset ($this->FIELDS['LOCAL_' . strtoupper ($Privilege)]);
-	unset ($this->FIELDS['LOCAL_ROW']);
-	unset ($this->FIELDS['LOCAL_ODDEVEN']);
-	unset ($this->FIELDS['LOCAL_MODULE']);
-	unset ($this->FIELDS['LOCAL_DEFAULT']);
-	unset ($this->FIELDS['LOCAL_ACTIVE']);
-	return TRUE;
-      }
-
-    return parent::RunCommand ($Command, $Params);
-  }
-
-  /**
    * Executes an administrator action.
    * @copydoc tipModule::RunAdminAction()
    **/
@@ -250,6 +196,13 @@ class tipPrivilege extends tipModule
     return $StoredPrivilege;
   }
 
+  function StartModules ()
+  {
+    $View =& new tipModuleView ($this);
+    $View->ON_ROW->Set (array (&$this, 'OnModuleRow'));
+    return $this->Push ($View);
+  }
+
 
   /// @privatesection
 
@@ -296,6 +249,23 @@ class tipPrivilege extends tipModule
       }
     return TRUE;
   }
+
+  function OnModuleRow (&$Row)
+  {
+    $Module =& tipType::GetInstance ($Row['id']);
+    $From = $Module->GetOption ('default_privilege');
+    $To = $this->FIELDS['IS_MANAGER'] ? 'manager' : tipApplication::GetPrivilege ($Module);
+    $Available = $this->GetAvailablePrivileges ($Module, $From, $To);
+
+    if (count ($Available) <= 1)
+      return FALSE;
+
+    $Row['active'] = tipApplication::GetPrivilege ($Module, $this->FIELDS['UID']);
+    foreach ($this->PRIVILEGES as $Privilege)
+      $Row['can_' . $Privilege] = in_array ($Privilege, $Available);
+    return TRUE;
+  }
+
 }
 
 ?>

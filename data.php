@@ -47,6 +47,7 @@ class tipDataContext extends tip
    * @verbatim
 FIELDS[fieldid] = array
   (
+    'id'          => fieldid,
     'type'        => a valid settype() type string,
     'subtype'     => 'date', 'time', 'datetime', 'enum', 'flag', 'unsigned' or NULL,
     'max_length'  => an integer specifing the max length, or 0 if not used,
@@ -313,6 +314,13 @@ class tipData extends tipType
       return NULL;
 
     return $this->RealQueryById ($Id, $Context);
+  }
+
+  function& GetFields (&$Module)
+  {
+    $Context =& $this->GetContext ($Module);
+    $this->FillContextFields ($Context);
+    return $Context->FIELDS;
   }
 
   /**

@@ -370,25 +370,32 @@ class tipCallback extends tip
 
   var $CALLBACK;
   var $PARAMS;
+  var $IS_DEFAULT;
+
+  function DefaultCallback ()
+  {
+    return $this->RESULT;
+  }
 
 
   /// @publicsection
 
-  var $DONE;
+  var $RESULT;
 
 
   /**
    * Callback constructor
-   * @param[in] Default \c mixed  The default return value
+   * @param[in] DefaultResult \c mixed  The default return value
    *
    * Initializes the callback class. The parameter \p Default is used as return
    * value of the Go() method when the callback is not callable.
    **/
-  function tipCallback ($Default = TRUE)
+  function tipCallback ($DefaultResult = TRUE)
   {
-    $this->CALLBACK = NULL;
-    $this->PARAMS = NULL;
-    $this->DONE = $Default;
+    $this->CALLBACK = array (&$this, 'DefaultCallback');
+    $this->PARAMS = array ();
+    $this->IS_DEFAULT = TRUE;
+    $this->RESULT = $DefaultResult;
   }
 
   /**
@@ -399,39 +406,33 @@ class tipCallback extends tip
    * Sets a new callback. If \p Params is omitted, no parameters will be passed
    * to \p Callback.
    **/
-  function Set ($Callback, $Params = array ())
+  function Set ($Callback, $Params = FALSE)
   {
     $this->CALLBACK = $Callback;
-    $this->PARAMS = $Params;
-  }
-
-  /**
-   * Callback check
-   *
-   * Returns \c TRUE if the callback is undefined. This method checks only
-   * if the internal callback is \c NULL, not if it is callable.
-   *
-   * @return \c TRUE if the callback is undefined or \c FALSE if it is defined.
-   **/
-  function IsEmpty ()
-  {
-    return is_null ($this->CALLBACK);
+    if (is_array ($Params))
+      $this->PARAMS = $Params;
+    $this->IS_DEFAULT = FALSE;
   }
 
   /**
    * Callback call
+   * @param[in] Params \c array  Parameters to pass to the callback
    *
-   * Performs the callback call. If the callback is undefined or is wrong
-   * (is_callable returns \c FALSE), the default value is returned.
+   * Performs the callback call. If the callback was never set throught Set(),
+   * a default callback is called; this callback simply returns the default
+   * return value specified when constructing the callback.
    *
-   * @return The callback return value or the default value if the callback
-   *         is not callable.
+   * If \p Params is not specified, the parameters specified by Set() will be
+   * used while calling the callback function.
+   *
+   * @return The callback return value
    **/
-  function Go ()
+  function Go ($Params = FALSE)
   {
-    if (is_callable ($this->CALLBACK))
-      $this->DONE = call_user_func_array ($this->CALLBACK, $this->PARAMS) !== FALSE;
-    return $this->DONE;
+    if (! is_array ($Params))
+      $Params =& $this->PARAMS;
+    $this->RESULT = call_user_func_array ($this->CALLBACK, $Params);
+    return $this->RESULT;
   }
 }
 

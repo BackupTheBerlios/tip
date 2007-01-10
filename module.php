@@ -1,47 +1,100 @@
 <?php
 
 /**
- * @private
- *
  * A data view internally used by the tipModule type.
  **/
-class tipModuleView extends tip
+class tipView extends tip
 {
   /// @publicsection
 
+  var $MODULE;
+  var $QUERY;
   var $ROWS;
   var $SUMMARY_FIELDS;
+  var $ON_ROW;
+  var $ON_ROWS;
 
-
-  function tipModuleView ()
+  function tipView (&$Module, $Query)
   {
+    $this->MODULE =& $Module;
+    $this->QUERY =& $Query;
     $this->ROWS = NULL;
     $this->SUMMARY_FIELDS['COUNT'] = 0;
+    $this->ON_ROW =& new tipCallback;
+    $this->ON_ROWS =& new tipCallback;
   }
 
-  function Populate ($Query, &$Module)
+  function Populate ()
   {
-    $this->ROWS =& $Module->DATA_ENGINE->GetRows ($Query, $Module);
+    $this->GetRows ();
     if (is_null ($this->ROWS))
       return TRUE;
 
-    if (! $Module->SummaryFields ($this->ROWS, $this->SUMMARY_FIELDS))
-      return FALSE;
-
-    $nRow = 0;
+    $nRow = 1;
     foreach (array_keys ($this->ROWS) as $Id)
       {
 	$Row =& $this->ROWS[$Id];
-	++ $nRow;
 	$Row['ROW'] = $nRow;
 	$Row['ODDEVEN'] = ($nRow & 1) > 0 ? 'odd' : 'even';
 
-	if (! $Module->CalculatedFields ($Row))
-	  return FALSE;
+	if ($this->ON_ROW->Go (array (&$Row)))
+	  ++ $nRow;
+	else
+	  unset ($this->ROWS[$Id]);
       }
 
-    $this->SUMMARY_FIELDS['COUNT'] = $nRow;
-    return TRUE;
+    $this->SUMMARY_FIELDS['COUNT'] = $nRow-1;
+    return $this->ON_ROWS->Go (array (&$this->ROWS, &$this->SUMMARY_FIELDS));
+  }
+
+
+  /// @protectedsection
+
+  function GetRows ()
+  {
+    $this->ROWS =& $this->MODULE->DATA_ENGINE->GetRows ($this->QUERY, $this->MODULE);
+  }
+}
+
+class tipFieldView extends tipView
+{
+  /// @publicsection
+
+  function tipFieldView (&$Module)
+  {
+    $this->tipView ($Module, '__FIELD__');
+  }
+
+
+  /// @protectedsection
+
+  function GetRows ()
+  {
+    $this->ROWS = $this->MODULE->DATA_ENGINE->GetFields ($Module);
+  }
+}
+
+class tipModuleView extends tipView
+{
+  /// @publicsection
+
+  function tipModuleView (&$Module)
+  {
+    $this->tipView ($Module, '__MODULE__');
+  }
+
+
+  /// @protectedsection
+
+  function GetRows ()
+  {
+    global $CFG;
+    foreach (array_keys ($CFG) as $ModuleName)
+      {
+	$Instance =& tipType::GetInstance ($ModuleName, FALSE);
+	if (is_subclass_of ($Instance, 'tipModule'))
+	  $this->ROWS[$ModuleName] = array ('id' => $ModuleName);
+      }
   }
 }
 
@@ -145,6 +198,57 @@ class tipModule extends tipType
     $this->FIELDS['IS_UNTRUSTED'] = strcmp ($Privilege, 'untrusted') == 0 || $this->FIELDS['IS_TRUSTED'];
   }
 
+  /**
+   * Push a view
+   * @param[in] View \c tipView  The view to push
+   *
+   * Pushes a view object in the stack of this module. You can restore the
+   * previous view calling Pop().
+   *
+   * @return \c TRUE on success of \c FALSE on errors
+   **/
+  function Push (&$View)
+  {
+    if (array_key_exists ($View->QUERY, $this->VIEW_CACHE))
+      {
+	$View =& $this->VIEW_CACHE[$View->QUERY];
+      }
+    else
+      {
+	if (! $View->Populate ())
+	  return FALSE;
+	$this->VIEW_CACHE[$View->QUERY] =& $View;
+      }
+
+    $this->VIEW_STACK[count ($this->VIEW_STACK)] =& $View;
+    $this->VIEW =& $View;
+    $this->UnsetRow ();
+    return TRUE;
+  }
+
+  /**
+   * Pop a view
+   *
+   * Pops a view object from the stack of this module. This operation restores
+   * the previously active view.
+   *
+   * @return \c TRUE on success of \c FALSE on errors
+   **/
+  function Pop ()
+  {
+    unset ($this->VIEW);
+    $this->VIEW = NULL;
+
+    $Last = count ($this->VIEW_STACK);
+    if ($Last < 1)
+      return FALSE;
+
+    unset ($this->VIEW_STACK[$Last - 1]);
+    if ($Last > 1)
+      $this->VIEW =& $this->VIEW_STACK[$Last-2];
+
+    return TRUE;
+  }
 
   /**
    * Performs additional operations on the whole result of a query.
@@ -325,9 +429,14 @@ class tipModule extends tipType
        **/
       case 'field':
 	$Value = $this->FindField ($Params);
+	if (is_null ($Value))
+	  {
+	    $this->SetError ("field not found ($Params)");
+	    return FALSE;
+	  }
 	if (is_bool ($Value))
 	  echo $Value ? 'TRUE' : 'FALSE';
-	elseif (! is_null ($Value))
+	else
 	  echo htmlentities ($Value, ENT_QUOTES, 'UTF-8');
 	return TRUE;
 
@@ -337,8 +446,12 @@ class tipModule extends tipType
        **/
       case 'get':
 	$Value = tip::GetGet ($Params, 'string');
-	if (! is_null ($Value))
-	  echo $Value;
+	if (is_null ($Value))
+	  {
+	    $this->SetError ("get not found ($Params)");
+	    return FALSE;
+	  }
+	echo $Value;
 	return TRUE;
 
       /**
@@ -347,8 +460,12 @@ class tipModule extends tipType
        **/
       case 'post':
 	$Value = tip::GetPost ($Params, 'string');
-	if (! is_null ($Value))
-	  echo $Value;
+	if (is_null ($Value))
+	  {
+	    $this->SetError ("post not found ($Params)");
+	    return FALSE;
+	  }
+	echo $Value;
 	return TRUE;
 
       /**
@@ -359,13 +476,8 @@ class tipModule extends tipType
       case 'postorfield':
 	$Value = tip::GetPost ($Params, 'string');
 	if (is_null ($Value))
-	  {
-	    $Value = $this->FindField ($Params);
-	    if (! is_null ($Value))
-	      $Value = htmlentities ($Value, ENT_QUOTES, 'UTF-8');
-	  }
-	if (! is_null ($Value))
-	  echo $Value;
+	  return $this->RunCommand ('field', $Params);
+	echo $Value;
 	return TRUE;
 
       /**
@@ -688,9 +800,6 @@ class tipModule extends tipType
    *     Checks if \p Field is the id of a global fields. Global fields are
    *     nothing more than module fields of the "application" instance. If
    *     found, the content of the global field is returned.
-   * \li <b>Field not found</b>\n
-   *     If no search was successful, the internal error is set accordling and
-   *     \c FALSE is returned.
    *
    * @return The content of the requested field, or \c NULL on errors.
    **/
@@ -699,12 +808,10 @@ class tipModule extends tipType
     $Value = $this->GetField ($Field);
     if (! is_null ($Value))
       return $Value;
-    $this->ResetError ();
 
     $Value = $this->GetSummaryField ($Field);
     if (! is_null ($Value))
       return $Value;
-    $this->ResetError ();
 
     if (@array_key_exists ($Field, $this->FIELDS))
       return $this->FIELDS[$Field];
@@ -717,7 +824,6 @@ class tipModule extends tipType
 	  return $Value;
       }
 
-    $this->SetError ("field `$Field' not found");
     return NULL;
   }
 
@@ -738,7 +844,6 @@ class tipModule extends tipType
   /**
    * Starts a query.
    * @param[in] Query \c string   The query to start
-   * @param[in] Force \c boolean  Do not check the cache contents
    *
    * Starts the \p Query query. Starting a query means you can traverse the
    * results of the query using the ResetRow() and NextRow() commands. Also,
@@ -756,24 +861,22 @@ class tipModule extends tipType
    *
    * @return \c TRUE on success, \c FALSE otherwise.
    **/
-  function StartQuery ($Query, $Force = FALSE)
+  function StartQuery ($Query)
   {
-    if (! $Force && array_key_exists ($Query, $this->VIEW_CACHE))
-      {
-	$View =& $this->VIEW_CACHE[$Query];
-      }
-    else
-      {
-	$View =& new tipModuleView;
-	if (! $View->Populate ($Query, $this))
-	  return FALSE;
-	$this->VIEW_CACHE[$Query] =& $View;
-      }
+    $View =& new tipView ($this, $Query);
+    $View->ON_ROW->Set (array (&$this, 'CalculatedFields'));
+    $View->ON_ROWS->Set (array (&$this, 'SummaryFields'));
+    return $this->Push ($View);
+  }
 
-    $this->VIEW_STACK[count ($this->VIEW_STACK)] =& $View;
-    $this->VIEW =& $View;
-    $this->UnsetRow ();
-    return TRUE;
+  function StartFields ()
+  {
+    return $this->Push (new tipFieldView ($this));
+  }
+
+  function StartModules ()
+  {
+    return $this->Push (new tipModuleView ($this));
   }
 
   /**
@@ -896,20 +999,11 @@ class tipModule extends tipType
    **/
   function EndQuery ()
   {
-    unset ($this->VIEW);
-    $this->VIEW = NULL;
-
-    $Last = count ($this->VIEW_STACK);
-    if ($Last < 1)
+    if (! $this->Pop ())
       {
 	$this->LogWarning ('\'EndQuery()\' requested without a previous \'Query()\' call');
 	return FALSE;
       }
-
-    unset ($this->VIEW_STACK[$Last - 1]);
-
-    if ($Last > 1)
-      $this->VIEW =& $this->VIEW_STACK[$Last-2];
 
     return TRUE;
   }

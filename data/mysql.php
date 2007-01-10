@@ -178,6 +178,7 @@ class tipMysql extends tipData
       {
 	$Context->FIELDS[$Meta->name] = array ();
 	$Field =& $Context->FIELDS[$Meta->name];
+	$Field['id'] = $Meta->name;
 
 	switch (strtoupper ($Meta->type))
 	  {
