@@ -4,45 +4,6 @@ class tipAdvertisementTree extends tipModule
 {
   /// @protectedsection
 
-  function SummaryFields (&$Rows, &$Fields)
-  {
-    $TotalCount = 0;
-
-    foreach (array_keys ($Rows) as $Id)
-      {
-	$Row =& $Rows[$Id];
-	$SortId = sprintf ("%03d", $Row['order']);
-	$TotalCount += @$Row['_count'];
-	$Current = $Id == @$this->FIELDS['CID'];
-	$Title = @$Row['title'];
-
-	$Level = 0;
-	$ParentId = @$Row['parent'];
-	while (array_key_exists ($ParentId, $Rows))
-	  {
-	    $ParentRow =& $Rows[$ParentId];
-	    $SortId = sprintf ("%03d", $ParentRow['order']) . '.' . $SortId;
-	    $Title = "{$ParentRow['title']}::$Title";
-	    
-	    $ParentRow['ISLEAF'] = FALSE;
-	    $ParentRow['COUNT'] += @$Row['_count'];
-	    $ParentId = $ParentRow['parent'];
-	    ++ $Level;
-	  }
-
-	$Row['SORTID'] = $SortId;
-	$Row['TITLE'] = $Title;
-	$Row['LEVEL'] = $Level;
-	if (! array_key_exists ('ISLEAF', $Row))
-	  $Row['ISLEAF'] = TRUE;
-	$Row['COUNT'] = @$Row['_count'];
-      }
-
-    $Fields['TOTALCOUNT'] = $TotalCount;
-    uasort ($Rows, array (&$this, 'sortid_compare'));
-    return parent::SummaryFields ($Rows, $Fields);
-  }
-
   /**
    * Executes a command.
    * @copydoc tipModule::RunCommand()
@@ -76,13 +37,15 @@ class tipAdvertisementTree extends tipModule
     return parent::RunCommand ($Command, $Params);
   }
 
+  function StartQuery ($Query)
+  {
+    $View =& new tipView ($this, $Query);
+    $View->ON_ROWS->Set (array (&$this, 'OnRows'));
+    return $this->Push ($View);
+  }
+
 
   /// @privatesection
-
-  function sortid_compare ($a, $b)
-  {
-    return strcmp ($a['SORTID'], $b['SORTID']);
-  }
 
   function tipAdvertisementTree ()
   {
@@ -93,28 +56,57 @@ class tipAdvertisementTree extends tipModule
     $this->StartQuery ('');
     // No EndQuery() call to retain this query as the default one
   }
+
+  function sortid_compare ($a, $b)
+  {
+    return strcmp ($a['SORTID'], $b['SORTID']);
+  }
+
+  function OnRows (&$View)
+  {
+    $TotalCount = 0;
+
+    foreach (array_keys ($View->ROWS) as $Id)
+      {
+	$Row =& $View->ROWS[$Id];
+	$SortId = sprintf ("%03d", $Row['order']);
+	$TotalCount += @$Row['_count'];
+	$Current = $Id == @$this->FIELDS['CID'];
+	$Title = @$Row['title'];
+
+	$Level = 0;
+	$ParentId = @$Row['parent'];
+	while (array_key_exists ($ParentId, $View->ROWS))
+	  {
+	    $ParentRow =& $View->ROWS[$ParentId];
+	    $SortId = sprintf ("%03d", $ParentRow['order']) . '.' . $SortId;
+	    $Title = "{$ParentRow['title']}::$Title";
+	    
+	    $ParentRow['ISLEAF'] = FALSE;
+	    $ParentRow['COUNT'] += @$Row['_count'];
+	    $ParentId = $ParentRow['parent'];
+	    ++ $Level;
+	  }
+
+	$Row['SORTID'] = $SortId;
+	$Row['TITLE'] = $Title;
+	$Row['LEVEL'] = $Level;
+	if (! array_key_exists ('ISLEAF', $Row))
+	  $Row['ISLEAF'] = TRUE;
+	$Row['COUNT'] = @$Row['_count'];
+      }
+
+    $View->SUMMARY_FIELDS['TOTALCOUNT'] = $TotalCount;
+    uasort ($View->ROWS, array (&$this, 'sortid_compare'));
+    return TRUE;
+  }
+
 }
 
 
 class tipAdvertisement extends tipModule
 {
   /// @protectedsection
-
-  /**
-   * Adds calculated fields to the rows.
-   * @copydoc tipModule::CalculatedFields()
-   **/
-  function CalculatedFields (&$Row)
-  {
-    /**
-     * \li <b>ISOWNER</b>\n
-     *     \c TRUE if this advertisement is owned (was created by) the current
-     *     logged in user, or \c FALSE otherwise.
-     **/
-    $Row['ISOWNER'] = $Row['_user'] === tipApplication::GetUserId ();
-
-    return parent::CalculatedFields ($Row);
-  }
 
   /**
    * Executes an action.

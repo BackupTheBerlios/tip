@@ -5,53 +5,6 @@ class tipPoll extends tipModule
   /// @protectedsection
 
   /**
-   * Adds calculated fields to the rows.
-   * @copydoc tipModule::CalculatedFields()
-   **/
-  function CalculatedFields (&$Row)
-  {
-    $Total = $Row['votes1']+$Row['votes2']+$Row['votes3']+$Row['votes4']+$Row['votes5']+$Row['votes6'];
-
-    /**
-     * \li <b>TOTAL</b>\n
-     *     The total number of votes for every poll.
-     **/
-    $Row['TOTAL'] = $Total;
-    /**
-     * \li <b>PERCENT1</b>\n
-     *     The percentage of answer 1.
-     **/
-    $Row['PERCENT1'] = round ($Row['votes1'] * 100.0 / $Total);
-    /**
-     * \li <b>PERCENT2</b>\n
-     *     The percentage of answer 2.
-     **/
-    $Row['PERCENT2'] = round ($Row['votes2'] * 100.0 / $Total);
-    /**
-     * \li <b>PERCENT3</b>\n
-     *     The percentage of answer 3.
-     **/
-    $Row['PERCENT3'] = round ($Row['votes3'] * 100.0 / $Total);
-    /**
-     * \li <b>PERCENT4</b>\n
-     *     The percentage of answer 4.
-     **/
-    $Row['PERCENT4'] = round ($Row['votes4'] * 100.0 / $Total);
-    /**
-     * \li <b>PERCENT5</b>\n
-     *     The percentage of answer 5.
-     **/
-    $Row['PERCENT5'] = round ($Row['votes5'] * 100.0 / $Total);
-    /**
-     * \li <b>PERCENT6</b>\n
-     *     The percentage of answer 6.
-     **/
-    $Row['PERCENT6'] = round ($Row['votes6'] * 100.0 / $Total);
-
-    return parent::CalculatedFields ($Row);
-  }
-
-  /**
    * Executes an action.
    * @copydoc tipModule::RunAction()
    **/
@@ -121,7 +74,7 @@ class tipPoll extends tipModule
 	  }
 
 	++ $Row[$Votes];
-	$this->CalculatedFields ($Row);
+	$this->OnRow ($Row);
 	$this->DATA_ENGINE->UpdateRow ($OldRow, $Row, $this);
 	setcookie ('plvoted', 'true', strtotime ($this->GetOption ('expiration')));
 
@@ -131,6 +84,13 @@ class tipPoll extends tipModule
       }
 
     return parent::RunAction ($Action);
+  }
+
+  function StartQuery ($Query)
+  {
+    $View =& new tipView ($this, $Query);
+    $View->ON_ROW->Set (array (&$this, 'OnRow'));
+    return $this->Push ($View);
   }
 
 
@@ -143,6 +103,22 @@ class tipPoll extends tipModule
     $this->ResetRow ();
     // No EndQuery() call to retain this row as default row
   }
+
+  function OnRow (&$Row)
+  {
+    $Total = $Row['votes1']+$Row['votes2']+$Row['votes3']+$Row['votes4']+$Row['votes5']+$Row['votes6'];
+
+    $Row['TOTAL'] = $Total;
+    $Row['PERCENT1'] = round ($Row['votes1'] * 100.0 / $Total);
+    $Row['PERCENT2'] = round ($Row['votes2'] * 100.0 / $Total);
+    $Row['PERCENT3'] = round ($Row['votes3'] * 100.0 / $Total);
+    $Row['PERCENT4'] = round ($Row['votes4'] * 100.0 / $Total);
+    $Row['PERCENT5'] = round ($Row['votes5'] * 100.0 / $Total);
+    $Row['PERCENT6'] = round ($Row['votes6'] * 100.0 / $Total);
+
+    return TRUE;
+  }
+
 }
 
 ?>

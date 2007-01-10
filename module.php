@@ -44,7 +44,7 @@ class tipView extends tip
       }
 
     $this->SUMMARY_FIELDS['COUNT'] = $nRow-1;
-    return $this->ON_ROWS->Go (array (&$this->ROWS, &$this->SUMMARY_FIELDS));
+    return $this->ON_ROWS->Go (array (&$this));
   }
 
 
@@ -251,57 +251,6 @@ class tipModule extends tipType
   }
 
   /**
-   * Performs additional operations on the whole result of a query.
-   * @param[in,out] $Rows   \c array The query result
-   * @param[in,out] $Fields \c array Summary fields
-   *
-   * Called after every query and before CalculatedFields(). You can override
-   * this method to add some summary fields or performs operation on the whole
-   * result. Summary fields are informations logically connected to the query,
-   * such as the row count or a total sum of a particular column.
-   * As for CalculatedFields(), returning \c FALSE will invalidate the query.
-   *
-   * @note Remember to always chain up the parent method.
-   *
-   * @return \c TRUE on success, \c FALSE otherwise.
-   *
-   * The following summary fields are added by this module:
-   * \li <b>COUNT</b>\n
-   *     The number of rows matching the query. This field is directly added
-   *     by the StartQuery() call.
-   **/
-  function SummaryFields (&$Rows, &$Fields)
-  {
-    return TRUE;
-  }
-
-  /**
-   * Adds calculated fields to the rows.
-   * @param[in,out] $Row \c array A row
-   *
-   * Called for every row retrieved by the data engine. You can override this
-   * method to add some calculated field to every row. Returning \c FALSE will
-   * a single row will invalidate the whole query, so usually you must ever
-   * return \c TRUE.
-   *
-   * @note Remember to always chain up the parent method.
-   *
-   * @return \c TRUE on success, \c FALSE otherwise.
-   *
-   * The following calculated fields are added by this module:
-   * \li <b>ROW</b>\n
-   *     The row number, starting from 1. This field is directly added by the
-   *     StartQuery() call.
-   * \li <b>ODDEVEN</b>\n
-   *     A field that will be set to 'odd' for every odd row and to 'even' for
-   *     the even rows. This field is directly added by the StartQuery() call.
-   **/
-  function CalculatedFields (&$Row)
-  {
-    return TRUE;
-  }
-
-  /**
    * Gets the current rows.
    *
    * Gets a reference to the rows matching the current query.
@@ -478,6 +427,16 @@ class tipModule extends tipType
 	if (is_null ($Value))
 	  return $this->RunCommand ('field', $Params);
 	echo $Value;
+	return TRUE;
+
+      /**
+       * \li <b>is(</b>\a userid<b>)</b>\n
+       *     Expands to \c TRUE if the current logged-in user equals to
+       *     \p userid or \c FALSE otherwise.
+       **/
+      case 'is':
+	$UID = (int) $Params;
+	echo $UID === $APPLICATION->GetUserId () ? 'TRUE' : 'FALSE';
 	return TRUE;
 
       /**
@@ -863,10 +822,7 @@ class tipModule extends tipType
    **/
   function StartQuery ($Query)
   {
-    $View =& new tipView ($this, $Query);
-    $View->ON_ROW->Set (array (&$this, 'CalculatedFields'));
-    $View->ON_ROWS->Set (array (&$this, 'SummaryFields'));
-    return $this->Push ($View);
+    return $this->Push (new tipView ($this, $Query));
   }
 
   function StartFields ()

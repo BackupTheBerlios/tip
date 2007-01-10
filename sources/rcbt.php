@@ -382,9 +382,12 @@ class tipRcbtTag
 
       case 'query':
 	$Context =& new tipRcbtContext ($Module);
-	$Context->ON_CREATE->Set (array (&$Module, 'StartQuery'), array ($this->PARAMS));
-	$Context->ON_START->Set (array (&$Module, 'ResetRow'));
-	$Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
+	if (! empty ($this->PARAMS))
+	  {
+	    $Context->ON_CREATE->Set (array (&$Module, 'StartQuery'), array ($this->PARAMS));
+	    $Context->ON_START->Set (array (&$Module, 'ResetRow'));
+	    $Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
+	  }
 	$Parser->Push ($Context);
 	return TRUE;
 
@@ -526,10 +529,11 @@ class tipRcbtTag
  *
  * \li <b><tt>{[module.]query([query])}</tt></b>\n
  *     Performs the specified \c query on \c module and runs the buffer
- *     enclosed by this tag and the <tt>{}</tt> tag with this query actve.
+ *     enclosed by this tag and the <tt>{}</tt> tag with this query active.
  *     This can be helpful, for instance, to show the summary fields of a
  *     query. During the execution of this buffer, the default module will be
- *     \c module.
+ *     \c module. This means if you do not specify the query, this tag simply
+ *     change the default module.
  * \li <b><tt>{[module.]querybyid(id)}</tt></b>\n
  *     A shortcut to the \c query command performing a query on the primary
  *     key content.

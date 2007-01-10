@@ -20,21 +20,6 @@ class tipUser extends tipModule
   /// @protectedsection
 
   /**
-   * Adds calculated fields to the rows.
-   * @copydoc tipModule::CalculatedFields()
-   **/
-  function CalculatedFields (&$Row)
-  {
-    /**
-     * \li <b>OA</b>\n
-     *     Evaluates to 'a' if the field 'sex' is 'female', 'o' otherwise.
-     **/
-    $Row['OA'] = $Row['sex'] == 'female' ? 'a' : 'o';
-
-    return parent::CalculatedFields ($Row);
-  }
-
-  /**
    * Executes a management action.
    * @copydoc tipModule::RunManagerAction()
    **/
@@ -288,6 +273,13 @@ class tipUser extends tipModule
     return parent::RunUntrustedAction ($Action);
   }
 
+  function StartQuery ($Query)
+  {
+    $View =& new tipView ($this, $Query);
+    $View->ON_ROW->Set (array (&$this, 'OnRow'));
+    return $this->Push ($View);
+  }
+
 
   /// @publicsection
 
@@ -386,6 +378,12 @@ class tipUser extends tipModule
   {
     if (is_array ($this->OLDROW) && is_array ($this->NEWROW))
       $this->DATA_ENGINE->UpdateRow ($this->OLDROW, $this->NEWROW, $this);
+  }
+
+  function OnRow (&$Row)
+  {
+    $Row['OA'] = $Row['sex'] == 'female' ? 'a' : 'o';
+    return TRUE;
   }
 
   function& GetMyself ($Id)

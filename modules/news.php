@@ -5,22 +5,6 @@ class tipNews extends tipModule
   // Overriden:
 
   /**
-   * Adds calculated fields to the rows.
-   * @copydoc tipModule::CalculatedFields()
-   **/
-  function CalculatedFields (&$Row)
-  {
-    /**
-     * \li <b>ISOWNER</b>\n
-     *     \c TRUE if this news is owned (was created by) the current logged
-     *     in user, or \c FALSE otherwise.
-     **/
-    $Row['ISOWNER'] = $Row['_user'] === tipApplication::GetUserId ();
-
-    return parent::CalculatedFields ($Row);
-  }
-
-  /**
    * Executes an action.
    * @copydoc tipModule::RunAction()
    **/
@@ -229,19 +213,6 @@ class tipNewsComment extends tipModule
     switch ($Action)
       {
       case 'add':
-	if (! $User->IsAllowed ('news_comment'))
-	  {
-	    Error ('VL_DENIED');
-	    return FALSE;
-	  }
-
-	$NewsId = @$_POST['id'];
-	if (empty ($NewsId))
-	  {
-	    Error ('NWS_NEWSREQ');
-	    return FALSE;
-	  }
-
 	$Content = @$_POST['content'];
 	if (empty ($Content))
 	  {
@@ -249,7 +220,7 @@ class tipNewsComment extends tipModule
 	    return FALSE;
 	  }
 
-	$this->EchoInContent ('comment.html');
+	$this->AppendToContent ('comment.src');
 	return TRUE;
 
       case 'doadd':
