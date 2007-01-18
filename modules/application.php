@@ -5,6 +5,11 @@
  *
  * Provides an easy way to display error/warning/whatever messages to the
  * users.
+ *
+ * Provided module fields:
+ *
+ * \li <b>CONTEXT_MESSAGE</b>\n
+ *     A text to append to notify message.
  **/
 class tipNotify extends tipModule
 {
@@ -108,6 +113,7 @@ class tipNotify extends tipModule
   {
     $this->tipModule ();
     $this->DATA_ENGINE->SetPrimaryKey ('id', 'string', $this);
+    $this->FIELDS['CONTEXT_MESSAGE'] = '';
   }
 }
 
@@ -146,7 +152,7 @@ class tipApplication extends tipModule
        **/
       case 'content':
 	if (empty ($this->CONTENT))
-	  $this->DataRun ('welcome.src');
+	  $this->RunShared ('welcome.src');
 	else
 	  echo $this->CONTENT;
 
@@ -216,11 +222,27 @@ class tipApplication extends tipModule
 	$ModuleName = tip::GetPost ('module', 'string');
       }
 
-    if ($ModuleName && $Action)
+    if ($ModuleName)
       {
 	$Module =& tipType::GetInstance ($ModuleName, FALSE);
-	if ($Module !== FALSE)
-	  $Module->CallAction ($Action);
+	if ($Module === FALSE)
+	  {
+	    $this->Error ('E_URL_MODULE');
+	  }
+	else
+	  {
+	    if (empty ($Action))
+	      {
+		$this->Error ('E_URL_ACTION');
+	      }
+	    elseif (is_null ($Module->CallAction ($Action)))
+	      {
+		if (is_null ($this->GetUserId ()))
+		  $this->Error ('E_URL_RESERVED');
+		else
+		  $this->Error ('E_URL_DENIED');
+	      }
+	  }
       }
 
     // Generates the page
@@ -238,17 +260,19 @@ class tipApplication extends tipModule
    * @note If the error id is not found, a new call to EchoError() without
    *       any argument is performed to try to get a default error message.
    **/
-  function Error ($ErrorId)
+  function Error ($ErrorId, $ContextMessage = '')
   {
-    $ErrorModule =& tipType::GetInstance ('notify');
+    $Notify =& tipType::GetInstance ('notify');
+    $Notify->FIELDS['CONTEXT_MESSAGE'] = $ContextMessage;
 
-    if (! $ErrorModule->EchoError ($ErrorId))
-      $ErrorModule->EchoError ();
+    if (! $Notify->EchoError ($ErrorId))
+      $Notify->EchoError ();
   }
 
   /**
    * Info notification.
-   * @param[in] InfoId \c mixed The info id
+   * @param[in] InfoId         \c mixed   The info id
+   * @param[in] ContextMessage \c string  A text to append to the message
    *
    * Outputs the specified info message to notify the user about something.
    * This is merely a wrapper that calls the tipNotify::EchoInfo() method, so
@@ -257,12 +281,13 @@ class tipApplication extends tipModule
    * @note If the info id is not found, a new call to EchoInfo() without
    *       any argument is performed to try to get a default info message.
    **/
-  function Info ($InfoId)
+  function Info ($InfoId, $ContextMessage = '')
   {
-    $ErrorModule =& tipType::GetInstance ('notify');
+    $Notify =& tipType::GetInstance ('notify');
+    $Notify->FIELDS['CONTEXT_MESSAGE'] = $ContextMessage;
 
-    if (! $ErrorModule->EchoInfo ($InfoId))
-      $ErrorModule->EchoInfo ();
+    if (! $Notify->EchoInfo ($InfoId))
+      $Notify->EchoInfo ();
   }
 
   /**

@@ -189,7 +189,7 @@ class tip
    *
    * @return \c TRUE if the item is inside the set, \c FALSE otherwise.
    **/
-  function ItemExists ($Item, $Set)
+  function InList ($Item, $Set)
   {
     $Token = strtok ($Set, ' ,');
     while ($Token !== FALSE)
@@ -385,17 +385,28 @@ class tipCallback extends tip
 
   /**
    * Callback constructor
-   * @param[in] DefaultResult \c mixed  The default return value
+   * @param[in] Default \c mixed  The default return value or callback
    *
-   * Initializes the callback class. The parameter \p Default is used as return
-   * value of the Go() method when the callback is not callable.
+   * Initializes the callback class. The parameter \p Default is used as
+   * default callback (if it is callable) or as default return value of the
+   * Go() method when the callback is not set.
    **/
-  function tipCallback ($DefaultResult = TRUE)
+  function tipCallback ($Default = TRUE)
   {
-    $this->CALLBACK = array (&$this, 'DefaultCallback');
     $this->PARAMS = array ();
-    $this->IS_DEFAULT = TRUE;
-    $this->RESULT = $DefaultResult;
+
+    if (is_callable ($Default))
+      {
+	$this->CALLBACK =& $Default;
+	$this->IS_DEFAULT = FALSE;
+	$this->RESULT = FALSE;
+      }
+    else
+      {
+	$this->CALLBACK = array (&$this, 'DefaultCallback');
+	$this->IS_DEFAULT = TRUE;
+	$this->RESULT = $Default;
+      }
   }
 
   /**

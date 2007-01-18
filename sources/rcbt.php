@@ -192,6 +192,8 @@ class tipRcbtParser
 
 class tipRcbtTag
 {
+  /// @privatesection
+
   var $START;
   var $END;
   var $SUBTAG;
@@ -199,6 +201,25 @@ class tipRcbtTag
   var $MODULE_NAME;
   var $COMMAND;
   var $PARAMS;
+
+  function& CreateContext (&$Parser, &$Module)
+  {
+    if ($Parser->CONTEXT->SKIP)
+      {
+	$DummyContext =& new tipRcbtContext ($Module);
+	$DummyContext->SkipIf (TRUE);
+	$Parser->Push ($DummyContext);
+	$Context = FALSE;
+      }
+    else
+      {
+	$Context =& new tipRcbtContext ($Module);
+      }
+    return $Context;
+  }
+
+
+  /// @publicsection
 
   function tipRcbtTag ()
   {
@@ -299,16 +320,16 @@ class tipRcbtTag
     $Token = explode ('.', trim ($Text));
     switch (count ($Token))
       {
-      case 0:
-	$this->MODULE_NAME = FALSE;
-	$this->COMMAND = FALSE;
-	break;
       case 1:
 	$this->MODULE_NAME = FALSE;
 	if ($this->PARAMS === FALSE)
 	  {
-	    $this->COMMAND = 'field';
+	    $this->COMMAND = 'html';
 	    $this->PARAMS = $Token[0];
+	  }
+	elseif (empty ($Token[0]))
+	  {
+	    $this->COMMAND = 'tryhtml';
 	  }
 	else
 	  {
@@ -321,7 +342,7 @@ class tipRcbtTag
 	break;
       default:
 	if (strlen ($Text) > 20)
-	  $Text = substr ($Text, 0, 15) . '...';
+	  $Text = substr ($Text, 0, 17) . '...';
 	$Parser->LogError ("malformed tag ($Text)");
 	return FALSE;
       }
@@ -347,88 +368,96 @@ class tipRcbtTag
     switch ($this->COMMAND)
       {
       case 'if':
-	$Context =& new tipRcbtContext ($Module);
-	$Condition = @create_function ('', "return $this->PARAMS;");
-	if (empty ($Condition))
-	  {
-	    $Parser->LogWarning ("invalid condition ($this->PARAMS)");
-	    $Context->SkipIf (TRUE);
-	  }
-	else
-	  {
-	    $Context->SkipIf (! $Condition ());
-	  }
-	$Parser->Push ($Context);
-	return TRUE;
-
-      case 'else':
-	if (empty ($this->PARAMS))
-	  {
-	    $Parser->CONTEXT->SkipIf (! $Parser->CONTEXT->SKIP);
-	  }
-	elseif ($Parser->CONTEXT->SKIP)
+	if ($Context =& $this->CreateContext ($Parser, $Module))
 	  {
 	    $Condition = @create_function ('', "return $this->PARAMS;");
 	    if (empty ($Condition))
-	      $Parser->LogWarning ("invalid condition ($this->PARAMS)");
+	      {
+		$Parser->LogWarning ("invalid condition ($this->PARAMS)");
+		$Context->SkipIf (TRUE);
+	      }
 	    else
-	      $Parser->CONTEXT->SkipIf (! $Condition ());
-	  }
-	else
-	  {
-	    $Parser->CONTEXT->SkipIf (TRUE);
+	      {
+		$Context->SkipIf (! $Condition ());
+	      }
+	    $Parser->Push ($Context);
 	  }
 	return TRUE;
 
       case 'query':
-	$Context =& new tipRcbtContext ($Module);
-	if (! empty ($this->PARAMS))
+	if ($Context =& $this->CreateContext ($Parser, $Module))
+	  {
+	    if (! empty ($this->PARAMS))
+	      {
+		$Context->ON_CREATE->Set (array (&$Module, 'StartQuery'), array ($this->PARAMS));
+		$Context->ON_START->Set (array (&$Module, 'ResetRow'));
+		$Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
+	      }
+	    $Parser->Push ($Context);
+	  }
+	return TRUE;
+
+      case 'querybyid':
+	if ($Context =& $this->CreateContext ($Parser, $Module))
+	  {
+	    $Query = $Module->DATA_ENGINE->QueryById ($this->PARAMS, $Module);
+	    $Context->ON_CREATE->Set (array (&$Module, 'StartQuery'), array ($Query));
+	    $Context->ON_START->Set (array (&$Module, 'ResetRow'));
+	    $Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
+	    $Parser->Push ($Context);
+	  }
+	return TRUE;
+
+      case 'forquery':
+	if ($Context =& $this->CreateContext ($Parser, $Module))
 	  {
 	    $Context->ON_CREATE->Set (array (&$Module, 'StartQuery'), array ($this->PARAMS));
 	    $Context->ON_START->Set (array (&$Module, 'ResetRow'));
 	    $Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
+	    $Context->ON_LOOP->Set (array (&$Module, 'NextRow'));
+	    $Parser->Push ($Context);
 	  }
-	$Parser->Push ($Context);
-	return TRUE;
-
-      case 'querybyid':
-	$Query = $Module->DATA_ENGINE->QueryById ($this->PARAMS, $Module);
-	$Context =& new tipRcbtContext ($Module);
-	$Context->ON_CREATE->Set (array (&$Module, 'StartQuery'), array ($Query));
-	$Context->ON_START->Set (array (&$Module, 'ResetRow'));
-	$Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
-	$Parser->Push ($Context);
-	return TRUE;
-
-      case 'forquery':
-	$Context =& new tipRcbtContext ($Module);
-	$Context->ON_CREATE->Set (array (&$Module, 'StartQuery'), array ($this->PARAMS));
-	$Context->ON_START->Set (array (&$Module, 'ResetRow'));
-	$Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
-	$Context->ON_LOOP->Set (array (&$Module, 'NextRow'));
-	$Parser->Push ($Context);
 	return TRUE;
 
       case 'foreach':
-	$Context =& new tipRcbtContext ($Module);
-	$Context->ON_START->Set (array (&$Module, 'ResetRow'));
-	$Context->ON_LOOP->Set (array (&$Module, 'NextRow'));
-	if ($this->PARAMS == 'FIELD')
+	if ($Context =& $this->CreateContext ($Parser, $Module))
 	  {
-	    $Context->ON_CREATE->Set (array (&$Module, 'StartFields'));
-	    $Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
+	    if ($this->PARAMS == 'FIELD')
+	      {
+		$Context->ON_CREATE->Set (array (&$Module, 'StartFields'));
+		$Context->ON_START->Set (array (&$Module, 'ResetRow'));
+		$Context->ON_LOOP->Set (array (&$Module, 'NextRow'));
+		$Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
+	      }
+	    elseif ($this->PARAMS == 'MODULE')
+	      {
+		$Context->ON_CREATE->Set (array (&$Module, 'StartModules'));
+		$Context->ON_START->Set (array (&$Module, 'ResetRow'));
+		$Context->ON_LOOP->Set (array (&$Module, 'NextRow'));
+		$Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
+	      }
+	    elseif ($this->PARAMS > 0)
+	      {
+		$Context->ON_START->Set (create_function ('&$Module', '$Module->FIELDS[\'CNT\'] = 1; return TRUE;'), array (&$Module));
+		$Context->ON_LOOP->Set (create_function ('&$Module,$n', 'return $n > $Module->FIELDS[\'CNT\'] ++;'), array (&$Module, (int)$this->PARAMS));
+		$Context->ON_STOP->Set (create_function ('&$Module', 'unset ($Module->FIELDS[\'CNT\']); return TRUE;'), array (&$Module));
+	      }
+	    elseif (! empty ($this->PARAMS))
+	      {
+		$this->LogWarning ("undefined foreach mode ($this->PARAMS)");
+		$Context->SkipIf (TRUE);
+	      }
+	    else
+	      {
+		$Context->ON_START->Set (array (&$Module, 'ResetRow'));
+		$Context->ON_LOOP->Set (array (&$Module, 'NextRow'));
+	      }
+	    $Parser->Push ($Context);
 	  }
-	elseif ($this->PARAMS == 'MODULE')
-	  {
-	    $Context->ON_CREATE->Set (array (&$Module, 'StartModules'));
-	    $Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
-	  }
-	elseif (! empty ($this->PARAMS))
-	  {
-	    $this->LogWarning ("undefined foreach mode ($this->PARAMS)");
-	    $Context->SkipIf (TRUE);
-	  }
-	$Parser->Push ($Context);
+	return TRUE;
+
+      case 'else':
+	$Parser->CONTEXT->SkipIf (! $Parser->CONTEXT->SKIP);
 	return TRUE;
 
       case 'recurseif':
@@ -469,10 +498,7 @@ class tipRcbtTag
 	return TRUE;
       }
 
-    if ($Parser->CONTEXT->SKIP)
-      return TRUE;
-
-    if (! $Module->CallCommand ($this->COMMAND, $this->PARAMS))
+    if (! $Parser->CONTEXT->SKIP && ! $Module->CallCommand ($this->COMMAND, $this->PARAMS))
       {
 	$Parser->LogWarning ($Module->GetError ());
 	$Module->ResetError ();
@@ -504,11 +530,14 @@ class tipRcbtTag
  *
  * <tt>{User.Logout()}</tt> a tag without \c params
  *
- * <tt>{Field(age)}</tt> a tag without \c module
+ * <tt>{Html(age)}</tt> a tag without \c module
  *
  * <tt>{Logout()}</tt> a tag without \c module and \c params
  *
- * <tt>{age}</tt> a special case: this will expand to <tt>{Field(age)}</tt>
+ * <tt>{age}</tt> a special case: this will expand to <tt>{Html(age)}</tt>
+ *
+ * <tt>{(age)}</tt> another special case: this will expand to
+ *                  <tt>{TryHtml(age)}</tt>
  *
  *
  * \li <b>\c module</b> (case insensitive)\n
@@ -518,7 +547,7 @@ class tipRcbtTag
  *     Defines the comman to call. The available commands are module dependents:
  *     consult the module documentation to see which commands are available,
  *     particulary the tipModule::CallCommand() function. As mentioned above,
- *     if not specified the 'Field' operation will be executed.
+ *     if not specified the 'Html' command will be executed.
  * \li <b>\c params</b> \n
  *     The arguments to pass to the command. Obviously, what \c params means
  *     depend by the command called.\n
@@ -543,13 +572,15 @@ class tipRcbtTag
  *     execution of this buffer, the default module will be \c module.
  * \li <b><tt>{[module.]foreach([list])}</tt></b>\n
  *     If you do not specify \p list, it is the same as forquery, but traverses
- *     the current query instead of a specific one. If \p list is \b field,
+ *     the current query instead of a specific one. If \p list is \b FIELD,
  *     a query that traverses all the fields is performed. If \p list is
- *     \b module, a special query that traverses all the installed modules is
- *     performed.
- * \li <b><tt>{recurseif(field,value)}</tt></b>\n
+ *     \b MODULE, a special query that traverses all the installed modules is
+ *     performed. If \p list is a number, the enclosed buffer is executed
+ *     \p list times; in the enclosed buffer, the special field \b CNT keeps
+ *     track of the current time.
+ * \li <b><tt>{recurseif(fieldid,value)}</tt></b>\n
  *     Inside a \b forquery or a \b foreach command, you can recursively run
- *     the next rows that have the \c fieldid field equal to \c value.
+ *     the next rows that have the \p fieldid field equal to \p value.
  *     Recursively means the buffer enclosed by the forquery tag is run for
  *     every matching row and the result is put in place of the \c recurseif
  *     tag. This command is useful to generate hierarchies, such as tree or
@@ -559,9 +590,8 @@ class tipRcbtTag
  *     Executes the buffer enclosed by this tag and the <tt>{}</tt> tag
  *     only if \c conditions is true. During the execution of this buffer, the
  *     default module will be \c module.
- * \li <b><tt>{[module.]else([conditions])}</tt></b>\n
- *     Changes the skip condition of an enclosed buffer to \c conditions. If
- *     \c conditions is not specified, reverts the previous skip condition.
+ * \li <b><tt>{[module.]else()}</tt></b>\n
+ *     Switches the skip condition of an enclosed buffer.
  * \li <b><tt>{}</tt></b>\n
  *     Special tag that specifies the end of an enclosed buffer.
  **/

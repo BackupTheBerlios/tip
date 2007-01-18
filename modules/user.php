@@ -42,9 +42,12 @@ class tipUser extends tipModule
 	 **/
       case 'dodelete':
 	$Id = tip::GetGet ('id', 'integer');
+	/* TODO
 	$Row =& $this->GetMyself ($Id);
 	if (is_null ($Row))
 	  return FALSE;
+	*/
+	return TRUE;
 
 	if (substr ($Action, 0, 2) == 'do')
 	  {
@@ -70,13 +73,13 @@ class tipUser extends tipModule
 		if ($NewsComment)
 		  {
 		    $UserId = $Id;
-		    $NewsComment->DATA_ENGINE->Querify ($UserId);
 
 		    $DeltaRow['_user'] = 0;
 		    $DeltaRow['_publicname'] = $Row['publicname'];
 		    if (empty ($DeltaRow['_publicname']))
 		      $DeltaRow['_publicname'] = $this->GetOption ('anonymous_name');
 
+		    $NewsComment->DATA_ENGINE->Querify ($UserId);
 		    $NewsComment->DATA_ENGINE->UpdateRows ("WHERE `_user`=$UserId",
 							   $DeltaRow, $NewsComment);
 		  }
@@ -86,23 +89,19 @@ class tipUser extends tipModule
 		if ($BlogComment)
 		  {
 		    $UserId = $Id;
-		    $BlogComment->DATA_ENGINE->Querify ($UserId);
 
 		    $DeltaRow['_user'] = 0;
 		    $DeltaRow['_publicname'] = $Row['publicname'];
 		    if (empty ($DeltaRow['_publicname']))
 		      $DeltaRow['_publicname'] = $this->GetOption ('anonymous_name');
 
+		    $BlogComment->DATA_ENGINE->Querify ($UserId);
 		    $BlogComment->DATA_ENGINE->UpdateRows ("WHERE `_user`=$UserId",
 							   $DeltaRow, $BlogComment);
 		  }
 
 		if ($Id == @$this->NEWROW['id'])
-		  {
-		    setcookie ('usrid', '', time () - 3600);
-		    setcookie ('usrpwd', '', time () - 3600);
-		    $this->SwitchUser ();
-		  }
+		  $this->LogOut ();
 
 		$APPLICATION->Info ('I_DONE');
 	      }
@@ -156,17 +155,14 @@ class tipUser extends tipModule
        *     Logout the current user (if any).
        **/
       case 'unset':
-	setcookie ('usrid', '', time () - 3600);
-	setcookie ('usrpwd', '', time () - 3600);
-	$this->SwitchUser ();
-	return TRUE;
+	return $this->LogOut ();
 
       /**
        * \li <b>edit</b>\n
        *     Requests the modification of the current user profile.
        **/
       case 'edit':
-	return $this->AppendToContent ('add-edit.src');
+	return $this->AppendToContent ('module.src');
 
       /**
        * \li <b>doedit</b>\n
@@ -174,13 +170,11 @@ class tipUser extends tipModule
        *     $_POST array.
        **/
       case 'doedit':
-	// TODO: validation
-
-	foreach (array_keys ($this->NEW_ROW) as $Id)
-	  if (@array_key_exists ($Id, $_POST))
-	    $this->NEW_ROW[$Id] = $_POST[$Id];
-
-	return TRUE;
+	if (! $this->ValidatePosts ())
+	  return $this->AppendToContent ('module.src');
+	if (! $this->StorePosts ($this->NEWROW))
+	  return FALSE;
+	return $this->OnRow ($this->NEWROW);
       }
 
     return parent::RunTrustedAction ($Action);
@@ -205,14 +199,16 @@ class tipUser extends tipModule
 	$User = tip::GetPost ('user', 'string');
 	if (empty ($User))
 	  {
-	    $APPLICATION->Error ('U_USERREQ');
+	    $Label = $this->GetLocale ('user_label');
+	    $APPLICATION->Error ('E_VL_REQUIRED', " ($Label)");
 	    return FALSE;
 	  }
 
 	$Password = tip::GetPost ('password', 'string');
 	if (empty ($Password))
 	  {
-	    $APPLICATION->Error ('U_PWREQ');
+	    $Label = $this->GetLocale ('password_label');
+	    $APPLICATION->Error ('E_VL_REQUIRED', " ($Label)");
 	    return FALSE;
 	  }
 
@@ -239,12 +235,8 @@ class tipUser extends tipModule
 	    return FALSE;
 	  }
 
-	$Expiration = strtotime ($this->GetOption ('expiration'));
-	setcookie ('usrid', $Row['id'], $Expiration);
-	setcookie ('usrpwd', crypt ($Row['password']), $Expiration);
-	$this->SwitchUser ($Row);
 	// No EndQuery() call to retain this row as default row
-	return TRUE;
+	return $this->LogIn ();
 
       /**
        * \li <b>conditions</b>\n
@@ -258,7 +250,7 @@ class tipUser extends tipModule
        *     Registration request.
        **/
       case 'add':
-	return $this->AppendToContent ('add-edit.html');
+	return $this->AppendToContent ('module.html');
 
       /**
        * \li <b>doadd</b>\n
@@ -277,6 +269,13 @@ class tipUser extends tipModule
   {
     $View =& new tipView ($this, $Query);
     $View->ON_ROW->Set (array (&$this, 'OnRow'));
+    return $this->Push ($View);
+  }
+
+  function StartFields ()
+  {
+    $View =& new tipFieldView ($this);
+    $View->ON_ROWS->Set (array (&$this, 'OnFieldRows'));
     return $this->Push ($View);
   }
 
@@ -309,8 +308,6 @@ class tipUser extends tipModule
     $this->OLDROW = FALSE;
     $this->NEWROW = FALSE;
 
-    register_shutdown_function (array (&$this, 'UpdateUser'));
-
     $Id = tip::GetCookie ('usrid', 'int');
     if (is_null ($Id))
       return;
@@ -342,36 +339,61 @@ class tipUser extends tipModule
 	return;
       }
 
-    $Row =& $this->GetCurrentRow ();
-    $this->SwitchUser ($Row, TRUE);
+    $this->ActivateUser ();
     // No EndQuery() call to retain this query as the default one
   }
 
-  function SwitchUser ($Row = FALSE, $IsConstructor = FALSE)
+  function LogIn ()
   {
-    $this->OLDROW = $Row;
-    $this->NEWROW = $Row;
+    if (! $this->ActivateUser ())
+      return FALSE;
 
-    if (@array_key_exists ('id', $Row))
-      $this->FIELDS['CID'] = $Row['id'];
-    else
-      unset ($this->FIELDS['CID']);
+    $this->RefreshPrivileges ();
 
-    if (is_array ($Row))
+    $Expiration = strtotime ($this->GetOption ('expiration'));
+    setcookie ('usrid', $this->NEWROW['id'], $Expiration);
+    setcookie ('usrpwd', crypt ($this->NEWROW['password']), $Expiration);
+    return TRUE;
+  }
+
+  function LogOut ()
+  {
+    $this->OLDROW = FALSE;
+    $this->NEWROW = FALSE;
+    $this->FIELDS['CID'] = NULL;
+
+    $this->RefreshPrivileges ();
+
+    setcookie ('usrid', '', time () - 3600);
+    setcookie ('usrpwd', '', time () - 3600);
+    return TRUE;
+  }
+
+  function ActivateUser ()
+  {
+    $this->NEWROW =& $this->GetCurrentRow ();
+    $this->OLDROW = $this->NEWROW;
+    if (is_null ($this->NEWROW))
       {
-	$this->NEWROW['_hits'] ++;
-	$this->NEWROW['_lasthit'] = tip::FormatDate (FALSE, 'now', 'datetime_iso8601');
+	$this->LogWarning ('No current user to activate');
+	return FALSE;
       }
 
-    if (! $IsConstructor)
-      {
-	global $APPLICATION;
-	$APPLICATION->PRIVILEGE = NULL;
-	$APPLICATION->PostConstructor ();
+    $this->FIELDS['CID'] = @$this->NEWROW['id'];
+    $this->NEWROW['_hits'] ++;
+    $this->NEWROW['_lasthit'] = tip::FormatDate (FALSE, 'now', 'datetime_iso8601');
+    register_shutdown_function (array (&$this, 'UpdateUser'));
+    return TRUE;
+  }
 
-	$this->PRIVILEGE = NULL;
-	$this->PostConstructor ();
-      }
+  function RefreshPrivileges ()
+  {
+    global $APPLICATION;
+    $APPLICATION->PRIVILEGE = NULL;
+    $APPLICATION->PostConstructor ();
+
+    $this->PRIVILEGE = NULL;
+    $this->PostConstructor ();
   }
   
   function UpdateUser ()
@@ -386,38 +408,75 @@ class tipUser extends tipModule
     return TRUE;
   }
 
-  function& GetMyself ($Id)
+  function ValidateUser (&$Field, $Value)
   {
     global $APPLICATION;
-
-    $Row = NULL;
-    if (is_null ($Id))
+    $this->DATA_ENGINE->Querify ($Value, $this);
+    if (! $this->StartQuery ("WHERE `user`=$Value"))
       {
-	$APPLICATION->Error ('E_NOTSPECIFIED');
-	return $Row;
+	$APPLICATION->Error ('E_DATA_SELECT');
+	return FALSE;
       }
 
-    if ($Id == @$this->NEWROW['id'])
-      return $this->NEWROW;
+    $UserId = $this->ResetRow () ? $this->GetField ('id') : $this->FIELDS['CID'];
+    $this->EndQuery ();
 
-    $Query = $this->DATA_ENGINE->QueryById ($Id, $this);
-    if (! $this->StartQuery ($Query))
+    if (@$this->FIELDS['CID'] != $UserId)
       {
-	$Application->Error ('E_DATA_SELECT');
-	return $Row;
+	$APPLICATION->Error ('E_VL_GENERIC', $this->GetLocale ('user_validator'));
+	return FALSE;
       }
 
-    if ($this->ResetRow ())
+    return TRUE;
+  }
+
+  function ValidatePublicName (&$Field, $Value)
+  {
+    global $APPLICATION;
+    $this->DATA_ENGINE->Querify ($Value, $this);
+    if (! $this->StartQuery ("WHERE `publicname`=$Value"))
       {
-	$Row =& $this->GetCurrentRow ();
-      }
-    else
-      {
-	$APPLICATION->Error ('E_NOTFOUND');
-	$this->EndQuery ();
+	$APPLICATION->Error ('E_DATA_SELECT');
+	return FALSE;
       }
 
-    return $Row;
+    $UserId = $this->ResetRow () ? $this->GetField ('id') : $this->FIELDS['CID'];
+    $this->EndQuery ();
+
+    if (@$this->FIELDS['CID'] != $UserId)
+      {
+	$APPLICATION->Error ('E_VL_GENERIC', $this->GetLocale ('publicname_validator'));
+	return FALSE;
+      }
+
+    return TRUE;
+  }
+
+  function OnFieldRows (&$View)
+  {
+    $Fields = array
+      ('user'		=> array ('mode'	=> 'entry',
+				  'importance'	=> 1,
+				  'validator'	=> new tipCallback (array (&$this, 'ValidateUser'))),
+       'password'	=> array ('mode'	=> 'secret',
+				  'importance'	=> 1),
+       'publicname'	=> array ('mode'	=> 'entry',
+				  'importance'	=> 2,
+				  'validator'	=> new tipCallback (array (&$this, 'ValidatePublicName'))),
+       'sex'		=> array ('mode'	=> 'choice',
+				  'importance'	=> 2),
+       'email'		=> array ('mode'	=> 'entry',
+				  'importance'	=> 2),
+       'mail'		=> array ('mode'	=> 'entry',
+				  'importance'	=> 3),
+       'mobile'		=> array ('mode'	=> 'entry',
+				  'importance'	=> 3),
+       'phone'		=> array ('mode'	=> 'entry',
+				  'importance'	=> 3)
+      );
+
+    $View->ROWS = array_merge_recursive ($Fields, $View->ROWS);
+    return TRUE;
   }
 }
 

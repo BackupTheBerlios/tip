@@ -26,8 +26,9 @@ class tipView extends tip
 
   function Populate ()
   {
-    $this->GetRows ();
-    if (is_null ($this->ROWS))
+    if (! $this->GetRows ())
+      return FALSE;
+    if (! is_array ($this->ROWS))
       return TRUE;
 
     $nRow = 1;
@@ -53,6 +54,7 @@ class tipView extends tip
   function GetRows ()
   {
     $this->ROWS =& $this->MODULE->DATA_ENGINE->GetRows ($this->QUERY, $this->MODULE);
+    return $this->ROWS !== FALSE;
   }
 }
 
@@ -70,7 +72,8 @@ class tipFieldView extends tipView
 
   function GetRows ()
   {
-    $this->ROWS = $this->MODULE->DATA_ENGINE->GetFields ($Module);
+    $this->ROWS =& $this->MODULE->DATA_ENGINE->GetFields ($this->MODULE);
+    return TRUE;
   }
 }
 
@@ -95,6 +98,7 @@ class tipModuleView extends tipView
 	if (is_subclass_of ($Instance, 'tipModule'))
 	  $this->ROWS[$ModuleName] = array ('id' => $ModuleName);
       }
+    return TRUE;
   }
 }
 
@@ -158,7 +162,76 @@ class tipModule extends tipType
 	$this->LOCALES = $Messages;
       }
 
-    return @$this->LOCALES[$Id];
+    if (! array_key_exists ($Id, $this->LOCALES))
+      return NULL;
+
+    return $this->LOCALES[$Id];
+  }
+
+  function GetItem ($Item)
+  {
+    $OpenBrace = strpos ($Item, '[');
+    if ($OpenBrace === FALSE)
+      {
+	$Type = 'field';
+	$Id = $Item;
+      }
+    else
+      {
+	$CloseBrace = strrpos ($Item, ']');
+	if ($CloseBrace === FALSE || $CloseBrace < $OpenBrace)
+	  {
+	    $this->SetError ("unclosed item id ($Item)");
+	    return FALSE;
+	  }
+	$Type = strtolower (trim (substr ($Item, 0, $OpenBrace)));
+	$Id = substr ($Item, $OpenBrace+1, $CloseBrace-$OpenBrace-1);
+      }
+
+    switch ($Type)
+      {
+      case 'field':
+	$Value = $this->FindField ($Id);
+	if (is_null ($Value) && is_subclass_of ($this->VIEW, 'tipView'))
+	  {
+	    $Cnt = count ($this->VIEW_STACK)-1;
+	    do
+	      {
+		if ($Cnt <= 0)
+		  return NULL;
+		$View =& $this->VIEW_STACK[-- $Cnt];
+	      }
+	    while (is_subclass_of ($View, 'tipView'));
+
+	    $OldView =& $this->VIEW;
+	    $this->VIEW =& $View;
+	    $Value = $this->GetField ($Id);
+	    $this->VIEW =& $OldView;
+	  }
+	return $Value;
+      case 'get':
+	return tip::GetGet ($Id, 'string');
+      case 'post':
+	return tip::GetPost ($Id, 'string');
+      case 'locale':
+	return $this->GetLocale ($Id);
+      }
+
+    $this->SetError ("undefined field type ($Type)");
+    return FALSE;
+  }
+
+  function& GetFirstItem ($Items)
+  {
+    $this->ResetError ();
+    $Item = strtok ($Items, ', ');
+    $Value = NULL;
+    while (is_null ($Value) && $Item !== FALSE)
+      {
+	$Value = $this->GetItem ($Item);
+	$Item = strtok (', ');
+      }
+    return $Value;
   }
 
 
@@ -278,19 +351,11 @@ class tipModule extends tipType
   function& GetCurrentRow ()
   {
     $Row = NULL;
-    if (is_null ($this->VIEW))
-      return $Row;
-
-    if (@current ($this->VIEW->ROWS) === FALSE)
-      {
-	$this->SetError ('no current row');
-      }
-    else
+    if (@current ($this->VIEW->ROWS) !== FALSE)
       {
 	$Key = key ($this->VIEW->ROWS);
 	$Row =& $this->VIEW->ROWS[$Key];
       }
-
     return $Row;
   }
 
@@ -298,7 +363,7 @@ class tipModule extends tipType
    * Gets a specified row.
    * @param[in] Id \c mixed The row id
    *
-   * Gets a referece to a specific row. This function does not move the
+   * Gets a reference to a specific row. This function does not move the
    * internal cursor.
    *
    * @return The reference to the current row, or a reference to a variable
@@ -307,14 +372,8 @@ class tipModule extends tipType
   function& GetRow ($Id)
   {
     $Row = NULL;
-    if (is_null ($this->VIEW))
-      return $Row;
-
     if (@array_key_exists ($Id, $this->VIEW->ROWS))
       $Row =& $this->VIEW->ROWS[$Id];
-    else
-      $this->SetError ("`$Id' row id not found");
-
     return $Row;
   }
 
@@ -322,7 +381,9 @@ class tipModule extends tipType
    * Gets a field content from the current row.
    * @param[in] Field \c string The field id
    *
-   * Gets the \p Field field content from the current row.
+   * Gets the \p Field field content from the current row. If the field exists
+   * but its content is \c NULL, the value is converted in an empty string to
+   * avoid confusion between error and NULL value.
    *
    * @return The requested field content, or \c NULL on errors.
    **/
@@ -331,6 +392,9 @@ class tipModule extends tipType
     $Row =& $this->GetCurrentRow ();
     if (! @array_key_exists ($Field, $Row))
       return NULL;
+
+    if (is_null ($Row[$Field]))
+      return '';
 
     return $Row[$Field];
   }
@@ -371,66 +435,52 @@ class tipModule extends tipType
     switch ($Command)
       {
       /**
-       * \li <b>field(</b>\a fieldid<b>)</b>\n
-       *     Outputs the content of the specified in field. The field is
-       *     searched using the FindField() function. Notice the resulting text
-       *     is converted using htmlentities(text,ENT_QUOTES,'UTF-8').
+       * \li <b>Html(</b>\a itemid, itemid, ...<b>)</b>\n
+       *     Outputs the content of the first defined item, escaping the value
+       *     for html view throught htmlentities().
+       *     An item can be a field, a get, a post or a localized text: the
+       *     type of the item is obtained parsing the \p itemid tokens.
+       *     Specify <tt>field[...]</tt> for fields, <tt>get[...]</tt> for
+       *     gets, <tt>post[...]</tt> for posts and <tt>locale[...]</tt> for
+       *     localized text. If no type is specified (that is, \p itemid is
+       *     directly an identifier), the system will expand \p id in
+       *     <tt>field[...]</tt>. This means <tt>Value(name)</tt> is equal to
+       *     <tt>Value(field[name])</tt>.
        **/
-      case 'field':
-	$Value = $this->FindField ($Params);
+      case 'html':
+	$Value = $this->GetFirstItem ($Params);
+	if ($this->ERROR !== FALSE)
+	  return FALSE;
 	if (is_null ($Value))
 	  {
-	    $this->SetError ("field not found ($Params)");
+	    $this->SetError ("no item found ($Params)");
 	    return FALSE;
 	  }
+
 	if (is_bool ($Value))
-	  echo $Value ? 'TRUE' : 'FALSE';
-	else
-	  echo htmlentities ($Value, ENT_QUOTES, 'UTF-8');
+	  $Value = $Value ? 'TRUE' : 'FALSE';
+	echo htmlentities ($Value, ENT_QUOTES, 'UTF-8');
 	return TRUE;
 
       /**
-       * \li <b>get(</b>\a getid<b>)</b>\n
-       *     Outputs the content of the specified get.
+       * \li <b>TryHtml(</b>\a itemid, itemid, ...<b>)</b>\n
+       *     Equal to \a Html, but do not log any message if no defined item
+       *     is found.
        **/
-      case 'get':
-	$Value = tip::GetGet ($Params, 'string');
+      case 'tryhtml':
+	$Value = $this->GetFirstItem ($Params);
+	if ($this->ERROR !== FALSE)
+	  return FALSE;
 	if (is_null ($Value))
-	  {
-	    $this->SetError ("get not found ($Params)");
-	    return FALSE;
-	  }
-	echo $Value;
+	  return TRUE;
+
+	if (is_bool ($Value))
+	  $Value = $Value ? 'TRUE' : 'FALSE';
+	echo htmlentities ($Value, ENT_QUOTES, 'UTF-8');
 	return TRUE;
 
       /**
-       * \li <b>post(</b>\a postid<b>)</b>\n
-       *     Outputs the content of the specified post.
-       **/
-      case 'post':
-	$Value = tip::GetPost ($Params, 'string');
-	if (is_null ($Value))
-	  {
-	    $this->SetError ("post not found ($Params)");
-	    return FALSE;
-	  }
-	echo $Value;
-	return TRUE;
-
-      /**
-       * \li <b>postorfield(</b>\a postid<b>)</b>\n
-       *     Outputs the content of the specified post. If the post is not
-       *     found, the field with the specified id will be used instead.
-       **/
-      case 'postorfield':
-	$Value = tip::GetPost ($Params, 'string');
-	if (is_null ($Value))
-	  return $this->RunCommand ('field', $Params);
-	echo $Value;
-	return TRUE;
-
-      /**
-       * \li <b>is(</b>\a userid<b>)</b>\n
+       * \li <b>Is(</b>\a userid<b>)</b>\n
        *     Expands to \c TRUE if the current logged-in user equals to
        *     \p userid or \c FALSE otherwise.
        **/
@@ -440,7 +490,7 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
-       * \li <b>url(</b>\a file<b>)</b>\n
+       * \li <b>Url(</b>\a file<b>)</b>\n
        *     Prepends the source path of the current module to \p file and
        *     outputs the result. This command (or any of its variants) MUST be
        *     used for every file reference if you want a theme-aware site,
@@ -452,7 +502,7 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
-       * \li <b>sourceurl(</b>\a file<b>)</b>\n
+       * \li <b>SourceUrl(</b>\a file<b>)</b>\n
        *     Variants of the <b>url</b> command. Prepends to \p file the
        *     root source path.
        **/
@@ -461,7 +511,7 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
-       * \li <b>sourceurl(</b>\a file<b>)</b>\n
+       * \li <b>IconUrl(</b>\a file<b>)</b>\n
        *     Variants of the <b>url</b> command. Prepends to \p file the
        *     root source path and '/icons'.
        **/
@@ -470,21 +520,7 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
-       * \li <b>locale(</b>\a textid<b>)</b>\n
-       *     Outputs the content of a specified text id in the current locale.
-       *     Usually, the available text ids can be found in logic/locale/
-       *     subdirectories.
-       **/
-      case 'locale':
-	$Value = $this->GetLocale ($Params);
-	if ($Value)
-	  echo htmlentities ($this->GetLocale ($Params), ENT_QUOTES, 'UTF-8');
-	else
-	  $this->LogWarning ("locale message '$Params' not found");
-	return TRUE;
-
-      /**
-       * \li <b>run(</b>\a file<b>)</b>\n
+       * \li <b>Run(</b>\a file<b>)</b>\n
        *     Runs the \p file source found in the module directory using the
        *     current source engine.
        **/
@@ -492,15 +528,15 @@ class tipModule extends tipType
 	return $this->Run ($Params);
 
       /**
-       * \li <b>rundata(</b>\a file<b>)</b>\n
+       * \li <b>RunShared(</b>\a file<b>)</b>\n
        *     Runs the \p file source found in the root data directory using
        *     the current source engine.
        **/
-      case 'datarun':
-	return $this->DataRun ($Params);
+      case 'runshared':
+	return $this->RunShared ($Params);
 
       /**
-       * \li <b>moduleexists(</b>\a module<b>)</b>\n
+       * \li <b>ModuleExists(</b>\a module<b>)</b>\n
        *     Outputs \c TRUE if the \p module module exists, \c FALSE
        *     otherwise. This command only checks if the module is configured,
        *     does not load the module itsself. Useful to provide conditional
@@ -512,23 +548,23 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
-       * \li <b>itemexists(</b>\a item, \a list<b>)</b>\n
+       * \li <b>InList(</b>\a item, \a list<b>)</b>\n
        *     Outputs \c TRUE if the \p item item is present in the comma
        *     separated \p list list. Useful to check if a value is contained
        *     (that is, if it is on) in a "set" field.
        **/
-      case 'itemexists':
+      case 'inlist':
 	$Pos = strpos ($Params, ',');
 	if ($Pos === FALSE)
 	  return FALSE;
 
 	$Item = substr ($Params, 0, $Pos);
 	$Set  = substr ($Params, $Pos+1);
-	echo tip::ItemExists ($Item, $Set) ? 'TRUE' : 'FALSE';
+	echo tip::InList ($Item, $Set) ? 'TRUE' : 'FALSE';
 	return TRUE;
 
       /**
-       * \li <b>date(</b>\a date<b>)</b>\n
+       * \li <b>Date(</b>\a date<b>)</b>\n
        *     Formats the \p date date (specified in iso8601) in the format
        *     "date_" . $CFG['application']['locale']. For instance, if you
        *     set 'it' in $CFG['application']['locale'], the format used will be
@@ -539,7 +575,7 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
-       * \li <b>datetime(</b>\a datetime<b>)</b>\n
+       * \li <b>DateTime(</b>\a datetime<b>)</b>\n
        *     Formats the \p datetime date (specified in iso8601) in the format
        *     "datetime_" . $CFG['application']['locale']. For instance, if you
        *     set 'it' in $CFG['application']['locale'], the format used will be
@@ -550,7 +586,7 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
-       * \li <b>nlreplace(</b>\a replacer, \a text<b>)</b>\n
+       * \li <b>NlReplace(</b>\a replacer, \a text<b>)</b>\n
        *     Replaces all the occurrences of a newline in \p text with the
        *     \p replacer string.
        **/
@@ -570,7 +606,7 @@ class tipModule extends tipType
 	return TRUE;
       }
 
-    $this->SetError ("command `$Command' not found");
+    $this->SetError ("command not found ($Command)");
     return FALSE;
   }
 
@@ -585,7 +621,7 @@ class tipModule extends tipType
    **/
   function RunManagerAction ($Action)
   {
-    return FALSE;
+    return NULL;
   }
 
   /**
@@ -599,7 +635,7 @@ class tipModule extends tipType
    **/
   function RunAdminAction ($Action)
   {
-    return FALSE;
+    return NULL;
   }
 
   /**
@@ -613,7 +649,7 @@ class tipModule extends tipType
    **/
   function RunTrustedAction ($Action)
   {
-    return FALSE;
+    return NULL;
   }
 
   /**
@@ -627,7 +663,7 @@ class tipModule extends tipType
    **/
   function RunUntrustedAction ($Action)
   {
-    return FALSE;
+    return NULL;
   }
 
   /**
@@ -641,7 +677,7 @@ class tipModule extends tipType
    **/
   function RunAction ($Action)
   {
-    return FALSE;
+    return NULL;
   }
 
   /**
@@ -660,18 +696,19 @@ class tipModule extends tipType
   }
 
   /**
-   * Executes a global data source.
+   * Executes a shared data source
    * @param[in] File \c string The source to execute
    *
-   * Executes the \p File file found in application data path, using the
-   * current engine.
+   * Executes the \p File program found in shared source path
+   * ($CFG['application']['source_root']/shared) using the current source
+   * engine.
    *
    * @return \c TRUE on success, \c FALSE otherwise.
    **/
-  function DataRun ($File)
+  function RunShared ($File)
   {
     global $APPLICATION;
-    $Path = $APPLICATION->FIELDS['DATA_PATH'] . "/$File";
+    $Path = $APPLICATION->FIELDS['SOURCE_ROOT'] . "/shared/$File";
     return $this->SOURCE_ENGINE->Run ($Path, $this);
   }
 
@@ -760,7 +797,7 @@ class tipModule extends tipType
    *     nothing more than module fields of the "application" instance. If
    *     found, the content of the global field is returned.
    *
-   * @return The content of the requested field, or \c NULL on errors.
+   * @return The content of the requested field or \c NULL if not found.
    **/
   function FindField ($Field)
   {
@@ -784,6 +821,121 @@ class tipModule extends tipType
       }
 
     return NULL;
+  }
+
+  /**
+   * Validates the posts
+   *
+   * Checks if the posts contain valid data, accordling to the data source of
+   * the module.
+   *
+   * @return \c TRUE on success of \c FALSE on errors
+   **/
+  function ValidatePosts ()
+  {
+    if (! $this->StartFields ())
+      {
+	$this->LogWarning ('No data to validate');
+	return TRUE;
+      }
+
+    global $APPLICATION;
+    $Result = TRUE;
+    while ($this->NextRow ())
+      {
+	$Row =& $this->GetCurrentRow ();
+	if (! array_key_exists ('importance', $Row))
+	  continue;
+
+	$Id =& $Row['id'];
+	$Label = $this->GetLocale ("{$Id}_label");
+	$Value = tip::GetPost ($Id, $Row['type']);
+	if ($Row['importance'] == 1 && empty ($Value))
+	  {
+	    $APPLICATION->Error ('E_VL_REQUIRED', " ($Label)");
+	    $Result = FALSE;
+	    break;
+	  }
+	if ($Row['mode'] == 'secret')
+	  {
+	    $ReLabel = $this->GetLocale ("re{$Id}_label");
+	    $ReValue = tip::GetPost ("re$Id", $Row['type']);
+	    if ($Row['importance'] == 1 && empty ($ReValue))
+	      {
+		$APPLICATION->Error ('E_VL_REQUIRED', " ($ReLabel)");
+		$Result = FALSE;
+		break;
+	      }
+	    elseif ($Value != $ReValue)
+	      {
+		$APPLICATION->Error ('E_VL_DIFFER', " ($ReLabel)");
+		$Result = FALSE;
+		break;
+	      }
+	  }
+	$Length = @$Row['length'];
+	if ($Length > 0 && @strlen ($Value) > $Length)
+	  {
+	    $APPLICATION->Error ('E_VL_LENGTH', " ($Label)");
+	    $Result = FALSE;
+	    break;
+	  }
+	$Validator = @$Row['validator'];
+	if (is_object ($Validator) && ! $Validator->Go (array (&$Row, &$Value)))
+	  {
+	    $Result = FALSE;
+	    break;
+	  }
+      }
+
+    $this->EndQuery ();
+    return $Result;
+  }
+
+  /**
+   * Stores the posts
+   * @param[out] Destination \c array  The destination row
+   *
+   * Stores the posts content in the specified row, accordling to the data
+   * source of the module. This method complements ValidatePosts() to manage
+   * the user modules: usually you must validate the posts and after store
+   * them in some place for further data operations (update or insert).
+   *
+   * @return \c TRUE on success of \c FALSE on errors
+   **/
+  function StorePosts (&$Destination)
+  {
+    if (! is_array ($Destination))
+      {
+	$this->LogWarning ('Invalid destination to store data');
+	return TRUE;
+      }
+    if (! $this->StartFields ())
+      {
+	$this->LogWarning ('No data to store');
+	return TRUE;
+      }
+
+    global $APPLICATION;
+    $Result = TRUE;
+    while ($this->NextRow ())
+      {
+	$Row =& $this->GetCurrentRow ();
+	if (array_key_exists ('importance', $Row))
+	  {
+	    $Id =& $Row['id'];
+	    $Value = tip::GetPost ($Id, 'string');
+	    if (strlen ($Value) == 0 && $Row['can_be_null'])
+	      $Destination[$Id] = NULL;
+	    elseif (settype ($Value, $Row['type']))
+	      $Destination[$Id] = $Value;
+	    else
+	      $this->LogWarning ("Unable to cast '$Value' to '$Row[type]'");
+	  }
+      }
+
+    $this->EndQuery ();
+    return $Result;
   }
 
 
@@ -860,7 +1012,7 @@ class tipModule extends tipType
    **/
   function ResetRow ()
   {
-    if (is_null ($this->VIEW))
+    if (is_null ($this->VIEW) || ! is_array ($this->VIEW->ROWS))
       return FALSE;
 
     return reset ($this->VIEW->ROWS) !== FALSE;
@@ -893,6 +1045,9 @@ class tipModule extends tipType
   {
     if (is_null ($this->VIEW))
       return FALSE;
+
+    if (! is_array ($this->VIEW->ROWS))
+      return TRUE;
 
     end ($this->VIEW->ROWS);
     return next ($this->VIEW->ROWS) === FALSE;
@@ -1017,27 +1172,26 @@ http://www.example.org/?module=news&action=view&id=23
     switch ($this->PRIVILEGE)
       {
       case 'manager':
-	if ($this->RunManagerAction ($Action))
-	  return TRUE;
+	$Result = $this->RunManagerAction ($Action);
+	if (! is_null ($Result))
+	  break;
       case 'admin':
-	if ($this->RunAdminAction ($Action))
-	  return TRUE;
+	$Result = $this->RunAdminAction ($Action);
+	if (! is_null ($Result))
+	  break;
       case 'trusted':
-	if ($this->RunTrustedAction ($Action))
-	  return TRUE;
+	$Result = $this->RunTrustedAction ($Action);
+	if (! is_null ($Result))
+	  break;
       case 'untrusted':
-	if ($this->RunUntrustedAction ($Action))
-	  return TRUE;
+	$Result = $this->RunUntrustedAction ($Action);
+	if (! is_null ($Result))
+	  break;
       case 'none':
-	if ($this->RunAction ($Action))
-	  return TRUE;
-
-	tip::LogError ("action `$Action' not found");
-	return FALSE;
+	$Result = $this->RunAction ($Action);
       }
 
-    $this->LogError ("invalid `$this->PRIVILEGE' privilege");
-    return FALSE;
+    return $Result;
   }
 }
 

@@ -49,10 +49,15 @@ FIELDS[fieldid] = array
   (
     'id'          => fieldid,
     'type'        => a valid settype() type string,
-    'subtype'     => 'date', 'time', 'datetime', 'enum', 'flag', 'unsigned' or NULL,
-    'max_length'  => an integer specifing the max length, or 0 if not used,
-    'required'    => TRUE or FALSE,
-    'can_be_null' => TRUE or FALSE
+    'subtype'     => 'date', 'time', 'datetime', 'enum', 'set', 'unsigned' or NULL,
+    'length'      => an integer specifing the max length, or 0 if not used,
+    'can_be_null' => TRUE or FALSE,
+
+    // The optional part to be filled only when requested
+    'choices'	  => the number of choices for 'set' or 'enum' subtypes,
+    'choice1'     => the first choice,
+    'choice2'	  => the second choice,
+    ...
   );
 @endverbatim
    **/
@@ -150,8 +155,9 @@ class tipData extends tipType
 
 
   /**
-   * Gets the data source structure.
-   * @param[in,out] Context \c tipDataContext A data context
+   * Fills the data source structure.
+   * @param[in,out] Context  \c tipDataContext A data context
+   * @param[in,out] Detailed \c boolean        Fill also the optional part
    *
    * Gets the data source structure and store the result in $Context->FIELDS.
    * Obviously, the implementation must fills the FIELDS array a specific way:
@@ -161,9 +167,9 @@ class tipData extends tipType
    *
    * @return \c TRUE on success, \c FALSE otherwise.
    **/
-  function FillContextFields (&$Context)
+  function RealFillFields (&$Context, $Detailed = FALSE)
   {
-    $this->LogFatal ('method tipData::FillContextFields() not implemented');
+    $this->LogFatal ('method tipData::RealFillFields() not implemented');
   }
 
 
@@ -248,9 +254,20 @@ class tipData extends tipType
     $this->LogFatal ('method tipData::Delete() not implemented');
   }
 
+  /**
+   * Casts a row content to the proper type
+   * @param[in,out] Row     \c Array           The row to cast
+   * @param[in]     Context \c tipDataContext  A data context
+   *
+   * Given a row and a context, forces every field in the row that matches the fields
+   * in the context to be of the type specified in the context. The type forcing is
+   * done using settype().
+   *
+   * @return \c TRUE on success, \c FALSE otherwise.
+   **/
   function ForceFieldType (&$Row, &$Context)
   {
-    if (! $this->FillContextFields ($Context))
+    if (! $this->RealFillFields ($Context))
       return FALSE;
 
     foreach ($Context->FIELDS as $Id => $Meta)
@@ -316,10 +333,21 @@ class tipData extends tipType
     return $this->RealQueryById ($Id, $Context);
   }
 
+  /**
+   * Gets the fields structure
+   * @param[in] Module \c tipModule The caller module
+   *
+   * Gets the field structure of the context of the specified module: the
+   * structure details are descripted in tipDataContext::FIELDS. Notice also
+   * the optional part of the field structure will be filled.
+   *
+   * @return A reference to the field structure or a reference to a variable
+   *         containing \c NULL on errors.
+   **/
   function& GetFields (&$Module)
   {
     $Context =& $this->GetContext ($Module);
-    $this->FillContextFields ($Context);
+    $this->RealFillFields ($Context, TRUE);
     return $Context->FIELDS;
   }
 
@@ -396,14 +424,25 @@ class tipData extends tipType
    **/
   function UpdateRow (&$OldRow, &$NewRow, &$Module)
   {
+    $DeltaRow = FALSE;
     $Context =& $this->GetContext ($Module);
 
     // No primary key found: error
     if (! array_key_exists ($Context->PRIMARYKEY, $OldRow))
+      {
+	$this->LogWarning ('No primary key in the row to update');
+	return FALSE;
+      }
+
+    if (! $this->RealFillFields ($Context))
       return FALSE;
 
-    $DeltaRow = array_diff_assoc ($NewRow, $OldRow);
-    if (empty ($DeltaRow))
+    foreach (array_keys ($Context->FIELDS) as $Id)
+      if (array_key_exists ($Id, $OldRow) && array_key_exists ($Id, $NewRow)
+	  && $OldRow[$Id] != $NewRow[$Id])
+	$DeltaRow[$Id] = $NewRow[$Id];
+
+    if (! $DeltaRow)
       return TRUE;
 
     $Query = $this->RealQueryById ($OldRow[$Context->PRIMARYKEY], $Context);

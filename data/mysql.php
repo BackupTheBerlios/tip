@@ -46,18 +46,24 @@ class tipMysql extends tipData
       $Value = "'" . mysql_real_escape_string ($Value, $this->CONNECTION) . "'";
   }
 
-  function FillContextFields (&$Context)
+  function RealFillFields (&$Context, $Detailed = FALSE)
   {
-    if (! is_null ($Context->FIELDS))
-      return TRUE;
+    if (is_null ($Context->FIELDS))
+      {
+	$Result = mysql_list_fields ($this->GetOption ('database'),
+				     $Context->DATAID,
+				     $this->CONNECTION);
+	if (! $Result)
+	  {
+	    $this->LogError (mysql_error ($this->CONNECTION));
+	    return FALSE;
+	  }
+	$this->TryGetFields ($Result, $Context);
+      }
 
-    $Result = mysql_list_fields ($this->GetOption ('database'),
-				 $Context->DATAID,
-				 $this->CONNECTION);
-    if (! $Result)
-      return FALSE;
+    if ($Detailed)
+      $this->TryGetFieldsDetails ($Context);
 
-    $this->TryFillContextFields ($Result, $Context);
     return ! is_null ($Context->FIELDS);
   }
 
@@ -68,7 +74,7 @@ class tipMysql extends tipData
     if ($Result === FALSE)
       return $Rows;
 
-    $this->TryFillContextFields ($Result, $Context);
+    $this->TryGetFields ($Result, $Context);
     $Rows = array ();
 
     while ($Row = mysql_fetch_assoc ($Result))
@@ -145,8 +151,7 @@ class tipMysql extends tipData
   {
     $Result = mysql_query ($Query, $this->CONNECTION);
     if ($Result === FALSE)
-      $this->LogError (mysql_error ($this->CONNECTION) . " on query `$Query'");
-
+      $this->LogError (mysql_error ($this->CONNECTION) . " ($Query)");
     return $Result;
   }
 
@@ -169,24 +174,28 @@ class tipMysql extends tipData
     return $Fieldset;
   }
 
-  function TryFillContextFields (&$Result, &$Context)
+  function TryGetFields (&$Result, &$Context)
   {
     if (! is_null ($Context->FIELDS))
       return;
 
-    while ($Meta = mysql_fetch_field ($Result))
+    $nFields = mysql_num_fields ($Result);
+    for ($n = 0; $n < $nFields; ++ $n)
       {
-	$Context->FIELDS[$Meta->name] = array ();
-	$Field =& $Context->FIELDS[$Meta->name];
-	$Field['id'] = $Meta->name;
+	$Name = mysql_field_name ($Result, $n);
+	$Type = mysql_field_type ($Result, $n);
+	$Flags = mysql_field_flags ($Result, $n);
 
-	switch (strtoupper ($Meta->type))
+	$Context->FIELDS[$Name] = array ('id' => $Name);
+	$Field =& $Context->FIELDS[$Name];
+
+	switch (strtoupper ($Type))
 	  {
 	  case 'BOOL':
 	  case 'BOOLEAN':
 	    $Field['type'] = 'bool';
 	    $Field['subtype'] = NULL;
-	    $Field['max_length'] = 0;
+	    $Field['length'] = 0;
 	    break;
 	  case 'BIT':
 	  case 'TINYINT':
@@ -196,8 +205,8 @@ class tipMysql extends tipData
 	  case 'INTEGER':
 	  case 'BIGINT':
 	    $Field['type'] = 'int';
-	    $Field['subtype'] = $Meta->unsigned == 1 ? 'unsigned' : NULL;
-	    $Field['max_length'] = 0;
+	    $Field['subtype'] = strpos ($Flags, 'unsigned') !== FALSE ? 'unsigned' : NULL;
+	    $Field['length'] = 0;
 	    break;
 	  case 'FLOAT':
 	  case 'DOUBLE':
@@ -209,7 +218,7 @@ class tipMysql extends tipData
 	  case 'FIXED':
 	    $Field['type'] = 'float';
 	    $Field['subtype'] = NULL;
-	    $Field['max_length'] = 0;
+	    $Field['length'] = 0;
 	    break;
 	  case 'STRING':
 	  case 'CHAR':
@@ -225,50 +234,97 @@ class tipMysql extends tipData
 	  case 'LONGBLOB':
 	  case 'LONGTEXT':
 	    $Field['type'] = 'string';
-	    $Field['subtype'] = NULL;
-	    $Field['max_length'] = $Meta->max_length;
+	    if (strpos ($Flags, 'enum') !== FALSE)
+	      $Field['subtype'] = 'enum';
+	    elseif (strpos ($Flags, 'set') !== FALSE)
+	      $Field['subtype'] = 'set';
+	    else
+	      $Field['subtype'] = NULL;
+	    $Field['length'] = mysql_field_len ($Result, $n) / 3;
 	    break;
 	  case 'ENUM':
 	    $Field['type'] = 'string';
 	    $Field['subtype'] = 'enum';
-	    $Field['maxlength'] = 0;
+	    $Field['length'] = 0;
 	    break;
 	  case 'SET':
 	    $Field['type'] = 'string';
 	    $Field['subtype'] = 'set';
-	    $Field['maxlength'] = 0;
+	    $Field['length'] = 0;
 	    break;
 	  case 'DATE':
 	    $Field['type'] = 'string';
 	    $Field['subtype'] = 'date';
-	    $Field['max_length'] = 10;
+	    $Field['length'] = 10;
 	    break;
 	  case 'TIME':
 	    $Field['type'] = 'string';
 	    $Field['subtype'] = 'time';
-	    $Field['max_length'] = 8;
+	    $Field['length'] = 8;
 	    break;
 	  case 'DATETIME':
 	    $Field['type'] = 'string';
 	    $Field['subtype'] = 'datetime';
-	    $Field['max_length'] = 19;
+	    $Field['length'] = 19;
 	    break;
 	  case 'TIMESTAMP':
 	    $Field['type'] = 'int';
 	    $Field['subtype'] = 'datetime';
-	    $Field['max_length'] = 0;
+	    $Field['length'] = 0;
 	    break;
 	  case 'YEAR':
 	    $Field['type'] = 'string';
 	    $Field['subtype'] = NULL; // Not implemented
-	    $Field['max_length'] = 4;
+	    $Field['length'] = 4;
 	    break;
 	  default:
-	    $this->LogError ("'$Meta->type' field type not supported");
+	    $this->LogError ("field type not supported ($Type)");
 	  }
 
-	$Field['required'] = FALSE;
-	$Field['can_be_null'] = $Meta->not_null == 0;
+	$Field['can_be_null'] = (bool) (strpos ($Flags, 'not_null') === FALSE);
+      }
+  }
+
+  function TryGetFieldsDetails (&$Context)
+  {
+    $Fields = array ();
+    foreach ($Context->FIELDS as $Id => $Field)
+      if ($Field['subtype'] == 'set' || $Field['subtype'] == 'enum')
+	{
+	  if (@array_key_exists ('choices', $Field))
+	    return;
+	  else
+	    $Fields[] = $Id;
+	}
+
+    $InClause = implode ("','", $Fields);
+    if (empty ($InClause))
+      return;
+
+    $Database = $this->GetOption ('database');
+    $Result =& $this->RunQuery ("SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS" .
+				"  WHERE TABLE_SCHEMA='$Database' AND TABLE_NAME='$Context->DATAID'" .
+				"  AND COLUMN_NAME IN ('$InClause')");
+    if (! $Result)
+      return;
+
+    while ($Row = mysql_fetch_assoc ($Result))
+      {
+	$Id = $Row['COLUMN_NAME'];
+	$Values = $Row['COLUMN_TYPE'];
+	$OpenBrace = strpos ($Values, '(');
+	$CloseBrace = strrpos ($Values, ')');
+	if ($OpenBrace === FALSE || $CloseBrace < $OpenBrace)
+	  continue;
+
+	$Values = substr ($Values, $OpenBrace+1, $CloseBrace-$OpenBrace-1);
+	$n = 0;
+	for ($Token = strtok ($Values, "',"); $Token !== FALSE; $Token = strtok ("',"))
+	  {
+	    ++ $n;
+	    $Context->FIELDS[$Id]["choice$n"] = $Token;
+	  }
+	$Context->FIELDS[$Id]['choices'] = $n;
       }
   }
 }
