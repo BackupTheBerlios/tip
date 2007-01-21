@@ -1,7 +1,7 @@
 <?php
 
 /**
- * A data view internally used by the tipModule type.
+ * A data view used by tipModule.
  **/
 class tipView extends tip
 {
@@ -58,11 +58,11 @@ class tipView extends tip
   }
 }
 
-class tipFieldView extends tipView
+class tipFieldsView extends tipView
 {
   /// @publicsection
 
-  function tipFieldView (&$Module)
+  function tipFieldsView (&$Module)
   {
     $this->tipView ($Module, '__FIELD__');
   }
@@ -77,11 +77,11 @@ class tipFieldView extends tipView
   }
 }
 
-class tipModuleView extends tipView
+class tipModulesView extends tipView
 {
   /// @publicsection
 
-  function tipModuleView (&$Module)
+  function tipModulesView (&$Module)
   {
     $this->tipView ($Module, '__MODULE__');
   }

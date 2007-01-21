@@ -17,27 +17,30 @@
  * Suppose your application calls tip::GetInstance ('test').
  *
  * GetInstance holds a static array (called register) containing all the
- * previous instantiated types. If 'test' exists in the register, this
- * function simply returns a reference to this object. Instead, if it not
- * exists, the type must be instantiated.
+ * previous instantiated types. If 'test' exists in the register, this function
+ * simply returns a reference to this object. Instead, if it not exists, the
+ * type must be instantiated.
  *
  * The following steps are performed:
  *
- * \li <b><tt>$Logic = tip::GetOption ('test', 'logic');</tt></b>\n
- *     The configuration array must holds the path to the PHP file declaring
- *     the test type. This means in <tt>config.php</tt> there must be a line
- *     similar to the following:\n
- *     <tt>$CFG['test']['logic'] = 'logic/sources/test.php';</tt>\n
- *     or whatever fit your needs.
- * \li <b><tt>require_once $Logic;</tt></b>\n
- *     The PHP file is included (of course only once).
- * \li <b><tt>$Class = "tip$Type";</tt></b>\n
- *     The class name is created prepending 'tip' to the type name. In this
- *     case, the type 'test' will need a class named 'tipTest' (the case is not
- *     significant). So, in the included PHP file there must be somewhere a
- *     <tt>class tipTest</tt> declaration.
- * \li <b><tt>$Instance =& new $Class ();</tt></b>\n
- *     The new class is instantiated.
+ * \par <tt>$Logic = tip::GetOption ('test', 'logic');</tt>
+ * The configuration array must holds the path to the PHP file declaring the
+ * test type. This means in <tt>config.php</tt> there must be a line similar to
+ * the following:\n
+ * <tt>$CFG['test']['logic'] = 'logic/sources/test.php';</tt>\n
+ * or whatever fit your needs.
+ *
+ * \par <tt>require_once $Logic;</tt>
+ * The PHP file is included (of course only once).
+ *
+ * \par <tt>$Class = "tip$Type";</tt>
+ * The class name is created prepending 'tip' to the type name. In this case,
+ * the type 'test' will need a class named 'tipTest' (the case is not
+ * significant). So, in the included PHP file there must be somewhere a
+ * <tt>class tipTest</tt> declaration.
+ *
+ * \par <tt>$Instance =& new $Class ();</tt>
+ * The new class is instantiated.
  *
  * After this steps, the new instance is stored in the register array and a
  * reference to it is returned to the application. Any error during this

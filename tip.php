@@ -215,12 +215,12 @@ class tip
    *
    * \p Type can be any value accepted by settype(), that is:
    *
-   * \li \c 'bool'   to force a boolean value
-   * \li \c 'int'    to force an integer number
-   * \li \c 'float'  to force a floating point number
-   * \li \c 'string' to force a string
-   * \li \c 'array'  to force an array
-   * \li \c 'object' to force an object
+   * - \c 'bool'   to force a boolean value
+   * - \c 'int'    to force an integer number
+   * - \c 'float'  to force a floating point number
+   * - \c 'string' to force a string
+   * - \c 'array'  to force an array
+   * - \c 'object' to force an object
    *
    * @return A copy of the requested get, or \c NULL if \c $_GET[$Id]
    *         does not exist.
@@ -280,20 +280,20 @@ class tip
    *
    * The \p InputFormat parameter can be one of the following values:
    *
-   * \li \c 'timestamp' for UNIX timestamps.
-   * \li \c 'now' for the actual time (the \p Input parameter will be ignored).
-   * \li \c 'iso8601' for ISO8601 date (the format used, for instance, by MySql).
+   * - \c 'timestamp' for UNIX timestamps.
+   * - \c 'now' for the actual time (the \p Input parameter will be ignored).
+   * - \c 'iso8601' for ISO8601 date (the format used, for instance, by MySql).
    *
    * The \p OutputFormat parameter can be one of the following values:
    *
-   * \li <b>date_iso8601</b>\n
-   *        Returns a string with a day description in ISO 8601 format.
-   * \li <b>datetime_iso8601</b>\n
-   *        Returns a string with day and hour description in ISO 8601 format.
-   * \li <b>date_it</b>\n
-   *        Returns a string with a day description (italian format).
-   * \li <b>datetime_it</b>\n
-   *        Returns a string with day and hour description (italian format).
+   * - <b>date_iso8601</b>\n
+   *   Returns a string with a day description in ISO 8601 format.
+   * - <b>datetime_iso8601</b>\n
+   *   Returns a string with day and hour description in ISO 8601 format.
+   * - <b>date_it</b>\n
+   *   Returns a string with a day description (italian format).
+   * - <b>datetime_it</b>\n
+   *   Returns a string with day and hour description (italian format).
    *
    * @return The formatted date, or \c FALSE on errors.
    **/

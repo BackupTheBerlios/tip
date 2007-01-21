@@ -4,10 +4,6 @@ class tipAdvertisementTree extends tipModule
 {
   /// @protectedsection
 
-  /**
-   * Executes a command.
-   * @copydoc tipModule::RunCommand()
-   **/
   function RunCommand ($Command, &$Params)
   {
     global $APPLICATION;
@@ -15,17 +11,18 @@ class tipAdvertisementTree extends tipModule
     switch ($Command)
       {
       /**
-       * \li <b>echoicon(</b>\a id<b>)</b>\n
-       *     Outputs the icon name of the specified group id.
+       * \command <b>echoicon(</b>\a id<b>)</b>\n
+       * Outputs the icon name of the specified group id.
        **/
       case 'echoicon':
 	$Row =& $this->GetRow ($Params);
 	if (@array_key_exists ('TITLE', $Row))
 	  echo $Row['icon'];
 	return TRUE;
+
       /**
-       * \li <b>echotitle(</b>\a id<b>)</b>\n
-       *     Outputs the title of the specified group id.
+       * \command <b>echotitle(</b>\a id<b>)</b>\n
+       * Outputs the title of the specified group id.
        **/
       case 'echotitle':
 	$Row =& $this->GetRow ($Params);
@@ -37,7 +34,7 @@ class tipAdvertisementTree extends tipModule
     return parent::RunCommand ($Command, $Params);
   }
 
-  function StartQuery ($Query)
+  function StartView ($Query)
   {
     $View =& new tipView ($this, $Query);
     $View->ON_ROWS->Set (array (&$this, 'OnRows'));
@@ -53,8 +50,8 @@ class tipAdvertisementTree extends tipModule
 
     $this->FIELDS['CID'] = 0;
 
-    $this->StartQuery ('');
-    // No EndQuery() call to retain this query as the default one
+    $this->StartView ('');
+    // No EndView() call to retain this query as the default one
   }
 
   function sortid_compare ($a, $b)
@@ -108,14 +105,6 @@ class tipAdvertisement extends tipModule
 {
   /// @protectedsection
 
-  /**
-   * Executes an action.
-   * @copydoc tipModule::RunAction()
-   *
-   * @todo Find a better (and overall a portable) approach to update the
-   *       statistics of the advertisement owner while signaling, legalizing
-   *       or illegalizing an advertisement.
-   **/
   function RunAction ($Action)
   {
     global $APPLICATION;
@@ -123,9 +112,9 @@ class tipAdvertisement extends tipModule
     switch ($Action)
       {
 	/**
-	 * \li <b>browse</b>\n
-	 *     Shows the advertisement published by the current user.
-	 *     The user must be registered to do this.
+	 * \action <b>browse</b>\n
+	 * Shows the advertisement published by the current user.
+	 * The user must be registered to do this.
 	 **/
       case 'browse':
 	$UserId = tipApplication::GetUserId ();
@@ -139,9 +128,9 @@ class tipAdvertisement extends tipModule
 	return TRUE;
 
 	/**
-	 * \li <b>browsegroup</b>\n
-	 *     Shows the advertisement in a specified group. The group must be
-	 *     present in $_GET['group'].
+	 * \action <b>browsegroup</b>\n
+	 * Shows the advertisement in a specified group. The group must be
+	 * present in $_GET['group'].
 	 **/
       case 'browsegroup':
 	$Id = tip::GetGet ('group', 'integer');
@@ -155,18 +144,18 @@ class tipAdvertisement extends tipModule
 	return TRUE;
 
 	/**
-	 * \li <b>browseillegal</b>\n
-	 *     Shows the illegalized advertisements.
+	 * \action <b>browseillegal</b>\n
+	 * Shows the illegalized advertisements.
 	 **/
       case 'browseillegal':
 	$this->AppendToContent ('browse-illegal.src');
 	return TRUE;
 
 	/**
-	 * \li <b>view</b>\n
-	 *     Views in detail a specified advertisement. You must specify
-	 *     in $_GET['id'] the advertisement id. Viewing an advertisement
-	 *     also updates its internal fields (view counter ans so on).
+	 * \action <b>view</b>\n
+	 * Views in detail a specified advertisement. You must specify
+	 * in $_GET['id'] the advertisement id. Viewing an advertisement
+	 * also updates its internal fields (view counter ans so on).
 	 **/
       case 'view':
 	$Id = tip::GetGet ('id', 'integer');
@@ -177,7 +166,7 @@ class tipAdvertisement extends tipModule
 	  }
 
 	$Query = $this->DATA_ENGINE->QueryById ($Id, $this);
-	if (! $this->StartQuery ($Query))
+	if (! $this->StartView ($Query))
 	  {
 	    $Application->Error ('E_DATA_SELECT');
 	    return FALSE;
@@ -186,7 +175,7 @@ class tipAdvertisement extends tipModule
 	if (! $this->ResetRow ())
 	  {
 	    $APPLICATION->Error ('E_NOTFOUND');
-	    $this->EndQuery ();
+	    $this->EndView ();
 	    return FALSE;
 	  }
 
@@ -199,22 +188,22 @@ class tipAdvertisement extends tipModule
 	  $Application->Error ('E_DATA_UPDATE');
 
 	$this->AppendToContent ('view.src');
-	$this->EndQuery ();
+	$this->EndView ();
 	return TRUE;
 
 	/**
-	 * \li <b>update</b>\n
-	 *     Requests an update on the specified advertisement. You must
-	 *     specify in $_GET['id'] the advertisement id. Update means to
-	 *     post the expiration date as the advertisement was published 
-	 *     today.
+	 * \action <b>update</b>\n
+	 * Requests an update on the specified advertisement. You must
+	 * specify in $_GET['id'] the advertisement id. Update means to
+	 * post the expiration date as the advertisement was published 
+	 * today.
 	 **/
       case 'update':
 	/**
-	 * \li <b>doupdate</b>\n
-	 *     Updates the specified advertisement. You must specify
-	 *     in $_GET['id'] the advertisement id. Update means to post the
-	 *     expiration date as the advertisement was published today.
+	 * \action <b>doupdate</b>\n
+	 * Updates the specified advertisement. You must specify
+	 * in $_GET['id'] the advertisement id. Update means to post the
+	 * expiration date as the advertisement was published today.
 	 **/
       case 'doupdate':
 	$Id = tip::GetGet ('id', 'integer');
@@ -238,19 +227,19 @@ class tipAdvertisement extends tipModule
 	    $this->AppendToContent ('update.src');
 	  }
 
-	$this->EndQuery ();
+	$this->EndView ();
 	return TRUE;
 
 	/**
-	 * \li <b>delete</b>\n
-	 *     Requests a delete of the specified advertisement. You must
-	 *     specify in $_GET['id'] the advertisement id.
+	 * \action <b>delete</b>\n
+	 * Requests a delete of the specified advertisement. You must
+	 * specify in $_GET['id'] the advertisement id.
 	 **/
       case 'delete':
 	/**
-	 * \li <b>dodelete</b>\n
-	 *     Deletes the specified advertisement. You must specify in
-	 *     $_GET['id'] the advertisement id.
+	 * \action <b>dodelete</b>\n
+	 * Deletes the specified advertisement. You must specify in
+	 * $_GET['id'] the advertisement id.
 	 **/
       case 'dodelete':
 	$Id = tip::GetGet ('id', 'integer');
@@ -279,23 +268,23 @@ class tipAdvertisement extends tipModule
 	    $this->AppendToContent ('delete.src');
 	  }
 
-	$this->EndQuery ();
+	$this->EndView ();
 	return TRUE;
 
 	/**
-	 * \li <b>illegal</b>\n
-	 *     Requests to illegalize a specified advertisement. You must
-	 *     specify in $_GET['id'] the advertisement id.
-	 *     The user must be registered to do this.
+	 * \action <b>illegal</b>\n
+	 * Requests to illegalize a specified advertisement. You must
+	 * specify in $_GET['id'] the advertisement id.
+	 * The user must be registered to do this.
 	 **/
       case 'illegal':
 	/**
-	 * \li <b>doillegal</b>\n
-	 *     Illegalizes the specified advertisement. You must specify
-	 *     in $_GET['id'] the advertisement id. Illegalize means to
-	 *     notify the advertisement as unconformed, so the admins can
-	 *     easely check the content.
-	 *     The user must be registered to do this.
+	 * \action <b>doillegal</b>\n
+	 * Illegalizes the specified advertisement. You must specify
+	 * in $_GET['id'] the advertisement id. Illegalize means to
+	 * notify the advertisement as unconformed, so the admins can
+	 * easely check the content.
+	 * The user must be registered to do this.
 	 **/
       case 'doillegal':
 	$UserId = tipApplication::GetUserId ();
@@ -313,7 +302,7 @@ class tipAdvertisement extends tipModule
 	  }
 
 	$Query = $this->DATA_ENGINE->QueryById ($Id, $this);
-	if (! $this->StartQuery ($Query))
+	if (! $this->StartView ($Query))
 	  {
 	    $Application->Error ('E_DATA_SELECT');
 	    return FALSE;
@@ -322,7 +311,7 @@ class tipAdvertisement extends tipModule
 	if (! $this->ResetRow ())
 	  {
 	    $APPLICATION->Error ('E_NOTFOUND');
-	    $this->EndQuery ();
+	    $this->EndView ();
 	    return FALSE;
 	  }
 
@@ -361,30 +350,28 @@ class tipAdvertisement extends tipModule
 	    $this->AppendToContent ('illegal.src');
 	  }
 
-	$this->EndQuery ();
+	$this->EndView ();
 	return TRUE;
 
 	/**
-	 * \li <b>legalize</b>\n
-	 *     Requests to check a specified advertisement to legalize or
-	 *     illegalize it. You must specify in $_GET['id'] the advertisement
-	 *     id.
+	 * \action <b>legalize</b>\n
+	 * Requests to check a specified advertisement to legalize or
+	 * illegalize it. You must specify in $_GET['id'] the advertisement id.
 	 **/
       case 'check':
 	/**
-	 * \li <b>dolegalize</b>\n
-	 *     Legalizes the specified advertisement. You must specify
-	 *     in $_GET['id'] the advertisement id. Legalize is the opposite
-	 *     of illegalize.
+	 * \action <b>dolegalize</b>\n
+	 * Legalizes the specified advertisement. You must specify in $_GET['id']
+	 * the advertisement id. Legalize is the opposite of illegalize.
 	 **/
       case 'dolegalize':
 	/**
-	 * \li <b>doillegalize</b>\n
-	 *     Illegalizes the specified advertisement. You must specify
-	 *     in $_GET['id'] the advertisement id. Illegalize means to remove
-	 *     the advertisement from the public view (setting the '_public'
-	 *     field to 'no'). The advertisement will still be visible to its
-	 *     owner, but not to the public.
+	 * \action <b>doillegalize</b>\n
+	 * Illegalizes the specified advertisement. You must specify
+	 * in $_GET['id'] the advertisement id. Illegalize means to remove
+	 * the advertisement from the public view (setting the '_public'
+	 * field to 'no'). The advertisement will still be visible to its
+	 * owner, but not to the public.
 	 **/
       case 'doillegalize':
 	$Id = tip::GetGet ('id', 'integer');
@@ -395,7 +382,7 @@ class tipAdvertisement extends tipModule
 	  }
 
 	$Query = $this->DATA_ENGINE->QueryById ($Id, $this);
-	if (! $this->StartQuery ($Query))
+	if (! $this->StartView ($Query))
 	  {
 	    $Application->Error ('E_DATA_SELECT');
 	    return FALSE;
@@ -404,7 +391,7 @@ class tipAdvertisement extends tipModule
 	if (! $this->ResetRow ())
 	  {
 	    $APPLICATION->Error ('E_NOTFOUND');
-	    $this->EndQuery ();
+	    $this->EndView ();
 	    return FALSE;
 	  }
 
@@ -464,7 +451,7 @@ class tipAdvertisement extends tipModule
 	    $this->AppendToContent ('check.src');
 	  }
 
-	$this->EndQuery ();
+	$this->EndView ();
 	return TRUE;
       }
 
@@ -481,8 +468,8 @@ class tipAdvertisement extends tipModule
     global $APPLICATION;
 
     /**
-     * \li <b>EXPIRATION</b>\n
-     *     The estimated expiration date if updating an advertisement now.
+     * \modulefield <b>EXPIRATION</b>\n
+     * The estimated expiration date if updating an advertisement now.
      **/
     $this->FIELDS['EXPIRATION'] = date ('Y-m-d', strtotime ($this->GetOption ('expiration')));
   }
@@ -503,7 +490,7 @@ class tipAdvertisement extends tipModule
       }
 
     $this->DATA_ENGINE->Querify ($UserId, $this);
-    if (! $this->StartQuery ("WHERE `user`=$UserId"))
+    if (! $this->StartView ("WHERE `user`=$UserId"))
       {
 	$Application->Error ('E_DATA_SELECT');
 	return $Row;
@@ -514,7 +501,7 @@ class tipAdvertisement extends tipModule
       {
 	$APPLICATION->Error ('E_NOTFOUND');
 	$this->AppendToContent ('browse-user.src');
-	$this->EndQuery ();
+	$this->EndView ();
       }
 
     return $Row;

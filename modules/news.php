@@ -4,23 +4,16 @@ class tipNews extends tipModule
 {
   // Overriden:
 
-  /**
-   * Executes an action.
-   * @copydoc tipModule::RunAction()
-   **/
   function RunAction ($Action)
   {
     global $APPLICATION;
 
-    /**
-     * The following are added by the 'news' module:
-     **/
     switch ($Action)
       {
 	/**
-	 * \li <b>view</b>\n
-	 *     Detailed view of a specific news, including its comments. You
-	 *     must specify the news id in the $_GET['id'] field.
+	 * \action <b>view</b>\n
+	 * Detailed view of a specific news, including its comments. You
+	 * must specify the news id in the $_GET['id'] field.
 	 **/
       case 'view':
 	$Id = tip::GetGet ('id', 'integer');
@@ -31,7 +24,7 @@ class tipNews extends tipModule
 	  }
 
 	$Query = $this->DATA_ENGINE->QueryById ($Id, $this);
-	if (! $this->StartQuery ($Query))
+	if (! $this->StartView ($Query))
 	  {
 	    $APPLICATION->Error ('E_SELECT');
 	    return FALSE;
@@ -40,7 +33,7 @@ class tipNews extends tipModule
 	if ($this->RowsCount () < 1)
 	  {
 	    $APPLICATION->Error ('E_NOTFOUND');
-	    $this->EndQuery ();
+	    $this->EndView ();
 	    return FALSE;
 	  }
 
@@ -52,7 +45,7 @@ class tipNews extends tipModule
 	$this->DATA_ENGINE->UpdateRow ($OldRow, $NewRow, $this);
 
 	$this->AppendToContent ('view.src');
-	$this->EndQuery ();
+	$this->EndView ();
 
 	return TRUE;
 

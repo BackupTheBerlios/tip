@@ -5,41 +5,35 @@
  *
  * This module provides user management to the site, allowing:
  *
- * \li Logins and logouts
- * \li User management
- * \li Statistics on logged users
+ * - Logins and logouts
+ * - User management
+ * - Statistics on logged users
  *
- * Provided module fields:
- *
- * \li <b>CID</b>\n
- *     The user id of the current user, that is the user logged in.
- *     In anonymous sections, this field is not defined (it is \c NULL).
+ * \modulefield <b>CID</b>\n
+ * The user id of the current user, that is the user logged in.
+ * In anonymous sections, this field is not defined (it is \c NULL).
  **/
 class tipUser extends tipModule
 {
   /// @protectedsection
 
-  /**
-   * Executes a management action.
-   * @copydoc tipModule::RunManagerAction()
-   **/
   function RunManagerAction ($Action)
   {
     global $APPLICATION;
 
     switch ($Action)
       {
-	/**
-	 * \li <b>delete</b>\n
-	 *     Requests a delete of the specified user. You must specify in
-	 *     $_GET['id'] the user id.
-	 **/
+      /**
+       * \manageraction <b>delete</b>\n
+       * Requests a delete of the specified user. You must specify in
+       * $_GET['id'] the user id.
+       **/
       case 'delete':
-	/**
-	 * \li <b>dodelete</b>\n
-	 *     Deletes the specified user. You must specify in $_GET['id'] the
-	 *     user id.
-	 **/
+      /**
+       * \manageraction <b>dodelete</b>\n
+       * Deletes the specified user. You must specify in $_GET['id'] the user
+       * id.
+       **/
       case 'dodelete':
 	$Id = tip::GetGet ('id', 'integer');
 	/* TODO
@@ -111,27 +105,23 @@ class tipUser extends tipModule
 	    $this->AppendToContent ('delete.src');
 	  }
 
-	$this->EndQuery ();
+	$this->EndView ();
 	return TRUE;
       }
 
     return parent::RunManagerAction ($Action);
   }
 
-  /**
-   * Executes an administator action.
-   * @copydoc tipModule::RunAdminAction()
-   **/
   function RunAdminAction ($Action)
   {
     global $APPLICATION;
 
     switch ($Action)
       {
-	/**
-	 * \li <b>browse</b>\n
-	 *     Shows all the registered users.
-	 **/
+      /**
+       * \adminaction <b>browse</b>\n
+       * Shows all the registered users.
+       **/
       case 'browse':
 	$this->AppendToContent ('browse.src');
 	return TRUE;
@@ -140,10 +130,6 @@ class tipUser extends tipModule
     return parent::RunAdminAction ($Action);
   }
 
-  /**
-   * Executes a trusted action.
-   * @copydoc tipModule::RunTrustedAction()
-   **/
   function RunTrustedAction ($Action)
   {
     global $APPLICATION;
@@ -151,23 +137,22 @@ class tipUser extends tipModule
     switch ($Action)
       {
       /**
-       * \li <b>unset</b>\n
-       *     Logout the current user (if any).
+       * \trustedaction <b>unset</b>\n
+       * Logout the current user (if any).
        **/
       case 'unset':
 	return $this->LogOut ();
 
       /**
-       * \li <b>edit</b>\n
-       *     Requests the modification of the current user profile.
+       * \trustedaction <b>edit</b>\n
+       * Requests the modification of the current user profile.
        **/
       case 'edit':
 	return $this->AppendToContent ('module.src');
 
       /**
-       * \li <b>doedit</b>\n
-       *     Modifies the current user profile with the data found in the
-       *     $_POST array.
+       * \trustedaction <b>doedit</b>\n
+       * Modifies the current user profile with the data found in $_POST.
        **/
       case 'doedit':
 	if (! $this->ValidatePosts ())
@@ -180,10 +165,6 @@ class tipUser extends tipModule
     return parent::RunTrustedAction ($Action);
   }
 
-  /**
-   * Executes an untrusted action.
-   * @copydoc tipModule::RunUntrustedAction()
-   **/
   function RunUntrustedAction ($Action)
   {
     global $APPLICATION;
@@ -191,9 +172,9 @@ class tipUser extends tipModule
     switch ($Action)
       {
       /**
-       * \li <b>set</b>\n
-       *     Login request. You must specify the user name and its password in
-       *     $_POST['user'] and $_POST['password'].
+       * \untrustedaction <b>set</b>\n
+       * Login request. You must specify the user name and its password in
+       * $_POST['user'] and $_POST['password'].
        **/
       case 'set':
 	$User = tip::GetPost ('user', 'string');
@@ -213,7 +194,7 @@ class tipUser extends tipModule
 	  }
 
 	$this->DATA_ENGINE->Querify ($User, $this);
-	if (! $this->StartQuery ("WHERE `user`=$User"))
+	if (! $this->StartView ("WHERE `user`=$User"))
 	  {
 	    $APPLICATION->Error ('DB_SELECT');
 	    return FALSE;
@@ -222,7 +203,7 @@ class tipUser extends tipModule
 	if ($this->RowsCount () < 1)
 	  {
 	    $APPLICATION->Error ('U_NOTFOUND');
-	    $this->EndQuery ();
+	    $this->EndView ();
 	    return FALSE;
 	  }
 
@@ -231,31 +212,31 @@ class tipUser extends tipModule
 	if ($Row['password'] != $Password)
 	  {
 	    $APPLICATION->Error ('U_PWINVALID');
-	    $this->EndQuery ();
+	    $this->EndView ();
 	    return FALSE;
 	  }
 
-	// No EndQuery() call to retain this row as default row
+	// No EndView() call to retain this row as default row
 	return $this->LogIn ();
 
       /**
-       * \li <b>conditions</b>\n
-       *     Shows the conditions imposed by the registration.
+       * \untrustedaction <b>condition</b>\n
+       * Shows the conditions imposed by the registration.
        **/
       case 'conditions':
 	return $this->AppendToContent ('conditions.src');
 
       /**
-       * \li <b>add</b>\n
-       *     Registration request.
+       * \untrustedaction <b>add</b>\n
+       * Registration request.
        **/
       case 'add':
 	return $this->AppendToContent ('module.html');
 
       /**
-       * \li <b>doadd</b>\n
-       *     New user registration. The user data must be filled in the $_POST
-       *     array (as for every module).
+       * \untrustedaction <b>doadd</b>\n
+       * New user registration. The user data must be filled in the $_POST
+       * array (as for every module).
        **/
       case 'doadd':
 	// TODO
@@ -265,17 +246,20 @@ class tipUser extends tipModule
     return parent::RunUntrustedAction ($Action);
   }
 
-  function StartQuery ($Query)
+  function StartView ($Query)
   {
     $View =& new tipView ($this, $Query);
     $View->ON_ROW->Set (array (&$this, 'OnRow'));
     return $this->Push ($View);
   }
 
-  function StartFields ()
+  function StartSpecialView ($Name)
   {
-    $View =& new tipFieldView ($this);
-    $View->ON_ROWS->Set (array (&$this, 'OnFieldRows'));
+    if (strcasecmp ($Name, 'FIELDS') != 0)
+      return parent::StartSpecialView ($Name);
+
+    $View =& new tipFieldsView ($this);
+    $View->ON_ROWS->Set (array (&$this, 'OnFieldsRows'));
     return $this->Push ($View);
   }
 
@@ -318,7 +302,7 @@ class tipUser extends tipModule
 
     global $APPLICATION;
     $Query = $this->DATA_ENGINE->QueryById ($Id, $this);
-    if (! $this->StartQuery ($Query))
+    if (! $this->StartView ($Query))
       {
 	$APPLICATION->Error ('E_DATA_SELECT');
 	return;
@@ -327,7 +311,7 @@ class tipUser extends tipModule
     if (! $this->ResetRow ())
       {
 	$APPLICATION->Error ('E_NOTFOUND');
-	$this->EndQuery ();
+	$this->EndView ();
 	return;
       }
 
@@ -335,12 +319,12 @@ class tipUser extends tipModule
     if (crypt ($Password, $CryptedPassword) != $CryptedPassword)
       {
 	$APPLICATION->Error ('E_DENIED');
-	$this->EndQuery ();
+	$this->EndView ();
 	return;
       }
 
     $this->ActivateUser ();
-    // No EndQuery() call to retain this query as the default one
+    // No EndView() call to retain this query as the default one
   }
 
   function LogIn ()
@@ -412,14 +396,14 @@ class tipUser extends tipModule
   {
     global $APPLICATION;
     $this->DATA_ENGINE->Querify ($Value, $this);
-    if (! $this->StartQuery ("WHERE `user`=$Value"))
+    if (! $this->StartView ("WHERE `user`=$Value"))
       {
 	$APPLICATION->Error ('E_DATA_SELECT');
 	return FALSE;
       }
 
     $UserId = $this->ResetRow () ? $this->GetField ('id') : $this->FIELDS['CID'];
-    $this->EndQuery ();
+    $this->EndView ();
 
     if (@$this->FIELDS['CID'] != $UserId)
       {
@@ -434,14 +418,14 @@ class tipUser extends tipModule
   {
     global $APPLICATION;
     $this->DATA_ENGINE->Querify ($Value, $this);
-    if (! $this->StartQuery ("WHERE `publicname`=$Value"))
+    if (! $this->StartView ("WHERE `publicname`=$Value"))
       {
 	$APPLICATION->Error ('E_DATA_SELECT');
 	return FALSE;
       }
 
     $UserId = $this->ResetRow () ? $this->GetField ('id') : $this->FIELDS['CID'];
-    $this->EndQuery ();
+    $this->EndView ();
 
     if (@$this->FIELDS['CID'] != $UserId)
       {
@@ -452,7 +436,7 @@ class tipUser extends tipModule
     return TRUE;
   }
 
-  function OnFieldRows (&$View)
+  function OnFieldsRows (&$View)
   {
     $Fields = array
       ('user'		=> array ('mode'	=> 'entry',

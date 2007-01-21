@@ -4,10 +4,6 @@ class tipPoll extends tipModule
 {
   /// @protectedsection
 
-  /**
-   * Executes an action.
-   * @copydoc tipModule::RunAction()
-   **/
   function RunAction ($Action)
   {
     global $APPLICATION;
@@ -15,9 +11,9 @@ class tipPoll extends tipModule
     switch ($Action)
       {
       /**
-       * \li <b>edit</b>\n
-       *     Vote request. You must specify the answer code in the
-       *     $_GET['answer'] field.
+       * \action <b>edit</b>\n
+       * Vote request. You must specify the answer code in the
+       * $_GET['answer'] field.
        **/
       case 'edit':
 	if (! array_key_exists ('answer', $_GET))
@@ -39,9 +35,9 @@ class tipPoll extends tipModule
 	return TRUE;
 
       /**
-       * \li <b>doedit</b>\n
-       *     Vote operation. You must specify the answer code in the
-       *     $_GET['answer'] field.
+       * \action <b>doedit</b>\n
+       * Vote operation. You must specify the answer code in the
+       * $_GET['answer'] field.
        **/
       case 'doedit':
 	if (! array_key_exists ('plvoting', $_COOKIE))
@@ -86,7 +82,7 @@ class tipPoll extends tipModule
     return parent::RunAction ($Action);
   }
 
-  function StartQuery ($Query)
+  function StartView ($Query)
   {
     $View =& new tipView ($this, $Query);
     $View->ON_ROW->Set (array (&$this, 'OnRow'));
@@ -99,9 +95,9 @@ class tipPoll extends tipModule
   function tipPoll ()
   {
     $this->tipModule ();
-    $this->StartQuery ('ORDER BY `date` DESC LIMIT 1');
+    $this->StartView ('ORDER BY `date` DESC LIMIT 1');
     $this->ResetRow ();
-    // No EndQuery() call to retain this row as default row
+    // No EndView() call to retain this row as default row
   }
 
   function OnRow (&$Row)

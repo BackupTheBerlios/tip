@@ -57,10 +57,12 @@ class tipRcbtContext
 	return;
       }
 
-    if ($this->ON_START->RESULT)
-      $this->ON_STOP->Go ();
     if ($this->ON_CREATE->RESULT)
-      $this->ON_DESTROY->Go ();
+      {
+	if ($this->ON_START->RESULT)
+	  $this->ON_STOP->Go ();
+	$this->ON_DESTROY->Go ();
+      }
 
     $this->SkipIf (FALSE);
   }
@@ -352,21 +354,31 @@ class tipRcbtTag
 
   function RunTag (&$Parser)
   {
+    if ($this->MODULE_NAME)
+      $Module =& tipType::GetInstance ($this->MODULE_NAME);
+    else
+      $Module =& $Parser->CONTEXT->MODULE;
+
     if (! $this->COMMAND)
       {
+	$Error = $Module->GetError ();
+	if ($Error)
+	  $Parser->LogWarning ($Error);
+
 	if (! $Parser->Pop ())
 	  $Parser->LogWarning ('too much {} tags');
 
 	return TRUE;
       }
 
-    if ($this->MODULE_NAME)
-      $Module =& tipType::GetInstance ($this->MODULE_NAME);
-    else
-      $Module =& $Parser->CONTEXT->MODULE;
-
     switch ($this->COMMAND)
       {
+      /**
+       * \rcbtbuiltin <b>If(</b><i>conditions</i><b>)</b>\n
+       * Executes the text enclosed by this tag and the <tt>{}</tt> tag
+       * only if \c conditions is true. During the execution of this text, the
+       * default module will be the current module.
+       **/
       case 'if':
 	if ($Context =& $this->CreateContext ($Parser, $Module))
 	  {
@@ -384,57 +396,89 @@ class tipRcbtTag
 	  }
 	return TRUE;
 
+      /**
+       * \rcbtbuiltin <b>Else()</b>\n
+       * Switches the skip condition of an enclosed text.
+       **/
+      case 'else':
+	$Parser->CONTEXT->SkipIf (! $Parser->CONTEXT->SKIP);
+	return TRUE;
+
+      /**
+       * \rcbtbuiltin <b>Query(</b><i>query</i><b>)</b>\n
+       * Performs the specified \p query on the module and runs the text
+       * enclosed by this tag and the <tt>{}</tt> tag with this query active.
+       * This can be helpful, for instance, to show the summary fields of a
+       * query. During the execution of this text, the default module will
+       * be the current module. This means if you do not specify the query,
+       * this tag simply change the default module.
+       **/
       case 'query':
 	if ($Context =& $this->CreateContext ($Parser, $Module))
 	  {
 	    if (! empty ($this->PARAMS))
 	      {
-		$Context->ON_CREATE->Set (array (&$Module, 'StartQuery'), array ($this->PARAMS));
+		$Context->ON_CREATE->Set (array (&$Module, 'StartView'), array ($this->PARAMS));
 		$Context->ON_START->Set (array (&$Module, 'ResetRow'));
-		$Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
+		$Context->ON_STOP->Set (array (&$Module, 'EndView'));
 	      }
 	    $Parser->Push ($Context);
 	  }
 	return TRUE;
 
+      /**
+       * \rcbtbuiltin <b>QueryById(</b><i>id</i><b>)</b>\n
+       * A shortcut to the \c query command performing a query on the primary
+       * key content.
+       **/
       case 'querybyid':
 	if ($Context =& $this->CreateContext ($Parser, $Module))
 	  {
 	    $Query = $Module->DATA_ENGINE->QueryById ($this->PARAMS, $Module);
-	    $Context->ON_CREATE->Set (array (&$Module, 'StartQuery'), array ($Query));
+	    $Context->ON_CREATE->Set (array (&$Module, 'StartView'), array ($Query));
 	    $Context->ON_START->Set (array (&$Module, 'ResetRow'));
-	    $Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
+	    $Context->ON_STOP->Set (array (&$Module, 'EndView'));
 	    $Parser->Push ($Context);
 	  }
 	return TRUE;
 
+      /**
+       * \rcbtbuiltin <b>ForQuery(</b><i>query</i><b>)</b>\n
+       * Performs the specified \c query on the module and, for every row, runs
+       * the text enclosed by this tag and the <tt>{}</tt> tag. During the
+       * execution of this text, the current module will be the default one.
+       **/
       case 'forquery':
 	if ($Context =& $this->CreateContext ($Parser, $Module))
 	  {
-	    $Context->ON_CREATE->Set (array (&$Module, 'StartQuery'), array ($this->PARAMS));
+	    $Context->ON_CREATE->Set (array (&$Module, 'StartView'), array ($this->PARAMS));
 	    $Context->ON_START->Set (array (&$Module, 'ResetRow'));
-	    $Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
+	    $Context->ON_STOP->Set (array (&$Module, 'EndView'));
 	    $Context->ON_LOOP->Set (array (&$Module, 'NextRow'));
 	    $Parser->Push ($Context);
 	  }
 	return TRUE;
 
+      /**
+       * \rcbtbuiltin <b>ForEach(</b><i>list</i><b>)</b>\n
+       * If you do not specify \p list, it is the same as \c forquery but
+       * traverses the current query instead of a specific one.
+       * If \p list is a number, the enclosed text is executed \p list times;
+       * in the enclosed text, the special field \b CNT keeps track of the
+       * current time counter.
+       * In the other cases, a special query is performed by calling
+       * tipModule::StartSpecialView() and using \p list as argument.
+       * A common value is \b FIELD, that generates a special query that
+       * browses the field structure, or \b MODULE, that traverses all the
+       * installed modules of the site.
+       **/
       case 'foreach':
 	if ($Context =& $this->CreateContext ($Parser, $Module))
 	  {
-	    if ($this->PARAMS == 'FIELD')
+	    if (empty ($this->PARAMS))
 	      {
-		$Context->ON_CREATE->Set (array (&$Module, 'StartFields'));
 		$Context->ON_START->Set (array (&$Module, 'ResetRow'));
 		$Context->ON_LOOP->Set (array (&$Module, 'NextRow'));
-		$Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
-	      }
-	    elseif ($this->PARAMS == 'MODULE')
-	      {
-		$Context->ON_CREATE->Set (array (&$Module, 'StartModules'));
-		$Context->ON_START->Set (array (&$Module, 'ResetRow'));
-		$Context->ON_LOOP->Set (array (&$Module, 'NextRow'));
-		$Context->ON_STOP->Set (array (&$Module, 'EndQuery'));
 	      }
 	    elseif ($this->PARAMS > 0)
 	      {
@@ -442,24 +486,27 @@ class tipRcbtTag
 		$Context->ON_LOOP->Set (create_function ('&$Module,$n', 'return $n > $Module->FIELDS[\'CNT\'] ++;'), array (&$Module, (int)$this->PARAMS));
 		$Context->ON_STOP->Set (create_function ('&$Module', 'unset ($Module->FIELDS[\'CNT\']); return TRUE;'), array (&$Module));
 	      }
-	    elseif (! empty ($this->PARAMS))
-	      {
-		$this->LogWarning ("undefined foreach mode ($this->PARAMS)");
-		$Context->SkipIf (TRUE);
-	      }
 	    else
 	      {
+		$Context->ON_CREATE->Set (array (&$Module, 'StartSpecialView'), array ($this->PARAMS));
 		$Context->ON_START->Set (array (&$Module, 'ResetRow'));
 		$Context->ON_LOOP->Set (array (&$Module, 'NextRow'));
+		$Context->ON_STOP->Set (array (&$Module, 'EndView'));
 	      }
 	    $Parser->Push ($Context);
 	  }
 	return TRUE;
 
-      case 'else':
-	$Parser->CONTEXT->SkipIf (! $Parser->CONTEXT->SKIP);
-	return TRUE;
-
+      /**
+       * \rcbtbuiltin <b>RecurseIf(</b><i>fieldid,value</i><b>)</b>\n
+       * Inside a loop construct (such as \c ForQuery or \c ForEach), you can
+       * recursively run the next rows that have the \p fieldid field equal to
+       * \p value. Recursively means the text enclosed by the \c For... tag
+       * is run for every matching row and the result is put in place of the
+       * \c RecurseIf tag. This command is useful to generate hierarchies, such
+       * as tree or catalogs. Notice you must have a query that generates a
+       * properly sorted sequence of rows.
+       **/
       case 'recurseif':
 	if ($Parser->CONTEXT->SKIP)
 	  return TRUE;
@@ -516,7 +563,7 @@ class tipRcbtTag
  * The format of an rcbt file is quite simple: it is a pure HTML file that can
  * contains some tags.
  *
- * @attention The tags are identified by the curly braces, so the rcbt file
+ * \attention The tags are identified by the curly braces, so the rcbt file
  *            CANNOT USE curly braces for other reasons than specifying a tag.
  *
  * A rcbt tag has the following syntax:
@@ -536,64 +583,29 @@ class tipRcbtTag
  *
  * <tt>{age}</tt> a special case: this will expand to <tt>{Html(age)}</tt>
  *
- * <tt>{(age)}</tt> another special case: this will expand to
- *                  <tt>{TryHtml(age)}</tt>
+ * <tt>{(age)}</tt> another special case: this will expand to <tt>{TryHtml(age)}</tt>
  *
+ * - <b>\c module</b> (case insensitive)\n
+ *   Identifies the module to use while executing this tag. If not specified,
+ *   the caller module will be used.
+ * - <b>\c command</b> (case insensitive)\n
+ *   Defines the comman to call. The available commands are module dependents:
+ *   consult the module documentation to see which commands are available,
+ *   particulary the tipModule::CallCommand() function. As mentioned above,
+ *   if not specified the 'Html' command will be executed.
+ * - <b>\c params</b> (case sensitive)\n
+ *   The arguments to pass to the command. Obviously, what \c params means
+ *   depend by the command called.\n
+ *   The content of \c params will be recursively executed before the call:
+ *   this means a \c params can contains itsself any sort of valid tags.
  *
- * \li <b>\c module</b> (case insensitive)\n
- *     Identifies the module to use while executing this tag. If not specified,
- *     the caller module will be used.
- * \li <b>\c command</b> (case insensitive)\n
- *     Defines the comman to call. The available commands are module dependents:
- *     consult the module documentation to see which commands are available,
- *     particulary the tipModule::CallCommand() function. As mentioned above,
- *     if not specified the 'Html' command will be executed.
- * \li <b>\c params</b> \n
- *     The arguments to pass to the command. Obviously, what \c params means
- *     depend by the command called.\n
- *     The content of \c params will be recursively executed before the call:
- *     this means a \c params can contains itsself any sort of valid tags.
+ * The special empty tag <tt>{}</tt> is used to close the context opened by
+ * some commands, such as ForQuery() of If() tags.
  *
- * Some tags are specially managed by the rcbt engine:
- *
- * \li <b><tt>{[module.]query([query])}</tt></b>\n
- *     Performs the specified \c query on \c module and runs the buffer
- *     enclosed by this tag and the <tt>{}</tt> tag with this query active.
- *     This can be helpful, for instance, to show the summary fields of a
- *     query. During the execution of this buffer, the default module will be
- *     \c module. This means if you do not specify the query, this tag simply
- *     change the default module.
- * \li <b><tt>{[module.]querybyid(id)}</tt></b>\n
- *     A shortcut to the \c query command performing a query on the primary
- *     key content.
- * \li <b><tt>{[module.]forquery([query])}</tt></b>\n
- *     Performs the specified \c query on \c module and, for every row, runs
- *     the buffer enclosed by this tag and the <tt>{}</tt> tag. During the
- *     execution of this buffer, the default module will be \c module.
- * \li <b><tt>{[module.]foreach([list])}</tt></b>\n
- *     If you do not specify \p list, it is the same as forquery, but traverses
- *     the current query instead of a specific one. If \p list is \b FIELD,
- *     a query that traverses all the fields is performed. If \p list is
- *     \b MODULE, a special query that traverses all the installed modules is
- *     performed. If \p list is a number, the enclosed buffer is executed
- *     \p list times; in the enclosed buffer, the special field \b CNT keeps
- *     track of the current time.
- * \li <b><tt>{recurseif(fieldid,value)}</tt></b>\n
- *     Inside a \b forquery or a \b foreach command, you can recursively run
- *     the next rows that have the \p fieldid field equal to \p value.
- *     Recursively means the buffer enclosed by the forquery tag is run for
- *     every matching row and the result is put in place of the \c recurseif
- *     tag. This command is useful to generate hierarchies, such as tree or
- *     catalogs. Notice you must have a query that generates a properly sorted
- *     sequence of rows.
- * \li <b><tt>{[module.]if([conditions])}</tt></b>\n
- *     Executes the buffer enclosed by this tag and the <tt>{}</tt> tag
- *     only if \c conditions is true. During the execution of this buffer, the
- *     default module will be \c module.
- * \li <b><tt>{[module.]else()}</tt></b>\n
- *     Switches the skip condition of an enclosed buffer.
- * \li <b><tt>{}</tt></b>\n
- *     Special tag that specifies the end of an enclosed buffer.
+ * See the \subpage RcbtBuiltins page to know which are the available commands.
+ * If the tag is not built-in, a call to tipModule::RunCommand(), using the
+ * proper module and passing the parsed command and params as arguments, is
+ * performed. See the \subpage Commands page for details.
  **/
 class tipRcbt extends tipSource
 {

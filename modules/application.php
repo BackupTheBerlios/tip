@@ -6,10 +6,8 @@
  * Provides an easy way to display error/warning/whatever messages to the
  * users.
  *
- * Provided module fields:
- *
- * \li <b>CONTEXT_MESSAGE</b>\n
- *     A text to append to notify message.
+ * \modulefield <b>CONTEXT_MESSAGE</b>\n
+ * A text to append to the notify message.
  **/
 class tipNotify extends tipModule
 {
@@ -29,17 +27,17 @@ class tipNotify extends tipModule
   function EchoMessage ($MessageId, $Source)
   {
     $Query = $this->DATA_ENGINE->QueryById ($MessageId, $this);
-    if (! $this->StartQuery ($Query))
+    if (! $this->StartView ($Query))
       return FALSE;
 
     if (! $this->ResetRow ())
       {
-	$this->EndQuery ();
+	$this->EndView ();
 	return FALSE;
       }
 
     $Result = $this->InsertInContent ($Source);
-    $this->EndQuery ();
+    $this->EndView ();
     return $Result;
   }
 
@@ -139,18 +137,14 @@ class tipApplication extends tipModule
 {
   /// @protectedsection
 
-  /**
-   * Executes a command.
-   * @copydoc tipModule::RunCommand()
-   **/
   function RunCommand ($Command, &$Params)
   {
     switch ($Command)
       {
       /**
-       * \li <b>content()</b>\n
-       *     Outputs the content of the application. The content is the place
-       *     where the responses of any action must go.
+       * \command <b>content()</b>\n
+       * Outputs the content of the application. The content is the place where
+       * the responses of any action must go.
        **/
       case 'content':
 	if (empty ($this->CONTENT))
@@ -253,7 +247,8 @@ class tipApplication extends tipModule
 
   /**
    * User error notification.
-   * @param[in] ErrorId \c mixed The error id
+   * @param[in] ErrorId        \c mixed   The error id
+   * \param[in] ContextMessage \c string  A custom message to append
    *
    * Outputs the specified error message to notify the user about something
    * wrong. This is merely a wrapper that calls the tipNotify::EchoError()

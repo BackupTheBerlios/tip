@@ -8,23 +8,27 @@
  * The following is the privilege descriptors list, ordered from the highest to
  * the lowest level:
  *
- * \li <b>manager</b>\n
- *     The highest privilege. This allows every available action provided by
- *     the module to be executed.
- * \li <b>admin</b>\n
- *     The administrator privilege. It allows to do everything but modifying
- *     the overall module structure.
- * \li <b>trusted</b>\n
- *     The trusted (or registered) user privilege. This allows to do read
- *     actions on the module content and write actions only on content owned
- *     directly by the user.
- * \li <b>untrusted</b>\n
- *     The untrusted (anonymous) user privilege. This allows only read
- *     actions on the module content.
- * \li <b>none</b>\n
- *     The lowest privilege. This disallows all the actions that require any
- *     privilege. A module can anyway have some action that does not require
- *     privileges.
+ * \par manager
+ * The highest privilege. This allows every available action provided by the
+ * module to be executed.
+ *
+ * \par admin
+ * The administrator privilege. It allows to do everything but modifying the
+ * overall module structure.
+ *
+ * \par trusted
+ * The trusted (or registered) user privilege. This allows to do read actions
+ * on the module content and write actions only on content owned directly by
+ * the user.
+ *
+ * \par untrusted
+ * The untrusted (anonymous) user privilege. This allows only read actions on
+ * the module content.
+ *
+ * \par none
+ * The lowest privilege. This disallows all the actions that require any
+ * privilege. A module can anyway have some action that does not require
+ * privileges.
  *
  * The description under every privilege is purely indicative: you must check
  * the documentation of every module to see which action are allowed by a
@@ -42,32 +46,28 @@ class tipPrivilege extends tipModule
 {
   /// @protectedsection
 
-  /**
-   * Executes an administrator action.
-   * @copydoc tipModule::RunAdminAction()
-   **/
   function RunAdminAction ($Action)
   {
     global $APPLICATION;
 
     switch ($Action)
       {
-	/**
-	 * \li <b>edit</b>\n
-	 *     Requests a privilege change. You must specify in $_GET['user']
-	 *     the user id.
-	 **/
+      /**
+       * \adminaction <b>Edit</b>\n
+       * Requests a privilege change. You must specify in $_GET['user'] the
+       * user id.
+       **/
       case 'edit':
 	if ($this->CheckUserId ())
 	  $this->AppendToContent ('edit.src');
 	return TRUE;
 
-	/**
-	 * \li <b>doedit</b>\n
-	 *     Changes the privileges of a user. You must specify in $_GET['user']
-	 *     the user id, in $_GET['where'] the module name and in
-	 *     $_GET['privilege'] the new privilege descriptor.
-	 **/
+      /**
+       * \adminaction <b>DoEdit</b>\n
+       * Changes the privileges of a user. You must specify in $_GET['user']
+       * the user id, in $_GET['where'] the module name and in
+       * $_GET['privilege'] the new privilege descriptor.
+       **/
       case 'doedit':
 	if (! $this->CheckUserId ())
 	  return TRUE;
@@ -87,7 +87,7 @@ class tipPrivilege extends tipModule
 	$NewRow['_user'] = $this->FIELDS['UID'];
 	$NewRow['_module'] = $ModuleName;
 
-	if ($this->StartQuery ($Query))
+	if ($this->StartView ($Query))
 	  {
 	    while ($this->NextRow ())
 	      {
@@ -98,7 +98,7 @@ class tipPrivilege extends tipModule
 		    break;
 		  }
 	      }
-	    $this->EndQuery ();
+	    $this->EndView ();
 	  }
 
 	// Remove the query from the cache
@@ -122,11 +122,11 @@ class tipPrivilege extends tipModule
 	$this->AppendToContent ('edit.src');
 	return TRUE;
 
-	/**
-	 * \li <b>restore</b>\n
-	 *     Restores all the privileges of a user to their defaults. You must
-	 *     specify in $_GET['user'] the user id.
-	 **/
+      /**
+       * \adminaction <b>Restore</b>\n
+       * Restores all the privileges of a user to their defaults. You must
+       * specify in $_GET['user'] the user id.
+       **/
       case 'restore':
 	if (! $this->CheckUserId ())
 	  return TRUE;
@@ -176,7 +176,7 @@ class tipPrivilege extends tipModule
      * filtering only by user id allows the next requests, with the same user id
      * but different module (which are expected to be done), to be cached.
      **/
-    if (! $this->StartQuery ("WHERE `_user`=$UserId"))
+    if (! $this->StartView ("WHERE `_user`=$UserId"))
       return FALSE;
 
     $StoredPrivilege = FALSE;
@@ -192,13 +192,16 @@ class tipPrivilege extends tipModule
 	  }
       }
 
-    $this->EndQuery ();
+    $this->EndView ();
     return $StoredPrivilege;
   }
 
-  function StartModules ()
+  function StartSpecialView ($Name)
   {
-    $View =& new tipModuleView ($this);
+    if (strcasecmp ($Name, 'MODULES') != 0)
+      return parent::StartSpecialView ($Name);
+
+    $View =& new tipModulesView ($this);
     $View->ON_ROW->Set (array (&$this, 'OnModuleRow'));
     return $this->Push ($View);
   }
