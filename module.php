@@ -1,124 +1,32 @@
 <?php
 
 /**
- * A data view internally used by the tipModule type.
- **/
-class tipView extends tip
-{
-  /// @publicsection
-
-  var $MODULE;
-  var $QUERY;
-  var $ROWS;
-  var $SUMMARY_FIELDS;
-  var $ON_ROW;
-  var $ON_ROWS;
-
-  function tipView (&$Module, $Query)
-  {
-    $this->MODULE =& $Module;
-    $this->QUERY =& $Query;
-    $this->ROWS = NULL;
-    $this->SUMMARY_FIELDS['COUNT'] = 0;
-    $this->ON_ROW =& new tipCallback;
-    $this->ON_ROWS =& new tipCallback;
-  }
-
-  function Populate ()
-  {
-    if (! $this->GetRows ())
-      return FALSE;
-    if (! is_array ($this->ROWS))
-      return TRUE;
-
-    $nRow = 1;
-    foreach (array_keys ($this->ROWS) as $Id)
-      {
-	$Row =& $this->ROWS[$Id];
-	$Row['ROW'] = $nRow;
-	$Row['ODDEVEN'] = ($nRow & 1) > 0 ? 'odd' : 'even';
-
-	if ($this->ON_ROW->Go (array (&$Row)))
-	  ++ $nRow;
-	else
-	  unset ($this->ROWS[$Id]);
-      }
-
-    $this->SUMMARY_FIELDS['COUNT'] = $nRow-1;
-    return $this->ON_ROWS->Go (array (&$this));
-  }
-
-
-  /// @protectedsection
-
-  function GetRows ()
-  {
-    $this->ROWS =& $this->MODULE->DATA_ENGINE->GetRows ($this->QUERY, $this->MODULE);
-    return $this->ROWS !== FALSE;
-  }
-}
-
-class tipFieldView extends tipView
-{
-  /// @publicsection
-
-  function tipFieldView (&$Module)
-  {
-    $this->tipView ($Module, '__FIELD__');
-  }
-
-
-  /// @protectedsection
-
-  function GetRows ()
-  {
-    $this->ROWS =& $this->MODULE->DATA_ENGINE->GetFields ($this->MODULE);
-    return TRUE;
-  }
-}
-
-class tipModuleView extends tipView
-{
-  /// @publicsection
-
-  function tipModuleView (&$Module)
-  {
-    $this->tipView ($Module, '__MODULE__');
-  }
-
-
-  /// @protectedsection
-
-  function GetRows ()
-  {
-    global $CFG;
-    foreach (array_keys ($CFG) as $ModuleName)
-      {
-	$Instance =& tipType::GetInstance ($ModuleName, FALSE);
-	if (is_subclass_of ($Instance, 'tipModule'))
-	  $this->ROWS[$ModuleName] = array ('id' => $ModuleName);
-      }
-    return TRUE;
-  }
-}
-
-
-/**
- * Interaction between the tipSource and the tipData.
+ * Interaction between tipSource and tipData.
  *
- * A module can be thought as a black box that runs commands found in some
- * source programs (identified by a source path and parsed by a source engine)
- * getting the required informations from a data source (identified by a data
- * path and parsed by a data engine). Also, this black box must react to some
- * external requests (usually because of a user click): this is usually done
- * throught a call to the CallAction() method.
+ * A module can be thought as a black box that parses a generic source file,
+ * identified by a \c SOURCE_PATH, using the engine \c SOURCE_ENGINE. The data
+ * requested by the source file is get from \c DATA_PATH using the
+ * \c DATA_ENGINE interface object.
  *
- * Every TIP based site must have a starting point (in C terms, it must have a
- * \a main function), that is a module that runs a specified source program.
- * This module is an instance of the tipApplication type, the only class
- * automatically instantiaded by TIP.
+ * Also, this black box must react to some external requests (usually because
+ * of a user click): this is done using the CallAction() method.
  *
- * Provided module fields:
+ * The data get by a module is managed by views: a module can have more views
+ * on the same data source. See the tipView class to get an idea on how the
+ * view works.
+ *
+ * The views can also be thought as different queries applied on \c DATA_PATH.
+ * A view can be started by calling StartQuery() or the special StartFields()
+ * and StartModules() methods and must be closed by a EndQuery() call. Also,
+ * the views are internally stacked, so ending a view reactivates the previous
+ * one. The result of a view query can be browsed using ResetRow(), EndRow(),
+ * UnsetRow(), PrevRow() and NextRow().
+ *
+ * A module provides more data the the informations found in \c DATA_PATH. The
+ * FindField() method is the method used to retrieve field contents: see the
+ * documentation to know how this method works.
+ *
+ * Module fields provided by this class:
  *
  * \li <b>SOURCE_PATH</b>\n
  *     Expands to the source path of this module as specified in the
@@ -780,7 +688,7 @@ class tipModule extends tipType
    *
    * Gets the content of the \p Field field. A field is the unit of information
    * used by the TIP system. Searching the content of a field performs a search
-   * operation which follows these steps:
+   * operation which follows these steps in the following order:
    *
    * \li <b>Current row fields</b>\n
    *     Checks if the there is a current row and if this row has a field named

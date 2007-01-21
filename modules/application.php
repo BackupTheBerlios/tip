@@ -120,8 +120,10 @@ class tipNotify extends tipModule
 /**
  * The main module.
  *
+ * Every TIP based site must have a starting point (in C terms, it must have a
+ * \a main function), that is a module that runs a specified source program.
  * This is the first module of the TIP system, and the only one automatically
- * instantiated. It provides the entry point of a typical TIP application.
+ * instantiated.
  *
  * The global variable $APPLICATION contains a reference to this object.
  * Your index.php, other than includes the basic TIP files, must only call
