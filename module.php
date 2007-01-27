@@ -451,7 +451,7 @@ class tipModule extends tipType
        * variable.
        **/
       case 'url':
-	echo "{$this->FIELDS['SOURCE_PATH']}/$Params";
+	echo $this->FIELDS['SOURCE_PATH'] . DIRECTORY_SEPARATOR . $Params;
 	return TRUE;
 
       /**
@@ -460,7 +460,7 @@ class tipModule extends tipType
        * source path.
        **/
       case 'sourceurl':
-	echo "{$APPLICATION->FIELDS['SOURCE_ROOT']}/$Params";
+	echo $APPLICATION->FIELDS['SOURCE_ROOT'] . DIRECTORY_SEPARATOR . $Params;
 	return TRUE;
 
       /**
@@ -469,7 +469,7 @@ class tipModule extends tipType
        * source path and '/icons'.
        **/
       case 'iconurl':
-	echo "{$APPLICATION->FIELDS['SOURCE_ROOT']}/icons/$Params";
+	echo $APPLICATION->FIELDS['SOURCE_ROOT'] . DIRECTORY_SEPARATOR . 'icons' . DIRECTORY_SEPARATOR . $Params;
 	return TRUE;
 
       /**
