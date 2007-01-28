@@ -1,9 +1,12 @@
 <?php
 
 /**
- * \page ModuleFields Module specific fields
- *
- * Here is the list of fields specific to the TIP modules.
+ * Module definition file
+ * @package tip
+ **/
+
+/**
+ * The list of available module fields
  *
  * Every module can have a bounch of specific fields. The tipModule::FIELDS
  * property is the array containining these specific key => value pairs.
@@ -12,21 +15,24 @@
  *
  * Also, remember a module inherits the field from its parents, in a hierarchy
  * order.
- **/
-
-/**
- * \page UnprivilegedActions Unprivileged actions
  *
- * Here is the list of unprivileged actions.
+ * @package tip
+ * @subpackage ModuleFields
  **/
 
 /**
- * Interaction between tipSource and tipData.
+ * The list of available actions
+ * @package tip
+ * @subpackage Actions
+ **/
+
+/**
+ * Interaction between tipSource and tipData
  *
  * A module can be thought as a black box that parses a generic source file,
- * identified by a \c SOURCE_PATH, using the engine \c SOURCE_ENGINE. The data
- * requested by the source file is get from \c DATA_PATH using the
- * \c DATA_ENGINE interface object.
+ * identified by a SOURCE_PATH, using the engine SOURCE_ENGINE. The data
+ * requested by the source file is get from DATA_PATH using the
+ * DATA_ENGINE interface object.
  *
  * Also, this black box must react to some external requests (usually because
  * of a user click): this is done using the CallAction() method.
@@ -35,7 +41,7 @@
  * on the same data source. See the tipView class to get an idea on how the
  * view works.
  *
- * The views can also be thought as different queries applied on \c DATA_PATH.
+ * The views can also be thought as different queries applied on DATA_PATH.
  * A view can be started by calling StartView() or StartSpecialView() and must
  * be closed by a EndView() call. Also, the views are internally stacked, so
  * ending a view reactivates the previous one.
@@ -43,24 +49,17 @@
  * The result of a view can be browsed using ResetRow(), EndRow(), UnsetRow(),
  * PrevRow() and NextRow().
  *
- * A module provides more data the the informations found in \c DATA_PATH. The
+ * A module provides more data the the informations found in DATA_PATH. The
  * FindField() method is the method used to retrieve field contents: see the
  * documentation to know how this method works.
+ *
+ * @abstract
  **/
 class tipModule extends tipType
 {
-  /// \publicsection
-
-  /**
-   * Module fields
-   *
-   * An array containing the module fields.
-   * See \subpage ModuleFields for the list of these fields.
+  /**#@+
+   * @access private
    **/
-  var $FIELDS;
-
-
-  /// @privatesection
 
   var $PRIVILEGE;
   var $LOCALES;
@@ -152,13 +151,19 @@ class tipModule extends tipType
     return $Value;
   }
 
+  /**#@-*/
 
-  /// @protectedsection
+
+  /**#@+
+   * @access protected
+   **/
 
   /**
    * Constructor
    *
    * Initializes a tipModule instance.
+   *
+   * @access protected
    **/
   function tipModule ()
   {
@@ -174,15 +179,23 @@ class tipModule extends tipType
     $this->DATA_ENGINE =& tipType::GetInstance ($this->GetOption ('data_engine'));
 
     /**
-     * \modulefield <b>SOURCE_PATH</b>\n
+     * SOURCE_PATH
+     *
      * Expands to the source path of this module as specified in the
      * configuration file (logic/config.php).
+     *
+     * @package tip
+     * @subpackage ModuleFields
      **/
     $this->FIELDS['SOURCE_PATH'] = $this->GetOption ('source_path');
     /**
-     * \modulefield <b>DATA_PATH</b>\n
+     * DATA_PATH
+     *
      * Expands to the data path of this module as specified in the configuration
      * file (logic/config.php).
+     *
+     * @package tip
+     * @subpackage ModuleFields
      **/
     $this->FIELDS['DATA_PATH'] = $this->GetOption ('data_path');
   }
@@ -195,39 +208,39 @@ class tipModule extends tipType
     $Privilege =& $this->PRIVILEGE;
 
     /**
-     * \modulefield <b>IS_MANAGER</b>\n
-     * Expands to \c TRUE if the current user has the 'manager' privilege
-     * on this module, \c FALSE otherwise.
+     * IS_MANAGER
+     * Expands to TRUE if the current user has the 'manager' privilege
+     * on this module, FALSE otherwise.
      **/
     $this->FIELDS['IS_MANAGER'] = strcmp ($Privilege, 'manager') == 0;
     /**
-     * \modulefield <b>IS_ADMIN</b>\n
-     * Expands to \c TRUE if the current user has the 'manager' or
-     * 'admin' privilege on this module, \c FALSE otherwise.
+     * IS_ADMIN
+     * Expands to TRUE if the current user has the 'manager' or
+     * 'admin' privilege on this module, FALSE otherwise.
      **/
     $this->FIELDS['IS_ADMIN'] = strcmp ($Privilege, 'admin') == 0 || $this->FIELDS['IS_MANAGER'];
     /**
-     * \modulefield <b>IS_TRUSTED</b>\n
-     * Expands to \c TRUE if the current user has the 'manager', 'admin' or
-     * 'trusted' privilege on this module, \c FALSE otherwise.
+     * IS_TRUSTED
+     * Expands to TRUE if the current user has the 'manager', 'admin' or
+     * 'trusted' privilege on this module, FALSE otherwise.
      **/
     $this->FIELDS['IS_TRUSTED'] = strcmp ($Privilege, 'trusted') == 0 || $this->FIELDS['IS_ADMIN'];
     /**
-     * \modulefield <b>IS_UNTRUSTED</b>\n
-     * Expands to \c TRUE if the current user has the 'manager', 'admin',
-     * 'trusted' or 'untrusted' privilege on this module, \c FALSE otherwise.
+     * IS_UNTRUSTED
+     * Expands to TRUE if the current user has the 'manager', 'admin',
+     * 'trusted' or 'untrusted' privilege on this module, FALSE otherwise.
      **/
     $this->FIELDS['IS_UNTRUSTED'] = strcmp ($Privilege, 'untrusted') == 0 || $this->FIELDS['IS_TRUSTED'];
   }
 
   /**
    * Push a view
-   * @param[in] View \c tipView  The view to push
    *
    * Pushes a view object in the stack of this module. You can restore the
    * previous view calling Pop().
    *
-   * @return \c TRUE on success of \c FALSE on errors
+   * @param tipView &$View The view to push
+   * @return bool TRUE on success of FALSE on errors
    **/
   function Push (&$View)
   {
@@ -254,7 +267,7 @@ class tipModule extends tipType
    * Pops a view object from the stack of this module. This operation restores
    * the previously active view.
    *
-   * @return \c TRUE on success of \c FALSE on errors
+   * @return bool TRUE on success or FALSE on errors
    **/
   function Pop ()
   {
@@ -277,8 +290,7 @@ class tipModule extends tipType
    *
    * Gets a reference to the rows of the current view.
    *
-   * @return The reference to an array of rows, or a reference to a variable
-   *         containing \c NULL on errors.
+   * @return array|NULL The array of rows or NULL on errors
    **/
   function& GetCurrentRows ()
   {
@@ -290,12 +302,11 @@ class tipModule extends tipType
   }
 
   /**
-   * Gets the current row.
+   * Gets the current row
    *
    * Gets a reference to the row pointed by the internal cursor.
    *
-   * @return The reference to the current row, or a reference to a variable
-   *         containing \c NULL on errors.
+   * @return array|NULL The current row or NULL on errors
    **/
   function& GetCurrentRow ()
   {
@@ -309,14 +320,13 @@ class tipModule extends tipType
   }
 
   /**
-   * Gets a specified row.
-   * @param[in] Id \c mixed The row id
+   * Gets a specified row
    *
    * Gets a reference to a specific row. This function does not move the
    * internal cursor.
    *
-   * @return The reference to the current row, or a reference to a variable
-   *         containing \c NULL on errors.
+   * @param mixed $Id The row id
+   * @return array|NULL The current row or containing NULL on errors
    **/
   function& GetRow ($Id)
   {
@@ -327,14 +337,14 @@ class tipModule extends tipType
   }
 
   /**
-   * Gets a field content from the current row.
-   * @param[in] Field \c string The field id
+   * Gets a field content from the current row
    *
-   * Gets the \p Field field content from the current row. If the field exists
-   * but its content is \c NULL, the value is converted in an empty string to
-   * avoid confusion between error and NULL value.
+   * Gets a field content from the current row. If the field exists but its
+   * content is NULL, the value is converted in an empty string to avoid
+   * confusion between error and NULL value.
    *
-   * @return The requested field content, or \c NULL on errors.
+   * @param string $Field The field id
+   * @return array|NULL The requested field content or NULL on errors
    **/
   function GetField ($Field)
   {
@@ -349,12 +359,12 @@ class tipModule extends tipType
   }
 
   /**
-   * Gets a field content from the summary fields.
-   * @param[in] Field \c string The field id
+   * Gets a summary field
    *
-   * Gets the \p Field summary field from the current view.
+   * Gets the content of a summary field from the current view.
    *
-   * @return The requested field content, or \c NULL on errors.
+   * @param string $Field The field id
+   * @return mixed|NULL The requested field content or NULL on errors
    **/
   function GetSummaryField ($Field)
   {
@@ -366,21 +376,19 @@ class tipModule extends tipType
 
   /**
    * Executes a command
-   * \param[in] Command \c string The command name
-   * \param[in] Params  \c string Parameters to pass to the command
    *
-   * Executes the \p Command command, using \p Params as arguments. A command
-   * is a request from the source engine to echoes something. It can be tought
-   * as the dinamic primitive of the TIP preprocessor: every dinamic tag parsed
-   * by the source engine runs a command.
+   * A command is a request from the source engine to echoes something. It can
+   * be tought as the dinamic primitive of the TIP preprocessor: every dinamic
+   * tag parsed by the source engine runs a command.
    *
    * The commands - as everything else - are inherited from the module parents,
    * so every tipModule commands are available to the tipModule children.
    *
-   * See \subpage Commands for a list of available commands.
-   *
-   * @return \c TRUE on success, \c FALSE on errors or \c NULL if \p Command
-   *         is not found.
+   * @param string $Command The command name
+   * @param string &$Params Parameters to pass to the command
+   * @return bool|NULL TRUE on command executed, FALSE on command error or
+   *                   NULL on command not found
+   * @tutorial tip.pkg#Commands
    **/
   function RunCommand ($Command, &$Params)
   {
@@ -389,15 +397,15 @@ class tipModule extends tipType
     switch ($Command)
       {
       /**
-       * \command <b>Html(</b><i>itemid, itemid, ...</i><b>)</b>\n
+       * Html(itemid, itemid, ...)
        * Outputs the content of the first defined item, escaping the value for
        * html view throught htmlentities().
        * An item can be a field, a get, a post or a localized text: the
-       * type of the item is obtained parsing the \p itemid tokens.
+       * type of the item is obtained parsing the itemid tokens.
        * Specify <tt>field[...]</tt> for fields, <tt>get[...]</tt> for
        * gets, <tt>post[...]</tt> for posts and <tt>locale[...]</tt> for
-       * localized text. If no type is specified (that is, \p itemid is
-       * directly an identifier), the system will expand \p id in
+       * localized text. If no type is specified (that is, itemid is
+       * directly an identifier), the system will expand id in
        * <tt>field[...]</tt>. This means <tt>Value(name)</tt> is equal to
        * <tt>Value(field[name])</tt>.
        **/
@@ -417,8 +425,8 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
-       * \command <b>TryHtml(</b><i>itemid, itemid, ...</i><b>)</b>\n
-       * Equal to \a Html, but do not log any message if the item is not found.
+       * TryHtml(itemid, itemid, ...)
+       * Equal to Html, but do not log any message if the item is not found.
        **/
       case 'tryhtml':
 	$Value = $this->GetFirstItem ($Params);
@@ -433,9 +441,9 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
-       * \command <b>Is(</b>\a userid<b>)</b>\n
-       * Expands to \c TRUE if the current logged-in user equals to
-       * \p userid or \c FALSE otherwise.
+       * Is(userid)
+       * Expands to TRUE if the current logged-in user equals to
+       * userid or FALSE otherwise.
        **/
       case 'is':
 	$UID = (int) $Params;
@@ -443,8 +451,8 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
-       * \command <b>Url(</b>\a file<b>)</b>\n
-       * Prepends the source path of the current module to \p file and
+       * Url(file)
+       * Prepends the source path of the current module to file and
        * outputs the result. This command (or any of its variants) MUST be
        * used for every file reference if you want a theme-aware site,
        * because enabling themes will make the prepending path a dynamic
@@ -455,8 +463,8 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
-       * \command <b>SourceUrl(</b>\a file<b>)</b>\n
-       * Variants of the <b>Url</b> command. Prepends to \p file the root
+       * SourceUrl(file)
+       * Variants of the <b>Url</b> command. Prepends to file the root
        * source path.
        **/
       case 'sourceurl':
@@ -464,8 +472,8 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
-       * \command <b>IconUrl(</b>\a file<b>)</b>\n
-       * Variants of the <b>Url</b> command. Prepends to \p file the root
+       * IconUrl(file)
+       * Variants of the <b>Url</b> command. Prepends to file the root
        * source path and '/icons'.
        **/
       case 'iconurl':
@@ -473,24 +481,24 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
-       * \command <b>Run(</b>\a file<b>)</b>\n
-       * Runs the \p file source found in the module directory using the
+       * Run(file)
+       * Runs the file source found in the module directory using the
        * current source engine.
        **/
       case 'run':
 	return $this->Run ($Params);
 
       /**
-       * \command <b>RunShared(</b>\a file<b>)</b>\n
-       * Runs the \p file source found in the root data directory using the
+       * RunShared(file)
+       * Runs the file source found in the root data directory using the
        * current source engine.
        **/
       case 'runshared':
 	return $this->RunShared ($Params);
 
       /**
-       * \command <b>ModuleExists(</b>\a module<b>)</b>\n
-       * Outputs \c TRUE if the \p module module exists, \c FALSE
+       * ModuleExists(module)
+       * Outputs TRUE if the module module exists, FALSE
        * otherwise. This command only checks if the module is configured,
        * does not load the module itsself. Useful to provide conditional
        * links in some module manager (such as the tipUser type).
@@ -501,9 +509,9 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
-       * \command <b>InList(</b>\a item, \a list<b>)</b>\n
-       * Outputs \c TRUE if the \p item item is present in the comma
-       * separated \p list list. Useful to check if a value is contained
+       * InList(item, list)
+       * Outputs TRUE if the item item is present in the comma
+       * separated list list. Useful to check if a value is contained
        * (that is, if it is on) in a "set" field.
        **/
       case 'inlist':
@@ -517,8 +525,8 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
-       * \command <b>Date(</b>\a date<b>)</b>\n
-       * Formats the \p date date (specified in iso8601) in the format
+       * Date(date)
+       * Formats the date date (specified in iso8601) in the format
        * <tt>"date_" . $CFG['application']['locale']</tt>. For instance, if you
        * set 'it' in <tt>$CFG['application']['locale']</tt>, the format used
        * will be "date_it". Check the tip::FormatDate() function for details.
@@ -528,8 +536,8 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
-       * \command <b>DateTime(</b>\a datetime<b>)</b>\n
-       * Formats the \p datetime date (specified in iso8601) in the format
+       * DateTime(datetime)
+       * Formats the datetime date (specified in iso8601) in the format
        * <tt>"datetime_" . $CFG['application']['locale']</tt>.
        **/
       case 'datetime':
@@ -537,9 +545,9 @@ class tipModule extends tipType
 	return TRUE;
 
       /**
-       * \command <b>NlReplace(</b>\a replacer, \a text<b>)</b>\n
-       * Replaces all the occurrences of a newline in \p text with the
-       * \p replacer string.
+       * NlReplace(replacer, text)
+       * Replaces all the occurrences of a newline in text with the
+       * replacer string.
        **/
       case 'nlreplace':
 	$Pos = strpos ($Params, ',');
@@ -561,12 +569,17 @@ class tipModule extends tipType
     return NULL;
   }
 
+
+  /**#@+
+   * @param string $Action The action name
+   * @return bool|NULL TRUE on command executed, FALSE on command error or
+   *                   NULL on command not found
+   **/
+
   /**
-   * Executes a management action.
-   * @param[in] Action \c string The action name.
+   * Executes a management action
    *
    * Executes an action that requires the 'manager' privilege.
-   * See \subpage ManagerActions for a list of available actions.
    **/
   function RunManagerAction ($Action)
   {
@@ -574,11 +587,9 @@ class tipModule extends tipType
   }
 
   /**
-   * Executes an administrator action.
-   * @param[in] Action \c string The action name.
+   * Executes an administrator action
    *
    * Executes an action that requires at least the 'admin' privilege.
-   * See \subpage AdminActions for a list of available actions.
    **/
   function RunAdminAction ($Action)
   {
@@ -586,11 +597,9 @@ class tipModule extends tipType
   }
 
   /**
-   * Executes a trusted action.
-   * @param[in] Action \c string The action name.
+   * Executes a trusted action
    *
    * Executes an action that requires at least the 'trusted' privilege.
-   * See \subpage TrustedActions for a list of available actions.
    **/
   function RunTrustedAction ($Action)
   {
@@ -598,11 +607,9 @@ class tipModule extends tipType
   }
 
   /**
-   * Executes an untrusted action.
-   * @param[in] Action \c string The action name.
+   * Executes an untrusted action
    *
    * Executes an action that requires at least the 'untrusted' privilege.
-   * See \subpage UntrustedActions for a list of available actions.
    **/
   function RunUntrustedAction ($Action)
   {
@@ -610,25 +617,28 @@ class tipModule extends tipType
   }
 
   /**
-   * Executes an unprivileged action.
-   * @param[in] Action \c string The action name.
+   * Executes an unprivileged action
    *
    * Executes an action that does not require any privileges.
-   * See \subpage UnprivilegedActions for a list of available actions.
    **/
   function RunAction ($Action)
   {
     return NULL;
   }
 
+  /**#@-*/
+
+
+  /**#@+
+   * @param string $File The source file
+   * @return bool TRUE on success or FALSE on errors
+   **/
+
   /**
-   * Executes a module source.
-   * @param[in] File \c string The source to execute
+   * Executes a source
    *
-   * Executes the \p File file found in the source path, using the current
+   * Executes a source file found in the source path, using the current
    * engine.
-   *
-   * @return \c TRUE on success, \c FALSE otherwise.
    **/
   function Run ($File)
   {
@@ -637,14 +647,11 @@ class tipModule extends tipType
   }
 
   /**
-   * Executes a shared data source
-   * @param[in] File \c string The source to execute
+   * Executes a shared source
    *
-   * Executes the \p File program found in shared source path
-   * ($CFG['application']['source_root']/shared) using the current source
+   * Executes the File program found in shared source path
+   * ($CFG['application']['source_root'] . '/shared/') using the current source
    * engine.
-   *
-   * @return \c TRUE on success, \c FALSE otherwise.
    **/
   function RunShared ($File)
   {
@@ -654,14 +661,11 @@ class tipModule extends tipType
   }
 
   /**
-   * Executes a file, appending the result to content.
-   * @param[in] File \c string The source file
+   * Executes a file, appending the result to content
    *
-   * Executes the \p File source found in the module path using the current
+   * Executes the File source found in the module path using the current
    * source engine and appends the result to the end of the application
    * content.
-   *
-   * @return \c TRUE on success, \c FALSE otherwise.
    **/
   function AppendToContent ($File)
   {
@@ -677,14 +681,11 @@ class tipModule extends tipType
   }
 
   /**
-   * Executes a file, inserting the result in content.
-   * @param[in] File \c string The source file
+   * Executes a file, inserting the result in content
    *
-   * Executes the \p File source found in the module path using the current
+   * Executes the File source found in the module path using the current
    * source engine and inserts the result at the beginning of the application
    * content.
-   *
-   * @return \c TRUE on success, \c FALSE otherwise.
    **/
   function InsertInContent ($File)
   {
@@ -699,46 +700,60 @@ class tipModule extends tipType
     return $Result;
   }
 
+  /**#@-*/
+
+
   /**
-   * The source program engine.
+   * The source program engine
    *
    * Contains a reference to the source engine to use when parsing a file.
    * See the tipSource class for details on what is a source engine.
+   *
+   * @var string
    **/
   var $SOURCE_ENGINE;
 
   /**
-   * The data engine.
+   * The data engine
    *
    * Contains a reference to the data engine to use to read and write rows.
    * See the tipData class for details on what is a data engine.
+   *
+   * @var string
    **/
   var $DATA_ENGINE;
 
   /**
-   * Returns the content of a field.
-   * \param[in] Field \c string The field id
+   * Returns the content of a field
    *
-   * Gets the content of the \p Field field. A field is the unit of information
+   * Gets the content of the Field field. A field is the unit of information
    * used by the TIP system. Searching the content of a field performs a search
    * operation which follows these steps in the following order:
    *
-   * - <b>Current row fields</b>\n
+   * - <b>Current row fields</b>
+   *
    *   Checks if the there is a current row and if this row has a field named
-   *   \p Field. If yes, returns the field content.
-   * - <b>Summary fields of the current view</b>\n
+   *   Field. If yes, returns the field content.
+   *
+   * - <b>Summary fields of the current view</b>
+   *
    *   Checks if the there is a current view and if it has a summary field
    *   matching the requested one. If yes, returns the field content.
-   * - <b>Module fields</b>\n
-   *   Every module has a public variable (\p FIELDS) that can be filled
-   *   with arbitrary key => values pairs. If a \p Field key exists in
-   *   \p FIELDS, its value it is returned.
-   * - <b>Global fields</b>\n
-   *   Checks if \p Field is the id of a global fields. Global fields are
+   *
+   * - <b>Module fields</b>
+   *
+   *   Every module has a public variable (FIELDS) that can be filled
+   *   with arbitrary key => values pairs. If a Field key exists in
+   *   FIELDS, its value it is returned.
+   *
+   * - <b>Global fields</b>
+   *
+   *   Checks if Field is the id of a global fields. Global fields are
    *   nothing more than module fields of the tipApplication instance. If
    *   found, the content of the global field is returned.
    *
-   * \return The content of the requested field or \c NULL if not found.
+   * @param string $Field The field id
+   * @return mixed|NULL The content of the requested field or NULL if not found
    **/
   function FindField ($Field)
   {
@@ -770,7 +785,7 @@ class tipModule extends tipType
    * Checks if the posts contain valid data, accordling to the data source of
    * the module.
    *
-   * @return \c TRUE on success of \c FALSE on errors
+   * @return bool TRUE on success or FALSE on errors
    **/
   function ValidatePosts ()
   {
@@ -835,14 +850,14 @@ class tipModule extends tipType
 
   /**
    * Stores the posts
-   * @param[out] Destination \c array  The destination row
    *
    * Stores the posts content in the specified row, accordling to the data
    * source of the module. This method complements ValidatePosts() to manage
    * the user modules: usually you must validate the posts and after store
    * them in some place for further data operations (update or insert).
    *
-   * @return \c TRUE on success of \c FALSE on errors
+   * @param array &$Destination Where to store the posts
+   * @return bool TRUE on success or FALSE on errors
    **/
   function StorePosts (&$Destination)
   {
@@ -879,27 +894,45 @@ class tipModule extends tipType
     return $Result;
   }
 
+  /**#@-*/
 
-  /// \publicsection
+
+  /**#@+
+   * @access public
+   **/
+
+  /**
+   * Module fields
+   *
+   * Every module can have a bounch of specific fields. This property is the
+   * array containining these specific key => value pairs. These fields are
+   * used by FindField() method while looking for a field value.
+   *
+   * Also, remember a module inherits the field from its parents, in a hierarchy
+   * order.
+   *
+   * @var array
+   **/
+  var $FIELDS;
+
 
   /**
    * Starts a view
-   * @param[in] Query \c string  The query to execute
    *
-   * Starts a view using the \p Query query. Starting a view means you can
+   * Starts a view using the Query query. Starting a view means you can
    * traverse the results of the query using the ResetRow() and NextRow()
    * commands. Also, you can get the number of rows throught RowsCount().
    *
-   * @attention After starting a view, there is no current row, so trying to
-   *            retrieve some data will fail. You must use ResetRow() or
-   *            NextRow() to set the cursor position.
+   * Notice after starting a view, there is no current row, so trying to
+   * retrieve some data will fail. You must use ResetRow() or NextRow() to set
+   * the cursor position.
    *
-   * When the view is succesful started, this function returns \c TRUE.
+   * When the view is succesful started, this function returns TRUE.
    * When finished to use the results, close the view with EndView().
+   * Remember to close the view only if StartView() is succesful.
    *
-   * @attention You must close the view only if StartView() is succesful.
-   *
-   * @return \c TRUE on success, \c FALSE otherwise
+   * @param string $Query The query to execute
+   * @return bool TRUE on success or FALSE on errors
    **/
   function StartView ($Query)
   {
@@ -908,12 +941,12 @@ class tipModule extends tipType
 
   /**
    * Starts a special view
-   * @param[in] Name \c string  The name of the special view
    *
-   * Starts a view trying to instantiate the class named tip{\p Name}View.
+   * Starts a view trying to instantiate the class named tip{Name}View.
    * All the StartView() advices also applies to StartSpecialView().
    *
-   * @return \c TRUE on success, \c FALSE otherwise
+   * @param string $Name The name of the special view
+   * @return bool TRUE on success or FALSE on errors
    **/
   function StartSpecialView ($Name)
   {
@@ -931,7 +964,7 @@ class tipModule extends tipType
    *
    * Returns the rows count of the result of the current view.
    *
-   * @returns The number of rows, or \c NULL on errors.
+   * @return int|NULL The number of rows or NULL on errors
    **/
   function RowsCount ()
   {
@@ -942,12 +975,12 @@ class tipModule extends tipType
   }
 
   /**
-   * Resets the cursor.
+   * Resets the cursor
    *
    * Resets (set to the first row) the internal cursor. This function hangs if
    * there is no active view, but also if the results does not have any row.
    *
-   * @return \c TRUE on success, \c FALSE otherwise.
+   * @return bool TRUE on success or FALSE on errors
    **/
   function ResetRow ()
   {
@@ -958,12 +991,12 @@ class tipModule extends tipType
   }
 
   /**
-   * Moves the cursor to the end.
+   * Moves the cursor to the end
    *
    * Moves the internal cursor to the last row. This function hangs if there is
    * no active view, but also if the results does not have any row.
    *
-   * @return \c TRUE on success, \c FALSE otherwise.
+   * @return bool TRUE on success or FALSE on errors
    **/
   function EndRow ()
   {
@@ -974,11 +1007,11 @@ class tipModule extends tipType
   }
 
   /**
-   * Unsets the cursor.
+   * Unsets the cursor
    *
    * Sets the internal cursor to an unidentified row.
    *
-   * @return \c TRUE on success, \c FALSE otherwise.
+   * @return bool TRUE on success or FALSE on errors
    **/
   function UnsetRow ()
   {
@@ -993,13 +1026,13 @@ class tipModule extends tipType
   }
 
   /**
-   * Sets the cursor to the previous row.
+   * Sets the cursor to the previous row
    *
    * Decrements the cursor so it referes to the previous row. If the cursor is
    * not set, this function moves it to the last row (same as EndRow()).
-   * If the cursor is on the first row, returns \c FALSE.
+   * If the cursor is on the first row, returns FALSE.
    *
-   * @return \c TRUE on success, \c FALSE otherwise.
+   * @return bool TRUE on success or FALSE on errors
    **/
   function PrevRow ()
   {
@@ -1013,14 +1046,14 @@ class tipModule extends tipType
   }
 
   /**
-   * Sets the cursor to the next row.
-   * @param[in] Rewind \c boolean  Reset the cursor when no more rows
+   * Sets the cursor to the next row
    *
    * Increments the cursor so it referes to the next row. If the cursor was
-   * never set and \p rewind is \c TRUE, this function moves it to the first
-   * row (same as ResetRow()). If there are no more rows, returns \c FALSE.
+   * never set and rewind is TRUE, this function moves it to the first
+   * row (same as ResetRow()). If there are no more rows, returns FALSE.
    *
-   * @return \c TRUE on success, \c FALSE otherwise.
+   * @param bool $Rewind If reset the cursor when no more rows
+   * @return bool TRUE on success or FALSE on errors
    **/
   function NextRow ($Rewind = TRUE)
   {
@@ -1041,11 +1074,10 @@ class tipModule extends tipType
    *
    * Usually, you always have to close all views. Anyway, in some situations,
    * is useful to have the base view ever active (so called default view) where
-   * all commands of a module refers if no views were started.
+   * all commands of a module refers if no views were started. In any case, you
+   * can't have more EndView() than StartView().
    *
-   * @attention You can't have more EndView() than StartView().
-   *
-   * @return \c TRUE on success, \c FALSE otherwise.
+   * @return bool TRUE on success or FALSE on errors
    **/
   function EndView ()
   {
@@ -1059,15 +1091,15 @@ class tipModule extends tipType
   }
 
   /**
-   * Executes a command.
-   * @param[in] Command \c string The command name
-   * @param[in] Params  \c string Parameters to pass to the command
+   * Executes a command
    *
-   * Executes the \p Command command, using \p params as arguments. This
-   * function is merely a wrapper to RunCommand(). Anyway, \p Command is
+   * Executes the Command command, using params as arguments. This
+   * function is merely a wrapper to RunCommand(). Anyway, Command is
    * converted to lowercase, so you can specify it in the way you prefer.
    *
-   * @return \c TRUE on success, \c FALSE otherwise.
+   * @param string $Command The command name
+   * @param string &$Params Parameters to pass to the command
+   * @return bool TRUE on success or FALSE on errors
    **/
   function CallCommand ($Command, &$Params)
   {
@@ -1075,10 +1107,9 @@ class tipModule extends tipType
   }
 
   /**
-   * Executes an action.
-   * @param[in] Action \c string The action name
+   * Executes an action
    *
-   * Executes the \p Action action. This function tries to run \p Action
+   * Executes the Action action. This function tries to run Action
    * by calling the following protected methods in this order:
    *
    * - RunManagerAction()
@@ -1088,21 +1119,20 @@ class tipModule extends tipType
    * - RunAction()
    *
    * The first method called depends on the current privilege, get throught a
-   * tipApplication::GetPrivilege() call. The first method that returns \c TRUE
+   * tipApplication::GetPrivilege() call. The first method that returns TRUE
    * (meaning the requested action is executed) stops the chain.
    *
    * Usually the actions are called adding variables to the URL. An example of
    * an action call is the following URL:
-   * @verbatim
-http://www.example.org/?module=news&action=view&id=23
-@endverbatim
+   * <samp>http://www.example.org/?module=news&action=view&id=23</samp>
    *
    * This URL will call the "view" action on the "news" module, setting "id" to
    * 23 (it is request to view a news and its comments). You must check the
    * documentation of every module to see which actions are available and what
    * variables they require.
    *
-   * @return \c TRUE on success, \c FALSE otherwise.
+   * @param string Action The action name
+   * @return bool TRUE on success or FALSE on errors
    **/
   function CallAction ($Action = NULL)
   {
@@ -1132,9 +1162,17 @@ http://www.example.org/?module=news&action=view&id=23
 
     return $Result;
   }
+
+  /**#@-*/
 }
 
-// The application is the "main" module and MUST be present.
+/**
+ * Application entry point
+ *
+ * The application is the "main" module and MUST be present.
+ *
+ * @global tipModule $APPLICATION
+ **/
 $APPLICATION =& tipType::GetInstance ('application');
 
 ?>
