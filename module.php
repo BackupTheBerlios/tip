@@ -468,16 +468,16 @@ class tipModule extends tipType
        * source path.
        **/
       case 'sourceurl':
-	echo $APPLICATION->FIELDS['SOURCE_ROOT'] . DIRECTORY_SEPARATOR . $Params;
+	echo $this->sourceURL ($Params);
 	return TRUE;
 
       /**
        * IconUrl(file)
        * Variants of the <b>Url</b> command. Prepends to file the root
-       * source path and '/icons'.
+       * source path and '/shared/icons'.
        **/
       case 'iconurl':
-	echo $APPLICATION->FIELDS['SOURCE_ROOT'] . DIRECTORY_SEPARATOR . 'icons' . DIRECTORY_SEPARATOR . $Params;
+	echo $this->sourceURL ('shared', 'icons', $Params);
 	return TRUE;
 
       /**
@@ -642,22 +642,25 @@ class tipModule extends tipType
    **/
   function Run ($File)
   {
-    $Path = $this->FIELDS['SOURCE_PATH'] . "/$File";
-    return $this->SOURCE_ENGINE->Run ($Path, $this);
+    return $this->SOURCE_ENGINE->Run ($this->FIELDS['SOURCE_PATH'] . '/' . $File, $this);
+  }
+
+  function sourceURL ()
+  {
+    $list = func_get_args ();
+    global $APPLICATION;
+    return $APPLICATION->source_root . '/' . implode ('/', $list);
   }
 
   /**
    * Executes a shared source
    *
-   * Executes the File program found in shared source path
-   * ($CFG['application']['source_root'] . '/shared/') using the current source
-   * engine.
+   * Executes the File program found in shared source path using the current
+   * source engine.
    **/
   function RunShared ($File)
   {
-    global $APPLICATION;
-    $Path = $APPLICATION->FIELDS['SOURCE_ROOT'] . "/shared/$File";
-    return $this->SOURCE_ENGINE->Run ($Path, $this);
+    return $this->SOURCE_ENGINE->Run ($this->sourceURL ('shared', $File), $this);
   }
 
   /**

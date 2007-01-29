@@ -173,6 +173,7 @@ class tipApplication extends tipModule
 
     $this->FIELDS['LOCALE'] = $this->GetOption ('locale');
     $this->FIELDS['ROOT'] = $this->GetOption ('root');
+    $this->source_root = $this->GetOption ('source_root');
     $this->FIELDS['SOURCE_ROOT'] = $this->GetOption ('source_root');
     $this->FIELDS['REFERER'] = @$_SERVER['HTTP_REFERER'];
     $this->FIELDS['TODAY'] = date ('Y-m-d');
@@ -183,6 +184,7 @@ class tipApplication extends tipModule
   /// @publicsection
 
   var $CONTENT;
+  var $source_root;
 
   /**
    * The "main" function.

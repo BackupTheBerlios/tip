@@ -1,103 +1,13 @@
 <?php
 
-class tipAdvertisementTree extends tipModule
+class TipAdvertisementTree extends TipTreeModule
 {
-  /// @protectedsection
-
-  function RunCommand ($Command, &$Params)
+  function TipAdvertisementTree ()
   {
-    global $APPLICATION;
-
-    switch ($Command)
-      {
-      /**
-       * \command <b>echoicon(</b>\a id<b>)</b>\n
-       * Outputs the icon name of the specified group id.
-       **/
-      case 'echoicon':
-	$Row =& $this->GetRow ($Params);
-	if (@array_key_exists ('TITLE', $Row))
-	  echo $Row['icon'];
-	return TRUE;
-
-      /**
-       * \command <b>echotitle(</b>\a id<b>)</b>\n
-       * Outputs the title of the specified group id.
-       **/
-      case 'echotitle':
-	$Row =& $this->GetRow ($Params);
-	if (@array_key_exists ('TITLE', $Row))
-	  echo $Row['TITLE'];
-	return TRUE;
-      }
-
-    return parent::RunCommand ($Command, $Params);
-  }
-
-  function StartView ($Query)
-  {
-    $View =& new tipView ($this, $Query);
-    $View->ON_ROWS->Set (array (&$this, 'OnRows'));
-    return $this->Push ($View);
-  }
-
-
-  /// @privatesection
-
-  function tipAdvertisementTree ()
-  {
-    $this->tipModule ();
-
-    $this->FIELDS['CID'] = 0;
-
+    $this->tipTreeModule ();
     $this->StartView ('');
     // No EndView() call to retain this query as the default one
   }
-
-  function sortid_compare ($a, $b)
-  {
-    return strcmp ($a['SORTID'], $b['SORTID']);
-  }
-
-  function OnRows (&$View)
-  {
-    $TotalCount = 0;
-
-    foreach (array_keys ($View->ROWS) as $Id)
-      {
-	$Row =& $View->ROWS[$Id];
-	$SortId = sprintf ("%03d", $Row['order']);
-	$TotalCount += @$Row['_count'];
-	$Current = $Id == @$this->FIELDS['CID'];
-	$Title = @$Row['title'];
-
-	$Level = 0;
-	$ParentId = @$Row['parent'];
-	while (array_key_exists ($ParentId, $View->ROWS))
-	  {
-	    $ParentRow =& $View->ROWS[$ParentId];
-	    $SortId = sprintf ("%03d", $ParentRow['order']) . '.' . $SortId;
-	    $Title = "{$ParentRow['title']}::$Title";
-	    
-	    $ParentRow['ISLEAF'] = FALSE;
-	    $ParentRow['COUNT'] += @$Row['_count'];
-	    $ParentId = $ParentRow['parent'];
-	    ++ $Level;
-	  }
-
-	$Row['SORTID'] = $SortId;
-	$Row['TITLE'] = $Title;
-	$Row['LEVEL'] = $Level;
-	if (! array_key_exists ('ISLEAF', $Row))
-	  $Row['ISLEAF'] = TRUE;
-	$Row['COUNT'] = @$Row['_count'];
-      }
-
-    $View->SUMMARY_FIELDS['TOTALCOUNT'] = $TotalCount;
-    uasort ($View->ROWS, array (&$this, 'sortid_compare'));
-    return TRUE;
-  }
-
 }
 
 
