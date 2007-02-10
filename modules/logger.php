@@ -1,33 +1,54 @@
 <?php
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
 
-class tipLogger extends tipModule
+/**
+ * TIP_Logger definition file
+ * @package TIP
+ **/
+
+/**
+ * Logger module
+ *
+ * Provides a way to log messages to a data source.
+ *
+ * @package TIP
+ **/
+class TIP_Logger extends TIP_Block
 {
-  /// @publicsection
+    /**#@+ @access public */
 
-  function LogMessage ($Domain, $Message, $Uri, $Notify = FALSE)
-  {
-    $UserId = tipApplication::GetUserId ();
-    if ($UserId > 0)
-      $Row['user'] = $UserId;
+    /**
+     * Append a log
+     *
+     * Appends a log message to the data source of the logger object.
+     *
+     * @param string @domain A custom domain description
+     * @param string @message The text of the log
+     * @param string @uri     The URI that caused the log
+     * @param bool   @notify  Wheter or not to notify the log to the webmaster
+     **/
+    function logMessage($domain, $message, $uri, $notify = false)
+    {
+        $user_id = TIP::getUserId();
+        if ($user_id > 0) {
+            $row['user'] = $user_id;
+        }
 
-    if ($Notify)
-      $Row['notify'] = $Notify;
+        if ($notify) {
+            $row['notify'] = $notify;
+        }
 
-    $Row['when'] = tip::FormatDate (FALSE, 'now', 'datetime_iso8601');
-    $Row['domain'] = $Domain;
-    $Row['message'] = $Message;
-    $Row['uri'] = $Uri;
+        $row['when'] = TIP::formatDate('datetime_iso8601');
+        $row['domain'] = $domain;
+        $row['message'] = $message;
+        $row['uri'] = $uri;
 
-    $this->DATA_ENGINE->PutRow ($Row, $this);
-  }
+        $this->data->putRow($row);
+    }
 
-
-  /// @privatesection
-
-  function tipLogger ()
-  {
-    $this->tipModule ();
-  }
+    /**#@-*/
 }
+
+return new TIP_Logger;
 
 ?>

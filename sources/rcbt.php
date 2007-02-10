@@ -1,558 +1,504 @@
 <?php
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
 
-class tipRcbtContext
+/**
+ * TIP_Rcbt definition file
+ * @package TIP
+ **/
+
+class TIP_Rcbt_Context
 {
-  /// @publicsection
+    /**#@+ @access public */
 
-  var $MODULE;
-  var $SKIP;
-  var $ON_CREATE;
-  var $ON_DESTROY;
-  var $ON_START;
-  var $ON_STOP;
-  var $ON_LOOP;
-  var $START_TP;
-  var $START_POS;
+    var $module = null;
+    var $skip = false;
+    var $start_tp = 0;
+    var $start_pos = 0;
+    var $on_create = null;
+    var $on_destroy = null;
+    var $on_start = null;
+    var $on_stop = null;
+    var $on_loop = null;
 
+    function TIP_Rcbt_Context(&$module)
+    {
+        $this->module =& $module;
+        $this->on_create =& new TIP_Callback;
+        $this->on_destroy =& new TIP_Callback;
+        $this->on_start =& new TIP_Callback;
+        $this->on_stop =& new TIP_Callback;
+        $this->on_loop =& new TIP_Callback(false);
+    }
 
-  function tipRcbtContext (&$Module)
-  {
-    $this->MODULE =& $Module;
-    $this->SKIP = FALSE;
-    $this->ON_CREATE =& new tipCallback;
-    $this->ON_DESTROY =& new tipCallback;
-    $this->ON_START =& new tipCallback;
-    $this->ON_STOP =& new tipCallback;
-    $this->ON_LOOP =& new tipCallback (FALSE);
-    $this->START_TP = 0;
-    $this->START_POS = 0;
-  }
+    function skipIf($skip)
+    {
+        if ($this->skip != $skip) {
+            if ($skip) {
+                ob_start();
+            } else {
+                ob_end_clean();
+            }
+            $this->skip = $skip;
+        }
+    }
 
-  function SkipIf ($Skip)
-  {
-    if ($this->SKIP == $Skip)
-      return;
-    if ($Skip)
-      ob_start ();
-    else
-      ob_end_clean ();
-    $this->SKIP = $Skip;
-  }
+    function start(&$parser)
+    {
+        $this->start_tp = $parser->tp;
+        $this->start_pos = $parser->pos;
+        if (! $this->on_create->go() || ! $this->on_start->go()) {
+            $this->skipIf(true);
+        }
+    }
 
-  function Start (&$Parser)
-  {
-    $this->START_TP = $Parser->TP;
-    $this->START_POS = $Parser->POS;
-    if (! $this->ON_CREATE->Go () || ! $this->ON_START->Go ())
-      $this->SkipIf (TRUE);
-  }
+    function stop(&$parser)
+    {
+        if ($this->on_loop->go()) {
+            $parser->push(new TIP_Rcbt_Context($this->module));
+            $parser->tp = $this->start_tp;
+            $parser->pos = $this->start_pos;
+            return;
+        }
 
-  function Stop (&$Parser)
-  {
-    if ($this->ON_LOOP->Go ())
-      {
-	$Parser->Push (new tipRcbtContext ($this->MODULE));
-	$Parser->TP = $this->START_TP;
-	$Parser->POS = $this->START_POS;
-	return;
-      }
+        if ($this->on_create->result) {
+            if ($this->on_start->result) {
+                $this->on_stop->go();
+            }
+            $this->on_destroy->go();
+        }
 
-    if ($this->ON_CREATE->RESULT)
-      {
-	if ($this->ON_START->RESULT)
-	  $this->ON_STOP->Go ();
-	$this->ON_DESTROY->Go ();
-      }
+        $this->skipIf(false);
+    }
 
-    $this->SkipIf (FALSE);
-  }
+    /**#@-*/
 }
 
 
-class tipRcbtParser
+class TIP_Rcbt_Parser
 {
-  /// @privatesection
+    /**#@+ @access private */
 
-  var $PRE_MESSAGE;
-  var $CONTEXT_STACK;
-  var $TP_STACK;
-
-
-  function BuildMessage ($Message)
-  {
-    $Line = substr_count (substr ($this->BUFFER, 0, $this->POS), "\n") + 1;
-    return "$this->PRE_MESSAGE: $Message on line $Line";
-  }
+    var $_context_message = 'undefined sources';
+    var $_context_stack = array();
+    var $_tp_stack = array();
 
 
-  /// @publicsection
+    function _buildMessage($message)
+    {
+        $line = substr_count(substr($this->buffer, 0, $this->pos), "\n") + 1;
+        return "$this->_context_message: $message on line $line";
+    }
 
-  var $BUFFER;
-  var $NESTED_TEXT;
-  var $CONTEXT;
-  var $POS;
-  var $TP;
+    /**#@-*/
 
 
-  function tipRcbtParser (&$Buffer, &$Module, $PreMessage)
-  {
-    $this->PRE_MESSAGE = $PreMessage;
-    $this->CONTEXT_STACK = array ();
-    $this->TP_STACK = array ();
-    $this->BUFFER =& $Buffer;
-    $this->NESTED_TEXT = FALSE;
-    $this->POS = 0;
-    $this->TP = 0;
-    $this->CONTEXT =& new tipRcbtContext ($Module);
-  }
+    /**#@+ @access public */
 
-  function Reset ()
-  {
-    if (count ($this->CONTEXT_STACK) > 0)
-      {
-	$this->POS = $this->CONTEXT->START_POS;
-	$this->LogError ('unclosed context');
-	return FALSE;
-      }
+    var $buffer = null;
+    var $context = null;
+    var $nested_text = false;
+    var $pos = 0;
+    var $tp = 0;
 
-    $this->POS = 0;
-    $this->TP = 0;
-    return TRUE;
-  }
+    function TIP_Rcbt_Parser(&$buffer, &$module, $context_message)
+    {
+        $this->buffer =& $buffer;
+        $this->context =& new TIP_Rcbt_Context($module);
 
-  function Nest ()
-  {
-    array_push ($this->TP_STACK, $this->TP);
-    $this->TP = 0;
+        if ($context_message) {
+            $this->_context_message = $context_message;
+        }
+    }
 
-    if (count ($this->TP_STACK) > 1)
-      ob_start ();
-  }
+    function reset()
+    {
+        if (count($this->_context_stack) > 0) {
+            $this->pos = $this->context->start_pos;
+            $this->logError('unclosed context');
+            return false;
+        }
 
-  function Unnest ()
-  {
-    if (count ($this->TP_STACK) > 1)
-      $this->NESTED_TEXT = ob_get_clean ();
+        $this->pos = 0;
+        $this->tp = 0;
+        return true;
+    }
 
-    $this->TP = array_pop ($this->TP_STACK);
-  }
+    function nest()
+    {
+        array_push($this->_tp_stack, $this->tp);
+        $this->tp = 0;
 
-  function Push (&$NewContext)
-  {
-    $NewContext->Start ($this);
-    $Last = count ($this->CONTEXT_STACK);
-    $this->CONTEXT_STACK[$Last] =& $this->CONTEXT;
-    $this->CONTEXT =& $NewContext;
-  }
+        if (count($this->_tp_stack) > 1) {
+            ob_start();
+        }
+    }
 
-  function Pop ()
-  {
-    if (count ($this->CONTEXT_STACK) < 1)
-      return FALSE;
+    function unnest()
+    {
+        if (count($this->_tp_stack) > 1) {
+            $this->nested_text = ob_get_clean();
+        }
 
-    $this->CONTEXT->Stop ($this);
-    $Last = count ($this->CONTEXT_STACK) - 1;
-    $this->CONTEXT =& $this->CONTEXT_STACK[$Last];
-    unset ($this->CONTEXT_STACK[$Last]);
-    return TRUE;
-  }
+        $this->tp = array_pop($this->_tp_stack);
+    }
 
-  function BeginParse (&$Tag)
-  {
-    echo substr ($this->BUFFER, $this->POS, $Tag->START - $this->POS);
-    $this->POS = $Tag->START;
-    if (count ($this->TP_STACK) > 0)
-      ++ $this->POS;
-    return TRUE;
-  }
 
-  function EndParse (&$Tag)
-  {
-    if ($Tag->END === FALSE)
-      {
-	echo substr ($this->BUFFER, $this->POS);
-	$this->POS = FALSE;
-	return TRUE;
-      }
+    function push(&$context)
+    {
+        $context->start($this);
+        $this->_context_stack[count($this->_context_stack)] =& $this->context;
+        $this->context =& $context;
+    }
 
-    $Text = $this->NESTED_TEXT . substr ($this->BUFFER, $this->POS, $Tag->END - $this->POS);
-    $this->NESTED_TEXT = FALSE;
-    $this->POS = $Tag->END+1;
-    return $Tag->ExplodeTag ($this, $Text) && $Tag->RunTag ($this);
-  }
+    function pop()
+    {
+        if (count($this->_context_stack) < 1) {
+            return false;
+        }
 
-  function LogWarning ($Message)
-  {
-    tip::LogWarning ($this->BuildMessage ($Message));
-  }
+        // Beware: the stop call can push a new context in the stack
+        $this->context->stop($this);
+        $last = count($this->_context_stack)-1;
+        $this->context =& $this->_context_stack[$last];
+        unset($this->_context_stack[$last]);
+        return true;
+    }
 
-  function LogError ($Message)
-  {
-    tip::LogError ($this->BuildMessage ($Message));
-  }
+    function beginParse(&$tag)
+    {
+        echo substr($this->buffer, $this->pos, $tag->start-$this->pos);
+        $this->pos = $tag->start;
+        if (count($this->_tp_stack) > 0) {
+            ++ $this->pos;
+        }
+    }
+
+    function endParse(&$tag)
+    {
+        if ($tag->end === false) {
+            echo substr($this->buffer, $this->pos);
+            $this->pos = false;
+            return true;
+        }
+
+        $text = $this->nested_text . substr($this->buffer, $this->pos, $tag->end-$this->pos);
+        $this->nested_text = false;
+        $this->pos = $tag->end+1;
+        return $tag->explodeTag($this, $text) && $tag->runTag($this);
+    }
+
+    function logWarning($message)
+    {
+        TIP::logWarning($this->_buildMessage($message));
+    }
+
+    function logError($message)
+    {
+        TIP::logError($this->_buildMessage($message));
+    }
+
+    /**#@-*/
 }
 
-class tipRcbtTag
+class TIP_Rcbt_Tag
 {
-  /// @privatesection
+    /// @privatesection
 
-  var $START;
-  var $END;
-  var $SUBTAG;
-  var $SUBTAGS;
-  var $MODULE_NAME;
-  var $COMMAND;
-  var $PARAMS;
+    var $start = false;
+    var $end = false;
+    var $subtag = array();
+    var $subtags = 0;
+    var $module_name = null;
+    var $command = null;
+    var $params = null;
 
-  function& CreateContext (&$Parser, &$Module)
-  {
-    if ($Parser->CONTEXT->SKIP)
-      {
-	$DummyContext =& new tipRcbtContext ($Module);
-	$DummyContext->SkipIf (TRUE);
-	$Parser->Push ($DummyContext);
-	$Context = FALSE;
-      }
-    else
-      {
-	$Context =& new tipRcbtContext ($Module);
-      }
-    return $Context;
-  }
+    function& createContext(&$parser, &$module)
+    {
+        if ($parser->context->skip) {
+            $dummy_context =& new TIP_Rcbt_Context($module);
+            $dummy_context->skipIf(true);
+            $parser->push($dummy_context);
+            $result = false;
+        } else {
+            $result =& new TIP_Rcbt_Context($module);
+        }
+        return $result;
+    }
 
 
-  /// @publicsection
+    /// @publicsection
 
-  function tipRcbtTag ()
-  {
-    $this->START = FALSE;
-    $this->END = FALSE;
-    $this->SUBTAG = array ();
-    $this->SUBTAGS = 0;
-    $this->MODULE_NAME = FALSE;
-    $this->COMMAND = FALSE;
-    $this->PARAMS = FALSE;
-  }
+    function buildTag(&$parser, $unclosed_tag = false)
+    {
+        $this->start = $parser->pos;
+        if (! $unclosed_tag)
+            ++ $parser->pos;
 
-  function BuildTag (&$Parser, $UnclosedTag = FALSE)
-  {
-    $this->START = $Parser->POS;
-    if (! $UnclosedTag)
-      ++ $Parser->POS;
+        for (;;) {
+            $open_brace = strpos ($parser->buffer, '{', $parser->pos);
+            $close_brace = strpos ($parser->buffer, '}', $parser->pos);
+            if ($close_brace === false) {
+                if ($open_brace !== false) {
+                    $parser->pos = $open_brace;
+                } elseif ($unclosed_tag) {
+                    return true;
+                }
 
-    for (;;)
-      {
-	$OpenBrace = strpos ($Parser->BUFFER, '{', $Parser->POS);
-	$CloseBrace = strpos ($Parser->BUFFER, '}', $Parser->POS);
-	if ($CloseBrace === FALSE)
-	  {
-	    if ($OpenBrace !== FALSE)
-	      $Parser->POS = $OpenBrace;
-	    elseif ($UnclosedTag)
-	      return TRUE;
+                $parser->logError('unclosed tag');
+                return false;
+            }
 
-	    $Parser->LogError ('unclosed tag');
-	    return FALSE;
-	  }
+            if ($open_brace === false || $open_brace > $close_brace) {
+                break;
+            }
 
-	if ($OpenBrace === FALSE || $OpenBrace > $CloseBrace)
-	  break;
+            $parser->pos = $open_brace;
+            $Subtag =& new TIP_Rcbt_Tag;
+            if (! $Subtag->buildTag($parser))
+                return false;
 
-	$Parser->POS = $OpenBrace;
-	$Subtag =& new tipRcbtTag;
-	if (! $Subtag->BuildTag ($Parser))
-	    return FALSE;
+            $this->subtag[$this->subtags] =& $Subtag;
+            ++ $this->subtags;
+        }
 
-	$this->SUBTAG[$this->SUBTAGS] =& $Subtag;
-	++ $this->SUBTAGS;
-      }
+        $this->end = $close_brace;
+        $parser->pos = $close_brace+1;
+        return true;
+    }
 
-    $this->END = $CloseBrace;
-    $Parser->POS = $CloseBrace+1;
-    return TRUE;
-  }
+    function recurseTag(&$parser)
+    {
+        $parser->beginParse($this);
 
-  function RecurseTag (&$Parser)
-  {
-    if (! $Parser->BeginParse ($this))
-      return FALSE;
+        if ($this->subtags > 0) {
+            $parser->nest();
+            while ($parser->tp < $this->subtags) {
+                if (! $this->subtag[$parser->tp]->recurseTag($parser)) {
+                    return false;
+                }
+                ++ $parser->tp;
+            }
+            $parser->unnest();
+        }
 
-    if ($this->SUBTAGS > 0)
-      {
-	$Parser->Nest ();
-	while ($Parser->TP < $this->SUBTAGS)
-	  {
-	    if (! $this->SUBTAG[$Parser->TP]->RecurseTag ($Parser))
-	      return FALSE;
-	    ++ $Parser->TP;
-	  }
-	$Parser->Unnest ();
-      }
+        return $parser->endParse($this);
+    }
 
-    return $Parser->EndParse ($this);
-  }
+    function explodeTag(&$parser, &$text)
+    {
+        if ($this->end == $this->start+1) {
+            return true;
+        }
 
-  function ExplodeTag (&$Parser, &$Text)
-  {
-    if ($this->END == $this->START+1)
-      return TRUE;
+        $open_brace = strpos ($text, '(');
+        if ($open_brace === false) {
+            $this->params = false;
+        } else {
+            $params_pos = $open_brace+1;
+            $close_brace = strrpos ($text, ')');
+            if ($close_brace === false) {
+                $parser->logError ('unclosed parameter');
+                return false;
+            }
 
-    $OpenBrace = strpos ($Text, '(');
-    if ($OpenBrace === FALSE)
-      {
-	$this->PARAMS = FALSE;
-      }
-    else
-      {
-	$ParamsPos = $OpenBrace+1;
-	$CloseBrace = strrpos ($Text, ')');
-	if ($CloseBrace === FALSE)
-	  {
-	    $Parser->LogError ('unclosed parameter');
-	    return FALSE;
-	  }
+            $this->params = substr ($text, $params_pos, $close_brace-$params_pos);
+            if (! $this->params)
+                $this->params = '';
 
-	$this->PARAMS = substr ($Text, $ParamsPos, $CloseBrace-$ParamsPos);
-	if (! $this->PARAMS)
-	  $this->PARAMS = '';
+            $text = substr ($text, 0, $params_pos-1);
+        }
 
-	$Text = substr ($Text, 0, $ParamsPos-1);
-      }
+        $token = explode ('.', trim ($text));
+        switch (count ($token))
+        {
+        case 1:
+            $this->module_name = null;
+            if ($this->params === false) {
+                $this->command = 'html';
+                $this->params = $token[0];
+            } elseif (empty ($token[0])) {
+                $this->command = 'tryhtml';
+            } else {
+                $this->command = strtolower($token[0]);
+            }
+            break;
+        case 2:
+            $this->module_name = $token[0];
+            $this->command = strtolower ($token[1]);
+            break;
+        default:
+            if (strlen ($text) > 20)
+                $text = substr ($text, 0, 17) . '...';
+            $parser->logError ("malformed tag ($text)");
+            return false;
+        }
 
-    $Token = explode ('.', trim ($Text));
-    switch (count ($Token))
-      {
-      case 1:
-	$this->MODULE_NAME = FALSE;
-	if ($this->PARAMS === FALSE)
-	  {
-	    $this->COMMAND = 'html';
-	    $this->PARAMS = $Token[0];
-	  }
-	elseif (empty ($Token[0]))
-	  {
-	    $this->COMMAND = 'tryhtml';
-	  }
-	else
-	  {
-	    $this->COMMAND = strtolower ($Token[0]);
-	  }
-	break;
-      case 2:
-	$this->MODULE_NAME = $Token[0];
-	$this->COMMAND = strtolower ($Token[1]);
-	break;
-      default:
-	if (strlen ($Text) > 20)
-	  $Text = substr ($Text, 0, 17) . '...';
-	$Parser->LogError ("malformed tag ($Text)");
-	return FALSE;
-      }
+        return true;
+    }
 
-    return TRUE;
-  }
+    function runTag(&$parser)
+    {
+        if ($this->module_name) {
+            $module =& TIP_Module::getInstance($this->module_name);
+        } else {
+            $module =& $parser->context->module;
+        }
 
-  function RunTag (&$Parser)
-  {
-    if ($this->MODULE_NAME)
-      $Module =& tipType::GetInstance ($this->MODULE_NAME);
-    else
-      $Module =& $Parser->CONTEXT->MODULE;
+        if (! $this->command) {
+            $error = $module->resetError();
+            if ($error) {
+                $parser->logWarning($error);
+            }
 
-    if (! $this->COMMAND)
-      {
-	$Error = $Module->GetError ();
-	if ($Error)
-	  $Parser->LogWarning ($Error);
+            if (! $parser->pop()) {
+                $parser->logWarning('too much {} tags');
+            }
 
-	if (! $Parser->Pop ())
-	  $Parser->LogWarning ('too much {} tags');
+            return true;
+        }
 
-	return TRUE;
-      }
+        switch ($this->command) {
+            /**
+             * \rcbtbuiltin <b>If(</b><i>conditions</i><b>)</b>\n
+             * Executes the text enclosed by this tag and the <tt>{}</tt> tag
+             * only if \c conditions is true. During the execution of this text, the
+             * default module will be the current module.
+             **/
+        case 'if':
+            if ($context =& $this->createContext($parser, $module)) {
+                $condition = @create_function('', "return $this->params;");
+                if ($condition) {
+                    $context->skipIf(! $condition());
+                } else {
+                    $parser->logWarning("invalid condition ($this->params)");
+                    $context->skipIf(true);
+                }
+                $parser->push($context);
+            }
+            return true;
 
-    switch ($this->COMMAND)
-      {
-      /**
-       * \rcbtbuiltin <b>If(</b><i>conditions</i><b>)</b>\n
-       * Executes the text enclosed by this tag and the <tt>{}</tt> tag
-       * only if \c conditions is true. During the execution of this text, the
-       * default module will be the current module.
-       **/
-      case 'if':
-	if ($Context =& $this->CreateContext ($Parser, $Module))
-	  {
-	    $Condition = @create_function ('', "return $this->PARAMS;");
-	    if (empty ($Condition))
-	      {
-		$Parser->LogWarning ("invalid condition ($this->PARAMS)");
-		$Context->SkipIf (TRUE);
-	      }
-	    else
-	      {
-		$Context->SkipIf (! $Condition ());
-	      }
-	    $Parser->Push ($Context);
-	  }
-	return TRUE;
+            /**
+             * \rcbtbuiltin <b>Else()</b>\n
+             * Switches the skip condition of an enclosed text.
+             **/
+        case 'else':
+            $parser->context->skipIf(! $parser->context->skip);
+            return true;
 
-      /**
-       * \rcbtbuiltin <b>Else()</b>\n
-       * Switches the skip condition of an enclosed text.
-       **/
-      case 'else':
-	$Parser->CONTEXT->SkipIf (! $Parser->CONTEXT->SKIP);
-	return TRUE;
+            /**
+             * \rcbtbuiltin <b>select([filter])</b>\n
+             * Performs the specified select on the module and runs the text
+             * enclosed by this tag and the <tt>{}</tt> tag with this select active.
+             * This can be helpful, for instance, to show the summary fields of a
+             * select. During the execution of this text, the default module will
+             * be the current module. This means if you do not specify the select,
+             * this tag simply change the default module.
+             **/
+        case 'select':
+            if ($context =& $this->createContext($parser, $module)) {
+                $view =& $module->startView($this->params);
+                if ($view) {
+                    $context->on_start->set(array(&$view, 'rowReset'));
+                    $context->on_destroy->set(array(&$module, 'endView'));
+                } else {
+                    $context->skipIf(true);
+                }
+                $parser->push($context);
+            }
+            return true;
 
-      /**
-       * \rcbtbuiltin <b>Query(</b><i>query</i><b>)</b>\n
-       * Performs the specified \p query on the module and runs the text
-       * enclosed by this tag and the <tt>{}</tt> tag with this query active.
-       * This can be helpful, for instance, to show the summary fields of a
-       * query. During the execution of this text, the default module will
-       * be the current module. This means if you do not specify the query,
-       * this tag simply change the default module.
-       **/
-      case 'query':
-	if ($Context =& $this->CreateContext ($Parser, $Module))
-	  {
-	    if (! empty ($this->PARAMS))
-	      {
-		$Context->ON_CREATE->Set (array (&$Module, 'StartView'), array ($this->PARAMS));
-		$Context->ON_START->Set (array (&$Module, 'ResetRow'));
-		$Context->ON_STOP->Set (array (&$Module, 'EndView'));
-	      }
-	    $Parser->Push ($Context);
-	  }
-	return TRUE;
+            /**
+             * \rcbtbuiltin <b>selectRow(</b><i>id</i><b>)</b>\n
+             * A shortcut to the \c select command performing a select on the primary
+             * key content.
+             **/
+        case 'selectrow':
+            if ($context =& $this->createContext($parser, $module)) {
+                $filter = $module->data->rowFilter($this->params);
+                $view =& $module->startView($filter);
+                if ($view) {
+                    $context->on_start->set(array(&$view, 'rowReset'));
+                    $context->on_destroy->set(array(&$module, 'endView'));
+                } else {
+                    $context->skipIf(true);
+                }
+                $parser->push($context);
+            }
+            return true;
 
-      /**
-       * \rcbtbuiltin <b>QueryById(</b><i>id</i><b>)</b>\n
-       * A shortcut to the \c query command performing a query on the primary
-       * key content.
-       **/
-      case 'querybyid':
-	if ($Context =& $this->CreateContext ($Parser, $Module))
-	  {
-	    $Query = $Module->DATA_ENGINE->QueryById ($this->PARAMS, $Module);
-	    $Context->ON_CREATE->Set (array (&$Module, 'StartView'), array ($Query));
-	    $Context->ON_START->Set (array (&$Module, 'ResetRow'));
-	    $Context->ON_STOP->Set (array (&$Module, 'EndView'));
-	    $Parser->Push ($Context);
-	  }
-	return TRUE;
+            /**
+             * \rcbtbuiltin <b>forSelect([filter])</b>\n
+             * Performs the specified filter on the module and, for every row, runs
+             * the text enclosed by this tag and the <tt>{}</tt> tag. During the
+             * execution of this text, the current module will be the default one.
+             **/
+        case 'forselect':
+            if ($context =& $this->createContext($parser, $module)) {
+                $view =& $module->startView($this->params);
+                if ($view) {
+                    $context->on_start->set(array(&$view, 'rowReset'));
+                    $context->on_loop->set(array(&$view, 'rowNext'));
+                    $context->on_destroy->set(array(&$module, 'endView'));
+                } else {
+                    $context->skipIf(true);
+                }
+                $parser->push($context);
+            }
+            return true;
 
-      /**
-       * \rcbtbuiltin <b>ForQuery(</b><i>query</i><b>)</b>\n
-       * Performs the specified \c query on the module and, for every row, runs
-       * the text enclosed by this tag and the <tt>{}</tt> tag. During the
-       * execution of this text, the current module will be the default one.
-       **/
-      case 'forquery':
-	if ($Context =& $this->CreateContext ($Parser, $Module))
-	  {
-	    $Context->ON_CREATE->Set (array (&$Module, 'StartView'), array ($this->PARAMS));
-	    $Context->ON_START->Set (array (&$Module, 'ResetRow'));
-	    $Context->ON_STOP->Set (array (&$Module, 'EndView'));
-	    $Context->ON_LOOP->Set (array (&$Module, 'NextRow'));
-	    $Parser->Push ($Context);
-	  }
-	return TRUE;
+            /**
+             * \rcbtbuiltin <b>forEach([list])</b>\n
+             * If you do not specify \p list, it is the same as forselect but
+             * traverses the current view instead of building a new one.
+             * If \p list is a number, the enclosed text is executed \p list times;
+             * in the enclosed text, the special field \b CNT keeps track of the
+             * current time counter.
+             * In the other cases, a special view is created by calling
+             * TIP_Module::startSpecialView() and using \p list as argument.
+             * A common value is FIELDS, that generates a special view that
+             * browses the field structure, or MODULES, that traverses all the
+             * installed modules of the site.
+             **/
+        case 'foreach':
+            if ($context =& $this->createContext($parser, $module)) {
+                if (empty ($this->params)) {
+                    $view =& $module->view;
+                    if ($view) {
+                        $context->on_start->set(array(&$view, 'rowReset'));
+                        $context->on_loop->set(array(&$view, 'rowNext'));
+                    } else {
+                        $this->logWarning('no current views');
+                        $context->skipIf(true);
+                    }
+                } elseif ($this->params > 0) {
+                    $context->on_start->set(create_function('&$module', '$module->keys[\'CNT\'] = 1; return true;'), array(&$module));
+                    $context->on_loop->set(create_function('&$module,$n', 'return $n > $module->keys[\'CNT\'] ++;'), array(&$module, (int)$this->params));
+                    $context->on_stop->set(create_function('&$module', 'unset($module->keys[\'CNT\']); return true;'), array(&$module));
+                } else {
+                    $view =& $module->startSpecialView($this->params);
+                    if (! is_object($view)) {
+                        $context->on_start->set(array(&$view, 'rowReset'));
+                        $context->on_loop->set(array(&$view, 'rowNext'));
+                        $context->on_destroy->set(array(&$module, 'endView'));
+                    } else {
+                        $context->skipIf(true);
+                    }
+                }
+                $parser->push($context);
+            }
+            return true;
+        }
 
-      /**
-       * \rcbtbuiltin <b>ForEach(</b><i>list</i><b>)</b>\n
-       * If you do not specify \p list, it is the same as \c forquery but
-       * traverses the current query instead of a specific one.
-       * If \p list is a number, the enclosed text is executed \p list times;
-       * in the enclosed text, the special field \b CNT keeps track of the
-       * current time counter.
-       * In the other cases, a special query is performed by calling
-       * tipModule::StartSpecialView() and using \p list as argument.
-       * A common value is \b FIELD, that generates a special query that
-       * browses the field structure, or \b MODULE, that traverses all the
-       * installed modules of the site.
-       **/
-      case 'foreach':
-	if ($Context =& $this->CreateContext ($Parser, $Module))
-	  {
-	    if (empty ($this->PARAMS))
-	      {
-		$Context->ON_START->Set (array (&$Module, 'ResetRow'));
-		$Context->ON_LOOP->Set (array (&$Module, 'NextRow'));
-	      }
-	    elseif ($this->PARAMS > 0)
-	      {
-		$Context->ON_START->Set (create_function ('&$Module', '$Module->FIELDS[\'CNT\'] = 1; return TRUE;'), array (&$Module));
-		$Context->ON_LOOP->Set (create_function ('&$Module,$n', 'return $n > $Module->FIELDS[\'CNT\'] ++;'), array (&$Module, (int)$this->PARAMS));
-		$Context->ON_STOP->Set (create_function ('&$Module', 'unset ($Module->FIELDS[\'CNT\']); return TRUE;'), array (&$Module));
-	      }
-	    else
-	      {
-		$Context->ON_CREATE->Set (array (&$Module, 'StartSpecialView'), array ($this->PARAMS));
-		$Context->ON_START->Set (array (&$Module, 'ResetRow'));
-		$Context->ON_LOOP->Set (array (&$Module, 'NextRow'));
-		$Context->ON_STOP->Set (array (&$Module, 'EndView'));
-	      }
-	    $Parser->Push ($Context);
-	  }
-	return TRUE;
+        if (! $parser->context->skip) {
+            $module->callCommand($this->command, $this->params);
+            $error = $module->resetError();
+            if ($error) {
+                $parser->logWarning($error);
+            }
+        }
 
-      /**
-       * \rcbtbuiltin <b>RecurseIf(</b><i>fieldid,value</i><b>)</b>\n
-       * Inside a loop construct (such as \c ForQuery or \c ForEach), you can
-       * recursively run the next rows that have the \p fieldid field equal to
-       * \p value. Recursively means the text enclosed by the \c For... tag
-       * is run for every matching row and the result is put in place of the
-       * \c RecurseIf tag. This command is useful to generate hierarchies, such
-       * as tree or catalogs. Notice you must have a query that generates a
-       * properly sorted sequence of rows.
-       **/
-      case 'recurseif':
-	if ($Parser->CONTEXT->SKIP)
-	  return TRUE;
-
-	$Pos = strpos ($this->PARAMS, ',');
-	if ($Pos === FALSE)
-	  {
-	    $this->LogWarning ("malformed recurseif tag ($this->PARAMS)");
-	    return TRUE;
-	  }
-
-	$Field = substr ($this->PARAMS, 0, $Pos);
-	$Value = substr ($this->PARAMS, $Pos+1);
-	if (! $Module->NextRow () || $Module->GetField ($Field) != $Value)
-	  {
-	    $Module->PrevRow ();
-	    return TRUE;
-	  }
-
-	// Find the innermost loop
-	$n = count ($Parser->CONTEXT_STACK);
-	do
-	  $LoopContext =& $Parser->CONTEXT_STACK[--$n];
-	while ($LoopContext->ON_LOOP->IS_DEFAULT);
-
-	$Context =& new tipRcbtContext ($Module);
-	$Context->START_POS = $LoopContext->START_POS;
-	$Context->START_TP = $LoopContext->START_TP;
-	$Context->ON_LOOP->Set (create_function ('&$Module,$Field,$Value', 'return $Module->NextRow () && $Module->GetField ($Field) == $Value;'), array (&$Module, $Field, $Value));
-	$Context->ON_STOP->Set (array (&$Module, 'PrevRow'));
-	$Context->ON_DESTROY->Set (create_function ('&$Parser,$TP,$Pos', '$Parser->TP = $TP; $Parser->POS = $Pos; return TRUE;'), array (&$Parser, $Parser->TP, $Parser->POS));
-
-	$Parser->TP = $Context->START_TP;
-	$Parser->POS = $Context->START_POS;
-	$Parser->Push ($Context);
-	return TRUE;
-      }
-
-    if (! $Parser->CONTEXT->SKIP && ! $Module->CallCommand ($this->COMMAND, $this->PARAMS))
-      {
-	$Parser->LogWarning ($Module->GetError ());
-	$Module->ResetError ();
-      }
-
-    return TRUE;
-  }
+        return true;
+    }
 }
 
 
@@ -568,22 +514,22 @@ class tipRcbtTag
  *
  * A rcbt tag has the following syntax:
  *
- * <b><tt>{[module.]command([params])}</tt></b>
+ * <code>{[module.]command([params])}</code>
  *
  * The square brakets identify an optional part. All the following tags are
  * valid tags:
  *
- * <tt>{Blog.Run(block.html)}</tt> a complete tag
+ * <code>{Blog.run(block.html)}</code> a complete tag
  *
- * <tt>{User.Logout()}</tt> a tag without \c params
+ * <code>{User.logout()}</code> a tag without \c params
  *
- * <tt>{Html(age)}</tt> a tag without \c module
+ * <code>{Html(age)}</code> a tag without \c module
  *
- * <tt>{Logout()}</tt> a tag without \c module and \c params
+ * <code>{logout()}</code> a tag without \c module and \c params
  *
- * <tt>{age}</tt> a special case: this will expand to <tt>{Html(age)}</tt>
+ * <code>{age}</code> a special case: this will expand to <code>{html(age)}</code>
  *
- * <tt>{(age)}</tt> another special case: this will expand to <tt>{TryHtml(age)}</tt>
+ * <code>{(age)}</code> another special case: this will expand to <code>{tryHtml(age)}</code>
  *
  * - <b>\c module</b> (case insensitive)\n
  *   Identifies the module to use while executing this tag. If not specified,
@@ -591,7 +537,7 @@ class tipRcbtTag
  * - <b>\c command</b> (case insensitive)\n
  *   Defines the comman to call. The available commands are module dependents:
  *   consult the module documentation to see which commands are available,
- *   particulary the tipModule::CallCommand() function. As mentioned above,
+ *   particulary the TIP_Module::callCommand() function. As mentioned above,
  *   if not specified the 'Html' command will be executed.
  * - <b>\c params</b> (case sensitive)\n
  *   The arguments to pass to the command. Obviously, what \c params means
@@ -600,26 +546,25 @@ class tipRcbtTag
  *   this means a \c params can contains itsself any sort of valid tags.
  *
  * The special empty tag <tt>{}</tt> is used to close the context opened by
- * some commands, such as ForQuery() of If() tags.
+ * some commands, such as forSelect() of If() tags.
  *
  * See the \subpage RcbtBuiltins page to know which are the available commands.
- * If the tag is not built-in, a call to tipModule::RunCommand(), using the
- * proper module and passing the parsed command and params as arguments, is
- * performed. See the \subpage Commands page for details.
+ * If the tag is not built-in, a call to TIP_Module::command...(), using the
+ * proper module and params as arguments, is performed.
+ *
+ * @package TIP
+ * @final
  **/
-class tipRcbt extends tipSource
+class TIP_Rcbt extends TIP_Source_Engine
 {
-  /// @protectedsection
-
-  function RealRun (&$Buffer, &$Module, $PreMessage)
-  {
-    $Parser =& new tipRcbtParser ($Buffer, $Module, $PreMessage);
-    $Source =& new tipRcbtTag;
-
-    return $Source->BuildTag ($Parser, TRUE)
-        && $Parser->Reset ()
-        && $Source->RecurseTag ($Parser);
-  }
+    function run(&$buffer, &$module, $context_message)
+    {
+        $parser =& new TIP_Rcbt_Parser($buffer, $module, $context_message);
+        $source =& new TIP_Rcbt_Tag;
+        return $source->buildTag($parser, true) && $parser->reset() && $source->recurseTag($parser);
+    }
 }
+
+return new TIP_Rcbt;
 
 ?>

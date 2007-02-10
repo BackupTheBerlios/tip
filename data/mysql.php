@@ -1,332 +1,350 @@
 <?php
-   
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+
 /**
- * The MySql data engine.
+ * TIP_Mysql definition file
+ * @package TIP
+ **/
+
+/**
+ * The MySql data engine
  *
  * Interface to the MySql database.
  *
- * The \p Query parameters must be specified with a stripped syntax, that is
- * without the SQL command and the table reference.
+ * The filter parameters must be specified without the SQL command and the
+ * FROM clause and can include everything acceptable by the server.
  *
  * For example, if you want to show the user called 'nicola', you must specify
- * the query <tt>WHERE `user`='nicola'</tt> in the appropriate module. This
- * applies also to every method that has a \p Query parameter on a Mysql based
- * module. Using the tipRcbt engine, for instance, you could create a source
- * file like the following:
- * @verbatim
-<h1>List of the first ten users whose name begins with 'c'</h1>
-
-{user.forquery(WHERE `user` LIKE 'c%' LIMIT 10)}
-  <p>{user} ({publicname})</p>
-{}
-
-@endverbatim
- * In the above example, the query is called from the \b user module. Also, the
- * \b forquery method is by definition a read method (\a select, in SQL). This
- * means the command will expand to the real SQL query:
+ * the filter <code>WHERE `user`='nicola'</code> in the appropriate module.
+ * This applies also to every method that has a filter parameter on a Mysql
+ * based module. Using the tipRcbt engine, for instance, you could create a
+ * source file like the following:
  *
- * <tt>SELECT * FROM `tip_user` WHERE `user` LIKE 'c\%' LIMIT 10)</tt>
+ * <code>
+ * <h1>List of the first ten users whose name begins with 'c'</h1>
+ *
+ * {user.ForRows(WHERE `user` LIKE 'c%' LIMIT 10)}
+ * <p>{user} ({publicname})</p>
+ * {}
+ * </code>
+ *
+ * In the above example, the ForRows is called from the 'user' module. Also,
+ * the ForRows is by definition a read method (SELECT, in SQL). This means the
+ * command will expand to the real SQL query:
+ *
+ * <code>SELECT * FROM `tip_user` WHERE `user` LIKE 'c\%' LIMIT 10)</code>
+ *
+ * @final
+ * @package TIP
  **/
-class tipMysql extends tipData
+class TIP_Mysql extends TIP_Data_Engine
 {
-  /// @protectedsection
+    /**#@+ @access private */
 
-  function RealQueryById ($Id, &$Context)
-  {
-    if (empty ($Id))
-      return NULL;
-
-    $this->RealQuerify ($Id, $Context);
-    return "WHERE `$Context->PRIMARYKEY`=$Id";
-  }
-
-  function RealQuerify (&$Value, &$Context)
-  {
-    if (is_string ($Value))
-      $Value = "'" . mysql_real_escape_string ($Value, $this->CONNECTION) . "'";
-  }
-
-  function RealFillFields (&$Context, $Detailed = FALSE)
-  {
-    if (is_null ($Context->FIELDS))
-      {
-	$Result = mysql_list_fields ($this->GetOption ('database'),
-				     $Context->DATAID,
-				     $this->CONNECTION);
-	if (! $Result)
-	  {
-	    $this->LogError (mysql_error ($this->CONNECTION));
-	    return FALSE;
-	  }
-	$this->TryGetFields ($Result, $Context);
-      }
-
-    if ($Detailed)
-      $this->TryGetFieldsDetails ($Context);
-
-    return ! is_null ($Context->FIELDS);
-  }
-
-  function& Select ($Query, &$Context)
-  {
-    $Rows = FALSE;
-    $Result = $this->RunQuery ("SELECT * FROM `$Context->DATAID` $Query");
-    if ($Result === FALSE)
-      return $Rows;
-
-    $this->TryGetFields ($Result, $Context);
-    $Rows = array ();
-
-    while ($Row = mysql_fetch_assoc ($Result))
-      {
-	$this->ForceFieldType ($Row, $Context);
-	$Rows[$Row[$Context->PRIMARYKEY]] =& $Row;
-	unset ($Row);
-      }
-
-    // To free or not to free
-    mysql_free_result ($Result);
-    return $Rows;
-  }
-
-  function Insert (&$Row, &$Context)
-  {
-    $Fieldset =& $this->MakeFieldset ($Row, $Context);
-    $Fieldset = empty ($Fieldset) ? '' : " SET $Fieldset";
-
-    if ($this->RunQuery ("INSERT INTO `$Context->DATAID`$Fieldset") === FALSE)
-      return FALSE;
-
-    return mysql_insert_id ($this->CONNECTION);
-  }
-
-  function Update ($Query, &$Row, &$Context)
-  {
-    $Fieldset =& $this->MakeFieldset ($Row, $Context);
-    if (empty ($Fieldset))
-      return TRUE;
-
-    return $this->RunQuery ("UPDATE `$Context->DATAID` SET $Fieldset $Query");
-  }
-
-  function Delete ($Query, &$Context)
-  {
-    // Delete query without the query part are by default not accepted
-    if (empty ($Query))
-      return FALSE;
-
-    return $this->RunQuery ("DELETE FROM `$Context->DATAID` $Query");
-  }
+    var $_connection;
+    var $_database;
 
 
-  /// @privatesection
+    function TIP_Mysql()
+    {
+        $this->TIP_Type();
 
-  var $CONNECTION;
+        $server   = $this->getOption('server');
+        $user     = $this->getOption('user');
+        $password = $this->getOption('password');
 
-  function tipMysql ()
-  {
-    $this->tipData ();
-    $this->CONNECTION = mysql_connect ($this->GetOption ('server'),
-				       $this->GetOption ('user'),
-				       $this->GetOption ('password'));
-    if (! $this->CONNECTION)
-      {
-	$this->LogError (mysql_error ($this->CONNECTION));
-	$this->ERROR = TRUE;
-	return;
-      }
+        $this->_connection = mysql_connect($server, $user, $password);
+        $this->_database = $this->getOption('database');
 
-    if (! mysql_select_db ($this->GetOption ('database'), $this->CONNECTION))
-      {
-	$this->LogError (mysql_error ($this->CONNECTION));
-	$this->ERROR = TRUE;
-	return;
-      }
+        if (! $this->_connection || ! mysql_select_db($this->_database, $this->_connection)) {
+            $this->setError(mysql_error($this->_connection));
+        } else {
+            $this->runQuery('SET CHARACTER SET utf8');
+        }
+    }
 
-    // The charset does not set $this->ERROR interface error flag
-    $this->RunQuery ('SET CHARACTER SET utf8');
-  }
+    function& runQuery()
+    {
+        $pieces = func_get_args();
+        $query = implode(' ', $pieces);
+        $result = mysql_query($query, $this->_connection);
+        if ($result === false) {
+            $this->setError(mysql_error ($this->_connection) . " ($query)");
+        }
+        return $result;
+    }
 
-  function& RunQuery ($Query)
-  {
-    $Result = mysql_query ($Query, $this->CONNECTION);
-    if ($Result === FALSE)
-      $this->LogError (mysql_error ($this->CONNECTION) . " ($Query)");
-    return $Result;
-  }
+    function prepareFieldset(&$row)
+    {
+        $fieldset = array();
+        foreach ($row as $id => $value) {
+            $fieldset[] = $this->prepareName($id) . '=' . $this->prepareValue($value);
+        }
 
-  function& MakeFieldset (&$Row, &$Context)
-  {
-    $Fieldset = '';
-    foreach ($Row as $Field => $Value)
-      {
-	if (! empty ($Fieldset))
-	  $Fieldset .= ',';
+        return empty($fieldset) ? '' : 'SET ' . implode(',', $fieldset);
+    }
 
-	if (is_null ($Value))
-	  $Value = 'NULL';
-	else
-	  $this->RealQuerify ($Value, $Context);
+    function tryFillFields(&$result, &$data)
+    {
+        if (! is_null($data->fields)) {
+            return true;
+        }
 
-	$Fieldset .= "`$Field`=$Value";
-      }
+        if (! is_resource($result)) {
+            return false;
+        }
 
-    return $Fieldset;
-  }
+        $n_fields = mysql_num_fields($result);
+        for ($n = 0; $n < $n_fields; ++ $n) {
+            $name = mysql_field_name($result, $n);
+            $type = mysql_field_type($result, $n);
+            $flags = mysql_field_flags($result, $n);
 
-  function TryGetFields (&$Result, &$Context)
-  {
-    if (! is_null ($Context->FIELDS))
-      return;
+            $data->fields[$name] = array('id' => $name);
+            $field =& $data->fields[$name];
 
-    $nFields = mysql_num_fields ($Result);
-    for ($n = 0; $n < $nFields; ++ $n)
-      {
-	$Name = mysql_field_name ($Result, $n);
-	$Type = mysql_field_type ($Result, $n);
-	$Flags = mysql_field_flags ($Result, $n);
+            switch (strtoupper($type)) {
+            case 'BOOL':
+            case 'BOOLEAN':
+                $field['type'] = 'bool';
+                $field['subtype'] = null;
+                $field['length'] = 0;
+                break;
 
-	$Context->FIELDS[$Name] = array ('id' => $Name);
-	$Field =& $Context->FIELDS[$Name];
+            case 'BIT':
+            case 'TINYINT':
+            case 'SMALLINT':
+            case 'MEDIUMINT':
+            case 'INT':
+            case 'INTEGER':
+            case 'BIGINT':
+                $field['type'] = 'int';
+                $field['subtype'] = strpos($flags, 'unsigned') !== false ? 'unsigned' : null;
+                $field['length'] = 0;
+                break;
 
-	switch (strtoupper ($Type))
-	  {
-	  case 'BOOL':
-	  case 'BOOLEAN':
-	    $Field['type'] = 'bool';
-	    $Field['subtype'] = NULL;
-	    $Field['length'] = 0;
-	    break;
-	  case 'BIT':
-	  case 'TINYINT':
-	  case 'SMALLINT':
-	  case 'MEDIUMINT':
-	  case 'INT':
-	  case 'INTEGER':
-	  case 'BIGINT':
-	    $Field['type'] = 'int';
-	    $Field['subtype'] = strpos ($Flags, 'unsigned') !== FALSE ? 'unsigned' : NULL;
-	    $Field['length'] = 0;
-	    break;
-	  case 'FLOAT':
-	  case 'DOUBLE':
-	  case 'DOUBLE PRECISION':
-	  case 'REAL':
-	  case 'DECIMAL':
-	  case 'DEC':
-	  case 'NUMERIC':
-	  case 'FIXED':
-	    $Field['type'] = 'float';
-	    $Field['subtype'] = NULL;
-	    $Field['length'] = 0;
-	    break;
-	  case 'STRING':
-	  case 'CHAR':
-	  case 'VARCHAR':
-	  case 'BINARY':
-	  case 'VARBINARY':
-	  case 'TINYBLOB':
-	  case 'TINYTEXT':
-	  case 'BLOB':
-	  case 'TEXT':
-	  case 'MEDIUMBLOB':
-	  case 'MEDIUMTEXT':
-	  case 'LONGBLOB':
-	  case 'LONGTEXT':
-	    $Field['type'] = 'string';
-	    if (strpos ($Flags, 'enum') !== FALSE)
-	      $Field['subtype'] = 'enum';
-	    elseif (strpos ($Flags, 'set') !== FALSE)
-	      $Field['subtype'] = 'set';
-	    else
-	      $Field['subtype'] = NULL;
-	    $Field['length'] = mysql_field_len ($Result, $n) / 3;
-	    break;
-	  case 'ENUM':
-	    $Field['type'] = 'string';
-	    $Field['subtype'] = 'enum';
-	    $Field['length'] = 0;
-	    break;
-	  case 'SET':
-	    $Field['type'] = 'string';
-	    $Field['subtype'] = 'set';
-	    $Field['length'] = 0;
-	    break;
-	  case 'DATE':
-	    $Field['type'] = 'string';
-	    $Field['subtype'] = 'date';
-	    $Field['length'] = 10;
-	    break;
-	  case 'TIME':
-	    $Field['type'] = 'string';
-	    $Field['subtype'] = 'time';
-	    $Field['length'] = 8;
-	    break;
-	  case 'DATETIME':
-	    $Field['type'] = 'string';
-	    $Field['subtype'] = 'datetime';
-	    $Field['length'] = 19;
-	    break;
-	  case 'TIMESTAMP':
-	    $Field['type'] = 'int';
-	    $Field['subtype'] = 'datetime';
-	    $Field['length'] = 0;
-	    break;
-	  case 'YEAR':
-	    $Field['type'] = 'string';
-	    $Field['subtype'] = NULL; // Not implemented
-	    $Field['length'] = 4;
-	    break;
-	  default:
-	    $this->LogError ("field type not supported ($Type)");
-	  }
+            case 'FLOAT':
+            case 'DOUBLE':
+            case 'DOUBLE PRECISION':
+            case 'REAL':
+            case 'DECIMAL':
+            case 'DEC':
+            case 'NUMERIC':
+            case 'FIXED':
+                $field['type'] = 'float';
+                $field['subtype'] = null;
+                $field['length'] = 0;
+                break;
 
-	$Field['can_be_null'] = (bool) (strpos ($Flags, 'not_null') === FALSE);
-      }
-  }
+            case 'STRING':
+            case 'CHAR':
+            case 'VARCHAR':
+            case 'BINARY':
+            case 'VARBINARY':
+            case 'TINYBLOB':
+            case 'TINYTEXT':
+            case 'BLOB':
+            case 'TEXT':
+            case 'MEDIUMBLOB':
+            case 'MEDIUMTEXT':
+            case 'LONGBLOB':
+            case 'LONGTEXT':
+                $field['type'] = 'string';
+                if (strpos($flags, 'enum') !== false) {
+                    $field['subtype'] = 'enum';
+                } elseif (strpos($flags, 'set') !== false) {
+                    $field['subtype'] = 'set';
+                } else {
+                    $field['subtype'] = null;
+                }
+                $field['length'] = mysql_field_len($result, $n) / 3;
+                break;
 
-  function TryGetFieldsDetails (&$Context)
-  {
-    $Fields = array ();
-    foreach ($Context->FIELDS as $Id => $Field)
-      if ($Field['subtype'] == 'set' || $Field['subtype'] == 'enum')
-	{
-	  if (@array_key_exists ('choices', $Field))
-	    return;
-	  else
-	    $Fields[] = $Id;
-	}
+            case 'ENUM':
+                $field['type'] = 'string';
+                $field['subtype'] = 'enum';
+                $field['length'] = 0;
+                break;
 
-    $InClause = implode ("','", $Fields);
-    if (empty ($InClause))
-      return;
+            case 'SET':
+                $field['type'] = 'string';
+                $field['subtype'] = 'set';
+                $field['length'] = 0;
+                break;
 
-    $Database = $this->GetOption ('database');
-    $Result =& $this->RunQuery ("SELECT COLUMN_NAME, COLUMN_TYPE FROM information_schema.COLUMNS" .
-				"  WHERE TABLE_SCHEMA='$Database' AND TABLE_NAME='$Context->DATAID'" .
-				"  AND COLUMN_NAME IN ('$InClause')");
-    if (! $Result)
-      return;
+            case 'DATE':
+                $field['type'] = 'string';
+                $field['subtype'] = 'date';
+                $field['length'] = 10;
+                break;
 
-    while ($Row = mysql_fetch_assoc ($Result))
-      {
-	$Id = $Row['COLUMN_NAME'];
-	$Values = $Row['COLUMN_TYPE'];
-	$OpenBrace = strpos ($Values, '(');
-	$CloseBrace = strrpos ($Values, ')');
-	if ($OpenBrace === FALSE || $CloseBrace < $OpenBrace)
-	  continue;
+            case 'TIME':
+                $field['type'] = 'string';
+                $field['subtype'] = 'time';
+                $field['length'] = 8;
+                break;
 
-	$Values = substr ($Values, $OpenBrace+1, $CloseBrace-$OpenBrace-1);
-	$n = 0;
-	for ($Token = strtok ($Values, "',"); $Token !== FALSE; $Token = strtok ("',"))
-	  {
-	    ++ $n;
-	    $Context->FIELDS[$Id]["choice$n"] = $Token;
-	  }
-	$Context->FIELDS[$Id]['choices'] = $n;
-      }
-  }
+            case 'DATETIME':
+                $field['type'] = 'string';
+                $field['subtype'] = 'datetime';
+                $field['length'] = 19;
+                break;
+
+            case 'TIMESTAMP':
+                $field['type'] = 'int';
+                $field['subtype'] = 'datetime';
+                $field['length'] = 0;
+                break;
+
+            case 'YEAR':
+                $field['type'] = 'string';
+                $field['subtype'] = null; // Not implemented
+                $field['length'] = 4;
+                break;
+
+            default:
+                $data->setError("field type not supported ($type)");
+            }
+
+            $field['can_be_null'] = (bool) (strpos($flags, 'not_null') === false);
+        }
+
+        return ! is_null($data->fields);
+    }
+
+    /**#@-*/
+
+
+    /**#@+ @access public */
+
+    function prepareName($name)
+    {
+        return '`' . str_replace('`', '``', $name) . '`';
+    }
+
+    function prepareValue($value)
+    {
+        if (is_null($value)) {
+            return 'NULL';
+        } elseif (is_string($value)) {
+            return "'" . mysql_real_escape_string($value, $this->_connection) . "'";
+        }
+        return (string) $value;
+    }
+
+    function fillFields(&$data)
+    {
+        $result = mysql_list_fields($this->_database, $data->path, $this->_connection);
+        if (! $result) {
+            $data->setError(mysql_error($this->_connection));
+            return false;
+        }
+
+        return $this->tryFillFields($result, $data);
+    }
+
+    function fillDetails(&$data)
+    {
+        /* Populate $fileds with the fields of 'set' or 'enum' subtype: only
+         * this fields have some detail to be filled */
+        $only_sets = create_function('$f', '$st=$f["subtype"];return $st=="set" || $st=="enum";');
+        $fields = array_filter($data->fields, $only_sets);
+        $in_clause = implode("','", array_keys($fields));
+
+        if (empty($in_clause)) {
+            // No set/enum fields found: no details to fill
+            return true;
+        } else {
+            $in_clause = "('" . $in_clause . "')";
+        }
+
+        $result =& $this->runQuery ('SELECT COLUMN_NAME, COLUMN_TYPE',
+                                    'FROM information_schema.COLUMNS',
+                                    'WHERE `TABLE_SCHEMA`=' . $this->prepareValue($this->_database),
+                                    'AND `TABLE_NAME`=' . $this->prepareValue($data->path),
+                                    'AND `COLUMN_NAME` IN ' . $in_clause);
+        if (! $result) {
+            return false;
+        }
+
+        while ($row = mysql_fetch_assoc($result)) {
+            $values = $row['COLUMN_TYPE'];
+            $open_brace = strpos($values, '(');
+            $close_brace = strrpos($values, ')');
+
+            if ($open_brace !== false && $close_brace > $open_brace) {
+                $id = $row['COLUMN_NAME'];
+                $values = substr($values, $open_brace+1, $close_brace-$open_brace-1);
+                $n = 0;
+                for ($token = strtok ($values, "',"); $token !== false; $token = strtok ("',")) {
+                    ++ $n;
+                    $data->fields[$id]['choice' . $n] = $token;
+                }
+
+                $data->fields[$id]['choices'] = $n;
+            }
+        }
+
+        return true;
+    }
+
+    function& get($filter, &$data)
+    {
+        if (($result = $this->runQuery('SELECT * FROM',
+                                       $this->prepareName($data->path),
+                                       $filter)) === false) {
+            $fake_null = null;
+            return $fake_null;
+        }
+
+        $this->tryFillFields($result, $data);
+        $rows = array();
+
+        while ($row = mysql_fetch_assoc($result)) {
+            $data->forceFieldType($row);
+            $rows[$row[$data->primary_key]] =& $row;
+            unset($row);
+        }
+
+        // To free or not to free
+        mysql_free_result($result);
+        return $rows;
+    }
+
+    function insert(&$row, &$data)
+    {
+        if ($this->runQuery('INSERT INTO',
+                            $this->prepareName($data->path),
+                            $this->prepareFieldset($row)) === false) {
+            return null;
+        }
+
+        return mysql_insert_id($this->_connection);
+    }
+
+    function update($filter, &$row, &$data)
+    {
+        $fieldset = $this->prepareFieldset($row);
+        if (empty($fieldset)) {
+            return true;
+        }
+
+        return $this->runQuery('UPDATE',
+                               $this->prepareName($data->path),
+                               $fieldset,
+                               $filter);
+    }
+
+    function delete($filter, &$data)
+    {
+        return $this->runQuery('DELETE FROM',
+                               $this->prepareName($data->path),
+                               $filter);
+    }
+
+    /**#@-*/
 }
+
+return new TIP_Mysql;
 
 ?>

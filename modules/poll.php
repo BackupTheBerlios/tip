@@ -1,120 +1,136 @@
 <?php
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
 
-class tipPoll extends tipModule
+/**
+ * TIP_Poll definition file
+ * @package Modules
+ **/
+
+
+/**
+ * Poll module
+ *
+ * @package Modules
+ **/
+class TIP_Poll extends TIP_Block
 {
-  /// @protectedsection
+    /**#@+ @private */
 
-  function RunAction ($Action)
-  {
-    global $APPLICATION;
+    function TIP_Poll()
+    {
+        $this->TIP_Block();
 
-    switch ($Action)
-      {
-      /**
-       * \action <b>edit</b>\n
-       * Vote request. You must specify the answer code in the
-       * $_GET['answer'] field.
-       **/
-      case 'edit':
-	if (! array_key_exists ('answer', $_GET))
-	  {
-	    $APPLICATION->Error ('E_NOTSPECIFIED');
-	    return FALSE;
-	  }
+        $view =& $this->startView('ORDER BY ' . $this->data->engine->prepareName('date') . ' DESC LIMIT 1');
+        $view->rowReset();
+        // No endView() call to retain this row as default row
+    }
 
-	$Row =& $this->GetCurrentRow ();
-	$Votes = "votes$_GET[answer]";
-	if (! array_key_exists ($Votes, $Row))
-	  {
-	    $APPLICATION->Error ('E_INVALID');
-	    return FALSE;
-	  }
+    function onRow(&$row)
+    {
+        $total = $row['votes1']+$row['votes2']+$row['votes3']+$row['votes4']+$row['votes5']+$row['votes6'];
 
-	setcookie ('plvoting', 'true');
-	$this->AppendToContent ('vote.src');
-	return TRUE;
+        $row['TOTAL'] = $total;
+        $row['PERCENT1'] = round ($row['votes1'] * 100.0 / $total);
+        $row['PERCENT2'] = round ($row['votes2'] * 100.0 / $total);
+        $row['PERCENT3'] = round ($row['votes3'] * 100.0 / $total);
+        $row['PERCENT4'] = round ($row['votes4'] * 100.0 / $total);
+        $row['PERCENT5'] = round ($row['votes5'] * 100.0 / $total);
+        $row['PERCENT6'] = round ($row['votes6'] * 100.0 / $total);
 
-      /**
-       * \action <b>doedit</b>\n
-       * Vote operation. You must specify the answer code in the
-       * $_GET['answer'] field.
-       **/
-      case 'doedit':
-	if (! array_key_exists ('plvoting', $_COOKIE))
-	  {
-	    $APPLICATION->Error ('E_COOKIEOFF');
-	    return FALSE;
-	  }
+        return true;
+    }
 
-	setcookie ('plvoting', '');
-
-	if (array_key_exists ('plvoted', $_COOKIE))
-	  {
-	    $APPLICATION->Error ('E_PL_DOUBLE');
-	    return FALSE;
-	  }
-
-	if (! array_key_exists ('answer', $_GET))
-	  {
-	    $APPLICATION->Error ('E_NOTSPECIFIED');
-	    return FALSE;
-	  }
-
-	$Row =& $this->GetCurrentRow ();
-	$OldRow = $Row;
-	$Votes = "votes$_GET[answer]";
-	if (! array_key_exists ($Votes, $Row))
-	  {
-	    $APPLICATION->Error ('E_INVALID');
-	    return FALSE;
-	  }
-
-	++ $Row[$Votes];
-	$this->OnRow ($Row);
-	$this->DATA_ENGINE->UpdateRow ($OldRow, $Row, $this);
-	setcookie ('plvoted', 'true', strtotime ($this->GetOption ('expiration')));
-
-      case 'browse':
-	$this->AppendToContent ('browse.src');
-	return TRUE;
-      }
-
-    return parent::RunAction ($Action);
-  }
-
-  function StartView ($Query)
-  {
-    $View =& new tipView ($this, $Query);
-    $View->ON_ROW->Set (array (&$this, 'OnRow'));
-    return $this->Push ($View);
-  }
+    /**#@-*/
 
 
-  /// @privatesection
+    /**#@+ @protected */
 
-  function tipPoll ()
-  {
-    $this->tipModule ();
-    $this->StartView ('ORDER BY `date` DESC LIMIT 1');
-    $this->ResetRow ();
-    // No EndView() call to retain this row as default row
-  }
+    function runAction($action)
+    {
+        switch ($action) {
+            /**
+             * \action <b>edit</b>\n
+             * Vote request. You must specify the answer code in the
+             * $_GET['answer'] field.
+             **/
+        case 'edit':
+            $answer = TIP::getGet('answer', 'int');
+            if (is_null($answer)) {
+                TIP::error('E_NOTSPECIFIED');
+                return false;
+            }
 
-  function OnRow (&$Row)
-  {
-    $Total = $Row['votes1']+$Row['votes2']+$Row['votes3']+$Row['votes4']+$Row['votes5']+$Row['votes6'];
+            $row =& $this->GetCurrentRow ();
+            $votes = 'votes' . $answer;
+            if (! array_key_exists($votes, $row)) {
+                TIP::error('E_INVALID');
+                return false;
+            }
 
-    $Row['TOTAL'] = $Total;
-    $Row['PERCENT1'] = round ($Row['votes1'] * 100.0 / $Total);
-    $Row['PERCENT2'] = round ($Row['votes2'] * 100.0 / $Total);
-    $Row['PERCENT3'] = round ($Row['votes3'] * 100.0 / $Total);
-    $Row['PERCENT4'] = round ($Row['votes4'] * 100.0 / $Total);
-    $Row['PERCENT5'] = round ($Row['votes5'] * 100.0 / $Total);
-    $Row['PERCENT6'] = round ($Row['votes6'] * 100.0 / $Total);
+            setcookie ('plvoting', 'true');
+            $this->appendToContent ('vote.src');
+            return true;
 
-    return TRUE;
-  }
+            /**
+             * \action <b>doedit</b>\n
+             * Vote operation. You must specify the answer code in the
+             * $_GET['answer'] field.
+             **/
+        case 'doedit':
+            if (! array_key_exists('plvoting', $_COOKIE)) {
+                TIP::error ('E_COOKIEOFF');
+                return false;
+            }
+            setcookie ('plvoting', '');
 
+            if (array_key_exists('plvoted', $_COOKIE)) {
+                TIP::error ('E_PL_DOUBLE');
+                return false;
+            }
+
+            $answer = TIP::getGet('answer', 'int');
+            if (is_null($answer)) {
+                TIP::error ('E_NOTSPECIFIED');
+                return false;
+            }
+
+            $row =& $this->GetCurrentRow ();
+            $old_row = $row;
+            $votes = "votes$_GET[answer]";
+            if (! array_key_exists ($votes, $row))
+            {
+                TIP::error ('E_INVALID');
+                return false;
+            }
+
+            ++ $row[$votes];
+            $this->onRow($row);
+            $this->data->updateRow($old_row, $row, $this);
+            setcookie ('plvoted', 'true', strtotime($this->getOption('expiration')));
+
+        case 'browse':
+            $this->appendToContent ('browse.src');
+            return true;
+        }
+
+        return parent::runAction ($action);
+    }
+
+    /**#@-*/
+
+
+    /**#@+ @access public */
+
+    function& startView($filter)
+    {
+        $view =& TIP_View::getInstance($filter, $this->data);
+        $view->on_row->set(array(&$this, 'onRow'));
+        return $this->push($view);
+    }
+
+    /**#@-*/
 }
+
+return new TIP_Poll;
 
 ?>

@@ -1,49 +1,74 @@
 <?php
-   
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+
 /**
- * Bucket data engine.
+ * TIP_Bucket definition file
+ * @package TIP
+ **/
+
+
+/**
+ * Bucket data engine
  *
  * Dummy data engine that simply does nothing.
  * Anyway, all the requested functions return succesful results and log a
  * warning message for debugging purpose.
  *
+ * @final
+ * @package TIP
  * @todo Must be implemented a function to show the row context, so you
  *       can see it in the logged warnings.
  **/
-class tipBucket extends tipData
+class TIP_Bucket extends TIP_Data_Engine
 {
-  /// @protectedsection
+    function prepareName($name)
+    {
+        return "prepareName($name)";
+    }
 
-  function RealQueryById ($Id, &$Context)
-  {
-    $this->LogWarning (__FUNCTION__ . "($Id, $Context->DATAID)");
-    return '';
-  }
+    function prepareValue($value)
+    {
+        return "prepareValue($value)";
+    }
 
-  function& Select ($Query, &$Context)
-  {
-    $this->LogWarning (__FUNCTION__ . "($Query, $Context->DATAID)");
-    $Rows = array ();
-    return $Rows;
-  }
+    function fillFields(&$data)
+    {
+        $this->logWarning("fillFields($data->path)");
+        return true;
+    }
 
-  function Insert (&$Row, &$Context)
-  {
-    $this->LogWarning (__FUNCTION__ . "(Row, $Context->DATAID)");
-    return TRUE;
-  }
+    function fillDetails(&$data)
+    {
+        $this->logWarning("fillDetails($data->path)");
+        return true;
+    }
 
-  function Update ($Query, &$Row, &$Context)
-  {
-    $this->LogWarning (__FUNCTION__ . "($Query, Row, $Context->DATAID)");
-    return TRUE;
-  }
+    function& get($filter, &$data)
+    {
+        $this->logWarning("get($filter, $data->path)");
+        $fake_result = array();
+        return $fake_result;
+    }
 
-  function Delete ($Query, &$Context)
-  {
-    $this->LogWarning ("Delete ($Query, $DataId)");
-    return TRUE;
-  }
+    function insert(&$row, &$data)
+    {
+        $this->logWarning("insert(row, $data->path)");
+        return true;
+    }
+
+    function update($filter, &$row, &$data)
+    {
+        $this->logWarning("update($filter, row, $data->path)");
+        return true;
+    }
+
+    function delete($filter, &$data)
+    {
+        $this->logWarning("delete($filter, $data->path)");
+        return true;
+    }
 }
+
+return new TIP_Bucket;
 
 ?>
