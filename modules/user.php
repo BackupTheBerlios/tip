@@ -2,9 +2,9 @@
 /* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
 
 /**
- * TIP_User definition file
- * @package Modules
- **/
+ * @package TIP
+ * @subpackage Module
+ */
 
 
 /**
@@ -16,59 +16,20 @@
  * - User management
  * - Statistics on logged users
  *
- * \modulefield <b>CID</b>\n
- * The user id of the current user, that is the user logged in.
- * In anonymous sections, this field is not defined (it is \c null).
+ * The following keys are provided by this module:
+ *
+ * - 'CID': the user id of the current user, that is the user logged in.
+ *          In anonymous sections, this field is not defined (it is null).
  *
  * @final
- * @package Modules
- **/
+ * @package TIP
+ * @subpackage Module
+ */
 class TIP_User extends TIP_Block
 {
-
     /**#@+ @access private */
 
     var $_old_row = false;
-
-
-    function postConstructor()
-    {
-        parent::postConstructor();
-
-        $id = TIP::getCookie('usrid', 'int');
-        if (is_null($id))
-            return;
-
-        $crypted_password = TIP::getCookie('usrpwd', 'string');
-        if (empty($crypted_password)) {
-            return;
-        }
-
-        $filter = $this->data->rowFilter($id);
-        $view =& $this->startView($filter);
-        if (is_null($view)) {
-            TIP::error('E_DATA_SELECT');
-            return;
-        }
-
-        $row =& $view->rowReset();
-        if (is_null($row)) {
-            TIP::error('E_NOTFOUND');
-            $this->endView();
-            return;
-        }
-
-        if (crypt($row['password'], $crypted_password) != $crypted_password) {
-            TIP::error('E_DENIED');
-            $this->endView();
-            return;
-        }
-
-        $this->_activateUser($row);
-        // No endView() call to retain this query as the default one
-
-        register_shutdown_function (array (&$this, 'updateUser'));
-    }
 
 
     function _login()
@@ -178,20 +139,59 @@ class TIP_User extends TIP_Block
 
     /**#@+ @access protected */
 
+    function postConstructor()
+    {
+        parent::postConstructor();
+
+        $id = TIP::getCookie('usrid', 'int');
+        if (is_null($id))
+            return;
+
+        $crypted_password = TIP::getCookie('usrpwd', 'string');
+        if (empty($crypted_password)) {
+            return;
+        }
+
+        $filter = $this->data->rowFilter($id);
+        $view =& $this->startView($filter);
+        if (is_null($view)) {
+            TIP::error('E_DATA_SELECT');
+            return;
+        }
+
+        $row =& $view->rowReset();
+        if (is_null($row)) {
+            TIP::error('E_NOTFOUND');
+            $this->endView();
+            return;
+        }
+
+        if (crypt($row['password'], $crypted_password) != $crypted_password) {
+            TIP::error('E_DENIED');
+            $this->endView();
+            return;
+        }
+
+        $this->_activateUser($row);
+        // No endView() call to retain this query as the default one
+
+        register_shutdown_function (array (&$this, 'updateUser'));
+    }
+
     function runManagerAction ($action)
     {
         switch ($action) {
-            /**
+            /*
              * \manageraction <b>delete</b>\n
              * Requests a delete of the specified user. You must specify in
              * $_GET['id'] the user id.
-             **/
+             */
         case 'delete':
-            /**
+            /*
              * \manageraction <b>dodelete</b>\n
              * Deletes the specified user. You must specify in $_GET['id'] the user
              * id.
-             **/
+             */
         case 'dodelete':
             $id = TIP::GetGet ('id', 'integer');
     /* TODO
@@ -235,10 +235,9 @@ class TIP_User extends TIP_Block
     {
         switch ($action)
         {
-            /**
-             * \adminaction <b>browse</b>\n
+            /* \adminaction <b>browse</b>\n
              * Shows all the registered users.
-             **/
+             */
         case 'browse':
             $this->AppendToContent ('browse.src');
             return true;
@@ -251,24 +250,21 @@ class TIP_User extends TIP_Block
     {
         switch ($action)
         {
-            /**
-             * \trustedaction <b>unset</b>\n
+            /* \trustedaction <b>unset</b>\n
              * Logout the current user (if any).
-             **/
+             */
         case 'unset':
             return $this->_logout ();
 
-            /**
-             * \trustedaction <b>edit</b>\n
+            /* \trustedaction <b>edit</b>\n
              * Requests the modification of the current user profile.
-             **/
+             */
         case 'edit':
             return $this->appendToContent('module.src');
 
-            /**
-             * \trustedaction <b>doedit</b>\n
+            /* \trustedaction <b>doedit</b>\n
              * Modifies the current user profile with the data found in $_POST.
-             **/
+             */
         case 'doedit':
             if (! $this->ValidatePosts ())
                 return $this->AppendToContent ('module.src');
@@ -284,11 +280,10 @@ class TIP_User extends TIP_Block
     {
         switch ($action)
         {
-            /**
-             * \untrustedaction <b>set</b>\n
+            /* \untrustedaction <b>set</b>\n
              * Login request. You must specify the user name and its password in
              * $_POST['user'] and $_POST['password'].
-             **/
+             */
         case 'set':
             $User = TIP::GetPost ('user', 'string');
             if (empty ($User))
@@ -332,25 +327,23 @@ class TIP_User extends TIP_Block
             // No EndView() call to retain this row as default row
             return $this->_login ();
 
-            /**
+            /*
              * \untrustedaction <b>condition</b>\n
              * Shows the conditions imposed by the registration.
-             **/
+             */
         case 'conditions':
             return $this->AppendToContent ('conditions.src');
 
-            /**
-             * \untrustedaction <b>add</b>\n
+            /* \untrustedaction <b>add</b>\n
              * Registration request.
-             **/
+             */
         case 'add':
             return $this->AppendToContent ('module.html');
 
-            /**
-             * \untrustedaction <b>doadd</b>\n
+            /* \untrustedaction <b>doadd</b>\n
              * New user registration. The user data must be filled in the $_POST
              * array (as for every module).
-             **/
+             */
         case 'doadd':
             // TODO
             return true;
@@ -380,7 +373,7 @@ class TIP_User extends TIP_Block
     /**#@-*/
 
 
-    /**#@+ @acces public */
+    /**#@+ @access public */
 
     var $new_row = false;
 

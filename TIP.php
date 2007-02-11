@@ -4,7 +4,7 @@
 /**
  * TIP definition file
  * @package TIP
- **/
+ */
 
 /**
  * The TIP prefix 
@@ -12,7 +12,7 @@
  * This is the prefix prepended by the type system to the instantiable object
  * to get the class name. This means all the object inherited from TIP_Type
  * must be prefixed with this string.
- **/
+ */
 define('TIP_PREFIX', 'TIP_');
 
 
@@ -27,7 +27,7 @@ require_once 'config.php';
  *
  * @static
  * @package TIP 
- **/
+ */
 class TIP
 {
     /**#@+ @access private */
@@ -116,7 +116,7 @@ class TIP
     /**#@+
      * @access public
      * @static
-     **/
+     */
 
     /**
      * Get the operating system descriptor
@@ -126,7 +126,7 @@ class TIP
      * to 'unix'. The idea was picked from phpMyAdmin.
      *
      * @return 'unix'|'windows'|'os2' The guessed operating system descriptor
-     **/
+     */
     function getOS()
     {
 	$OS = 'unix';
@@ -151,7 +151,7 @@ class TIP
      * @param string $type     Descriptor of the type
      * @param string $option   The option to retrieve
      * @return mixed|null The value of the requested option or null on errors
-     **/
+     */
     function getOption($type, $option, $required = false)
     {
         $value = @$GLOBALS['cfg'][$type][$option];
@@ -169,7 +169,7 @@ class TIP
      *
      * @param array|string $value Array or string to add slashes
      * @return array|string The slashized copy of $value
-     **/
+     */
     function deepAddSlashes ($value)
     {
 	return is_array ($value) ? array_map (array ('TIP', 'deepAddSlashes'), $value) : addslashes ($value);
@@ -183,7 +183,7 @@ class TIP
      *
      * @param array|string $value Array or string to strip slashes
      * @return array|string The unslashized copy of $value
-     **/
+     */
     function deepStripSlashes ($value)
     {
 	return is_array ($value) ? array_map (array ('TIP', 'deepStripSlashes'), $value) : stripslashes ($value);
@@ -199,7 +199,7 @@ class TIP
      *
      * @param array|string $value Array or string to implode
      * @return array|string The imploded copy of $value
-     **/
+     */
     function deepImplode ($value, $glue = null)
     {
 	static $the_glue = null;
@@ -216,7 +216,7 @@ class TIP
      * @param string $value The value to find
      * @param string $list  The list of values
      * @return bool true if the value is found or false if not found
-     **/
+     */
     function inList ($value, $list)
     {
 	for ($token = strtok ($list, ' ,'); $token !== false; $token = strtok (' ,'))
@@ -247,7 +247,7 @@ class TIP
      * @param string $type The expected type
      * @return mixed|null The content of the requested get or null on errors
      * @see getPost(),getCookie()
-     **/
+     */
     function getGet ($id, $type)
     {
 	return TIP::getTyped ($id, $type, $_GET);
@@ -263,7 +263,7 @@ class TIP
      * @param string $type The expected type
      * @return mixed|null The content of the requested post or null on errors
      * @see getGet(),getCookie()
-     **/
+     */
     function getPost ($id, $type)
     {
 	return TIP::getTyped ($id, $type, $_POST);
@@ -279,7 +279,7 @@ class TIP
      * @param string $type The expected type
      * @return mixed|null The content of the requested cookie or null on errors
      * @see getGet(),getPost()
-     **/
+     */
     function getCookie ($id, $type)
     {
 	return TIP::getTyped ($id, $type, $_COOKIE);
@@ -309,7 +309,7 @@ class TIP
      * @param mixed  $input        The source date to format
      * @param string $input_format The format of the source date
      * @return mixed|null The formatted date or null on errors
-     **/
+     */
     function formatDate($format, $input = null, $input_format = 'timestamp')
     {
         $timestamp = is_null($input) ? time() : TIP::getTimestamp($input, $input_format);
@@ -328,7 +328,7 @@ class TIP
      *
      * @param string $message The message to log
      * @see logError(),logFatal()
-     **/
+     */
     function logWarning ($message)
     {
         TIP::logGeneric('WARNING', $message);
@@ -343,7 +343,7 @@ class TIP
      *
      * @param string $message The message to log
      * @see logWarning(),logFatal()
-     **/
+     */
     function logError ($message)
     {
 	TIP::logGeneric ('ERROR', $message);
@@ -361,7 +361,7 @@ class TIP
      * @todo The HTML output does not work well because it is generated in an
      *       unknown HTML context. Furthermore, I want to avoid output buffers
      *       on the whole context. So, what is the solution?
-     **/
+     */
     function logFatal($message)
     {
         TIP::logGeneric('FATAL', $message);
@@ -380,7 +380,7 @@ class TIP
      *
      * @param mixed  $id              The id of the system message
      * @param string $context_message A custom message to append
-     **/
+     */
     function info($id, $context_message = '')
     {
         $notify =& TIP_Module::getInstance('notify');
@@ -405,7 +405,7 @@ class TIP
      *
      * @param mixed  $id              The id of the system message
      * @param string $context_message A custom message to append
-     **/
+     */
     function error($id, $context_message = '')
     {
         $notify =& TIP_Module::getInstance('notify');
@@ -426,7 +426,7 @@ class TIP
      *
      * @param string|array $subpath,... A list of partial paths
      * @return string The constructed path
-     **/
+     */
     function buildPath()
     {
         static $base_path = null;
@@ -445,7 +445,7 @@ class TIP
      *
      * @param string|array $subpath,... A list of partial paths
      * @return string The constructed path
-     **/
+     */
     function buildLogicPath()
     {
         static $logic_path = null;
@@ -464,7 +464,7 @@ class TIP
      *
      * @param string|array $subpath,... A list of partial paths
      * @return string The constructed path
-     **/
+     */
     function buildSourcePath()
     {
         static $source_path = null;
@@ -484,7 +484,7 @@ class TIP
      *
      * @param string|array $subpath,... A list of partial paths
      * @return string The constructed path
-     **/
+     */
     function buildLocalePath()
     {
         static $locale_path = null;
@@ -505,7 +505,7 @@ class TIP
      *
      * @param string|array $suburl,... A list of partial URLs
      * @return string The constructed URL
-     **/
+     */
     function buildUrl()
     {
         static $base_url = null;
@@ -530,7 +530,7 @@ class TIP
      *
      * @param string|array $suburl,... A list of partial URLs
      * @return string The constructed URL
-     **/
+     */
     function buildSourceUrl()
     {
         static $source_url = null;
@@ -548,7 +548,7 @@ class TIP
      *
      * @param mixed $value The value to convert
      * @return string The converted value 
-     **/
+     */
     function toHtml($value)
     {
         if (is_object($value) || is_null($value) || is_resource($value)) {
@@ -587,7 +587,7 @@ class TIP
      * @return mixed|false|null The current user id, null if this is an
      *                          anonymous session or false if the user module
      *                          is not present
-     **/
+     */
     function getUserId($refresh = false)
     {
         static $initialized = false;
@@ -617,7 +617,7 @@ class TIP
      * @param TIP_Module &$module The requesting module
      * @param mixed      $user_id A user id
      * @return 'manager'|'admin'|'trusted'|'untrusted'|null The requested privilege
-     **/
+     */
     function getPrivilege(&$module, $user_id = null)
     {
         if (is_null($user_id)) {
@@ -668,7 +668,7 @@ require_once 'Hierarchy.php';
  * This is what $application is.
  *
  * @var TIP_Application
- **/
+ */
 $application =& TIP_Module::getInstance('application');
 
 ?>

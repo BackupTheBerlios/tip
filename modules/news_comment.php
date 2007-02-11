@@ -2,11 +2,15 @@
 /* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
 
 /**
- * TIP_News_Comment definition file
  * @package TIP
- **/
+ */
 
 
+/**
+ * Add comments to TIP_News
+ *
+ * @package TIP
+ */
 class TIP_News_Comment extends TIP_Block
 {
   // Overriden:

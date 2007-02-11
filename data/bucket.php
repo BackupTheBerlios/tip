@@ -3,8 +3,10 @@
 
 /**
  * TIP_Bucket definition file
+ *
  * @package TIP
- **/
+ * @subpackage DataEngine
+ */
 
 
 /**
@@ -16,9 +18,11 @@
  *
  * @final
  * @package TIP
+ * @subpackage DataEngine
+ *
  * @todo Must be implemented a function to show the row context, so you
  *       can see it in the logged warnings.
- **/
+ */
 class TIP_Bucket extends TIP_Data_Engine
 {
     function prepareName($name)

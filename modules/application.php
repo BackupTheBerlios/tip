@@ -4,7 +4,7 @@
 /**
  * TIP_Application definition file
  * @package TIP
- **/
+ */
 
 /**
  * The main module
@@ -19,7 +19,7 @@
  *
  * @final
  * @package TIP
- **/
+ */
 class TIP_Application extends TIP_Module
 {
     /**#@+ @access protected */
@@ -44,15 +44,15 @@ class TIP_Application extends TIP_Module
     /**#@+
      * @param string @params The parameter string
      * @return bool true on success or false on errors
-     * @subpackage Commands
-     **/
+     * @subpackage SourceEngine
+     */
 
     /**
      * Output the page content
      *
      * The output of every action is deferred to the page content, that can be
      * placed anywhere in the main source.
-     **/
+     */
     function commandContent($params)
     {
         if (empty($this->content)) {
@@ -71,7 +71,7 @@ class TIP_Application extends TIP_Module
      * This echoes some output and profiler information, useful in the
      * developement process. This works only if the current user has manager
      * privileges on the application module.
-     **/
+     */
     function commandDebug($params)
     {
         if (! $this->keys['IS_MANAGER']) {
@@ -106,7 +106,7 @@ class TIP_Application extends TIP_Module
      * A buffer containing the page contents.
      *
      * @var string
-     **/
+     */
     var $content = null;
 
 
@@ -117,7 +117,7 @@ class TIP_Application extends TIP_Module
      * your index.php.
      *
      * @param string $main_source The main source program to run
-     **/
+     */
     function go($main_source)
     {
         $locale = $this->getOption('locale');

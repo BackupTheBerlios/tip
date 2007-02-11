@@ -4,16 +4,16 @@
 /**
  * TIP_Data_Engine definition file
  * @package TIP
- **/
+ */
 
 /**
  * Base class for data engines
  *
  * Provides a common interface to access any data requested by TIP.
  *
- * @abstact
+ * @abstract
  * @package TIP
- **/
+ */
 class TIP_Data_Engine extends TIP_Type
 {
     /**#@+ @access public */
@@ -33,7 +33,7 @@ class TIP_Data_Engine extends TIP_Type
      * @param string $data_engine The data engine name
      * @return TIP_Data_Engine A reference to a TIP_Data_Engine implementation
      * @static
-     **/
+     */
     function& getInstance($data_engine)
     {
         $id = strtolower($data_engine);
@@ -58,7 +58,7 @@ class TIP_Data_Engine extends TIP_Type
      *
      * @param string $name The name to prepare
      * @return string The name prepared for the query
-     **/
+     */
     function prepareName($name)
     {
         return $name;
@@ -76,7 +76,7 @@ class TIP_Data_Engine extends TIP_Type
      *
      * @param mixed $value The value to prepare
      * @return string The value prepared for the query
-     **/
+     */
     function prepareValue($value)
     {
         return (string) $value;
@@ -96,7 +96,7 @@ class TIP_Data_Engine extends TIP_Type
      *
      * @param TIP_Data $data The data context
      * @return bool TRUE on success or FALSE on errors
-     **/
+     */
     function fillFields(&$data)
     {
         $this->logFatal('method TIP_Data_Engine::fillFields() not implemented');
@@ -126,7 +126,7 @@ class TIP_Data_Engine extends TIP_Type
      *
      * @param TIP_Data $data The data context
      * @return bool TRUE on success or FALSE on errors
-     **/
+     */
     function fillDetails(&$data)
     {
         $this->logFatal('method TIP_Data_Engine::fillDetails() not implemented');
@@ -153,7 +153,7 @@ class TIP_Data_Engine extends TIP_Type
      * @param TIP_Data &$data   The data context
      * @return array|null A reference to an array of rows matching the
      *                    specified conditions or null on errors
-     **/
+     */
     function& get($filter, &$data)
     {
         $this->logFatal('method TIP_Data_Engine::get() not implemented');
@@ -176,7 +176,7 @@ class TIP_Data_Engine extends TIP_Type
      * @param TIP_Data &$data The data context
      * @return mixed|null The newly inserted primary key (usually an integer,
      *                    but can be any valid type) or null on errors
-     **/
+     */
     function insert(&$row, &$data)
     {
         $this->logFatal('method TIP_Data_Engine::insert() not implemented');
@@ -195,7 +195,7 @@ class TIP_Data_Engine extends TIP_Type
      * @param array    &$row    The field=>value pairs to update
      * @param TIP_Data &$data   The data context
      * @return bool TRUE on success or FALSE on errors
-     **/
+     */
     function update($filter, &$row, &$data)
     {
         $this->logFatal('method TIP_Data_Engine::update() not implemented');
@@ -210,11 +210,13 @@ class TIP_Data_Engine extends TIP_Type
      *
      * @param string    $filter The filter conditions
      * @return \c TRUE on success, \c FALSE otherwise.
-     **/
+     */
     function delete ($filter, &$data)
     {
         $this->logFatal('method TIP_Data_Engine::delete() not implemented');
     }
+
+    /**#@-*/
 }
 
 ?>

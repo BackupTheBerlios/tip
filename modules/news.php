@@ -4,9 +4,15 @@
 /**
  * TIP_News definition file
  * @package TIP
- **/
+ * @subpackage Module
+ */
 
-
+/**
+ * News and blog management
+ *
+ * @package TIP
+ * @subpackage Module
+ */
 class TIP_News extends TIP_Block
 {
     // Overriden:
@@ -20,7 +26,7 @@ class TIP_News extends TIP_Block
              * \action <b>view</b>\n
              * Detailed view of a specific news, including its comments. You
              * must specify the news id in the $_GET['id'] field.
-             **/
+             */
         case 'view':
             $id = TIP::GetGet ('id', 'integer');
             if (! $id > 0)

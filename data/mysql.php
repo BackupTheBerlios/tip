@@ -2,9 +2,9 @@
 /* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
 
 /**
- * TIP_Mysql definition file
  * @package TIP
- **/
+ * @subpackage DataEngine
+ */
 
 /**
  * The MySql data engine
@@ -36,7 +36,8 @@
  *
  * @final
  * @package TIP
- **/
+ * @subpackage DataEngine
+ */
 class TIP_Mysql extends TIP_Data_Engine
 {
     /**#@+ @access private */

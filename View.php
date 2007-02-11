@@ -5,7 +5,7 @@
  * TIP_View definition file
  *
  * @package TIP
- **/
+ */
 
 /**
  * A data view
@@ -23,7 +23,7 @@
  * the cursor position.
  *
  * @package TIP
- **/
+ */
 class TIP_View extends TIP_Type
 {
     /**#@+ @access protected */
@@ -34,7 +34,7 @@ class TIP_View extends TIP_Type
      * A reference to the TIP_Data object the view will apply.
      *
      * @var TIP_Data
-     **/
+     */
     var $data;
 
     /**
@@ -45,7 +45,7 @@ class TIP_View extends TIP_Type
      * data engine used by the data object for further informations.
      *
      * @var string
-     **/
+     */
     var $filter;
 
 
@@ -56,7 +56,7 @@ class TIP_View extends TIP_Type
      *
      * @param TIP_Data &$data   A data object
      * @param string    $filter The filter conditions
-     **/
+     */
     function TIP_View($filter, &$data)
     {
         $this->TIP_Type();
@@ -78,7 +78,7 @@ class TIP_View extends TIP_Type
      * different operations.
      *
      * @return bool true on success or false on errors
-     **/
+     */
     function fillRows()
     {
         $this->rows =& $this->data->getRows($this->filter);
@@ -108,7 +108,7 @@ class TIP_View extends TIP_Type
      * - 'ODDEVEN', a switching text: 'odd' for odd and 'even' for even rows
      *
      * @var array|null
-     **/
+     */
     var $rows = null;
 
     /**
@@ -122,7 +122,7 @@ class TIP_View extends TIP_Type
      * - 'COUNT', the number of rows in the $rows property
      *
      * @var array
-     **/
+     */
     var $summaries;
 
     /**
@@ -133,7 +133,7 @@ class TIP_View extends TIP_Type
      * fields to every row.
      *
      * @var TIP_Callback
-     **/
+     */
     var $on_row;
 
     /**
@@ -144,7 +144,7 @@ class TIP_View extends TIP_Type
      * or perform general operations on the whole data of the view.
      *
      * @var TIP_Callback
-     **/
+     */
     var $on_view;
 
 
@@ -158,7 +158,7 @@ class TIP_View extends TIP_Type
      * @param TIP_Data &$data   A data object
      * @return TIP_View A reference to the view instance
      * @static
-     **/
+     */
     function& getInstance($filter, &$data)
     {
         $id = $data->path . '.' . $filter;
@@ -179,7 +179,7 @@ class TIP_View extends TIP_Type
      *
      * @param bool $refresh Forces the fillRows() call
      * @return bool true on success or false on errors
-     **/
+     */
     function populate($refresh = false)
     {
         if (! is_null($this->rows) && ! $refresh) {
@@ -217,7 +217,7 @@ class TIP_View extends TIP_Type
      * Sets the internal cursor to an undefined row.
      *
      * @return bool true
-     **/
+     */
     function rowUnset()
     {
         @end($this->rows);
@@ -233,7 +233,7 @@ class TIP_View extends TIP_Type
      *
      * Returns a reference to the current row. This function hangs if there
      * is no current row.
-     **/
+     */
     function& rowCurrent()
     {
         $key = @key($this->rows);
@@ -250,7 +250,7 @@ class TIP_View extends TIP_Type
      *
      * Resets (set to the first row) the internal cursor. This function hangs
      * if there are no rows.
-     **/
+     */
     function& rowReset()
     {
         @reset($this->rows);
@@ -262,7 +262,7 @@ class TIP_View extends TIP_Type
      *
      * Moves the internal cursor to the last row. This function hangs if there
      * are no rows.
-     **/
+     */
     function& rowEnd()
     {
         @end($this->rows);
@@ -278,7 +278,7 @@ class TIP_View extends TIP_Type
      * returns false.
      *
      * @param bool $rewind If the cursor must go to the last row when unset
-     **/
+     */
     function& rowPrevious($rewind = true)
     {
         if (is_null(@key($this->rows))) {
@@ -301,7 +301,7 @@ class TIP_View extends TIP_Type
      * false.
      *
      * @param bool $rewind If the cursor must go to the first row when unset
-     **/
+     */
     function& rowNext($rewind = true)
     {
         if (is_null(@key($this->rows))) {
@@ -327,7 +327,7 @@ class TIP_View extends TIP_Type
  * A special view to traverse the field structure.
  *
  * @package TIP
- **/
+ */
 class TIP_Fields_View extends TIP_View
 {
     /**#@+ @access protected */
@@ -339,7 +339,7 @@ class TIP_Fields_View extends TIP_View
      * TIP_Data::getFields().
      *
      * @return bool true on success or false on errors
-     **/
+     */
     function fillRows()
     {
         $this->rows =& $this->data->getFields(true);
@@ -356,7 +356,7 @@ class TIP_Fields_View extends TIP_View
      * Initializes a TIP_Fields_View instance.
      *
      * @param TIP_Data &$data A data object
-     **/
+     */
     function TIP_Fields_View(&$data)
     {
         $this->TIP_View('__FIELDS__', $data);
@@ -376,7 +376,7 @@ class TIP_Fields_View extends TIP_View
      * @param TIP_Data &$data A data object
      * @return TIP_Fields_View A reference to the fields view instance
      * @static
-     **/
+     */
     function& getInstance(&$data)
     {
         $id = $data->path;
@@ -397,7 +397,7 @@ class TIP_Fields_View extends TIP_View
  * A special view to traverse the configured modules.
  *
  * @package TIP
- **/
+ */
 class TIP_Modules_View extends TIP_View
 {
     /**#@+ @access protected */
@@ -409,7 +409,7 @@ class TIP_Modules_View extends TIP_View
      * subclass of TIP_Module.
      *
      * @return bool true on success or false on errors
-     **/
+     */
     function fillRows()
     {
         foreach (array_keys ($GLOBALS['cfg']) as $module_name) {
@@ -426,7 +426,7 @@ class TIP_Modules_View extends TIP_View
      * Constructor
      *
      * Initializes a TIP_Modules_View instance.
-     **/
+     */
     function TIP_Modules_View()
     {
         $this->TIP_View('__MODULES__', $data);
@@ -446,7 +446,7 @@ class TIP_Modules_View extends TIP_View
      * @param TIP_Data &$data A data object (not used)
      * @return TIP_Modules_View A reference to the modules view instance
      * @static
-     **/
+     */
     function& getInstance(&$data)
     {
         static $instance = null;

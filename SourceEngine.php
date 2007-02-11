@@ -4,7 +4,7 @@
 /**
  * TIP_Source_Engine definition file
  * @package TIP
- **/
+ */
 
 /**
  * Base class for source engines
@@ -13,7 +13,7 @@
  *
  * @abstract
  * @package TIP
- **/
+ */
 class TIP_Source_Engine extends TIP_Type
 {
     /**#@+ @access public */
@@ -34,7 +34,7 @@ class TIP_Source_Engine extends TIP_Type
      * @param TIP_Module &$module          The caller module
      * @param string      $context_message A context description
      * @return bool TRUE on success or FALSE on errors
-     **/
+     */
     function run(&$buffer, &$module, $context_message)
     {
         $this->logFatal('method TIP_Source_Engine::run() not implemented');
@@ -55,7 +55,7 @@ class TIP_Source_Engine extends TIP_Type
      * @param string $source_engine The source engine name
      * @return TIP_Source_Engine A reference to a TIP_Source_Engine implementation
      * @static
-     **/
+     */
     function& getInstance($source_engine)
     {
         $id = strtolower($source_engine);

@@ -2,9 +2,8 @@
 /* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
 
 /**
- * TIP_Data definition file
  * @package TIP
- **/
+ */
 
 /**
  * A generic data provider
@@ -17,8 +16,9 @@
  * This class is a context used to represent a source of data. This can be a
  * database table, an XML file or whatever can provides rows of data.
  *
+ * @package TIP
  * @final
- **/
+ */
 class TIP_Data extends TIP_Type
 {
     /**#@+ @access private */
@@ -27,7 +27,7 @@ class TIP_Data extends TIP_Type
      * Has the $engine->fillDetails() function been called?
      *
      * @var bool
-     **/
+     */
     var $_detailed = false;
 
 
@@ -52,7 +52,7 @@ class TIP_Data extends TIP_Type
      * gain if filled, for example, after a select query.
      *
      * @var array
-     **/
+     */
     var $fields = null;
     
     /**#@-*/
@@ -67,7 +67,7 @@ class TIP_Data extends TIP_Type
      * This field is filled by the TIP_Data during this class instantiation.
      *
      * @var string
-     **/
+     */
     var $path = null;
 
     /**
@@ -78,7 +78,7 @@ class TIP_Data extends TIP_Type
      * This field is filled by the TIP_Data during this class instantiation.
      *
      * @var TIP_Data_Engine
-     **/
+     */
     var $engine = null;
 
     /**
@@ -88,7 +88,7 @@ class TIP_Data extends TIP_Type
      * key univoquely identifies a single row of data.
      *
      * @var $string
-     **/
+     */
     var $primary_key = 'id';
 
 
@@ -102,7 +102,7 @@ class TIP_Data extends TIP_Type
      * @param string $engine The data engine name to use
      * @return TIP_Data A reference to the table instance
      * @static
-     **/
+     */
     function& getInstance($path, $engine)
     {
         $id = $path . '.' . $engine;
@@ -124,7 +124,7 @@ class TIP_Data extends TIP_Type
      * @param mixed  $value     The reference value
      * @param string $condition The condition to apply
      * @return string The requested filter in the proper engine format
-     **/
+     */
     function filter($name, $value, $condition = '=')
     {
         // Special condition
@@ -147,7 +147,7 @@ class TIP_Data extends TIP_Type
      *
      * @param mixed $id The primary key value
      * @return string The requested filter in the proper engine format
-     **/
+     */
     function rowFilter($id)
     {
         return $this->filter($this->primary_key, $id) . ' LIMIT 1';
@@ -181,7 +181,7 @@ class TIP_Data extends TIP_Type
      *
      * @param bool $detailed Force a TIP_Data_Engine::fillDetails() call
      * @return array|null The field structure or null on errors
-     **/
+     */
     function& getFields($detailed = true)
     {
         if (is_null($this->fields)) {
@@ -204,7 +204,7 @@ class TIP_Data extends TIP_Type
      * The type forcing is done using settype().
      *
      * @param array $row The row to cast
-     **/
+     */
     function forceFieldType(&$row)
     {
         $fields =& $this->getFields(false);
@@ -227,7 +227,7 @@ class TIP_Data extends TIP_Type
      *
      * @param mixed $id The row id
      * @return array|null The row matching the specified id or null on errors
-     **/
+     */
     function getRow($id)
     {
         return $this->engine->get($this->rowFilter($id), $this);
@@ -247,7 +247,7 @@ class TIP_Data extends TIP_Type
      * @param string $filter The filter conditions
      * @return array|null The array of rows matching the specified filter or
      *                    null on errors
-     **/
+     */
     function& getRows($filter)
     {
         return $this->engine->get($filter, $this);
@@ -267,7 +267,7 @@ class TIP_Data extends TIP_Type
      * a row with the same primary key exists.
      *
      * @param array &$row The row to insert
-     **/
+     */
     function putRow(&$row)
     {
         // Remove the primary key from row, if present
@@ -301,7 +301,7 @@ class TIP_Data extends TIP_Type
      *
      * @param array &$old_row The old row
      * @param array &$new_row The new row
-     **/
+     */
     function updateRow(&$old_row, &$new_row)
     {
         $old_id = @$old_row[$this->primary_key];
@@ -342,7 +342,7 @@ class TIP_Data extends TIP_Type
      *
      * @param string $filter The filter conditions
      * @param array &$row    A row with the field => value pairs to update
-     **/
+     */
     function updateRows($filter, &$row)
     {
         // Found a primary key: error
@@ -359,7 +359,7 @@ class TIP_Data extends TIP_Type
      * Deletes the row with the specified $id.
      *
      * @param mixed $id The row id
-     **/
+     */
     function deleteRow($id)
     {
         return $this->engine->delete($this->rowFilter($id), $this);
@@ -377,7 +377,7 @@ class TIP_Data extends TIP_Type
      * whole content of a table.
      *
      * @param string $filter The row filter
-     **/
+     */
     function deleteRows($filter)
     {
         // Empty filter are by default not accepted

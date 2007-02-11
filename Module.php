@@ -2,16 +2,16 @@
 /* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
 
 /**
- * TIP_Module definition file
  * @package TIP
- **/
+ */
 
 /**
  * Base class for modules
  *
  * @abstract
  * @package TIP
- **/
+ * @tutorial Module.pkg#TIP_Module
+ */
 class TIP_Module extends TIP_Type
 {
     /**#@+ @access private */
@@ -22,7 +22,7 @@ class TIP_Module extends TIP_Type
      * The current privilege descriptor
      *
      * @var 'manager'|'admin'|'trusted'|'untrusted'|null
-     **/
+     */
     var $_privilege = null;
 
     /**#@-*/
@@ -34,7 +34,7 @@ class TIP_Module extends TIP_Type
      * Constructor
      *
      * Initializes a TIP_Module instance.
-     **/
+     */
     function TIP_Module()
     {
         $this->TIP_Type();
@@ -57,7 +57,7 @@ class TIP_Module extends TIP_Type
      * privilege level needs the TIP_User and TIP_Privilege modules to be
      * instantiated, so it will lead to a mutual recursion if this operation
      * is done directly in TIP_Module().
-     **/
+     */
     function postConstructor()
     {
         $this->refreshPrivilege();
@@ -67,7 +67,7 @@ class TIP_Module extends TIP_Type
      * Refresh the privileges
      *
      * Refreshes the privileges of the current module.
-     **/
+     */
     function refreshPrivilege()
     {
         $this->_privilege = TIP::getPrivilege($this);
@@ -99,7 +99,7 @@ class TIP_Module extends TIP_Type
      * @param string $id The identifier
      * @return string|null The localized text requested or null on errors
      * @todo Implement this function with a module.
-     **/
+     */
     function getLocale ($id)
     {
 	if (! $this->_locales) {
@@ -123,7 +123,7 @@ class TIP_Module extends TIP_Type
      *
      * @param string $id The item id
      * @return mixed|null The content of the requested item or null if not found
-     **/
+     */
     function getItem($id)
     {
         $value = @$this->keys[$id];
@@ -153,7 +153,7 @@ class TIP_Module extends TIP_Type
      *
      * @param string $request The item id
      * @return mixed|null The requested value or null if the request is invalid
-     **/
+     */
     function getRequest($request)
     {
         $open_brace = strpos($request, '[');
@@ -192,7 +192,7 @@ class TIP_Module extends TIP_Type
      * @param array $requests An array of request
      * @return mixed|null The first valid value or null if no valid request
      *                    are found
-     **/
+     */
     function getValidRequest ($requests)
     {
         if (! is_array($requests)) {
@@ -216,7 +216,7 @@ class TIP_Module extends TIP_Type
      *
      * @param string|array $subpath,... A list of partial paths
      * @return string The constructed path
-     **/
+     */
     function buildModulePath()
     {
         $pieces = func_get_args();
@@ -231,7 +231,7 @@ class TIP_Module extends TIP_Type
      *
      * @param string|array $suburl,... A list of partial URLs
      * @return string The constructed URL
-     **/
+     */
     function buildModuleUrl()
     {
         $pieces = func_get_args();
@@ -241,9 +241,8 @@ class TIP_Module extends TIP_Type
     /**#@+
      * @param string @params The parameter string
      * @return bool true on success or false on errors
-     * @usedby callCommand() An available command
-     * @subpackage Commands
-     **/
+     * @subpackage SourceEngine
+     */
 
     /**
      * Outputs the content of the first defined request
@@ -254,7 +253,7 @@ class TIP_Module extends TIP_Type
      * value found, converting the result with TIP::toHtml().
      *
      * @uses getValidRequest() The method used to resolve the requests
-     **/
+     */
     function commandHtml($params)
     {
         if (! strpos(',', $params)) {
@@ -281,7 +280,7 @@ class TIP_Module extends TIP_Type
      * found.
      *
      * @uses getValidRequest() The method used to resolve the requests
-     **/
+     */
     function commandTryHtml ($params)
     {
         $requests = explode (',', $params);
@@ -294,7 +293,7 @@ class TIP_Module extends TIP_Type
      * Echo a URL
      *
      * Prepends the root URL to $params and outputs the result.
-     **/
+     */
     function commandUrl($params)
     {
         echo TIP::buildUrl($params);
@@ -308,7 +307,7 @@ class TIP_Module extends TIP_Type
      * This command (or any of its variants) MUST be used for every file
      * reference if you want a theme-aware site, because enabling themes will
      * make the prepending path a dynamic variable.
-     **/
+     */
     function commandSourceUrl($params)
     {
         echo TIP::buildSourceUrl($params);
@@ -320,7 +319,7 @@ class TIP_Module extends TIP_Type
      *
      * Prepends the source URL of the current module to $params and
      * outputs the result.
-     **/
+     */
     function commandModuleUrl($params)
     {
         echo $this->buildModuleUrl($params);
@@ -332,7 +331,7 @@ class TIP_Module extends TIP_Type
      *
      * Shortcut for the often used icon url. The icon URL is in the source
      * root URL, under the "shared/icons" path.
-     **/
+     */
     function commandIconUrl($params)
     {
         echo TIP::buildSourceUrl('shared', 'icons', $params);
@@ -344,7 +343,7 @@ class TIP_Module extends TIP_Type
      *
      * Expands to true if the current logged-in user id equals to $params or
      * false otherwise.
-     **/
+     */
     function commandIs($params)
     {
         echo ((int) $params) === TIP::getUserId() ? 'true' : 'false';
@@ -356,7 +355,7 @@ class TIP_Module extends TIP_Type
      *
      * Executes the source file $params found in the current module source path,
      * using the current source engine.
-     **/
+     */
     function commandRun($params)
     {
         return $this->run($this->buildModulePath($params));
@@ -367,7 +366,7 @@ class TIP_Module extends TIP_Type
      *
      * Executes the source file $params found in the shared source path, using
      * the current source engine.
-     **/
+     */
     function commandRunShared($params)
     {
         return $this->run(TIP::buildSourcePath('shared', $params));
@@ -381,7 +380,7 @@ class TIP_Module extends TIP_Type
      * Outputs true if the value is present in the comma (or space) separated
      * list. Useful to check if a value is contained (that is, if it is on) in
      * a "set" field.
-     **/
+     */
     function commandInList ($params)
     {
 	$pos = strpos ($params, ',');
@@ -403,7 +402,7 @@ class TIP_Module extends TIP_Type
      * "date_it".
      *
      * @uses TIP::formatDate() The date formatter
-     **/
+     */
     function commandDate($params)
     {
         $format = 'date_' . TIP::getOption('application', 'locale');
@@ -418,7 +417,7 @@ class TIP_Module extends TIP_Type
      * "datetime_" . $cfg['application']['locale'].
      *
      * @uses TIP::formatDate() The date formatter
-     **/
+     */
     function commandDateTime($params)
     {
         $format = 'datetime_' . TIP::getOption('application', 'locale');
@@ -433,7 +432,7 @@ class TIP_Module extends TIP_Type
      *
      * Replaces all the occurrences of a newline in text with the
      * replacer string.
-     **/
+     */
     function commandNlReplace($params)
     {
         $pos = strpos ($params, ',');
@@ -458,7 +457,7 @@ class TIP_Module extends TIP_Type
      * for the $params module exists, does not load the module itsself.
      *
      * Useful to provide conditional links between different modules.
-     **/
+     */
     function commandModuleExists($params)
     {
         echo array_key_exists ($params, $GLOBALS['cfg']) ? 'true' : 'false';
@@ -472,13 +471,13 @@ class TIP_Module extends TIP_Type
      * @param string $action The action name
      * @return bool|null true on command executed, false on command error or
      *                   null on command not found
-     **/
+     */
 
     /**
      * Executes a management action
      *
      * Executes an action that requires the 'manager' privilege.
-     **/
+     */
     function runManagerAction ($action)
     {
 	return null;
@@ -488,7 +487,7 @@ class TIP_Module extends TIP_Type
      * Executes an administrator action
      *
      * Executes an action that requires at least the 'admin' privilege.
-     **/
+     */
     function runAdminAction ($action)
     {
 	return null;
@@ -498,7 +497,7 @@ class TIP_Module extends TIP_Type
      * Executes a trusted action
      *
      * Executes an action that requires at least the 'trusted' privilege.
-     **/
+     */
     function runTrustedAction ($action)
     {
         return null;
@@ -508,7 +507,7 @@ class TIP_Module extends TIP_Type
      * Executes an untrusted action
      *
      * Executes an action that requires at least the 'untrusted' privilege.
-     **/
+     */
     function runUntrustedAction ($action)
     {
 	return null;
@@ -518,7 +517,7 @@ class TIP_Module extends TIP_Type
      * Executes an unprivileged action
      *
      * Executes an action that does not require any privileges.
-     **/
+     */
     function runAction ($action)
     {
 	return null;
@@ -530,7 +529,7 @@ class TIP_Module extends TIP_Type
     /**#@+
      * @param string $file The source file
      * @return bool true on success or false on errors
-     **/
+     */
 
     /**
      * Execute a file, appending the result to content
@@ -538,7 +537,7 @@ class TIP_Module extends TIP_Type
      * Executes the File source found in the module path using the current
      * source engine and appends the result to the end of the application
      * content.
-     **/
+     */
     function appendToContent($file)
     {
         $path = $this->buildModulePath($file);
@@ -558,7 +557,7 @@ class TIP_Module extends TIP_Type
      * Executes the File source found in the module path using the current
      * source engine and inserts the result at the beginning of the application
      * content.
-     **/
+     */
     function insertInContent($file)
     {
         $path = $this->buildModulePath($file);
@@ -589,7 +588,7 @@ class TIP_Module extends TIP_Type
      * parents, in a hierarchy order.
      *
      * @var array
-     **/
+     */
     var $keys = array ();
 
     /**
@@ -601,7 +600,7 @@ class TIP_Module extends TIP_Type
      * MUST be configured).
      *
      * @var TIP_SourceEngine
-     **/
+     */
     var $engine = null;
 
 
@@ -621,7 +620,7 @@ class TIP_Module extends TIP_Type
      * @param bool   $required    Are the errors fatals?
      * @return TIP_Module A reference to a TIP_Module derived instance
      * @static
-     **/
+     */
     function& getInstance($module_name, $required = true)
     {
         $id = strtolower($module_name);
@@ -658,13 +657,13 @@ class TIP_Module extends TIP_Type
      * @param string $params  Parameters to pass to the command
      * @return bool|null true on success, false on errors or null if the
      *                   command is not found
-     * @tutorial TIP/Commands
-     **/
+     * @tutorial SourceEngine.pkg#commands
+     */
     function callCommand($command, $params)
     {
         $method = 'command' . $command;
         if (! method_exists($this, $method)) {
-            $class = $this->getName();
+            $class = get_class($this);
             $this->setError("the method does not exist ($class::$method)");
             return null;
         }
@@ -710,7 +709,7 @@ class TIP_Module extends TIP_Type
      * @param string $action The action name
      * @return bool|null true on success, false on errors or null if the
      *                   action is not found
-     **/
+     */
     function callAction($action)
     {
         $action = strtolower($action);
@@ -763,7 +762,7 @@ class TIP_Module extends TIP_Type
      *
      * @param string $file The file to run
      * @return bool true on success or false on errors
-     **/
+     */
     function run($file)
     {
         if (empty($file)) {
@@ -793,7 +792,7 @@ class TIP_Module extends TIP_Type
      * @param string  $file   The file to run
      * @param string &$buffer The destination buffer
      * @return bool true on success or false on errors
-     **/
+     */
     function runTo($file, &$buffer)
     {
         ob_start();

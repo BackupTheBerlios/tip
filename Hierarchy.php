@@ -5,15 +5,16 @@
  * TIP_Hierarchy definition file
  *
  * @package TIP
- **/
+ */
 
+/** TreeMenu PEAR package */
 require_once 'HTML/TreeMenu.php';
 
 /**
  * A TIP_Block with a hierarchy as data model
  *
  * @package TIP
- **/
+ */
 class TIP_Hierarchy extends TIP_Block
 {
     /**#@+ @access protected */
@@ -36,7 +37,7 @@ class TIP_Hierarchy extends TIP_Block
      * The data engine is the same of the master module.
      *
      * @param TIP_Block &$master The master module
-     **/
+     */
     function TIP_Hierarchy(&$master)
     {
         $this->TIP_Module ();
@@ -139,7 +140,7 @@ class TIP_Hierarchy extends TIP_Block
      * @param TIP_Block $master The master block
      * @return TIP_Hierarchy A reference to the TIP_Hierarchy binded to $master
      * @static
-     **/
+     */
     function& getInstance(&$master)
     {
         $id = $master->getName();

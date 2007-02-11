@@ -4,7 +4,7 @@
 /**
  * TIP_Callback definition file
  * @package TIP
- **/
+ */
 
 /**
  * A generic callback
@@ -13,7 +13,7 @@
  * value for undefined callbacks.
  *
  * @package TIP
- **/
+ */
 class TIP_Callback extends TIP
 {
     /**#@+ @access private */
@@ -38,7 +38,7 @@ class TIP_Callback extends TIP
      * a new call is performed, this value is overwrote.
      *
      * @var mixed
-     **/
+     */
     var $result = null;
 
 
@@ -50,7 +50,7 @@ class TIP_Callback extends TIP
      * go() method when the callback is not set.
      *
      * @param mixed|callback $default The default return value or the default callback
-     **/
+     */
     function TIP_Callback($default = true)
     {
         if (is_callable($default)) {
@@ -69,7 +69,7 @@ class TIP_Callback extends TIP
      *
      * @param callback $callback The new callback
      * @param array    $params   The parameters to pass to the callback
-     **/
+     */
     function set($callback, $params = null)
     {
         $this->_callback =& $callback;
@@ -90,7 +90,7 @@ class TIP_Callback extends TIP
      *
      * @param array $params Parameters to pass to the callback
      * @return mixed The callback return value
-     **/
+     */
     function go($params = null)
     {
         if (! is_array($params)) {
@@ -107,7 +107,7 @@ class TIP_Callback extends TIP
      * Checks if the current callback is the default one.
      *
      * @return bool true if the callback is the default one or false otherwise
-     **/
+     */
     function isDefault()
     {
         return 'defaultCallback' == @$this->_callback[1] && $this == @$this->_callback[0];

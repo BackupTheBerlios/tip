@@ -4,7 +4,8 @@
 /**
  * TIP_Logger definition file
  * @package TIP
- **/
+ * @subpackage Module
+ */
 
 /**
  * Logger module
@@ -12,7 +13,8 @@
  * Provides a way to log messages to a data source.
  *
  * @package TIP
- **/
+ * @subpackage Module
+ */
 class TIP_Logger extends TIP_Block
 {
     /**#@+ @access public */
@@ -26,7 +28,7 @@ class TIP_Logger extends TIP_Block
      * @param string @message The text of the log
      * @param string @uri     The URI that caused the log
      * @param bool   @notify  Wheter or not to notify the log to the webmaster
-     **/
+     */
     function logMessage($domain, $message, $uri, $notify = false)
     {
         $user_id = TIP::getUserId();

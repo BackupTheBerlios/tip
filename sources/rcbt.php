@@ -4,8 +4,15 @@
 /**
  * TIP_Rcbt definition file
  * @package TIP
- **/
+ * @subpackage SourceEngine
+ */
 
+/**
+ * A context used by the Rcbt engine
+ *
+ * @package TIP
+ * @subpackage SourceEngine
+ */
 class TIP_Rcbt_Context
 {
     /**#@+ @access public */
@@ -74,6 +81,12 @@ class TIP_Rcbt_Context
 }
 
 
+/**
+ * The parser used by the Rcbt engine
+ *
+ * @package TIP
+ * @subpackage SourceEngine
+ */
 class TIP_Rcbt_Parser
 {
     /**#@+ @access private */
@@ -199,7 +212,17 @@ class TIP_Rcbt_Parser
 
     /**#@-*/
 }
-
+ 
+/**
+ * A tag used by the Rcbt engine
+ *
+ * This class represents a portion of source enclosed between the '{' start
+ * tag and the '}' end tag. The whole file content is a special case of tag
+ * without start/end tags.
+ *
+ * @package TIP
+ * @subpackage SourceEngine
+ */
 class TIP_Rcbt_Tag
 {
     /// @privatesection
@@ -358,12 +381,6 @@ class TIP_Rcbt_Tag
         }
 
         switch ($this->command) {
-            /**
-             * \rcbtbuiltin <b>If(</b><i>conditions</i><b>)</b>\n
-             * Executes the text enclosed by this tag and the <tt>{}</tt> tag
-             * only if \c conditions is true. During the execution of this text, the
-             * default module will be the current module.
-             **/
         case 'if':
             if ($context =& $this->createContext($parser, $module)) {
                 $condition = @create_function('', "return $this->params;");
@@ -377,23 +394,10 @@ class TIP_Rcbt_Tag
             }
             return true;
 
-            /**
-             * \rcbtbuiltin <b>Else()</b>\n
-             * Switches the skip condition of an enclosed text.
-             **/
         case 'else':
             $parser->context->skipIf(! $parser->context->skip);
             return true;
 
-            /**
-             * \rcbtbuiltin <b>select([filter])</b>\n
-             * Performs the specified select on the module and runs the text
-             * enclosed by this tag and the <tt>{}</tt> tag with this select active.
-             * This can be helpful, for instance, to show the summary fields of a
-             * select. During the execution of this text, the default module will
-             * be the current module. This means if you do not specify the select,
-             * this tag simply change the default module.
-             **/
         case 'select':
             if ($context =& $this->createContext($parser, $module)) {
                 $view =& $module->startView($this->params);
@@ -407,11 +411,6 @@ class TIP_Rcbt_Tag
             }
             return true;
 
-            /**
-             * \rcbtbuiltin <b>selectRow(</b><i>id</i><b>)</b>\n
-             * A shortcut to the \c select command performing a select on the primary
-             * key content.
-             **/
         case 'selectrow':
             if ($context =& $this->createContext($parser, $module)) {
                 $filter = $module->data->rowFilter($this->params);
@@ -426,12 +425,6 @@ class TIP_Rcbt_Tag
             }
             return true;
 
-            /**
-             * \rcbtbuiltin <b>forSelect([filter])</b>\n
-             * Performs the specified filter on the module and, for every row, runs
-             * the text enclosed by this tag and the <tt>{}</tt> tag. During the
-             * execution of this text, the current module will be the default one.
-             **/
         case 'forselect':
             if ($context =& $this->createContext($parser, $module)) {
                 $view =& $module->startView($this->params);
@@ -446,19 +439,6 @@ class TIP_Rcbt_Tag
             }
             return true;
 
-            /**
-             * \rcbtbuiltin <b>forEach([list])</b>\n
-             * If you do not specify \p list, it is the same as forselect but
-             * traverses the current view instead of building a new one.
-             * If \p list is a number, the enclosed text is executed \p list times;
-             * in the enclosed text, the special field \b CNT keeps track of the
-             * current time counter.
-             * In the other cases, a special view is created by calling
-             * TIP_Module::startSpecialView() and using \p list as argument.
-             * A common value is FIELDS, that generates a special view that
-             * browses the field structure, or MODULES, that traverses all the
-             * installed modules of the site.
-             **/
         case 'foreach':
             if ($context =& $this->createContext($parser, $module)) {
                 if (empty ($this->params)) {
@@ -504,57 +484,15 @@ class TIP_Rcbt_Tag
 
 
 /**
- * Recursive Curly Brace Tags source engine.
+ * Recursive Curly Brace Tags source engine
  *
- * The format of an rcbt file is quite simple: it is a pure HTML file that can
- * contains some tags.
- *
- * \attention The tags are identified by the curly braces, so the rcbt file
- *            CANNOT USE curly braces for other reasons than specifying a tag.
- *
- * A rcbt tag has the following syntax:
- *
- * <code>{[module.]command([params])}</code>
- *
- * The square brakets identify an optional part. All the following tags are
- * valid tags:
- *
- * <code>{Blog.run(block.html)}</code> a complete tag
- *
- * <code>{User.logout()}</code> a tag without \c params
- *
- * <code>{Html(age)}</code> a tag without \c module
- *
- * <code>{logout()}</code> a tag without \c module and \c params
- *
- * <code>{age}</code> a special case: this will expand to <code>{html(age)}</code>
- *
- * <code>{(age)}</code> another special case: this will expand to <code>{tryHtml(age)}</code>
- *
- * - <b>\c module</b> (case insensitive)\n
- *   Identifies the module to use while executing this tag. If not specified,
- *   the caller module will be used.
- * - <b>\c command</b> (case insensitive)\n
- *   Defines the comman to call. The available commands are module dependents:
- *   consult the module documentation to see which commands are available,
- *   particulary the TIP_Module::callCommand() function. As mentioned above,
- *   if not specified the 'Html' command will be executed.
- * - <b>\c params</b> (case sensitive)\n
- *   The arguments to pass to the command. Obviously, what \c params means
- *   depend by the command called.\n
- *   The content of \c params will be recursively executed before the call:
- *   this means a \c params can contains itsself any sort of valid tags.
- *
- * The special empty tag <tt>{}</tt> is used to close the context opened by
- * some commands, such as forSelect() of If() tags.
- *
- * See the \subpage RcbtBuiltins page to know which are the available commands.
- * If the tag is not built-in, a call to TIP_Module::command...(), using the
- * proper module and params as arguments, is performed.
+ * Simple implementation of TIP_SourceEngine.
  *
  * @package TIP
+ * @subpackage SourceEngine
+ * @tutorial TIP_Rcbt.cls
  * @final
- **/
+ */
 class TIP_Rcbt extends TIP_Source_Engine
 {
     function run(&$buffer, &$module, $context_message)

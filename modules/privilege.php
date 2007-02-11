@@ -3,8 +3,9 @@
 
 /**
  * TIP_Privilege definition file
- * @package Modules
- **/
+ * @package TIP
+ * @subpackage Module
+ */
 
 
 /**
@@ -42,9 +43,10 @@
  * 'anonymous_privilege' options. If not specified, the privilege defaults
  * to the one of the 'application' module.
  *
- * @package Modules
  * @final
- **/
+ * @package TIP
+ * @subpackage Module
+ */
 class TIP_Privilege extends TIP_Block
 {
     /**#@+ @access private */
@@ -124,7 +126,7 @@ class TIP_Privilege extends TIP_Block
              * \adminaction <b>Edit</b>\n
              * Requests a privilege change. You must specify in $_GET['user'] the
              * user id.
-             **/
+             */
         case 'edit':
             $subject_id = $this->_getSubjectId();
             if (is_null($subject_id)) {
@@ -139,7 +141,7 @@ class TIP_Privilege extends TIP_Block
              * Changes the privileges of a user. You must specify in $_GET['user']
              * the user id, in $_GET['where'] the module name and in
              * $_GET['privilege'] the new privilege descriptor.
-             **/
+             */
         case 'doedit':
             $subject_id = $this->_getSubjectId();
             if (is_null($subject_id)) {
@@ -200,7 +202,7 @@ class TIP_Privilege extends TIP_Block
              * \adminaction <b>Restore</b>\n
              * Restores all the privileges of a user to their defaults. You must
              * specify in $_GET['user'] the user id.
-             **/
+             */
         case 'restore':
             $subject_id = $this->_getSubjectId();
             if (is_null($subject_id)) {
@@ -251,7 +253,7 @@ class TIP_Privilege extends TIP_Block
      * @param int         $user_id The user id
      * @return string|null The stored privilege or null if no stored privileges
      *                     were found
-     **/
+     */
     function getStoredPrivilege(&$module, $user_id = null)
     {
         if (is_null($user_id)) {

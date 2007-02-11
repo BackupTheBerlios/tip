@@ -3,8 +3,10 @@
 
 /**
  * TIP definition file
+ *
  * @package TIP
- **/
+ * @subpackage Module
+ */
 
 /**
  * The user notification manager
@@ -21,7 +23,8 @@
  * the notify, do not perform any other operation.
  *
  * @package TIP
- **/
+ * @subpackage Module
+ */
 class TIP_Notify extends TIP_Block
 {
     /**#@+ @access public */
@@ -36,7 +39,7 @@ class TIP_Notify extends TIP_Block
      * @param mixed  $id   The message id
      * @param string $file The source file to use as template
      * @return bool TRUE on success or FALSE on errors
-     **/
+     */
     function echoMessage($id, $file)
     {
         $view =& $this->startView($this->data->rowFilter($id));
@@ -53,7 +56,7 @@ class TIP_Notify extends TIP_Block
     /**#@+
      * @param mixed $id The id of the system message to show
      * @return bool TRUE on success or FALSE on errors
-     **/
+     */
 
     /**
      * User error notification
@@ -65,7 +68,7 @@ class TIP_Notify extends TIP_Block
      *
      * If $id is not specified, the error id defaults to the one configured
      * by the 'error_fallback' option.
-     **/
+     */
     function echoError($id = null)
     {
         if (is_null($id)) {
@@ -86,7 +89,7 @@ class TIP_Notify extends TIP_Block
      *
      * If $id is not specified, the warning id defaults to the one configured
      * by the 'warning_fallback' option.
-     **/
+     */
     function echoWarning($id = null)
     {
         if (is_null($id)) {
@@ -106,7 +109,7 @@ class TIP_Notify extends TIP_Block
      *
      * If $id is not specified, the info id defaults to the one configured
      * by the 'info_fallback' option.
-     **/
+     */
     function echoInfo($id = null)
     {
         if (is_null($id)) {

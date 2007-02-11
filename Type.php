@@ -2,9 +2,8 @@
 /* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
 
 /**
- * TIP_Type definition file
  * @package TIP
- **/
+ */
 
 /**
  * TIP type system
@@ -20,8 +19,8 @@
  *
  * @abstract
  * @package TIP
- * @tutorial TIP_Type.cls
- **/
+ * @tutorial Module.pkg#TIP_Type
+ */
 class TIP_Type extends TIP
 {
     /**#@+ @access private */
@@ -42,7 +41,7 @@ class TIP_Type extends TIP
      *
      * @todo Derive this class from PEAR instead of TIP and remove
      *       all error management from TIP_Type.
-     **/
+     */
     function TIP_Type()
     {
         $this->_name = strtolower(TIP::stripTipPrefix(get_class($this)));
@@ -64,7 +63,7 @@ class TIP_Type extends TIP
      * @return array|mixed|null The register content, a singleton reference or
      *                          null on errors, depending on the used mode
      * @static
-     **/
+     */
     function& singleton($id = null, $instance = null)
     {
         static $register = array();
@@ -106,7 +105,7 @@ class TIP_Type extends TIP
      *                       instantiable but the logic is properly included,
      *                       false on errors
      * @static
-     **/
+     */
     function& factory($file, $path = null, $required = true)
     {
         if (is_null($path)) {
@@ -131,7 +130,7 @@ class TIP_Type extends TIP
      *
      * Sets or appends to the internal error string a message. This error is
      * publicly available throught the getError() method.
-     **/
+     */
     function setError ($message)
     {
 	if (empty ($message))
@@ -151,7 +150,7 @@ class TIP_Type extends TIP
      *
      * @param string $option The option to retrieve
      * @return mixed|null The value of the requested option or null on errors
-     **/
+     */
     function getOption($option)
     {
         return TIP::getOption($this->_name, $option);
@@ -168,7 +167,7 @@ class TIP_Type extends TIP
      * different PHP versions.
      *
      * @return string The type name
-     **/
+     */
     function getName()
     {
         return $this->_name;
@@ -180,7 +179,7 @@ class TIP_Type extends TIP
      * Wrappes TIP::logWarning() appending specific type informations.
      *
      * @see logError(),logFatal()
-     **/
+     */
     function logWarning ($message)
     {
 	TIP::logWarning ($message . " from the '$this->_name' type");
@@ -192,7 +191,7 @@ class TIP_Type extends TIP
      * Wrappes TIP::logError() appending specific type informations.
      *
      * @see logWarning(),logFatal()
-     **/
+     */
     function logError ($message)
     {
 	TIP::logError ($message . " from the '$this->_name' type");
@@ -204,7 +203,7 @@ class TIP_Type extends TIP
      * Wrappes TIP::logFatal() appending specific type informations.
      *
      * @see logWarning(),logError()
-     **/
+     */
     function logFatal ($message)
     {
 	TIP::logFatal ($message . " from the '$this->_name' type");
@@ -224,7 +223,7 @@ class TIP_Type extends TIP
      * @param string $id The type name without the 'TIP_' prefix
      * @return bool Always returns true because errors are fatals
      * @static
-     **/
+     */
     function& getInstance($id)
     {
         $instance =& TIP_Type::singleton($id);
@@ -242,7 +241,7 @@ class TIP_Type extends TIP
      * is returned to the caller.
      *
      * @return string|null The error messages or null if there are no errors.
-     **/
+     */
     function resetError ()
     {
 	$result = $this->_error;
@@ -257,7 +256,7 @@ class TIP_Type extends TIP
      * errors, this function simply returns null.
      *
      * @return string|null The error messages or null if there are no errors.
-     **/
+     */
     function getError ()
     {
 	return $this->_error;

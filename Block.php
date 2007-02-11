@@ -4,7 +4,7 @@
 /**
  * TIP_Block definition file
  * @package TIP
- **/
+ */
 
 /**
  * The root of data based modules
@@ -15,8 +15,8 @@
  *
  * @abstract
  * @package TIP
- * @tutorial TIP_Block.cls
- **/
+ * @tutorial Module.pkg#TIP_Block
+ */
 class TIP_Block extends TIP_Module
 {
     /**#@+ @access private */
@@ -35,7 +35,7 @@ class TIP_Block extends TIP_Module
      * informations. See the TIP_Data class for details on what is it.
      *
      * @var TIP_Data
-     **/
+     */
     var $data = null;
 
 
@@ -51,7 +51,7 @@ class TIP_Block extends TIP_Module
      * The data engine is read from <code>$cfg[getName()]['data_engine']</code>.
      * If not specified, it defaults to
      * <code>$cfg['application']['data_engine']</code>.
-     **/
+     */
     function TIP_Block()
     {
         $this->TIP_Module();
@@ -77,7 +77,7 @@ class TIP_Block extends TIP_Module
      *
      * @param TIP_View &$view The view to push
      * @return TIP_View|null The pushed view on success or null on errors
-     **/
+     */
     function &push(&$view)
     {
         if ($view->populate()) {
@@ -99,7 +99,7 @@ class TIP_Block extends TIP_Module
      *
      * @return TIP_View|null|false The previous view on success, null if the
      *                             view stack is empty or false on errors
-     **/
+     */
     function &pop()
     {
         unset($this->view);
@@ -123,9 +123,8 @@ class TIP_Block extends TIP_Module
     /**#@+
      * @param string @params The parameter string
      * @return bool true on success or false on errors
-     * @usedby callCommand() An available command
-     * @subpackage Commands
-     **/
+     * @subpackage SourceEngine
+     */
 
     /**
      * Echo the hierarchy of a block
@@ -133,7 +132,7 @@ class TIP_Block extends TIP_Module
      * Outputs the DHTML hierarchy of a block.
      *
      * @uses TIP_Hierarchy::toHtml()
-     **/
+     */
     function commandDhtmlHierarchy($params)
     {
         $hierarchy =& TIP_Hierarchy::getInstance($this);
@@ -141,13 +140,15 @@ class TIP_Block extends TIP_Module
         return true;
     }
 
+    /**#@-*/
+
     /**
      * Get the current rows
      *
      * Gets a reference to the rows of the current view.
      *
      * @return array|null The array of rows or null on errors
-     **/
+     */
     function& getCurrentRows()
     {
         if (is_object($this->view)) {
@@ -164,7 +165,7 @@ class TIP_Block extends TIP_Module
      * Gets a reference to the row pointed by the internal cursor.
      *
      * @return array|null The current row or null on errors
-     **/
+     */
     function& getCurrentRow()
     {
         if (is_null($this->view)) {
@@ -183,7 +184,7 @@ class TIP_Block extends TIP_Module
      *
      * @param mixed $id The row id
      * @return array|null The current row or null on errors
-     **/
+     */
     function& getRow($id)
     {
         if (@array_key_exists ($id, $this->view->rows)) {
@@ -211,7 +212,7 @@ class TIP_Block extends TIP_Module
      *
      * @param string $id The field id
      * @return mixed|null The requested field content or null on errors
-     **/
+     */
     function getField($id)
     {
         if (is_null($this->view)) {
@@ -246,7 +247,7 @@ class TIP_Block extends TIP_Module
      *
      * @param string $id The summary id
      * @return mixed|null The requested summary content or null on errors
-     **/
+     */
     function getSummary($id)
     {
         return @$this->view->summaries[$id];
@@ -269,7 +270,7 @@ class TIP_Block extends TIP_Module
      *
      * @param string $id The item id
      * @return mixed|null The content of the requested item or null if not found
-     **/
+     */
     function getItem($id)
     {
         $value = $this->getField($id);
@@ -292,7 +293,7 @@ class TIP_Block extends TIP_Module
      * @return bool true on success or false on errors
      * @todo Check if the PEAR Validate package can substitute this too simple
      *       interface
-     **/
+     */
     function validatePosts ()
     {
 	if (! $this->startSpecialView ('Fields')) {
@@ -354,7 +355,7 @@ class TIP_Block extends TIP_Module
      *
      * @param array &$destination Where to store the posts
      * @return bool true on success or false on errors
-     **/
+     */
     function storePosts (&$destination)
     {
 	if (! is_array ($destination)) {
@@ -396,7 +397,7 @@ class TIP_Block extends TIP_Module
      * A reference to the current view or null if there are no current views.
      *
      * @var TIP_View
-     **/
+     */
     var $view = null;
 
     /**
@@ -408,7 +409,7 @@ class TIP_Block extends TIP_Module
      *
      * @param string $filter The filter conditions
      * @return TIP_View|null The view instance or null on errors
-     **/
+     */
     function& startView($filter)
     {
         return $this->push(TIP_View::getInstance($filter, $this->data));
@@ -422,7 +423,7 @@ class TIP_Block extends TIP_Module
      *
      * @param string $name The name of the special view
      * @return TIP_View|null The view instance or null on errors
-     **/
+     */
     function& startSpecialView($name)
     {
         $class_name = TIP_PREFIX . $name . '_View';
@@ -450,7 +451,7 @@ class TIP_Block extends TIP_Module
      * In any case, you can't have more endView() than start[Special]View().
      *
      * @return bool true on success or false on errors
-     **/
+     */
     function endView()
     {
         if ($this->pop() === FALSE) {

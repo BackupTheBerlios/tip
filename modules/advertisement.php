@@ -2,17 +2,18 @@
 /* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
 
 /**
- * TIP_Advertisement definition file
- * @package Modules
- **/
+ * @package TIP
+ * @subpackage Module
+ */
 
 /**
  * The advertisement block
  *
  * Enables advertisement management.
  *
- * @package Modules
- **/
+ * @package TIP
+ * @subpackage Module
+ */
 class TIP_Advertisement extends TIP_Block
 {
     /**#@+ @access private */
@@ -67,7 +68,7 @@ class TIP_Advertisement extends TIP_Block
              * \action <b>browse</b>\n
              * Shows the advertisement published by the current user.
              * The user must be registered to do this.
-             **/
+             */
         case 'browse':
             $user_id = TIP::GetUserId ();
             if (is_null ($user_id) || $user_id === FALSE)
@@ -83,7 +84,7 @@ class TIP_Advertisement extends TIP_Block
              * \action <b>browsegroup</b>\n
              * Shows the advertisement in a specified group. The group must be
              * present in $_GET['group'].
-             **/
+             */
         case 'browsegroup':
             $Id = tip::GetGet ('group', 'integer');
             if (is_null ($Id))
@@ -98,7 +99,7 @@ class TIP_Advertisement extends TIP_Block
             /**
              * \action <b>browseillegal</b>\n
              * Shows the illegalized advertisements.
-             **/
+             */
         case 'browseillegal':
             $this->AppendToContent ('browse-illegal.src');
             return TRUE;
@@ -108,7 +109,7 @@ class TIP_Advertisement extends TIP_Block
              * Views in detail a specified advertisement. You must specify
              * in $_GET['id'] the advertisement id. Viewing an advertisement
              * also updates its internal fields (view counter ans so on).
-             **/
+             */
         case 'view':
             $row =& $this->_getSubjectRow($Id);
             if (is_null($row)) {
@@ -133,14 +134,14 @@ class TIP_Advertisement extends TIP_Block
              * specify in $_GET['advertisement'] the advertisement id. Update means to
              * post the expiration date as the advertisement was published 
              * today.
-             **/
+             */
         case 'update':
             /**
              * \action <b>doupdate</b>\n
              * Updates the specified advertisement. You must specify
              * in $_GET['advertisement'] the advertisement id. Update means to post the
              * expiration date as the advertisement was published today.
-             **/
+             */
         case 'doupdate':
             $row =& $this->_getSubjectRow();
             if (is_null($row) || ! $this->isOwner($row)) {
@@ -171,13 +172,13 @@ class TIP_Advertisement extends TIP_Block
              * \action <b>delete</b>\n
              * Requests a delete of the specified advertisement. You must
              * specify in $_GET['advertisement'] the advertisement id.
-             **/
+             */
         case 'delete':
             /**
              * \action <b>dodelete</b>\n
              * Deletes the specified advertisement. You must specify in
              * $_GET['advertisement'] the advertisement id.
-             **/
+             */
         case 'dodelete':
             $row =& $this->_getSubjectRow();
             if (is_null($row) || ! $this->isOwner($row)) {
@@ -213,7 +214,7 @@ class TIP_Advertisement extends TIP_Block
              * Requests to illegalize a specified advertisement. You must
              * specify in $_GET['id'] the advertisement id.
              * The user must be registered to do this.
-             **/
+             */
         case 'illegal':
             /**
              * \action <b>doillegal</b>\n
@@ -222,7 +223,7 @@ class TIP_Advertisement extends TIP_Block
              * notify the advertisement as unconformed, so the admins can
              * easely check the content.
              * The user must be registered to do this.
-             **/
+             */
         case 'doillegal':
             $user_id = TIP::GetUserId ();
             if (is_null ($user_id) || $user_id === FALSE)
@@ -294,13 +295,13 @@ class TIP_Advertisement extends TIP_Block
              * \action <b>legalize</b>\n
              * Requests to check a specified advertisement to legalize or
              * illegalize it. You must specify in $_GET['id'] the advertisement id.
-             **/
+             */
         case 'check':
             /**
              * \action <b>dolegalize</b>\n
              * Legalizes the specified advertisement. You must specify in $_GET['id']
              * the advertisement id. Legalize is the opposite of illegalize.
-             **/
+             */
         case 'dolegalize':
             /**
              * \action <b>doillegalize</b>\n
@@ -309,7 +310,7 @@ class TIP_Advertisement extends TIP_Block
              * the advertisement from the public view (setting the '_public'
              * field to 'no'). The advertisement will still be visible to its
              * owner, but not to the public.
-             **/
+             */
         case 'doillegalize':
             $Id = tip::GetGet ('id', 'integer');
             if (is_null ($Id))

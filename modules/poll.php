@@ -3,18 +3,20 @@
 
 /**
  * TIP_Poll definition file
- * @package Modules
- **/
+ * @package TIP
+ * @subpackage Module
+ */
 
 
 /**
  * Poll module
  *
- * @package Modules
- **/
+ * @package TIP
+ * @subpackage Module
+ */
 class TIP_Poll extends TIP_Block
 {
-    /**#@+ @private */
+    /**#@+ @access private */
 
     function TIP_Poll()
     {
@@ -43,7 +45,7 @@ class TIP_Poll extends TIP_Block
     /**#@-*/
 
 
-    /**#@+ @protected */
+    /**#@+ @access protected */
 
     function runAction($action)
     {
@@ -52,7 +54,7 @@ class TIP_Poll extends TIP_Block
              * \action <b>edit</b>\n
              * Vote request. You must specify the answer code in the
              * $_GET['answer'] field.
-             **/
+             */
         case 'edit':
             $answer = TIP::getGet('answer', 'int');
             if (is_null($answer)) {
@@ -75,7 +77,7 @@ class TIP_Poll extends TIP_Block
              * \action <b>doedit</b>\n
              * Vote operation. You must specify the answer code in the
              * $_GET['answer'] field.
-             **/
+             */
         case 'doedit':
             if (! array_key_exists('plvoting', $_COOKIE)) {
                 TIP::error ('E_COOKIEOFF');
