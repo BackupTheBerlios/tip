@@ -93,21 +93,21 @@ class TIP_Module extends TIP_Type
      * Gets a localized text
      *
      * Gets the localized text from the specified id. The locale used is get
-     * from the 'locale' option of the $application object, which must
+     * from the 'locale' option of the $_tip_application object, which must
      * properly set.
      *
      * @param string $id The identifier
      * @return string|null The localized text requested or null on errors
      * @todo Implement this function with a module.
      */
-    function getLocale ($id)
+    function getLocale($id)
     {
-	if (! $this->_locales) {
-	    include_once TIP::buildLocalePath ($locale, $this->getName () . '.php');
-	    $this->_locales = $messages;
-	}
+        if (! $this->_locales) {
+            include_once TIP::buildLocalePath($locale, $this->getName() . '.php');
+            $this->_locales = $messages;
+        }
 
-	return @$this->_locales[$id];
+        return @$this->_locales[$id];
     }
 
     /**
@@ -130,7 +130,7 @@ class TIP_Module extends TIP_Type
         if (! is_null($value))
             return $value;
 
-        return @$GLOBALS['application']->keys[$id];
+        return @$GLOBALS[TIP_MAIN_MODULE]->keys[$id];
     }
 
     /**
@@ -334,7 +334,12 @@ class TIP_Module extends TIP_Type
      */
     function commandIconUrl($params)
     {
-        echo TIP::buildSourceUrl('shared', 'icons', $params);
+        static $icon_url = null;
+        if (is_null($icon_url)) {
+            $icon_url = TIP::buildSourceUrl('shared', 'icons');
+        }
+
+        echo $icon_url . '/' . $params;
         return true;
     }
 
@@ -420,8 +425,11 @@ class TIP_Module extends TIP_Type
      */
     function commandDateTime($params)
     {
-        $format = 'datetime_' . TIP::getOption('application', 'locale');
-        echo TIP::formatDate($format, $params, 'iso8601');
+        static $format = null;
+        if (is_null($format)) {
+            $format = 'datetime_' . TIP::getOption('application', 'locale');
+        }
+        echo TIP::toHtml(TIP::formatDate($format, $params, 'iso8601'));
         return true;
     }
 
@@ -460,7 +468,7 @@ class TIP_Module extends TIP_Type
      */
     function commandModuleExists($params)
     {
-        echo array_key_exists ($params, $GLOBALS['cfg']) ? 'true' : 'false';
+        echo array_key_exists($params, $GLOBALS['cfg']) ? 'true' : 'false';
         return true;
     }
 
@@ -478,9 +486,9 @@ class TIP_Module extends TIP_Type
      *
      * Executes an action that requires the 'manager' privilege.
      */
-    function runManagerAction ($action)
+    function runManagerAction($action)
     {
-	return null;
+        return null;
     }
 
     /**
@@ -488,9 +496,9 @@ class TIP_Module extends TIP_Type
      *
      * Executes an action that requires at least the 'admin' privilege.
      */
-    function runAdminAction ($action)
+    function runAdminAction($action)
     {
-	return null;
+        return null;
     }
 
     /**
@@ -498,7 +506,7 @@ class TIP_Module extends TIP_Type
      *
      * Executes an action that requires at least the 'trusted' privilege.
      */
-    function runTrustedAction ($action)
+    function runTrustedAction($action)
     {
         return null;
     }
@@ -508,9 +516,9 @@ class TIP_Module extends TIP_Type
      *
      * Executes an action that requires at least the 'untrusted' privilege.
      */
-    function runUntrustedAction ($action)
+    function runUntrustedAction($action)
     {
-	return null;
+        return null;
     }
 
     /**
@@ -518,9 +526,9 @@ class TIP_Module extends TIP_Type
      *
      * Executes an action that does not require any privileges.
      */
-    function runAction ($action)
+    function runAction($action)
     {
-	return null;
+        return null;
     }
 
     /**#@-*/
@@ -532,41 +540,58 @@ class TIP_Module extends TIP_Type
      */
 
     /**
-     * Execute a file, appending the result to content
+     * Execute a file, inserting the result in content
      *
-     * Executes the File source found in the module path using the current
-     * source engine and appends the result to the end of the application
+     * Executes the $file source found in the module path using the current
+     * source engine and inserts the result at the beginning of the application
      * content.
      */
-    function appendToContent($file)
+    function insertInContent($file)
     {
+        $application =& $GLOBALS[TIP_MAIN_MODULE];
+        $path = $this->buildModulePath($file);
+        $application->prependCallback(array(&$this, 'run'), array($path));
+        return true;
+
+
+        $application =& $GLOBALS[TIP_MAIN_MODULE];
+        $path = $this->buildModulePath($file);
+        $application->insertCallback(array(&$this, 'run'), array($path));
+        return true;
+
         $path = $this->buildModulePath($file);
         $buffer = '';
         $result = $this->runTo($path, $buffer);
+
         if (! empty($buffer)) {
-            $content =& $GLOBALS['application']->content;
-            $content .= $buffer;
+            $content =& $GLOBALS[TIP_MAIN_MODULE]->content;
+            $content = $buffer . $content;
         }
 
         return $result;
     }
 
     /**
-     * Execute a file, inserting the result in content
+     * Execute a file, appending the result to content
      *
-     * Executes the File source found in the module path using the current
-     * source engine and inserts the result at the beginning of the application
+     * Executes the $file source found in the module path using the current
+     * source engine and appends the result to the end of the application
      * content.
      */
-    function insertInContent($file)
+    function appendToContent($file)
     {
+        $application =& $GLOBALS[TIP_MAIN_MODULE];
+        $path = $this->buildModulePath($file);
+        $application->appendCallback(array(&$this, 'run'), array($path));
+        return true;
+
+
         $path = $this->buildModulePath($file);
         $buffer = '';
         $result = $this->runTo($path, $buffer);
-
         if (! empty($buffer)) {
-            $content =& $GLOBALS['application']->content;
-            $content = $buffer . $content;
+            $content =& $GLOBALS[TIP_MAIN_MODULE]->content;
+            $content .= $buffer;
         }
 
         return $result;
@@ -596,8 +621,8 @@ class TIP_Module extends TIP_Type
      *
      * Contains a reference to the source engine to use when parsing a file.
      * See the TIP_Source class for details on what is a source engine.
-     * If not configured, it defaults to the one of $application (that obviously
-     * MUST be configured).
+     * If not configured, it defaults to the one of $_tip_application
+     * (that obviously MUST be configured).
      *
      * @var TIP_SourceEngine
      */
@@ -626,12 +651,21 @@ class TIP_Module extends TIP_Type
         $id = strtolower($module_name);
         $instance =& TIP_Module::singleton($id);
         if (is_null($instance)) {
+            global $_tip_profiler;
+            if(is_object($_tip_profiler)) {
+                $_tip_profiler->enterSection(strtoupper($id));
+            }
+
             $path = TIP::getOption('application', 'logic_module_root');
             $instance =& TIP_Module::singleton($id, TIP_Type::factory($id, $path, $required));
             if (is_object($instance)) {
                 $instance->postConstructor();
             } elseif ($required) {
                 TIP::logFatal("Module logic not valid (id: $id; path: $path)");
+            }
+
+            if(is_object($_tip_profiler)) {
+                $_tip_profiler->leaveSection(strtoupper($id));
             }
         }
 
@@ -661,6 +695,7 @@ class TIP_Module extends TIP_Type
      */
     function callCommand($command, $params)
     {
+        $command = strtolower($command);
         $method = 'command' . $command;
         if (! method_exists($this, $method)) {
             $class = get_class($this);
@@ -668,17 +703,18 @@ class TIP_Module extends TIP_Type
             return null;
         }
 
-        /* The 'debug' command is a special case to be skipped because can stop
-           the profiler */
         global $_tip_profiler;
-        if (is_object($_tip_profiler) && strcasecmp($command, 'debug')) {
+        if (is_object($_tip_profiler)) {
             $_tip_profiler->enterSection($command);
-            $done = $this->$method($params);
-            $_tip_profiler->leaveSection($command);
-            return $done;
         }
 
-        return $this->$method($params);
+        $done = $this->$method($params);
+
+        if (is_object($_tip_profiler)) {
+            $_tip_profiler->leaveSection($command);
+        }
+
+        return $done;
     }
 
     /**

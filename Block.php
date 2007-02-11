@@ -284,6 +284,34 @@ class TIP_Block extends TIP_Module
         return parent::getItem($id);
     }
 
+    function insertInContent($file)
+    {
+        if (! $this->view) {
+            return parent::appendToContent($file);
+        }
+
+        $application =& $GLOBALS[TIP_MAIN_MODULE];
+        $path = $this->buildModulePath($file);
+        $application->prependCallback(array(&$this, 'pop'));
+        $application->prependCallback(array(&$this, 'run'), array($path));
+        $application->prependCallback(array(&$this, 'push'), array(&$this->view));
+        return true;
+    }
+
+    function appendToContent($file)
+    {
+        if (! $this->view) {
+            return parent::appendToContent($file);
+        }
+
+        $application =& $GLOBALS[TIP_MAIN_MODULE];
+        $path = $this->buildModulePath($file);
+        $application->appendCallback(array(&$this, 'push'), array(&$this->view));
+        $application->appendCallback(array(&$this, 'run'), array($path));
+        $application->appendCallback(array(&$this, 'pop'));
+        return true;
+    }
+
     /**
      * Validates the posts
      *
@@ -436,7 +464,6 @@ class TIP_Block extends TIP_Module
         $getInstance = $class_name . '::getInstance';
         $instance = $getInstance($this->data);
         return $this->push($instance);
-        return $this->push(call_user_func_array(array($class_name, 'getInstance'), array(&$this->data)));
     }
 
     /**

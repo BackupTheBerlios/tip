@@ -86,10 +86,9 @@ class TIP_User extends TIP_Block
         return true;
     }
 
-    function _onRow(&$Row)
+    function _onRow(&$row)
     {
-        $Row['OA'] = $Row['sex'] == 'female' ? 'a' : 'o';
-        return true;
+        $row['OA'] = $row['sex'] == 'female' ? 'a' : 'o';
     }
 
     function _onFieldsView(&$view)
@@ -239,7 +238,7 @@ class TIP_User extends TIP_Block
              * Shows all the registered users.
              */
         case 'browse':
-            $this->AppendToContent ('browse.src');
+            $this->appendToContent('browse.src');
             return true;
         }
 

@@ -9,12 +9,12 @@
 /**
  * The main module
  *
- * The global variable $application contains a reference to the
+ * The global variable $_tip_application contains a reference to the
  * TIP_Application instantiated object.
  *
  * Your index.php, other than includes the basic TIP files, must only call
- * the go() method of $application:
- * <code>$application->go ();</code>
+ * the go() method of $_tip_application:
+ * <code>$_tip_application->go ();</code>
  * and TIP will (hopefully) start working.
  *
  * @final
@@ -22,6 +22,13 @@
  */
 class TIP_Application extends TIP_Module
 {
+    /**#@+ @access private */
+
+    var $_queue = array();
+
+    /**#@-*/
+
+
     /**#@+ @access protected */
 
     function postConstructor()
@@ -55,13 +62,13 @@ class TIP_Application extends TIP_Module
      */
     function commandContent($params)
     {
-        if (empty($this->content)) {
+        if (empty($this->_queue)) {
             $this->commandRunShared('welcome.src');
         } else {
-            echo $this->content;
+            foreach (array_keys($this->_queue) as $id) {
+                $this->_queue[$id]->go();
+            }
         }
-
-        $this->content = null;
         return true;
     }
 
@@ -85,8 +92,13 @@ class TIP_Application extends TIP_Module
 
         global $_tip_profiler;
         if (is_object($_tip_profiler)) {
+            // Leave itsself, that is the commandDebug section
+            $_tip_profiler->leaveSection('debug');
+
             $_tip_profiler->stop();
             $_tip_profiler->display('html');
+
+            // This prevent further operation on $_tip_profiler
             $_tip_profiler = null;
         }
 
@@ -99,16 +111,6 @@ class TIP_Application extends TIP_Module
 
 
     /**#@+ @access public */
-
-    /**
-     * The page contents
-     *
-     * A buffer containing the page contents.
-     *
-     * @var string
-     */
-    var $content = null;
-
 
     /**
      * The "main" function
@@ -169,6 +171,16 @@ class TIP_Application extends TIP_Module
             TIP::error('E_FALLBACK');
             $this->logError($this->resetError());
         }
+    }
+
+    function prependCallback($callback, $params = null)
+    {
+        array_unshift($this->_queue, new TIP_Callback($callback, $params));
+    }
+
+    function appendCallback($callback, $params = null)
+    {
+        $this->_queue[] =& new TIP_Callback($callback, $params);
     }
 
     /**#@-*/

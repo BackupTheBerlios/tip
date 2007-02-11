@@ -15,6 +15,15 @@
  */
 define('TIP_PREFIX', 'TIP_');
 
+/**
+ * The name of the main module
+ *
+ * The name of the global variable holding the reference to the main module.
+ * It defaults to '_tip_application' and can be accessed throught
+ * <code>$GLOBALS[TIP_MAIN_MODULE]</code>.
+ */
+define('TIP_MAIN_MODULE', '_tip_application');
+
 
 require_once 'config.php';
 
@@ -551,17 +560,17 @@ class TIP
      */
     function toHtml($value)
     {
-        if (is_object($value) || is_null($value) || is_resource($value)) {
-            return '';
-        } elseif (is_bool($value)) {
+        if (is_bool($value)) {
             return $value ? 'true' : 'false';
         } elseif (is_numeric($value)) {
             return (string) $value;
-        } elseif (is_array($value)) {
-            $value = TIP::deepImplode($value, '');
+        } elseif (empty($value)) {
+            return '';
+        } elseif (is_string($value)) {
+            return htmlentities($value, ENT_QUOTES, 'UTF-8');
         }
 
-        return htmlentities($value, ENT_QUOTES, 'UTF-8');
+        return '';
     }
 
     /**
@@ -665,10 +674,10 @@ require_once 'Hierarchy.php';
  *
  * Every TIP based site must have a starting point (in C terms, it must have a
  * "main" function), that is an object that runs a specified source program.
- * This is what $application is.
+ * This is what $_tip_application is.
  *
  * @var TIP_Application
  */
-$application =& TIP_Module::getInstance('application');
+$GLOBALS[TIP_MAIN_MODULE] =& TIP_Module::getInstance('application');
 
 ?>

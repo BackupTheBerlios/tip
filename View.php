@@ -26,6 +26,22 @@
  */
 class TIP_View extends TIP_Type
 {
+    /**#@+ @access private */
+
+    var $_row_index = 0;
+
+
+    function _row_callback(&$row)
+    {
+        ++ $this->_row_index;
+        $row['ROW']     = $this->_row_index;
+        $row['ODDEVEN'] = ($this->_row_index & 1) > 0 ? 'odd' : 'even';
+        $this->on_row->go(array(&$row));
+    }
+
+    /**#@-*/
+
+
     /**#@+ @access protected */
 
     /**
@@ -143,6 +159,9 @@ class TIP_View extends TIP_Type
      * view is passed as argument to the callback. Useful to add summary values
      * or perform general operations on the whole data of the view.
      *
+     * The custom callback must return true to validate the view or false to
+     * invalidate it.
+     *
      * @var TIP_Callback
      */
     var $on_view;
@@ -194,20 +213,9 @@ class TIP_View extends TIP_Type
             return true;
         }
 
-        $n_row = 1;
-        foreach (array_keys($this->rows) as $id) {
-            $row            =& $this->rows[$id];
-            $row['ROW']     =  $n_row;
-            $row['ODDEVEN'] =  ($n_row & 1) > 0 ? 'odd' : 'even';
-
-            if ($this->on_row->go(array(&$row))) {
-                ++ $n_row;
-            } else {
-                unset($this->rows[$id]);
-            }
-        }
-
-        $this->summaries['COUNT'] = $n_row-1;
+        $this->_row_index = 0;
+        array_walk($this->rows, array(&$this, '_row_callback'));
+        $this->summaries['COUNT'] = $this->_row_index;
         return $this->on_view->go(array(&$this)) && $this->rowUnset();
     }
 

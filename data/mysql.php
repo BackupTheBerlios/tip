@@ -291,9 +291,7 @@ class TIP_Mysql extends TIP_Data_Engine
 
     function& get($filter, &$data)
     {
-        if (($result = $this->runQuery('SELECT * FROM',
-                                       $this->prepareName($data->path),
-                                       $filter)) === false) {
+        if (($result =& $this->runQuery('SELECT * FROM', $this->prepareName($data->path), $filter)) === false) {
             $fake_null = null;
             return $fake_null;
         }
@@ -308,7 +306,7 @@ class TIP_Mysql extends TIP_Data_Engine
         }
 
         // To free or not to free
-        mysql_free_result($result);
+        // mysql_free_result($result);
         return $rows;
     }
 
@@ -330,17 +328,12 @@ class TIP_Mysql extends TIP_Data_Engine
             return true;
         }
 
-        return $this->runQuery('UPDATE',
-                               $this->prepareName($data->path),
-                               $fieldset,
-                               $filter);
+        return $this->runQuery('UPDATE', $this->prepareName($data->path), $fieldset, $filter);
     }
 
     function delete($filter, &$data)
     {
-        return $this->runQuery('DELETE FROM',
-                               $this->prepareName($data->path),
-                               $filter);
+        return $this->runQuery('DELETE FROM', $this->prepareName($data->path), $filter);
     }
 
     /**#@-*/

@@ -318,20 +318,20 @@ class TIP_Rcbt_Tag
             $this->params = false;
         } else {
             $params_pos = $open_brace+1;
-            $close_brace = strrpos ($text, ')');
+            $close_brace = strrpos($text, ')');
             if ($close_brace === false) {
-                $parser->logError ('unclosed parameter');
+                $parser->logError('unclosed parameter');
                 return false;
             }
 
-            $this->params = substr ($text, $params_pos, $close_brace-$params_pos);
+            $this->params = substr($text, $params_pos, $close_brace-$params_pos);
             if (! $this->params)
                 $this->params = '';
 
             $text = substr ($text, 0, $params_pos-1);
         }
 
-        $token = explode ('.', trim ($text));
+        $token = explode('.', trim($text));
         switch (count ($token))
         {
         case 1:
@@ -347,12 +347,12 @@ class TIP_Rcbt_Tag
             break;
         case 2:
             $this->module_name = $token[0];
-            $this->command = strtolower ($token[1]);
+            $this->command = strtolower($token[1]);
             break;
         default:
-            if (strlen ($text) > 20)
-                $text = substr ($text, 0, 17) . '...';
-            $parser->logError ("malformed tag ($text)");
+            if (strlen($text) > 20)
+                $text = substr($text, 0, 17) . '...';
+            $parser->logError("malformed tag ($text)");
             return false;
         }
 

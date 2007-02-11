@@ -21,7 +21,7 @@ class TIP_Callback extends TIP
     var $_callback = null;
     var $_params = array();
 
-    function defaultCallback()
+    function _defaultCallback()
     {
         return $this->result;
     }
@@ -50,13 +50,18 @@ class TIP_Callback extends TIP
      * go() method when the callback is not set.
      *
      * @param mixed|callback $default The default return value or the default callback
+     * @param array|null     $params  If $default is a callback, the params to
+     *                                pass to the callback
      */
-    function TIP_Callback($default = true)
+    function TIP_Callback($default = true, $params = null)
     {
         if (is_callable($default)) {
             $this->_callback =& $default;
+            if (is_array($params)) {
+                $this->_params =& $params;
+            }
         } else {
-            $this->_callback = array(&$this, 'defaultCallback');
+            $this->_callback = array(&$this, '_defaultCallback');
             $this->result = $default;
         }
     }
@@ -110,7 +115,7 @@ class TIP_Callback extends TIP
      */
     function isDefault()
     {
-        return 'defaultCallback' == @$this->_callback[1] && $this == @$this->_callback[0];
+        return '_defaultCallback' == @$this->_callback[1] && $this == @$this->_callback[0];
     }
 
     /**#@-*/

@@ -98,7 +98,7 @@ class TIP_Type extends TIP
      * For non-instantiable types you must omit the return statement: the
      * default return value for include_once will be used instead.
      *
-     * @param mixed $file     The id of the type
+     * @param mixed $id       The id of the type
      * @param array $path     The path where to search for
      * @param bool  $required Are the errors fatals?
      * @return TIP_Type|bool A reference to the instance or true if $id is not
@@ -106,12 +106,12 @@ class TIP_Type extends TIP
      *                       false on errors
      * @static
      */
-    function& factory($file, $path = null, $required = true)
+    function& factory($id, $path = null, $required = true)
     {
         if (is_null($path)) {
-            $file = TIP::buildLogicPath($file) . '.php';
+            $file = TIP::buildLogicPath($id) . '.php';
         } else {
-            $file = TIP::buildLogicPath($path, $file) . '.php';
+            $file = TIP::buildLogicPath($path, $id) . '.php';
         }
 
         $instance = include_once $file;

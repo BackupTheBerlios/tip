@@ -228,7 +228,7 @@ class TIP_Data extends TIP_Type
      * @param mixed $id The row id
      * @return array|null The row matching the specified id or null on errors
      */
-    function getRow($id)
+    function& getRow($id)
     {
         return $this->engine->get($this->rowFilter($id), $this);
     }
