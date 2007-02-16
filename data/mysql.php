@@ -85,24 +85,24 @@ class TIP_Mysql extends TIP_Data_Engine
         return empty($fieldset) ? '' : 'SET ' . implode(',', $fieldset);
     }
 
-    function tryFillFields(&$result, &$data)
+    function tryFillFields(&$fields, &$resource)
     {
-        if (! is_null($data->fields)) {
+        if (! is_null($fields)) {
             return true;
         }
 
-        if (! is_resource($result)) {
+        if (! is_resource($resource)) {
             return false;
         }
 
-        $n_fields = mysql_num_fields($result);
+        $n_fields = mysql_num_fields($resource);
         for ($n = 0; $n < $n_fields; ++ $n) {
-            $name = mysql_field_name($result, $n);
-            $type = mysql_field_type($result, $n);
-            $flags = mysql_field_flags($result, $n);
+            $name = mysql_field_name($resource, $n);
+            $type = mysql_field_type($resource, $n);
+            $flags = mysql_field_flags($resource, $n);
 
-            $data->fields[$name] = array('id' => $name);
-            $field =& $data->fields[$name];
+            $fields[$name] = array('id' => $name);
+            $field =& $fields[$name];
 
             switch (strtoupper($type)) {
             case 'BOOL':
@@ -158,7 +158,7 @@ class TIP_Mysql extends TIP_Data_Engine
                 } else {
                     $field['subtype'] = null;
                 }
-                $field['length'] = mysql_field_len($result, $n) / 3;
+                $field['length'] = mysql_field_len($resource, $n) / 3;
                 break;
 
             case 'ENUM':
@@ -204,13 +204,13 @@ class TIP_Mysql extends TIP_Data_Engine
                 break;
 
             default:
-                $data->setError("field type not supported ($type)");
+                $this->logWarning("field type not supported ($type)");
             }
 
             $field['can_be_null'] = (bool) (strpos($flags, 'not_null') === false);
         }
 
-        return ! is_null($data->fields);
+        return ! is_null($fields);
     }
 
     /**#@-*/
@@ -241,62 +241,57 @@ class TIP_Mysql extends TIP_Data_Engine
             return false;
         }
 
-        return $this->tryFillFields($result, $data);
+        return $this->tryFillFields($data->fields, $result);
     }
 
     function fillDetails(&$data)
     {
-        /* Populate $fileds with the fields of 'set' or 'enum' subtype: only
-         * this fields have some detail to be filled */
-        $only_sets = create_function('$f', '$st=$f["subtype"];return $st=="set" || $st=="enum";');
-        $fields = array_filter($data->fields, $only_sets);
-        $in_clause = implode("','", array_keys($fields));
-
-        if (empty($in_clause)) {
-            // No set/enum fields found: no details to fill
-            return true;
-        } else {
-            $in_clause = "('" . $in_clause . "')";
-        }
-
-        $result =& $this->runQuery ('SELECT COLUMN_NAME, COLUMN_TYPE',
-                                    'FROM information_schema.COLUMNS',
-                                    'WHERE `TABLE_SCHEMA`=' . $this->prepareValue($this->_database),
-                                    'AND `TABLE_NAME`=' . $this->prepareValue($data->path),
-                                    'AND `COLUMN_NAME` IN ' . $in_clause);
+        $result =& $this->runQuery('SELECT COLUMN_NAME,COLUMN_DEFAULT,COLUMN_TYPE,EXTRA,COLUMN_COMMENT',
+                                   'FROM information_schema.COLUMNS',
+                                   'WHERE `TABLE_SCHEMA`=' . $this->prepareValue($this->_database),
+                                   'AND `TABLE_NAME`=' . $this->prepareValue($data->path));
         if (! $result) {
             return false;
         }
 
         while ($row = mysql_fetch_assoc($result)) {
-            $values = $row['COLUMN_TYPE'];
-            $open_brace = strpos($values, '(');
-            $close_brace = strrpos($values, ')');
-
-            if ($open_brace !== false && $close_brace > $open_brace) {
-                $id = $row['COLUMN_NAME'];
-                $values = substr($values, $open_brace+1, $close_brace-$open_brace-1);
-                $n = 0;
-                for ($token = strtok ($values, "',"); $token !== false; $token = strtok ("',")) {
-                    ++ $n;
-                    $data->fields[$id]['choice' . $n] = $token;
-                }
-
-                $data->fields[$id]['choices'] = $n;
+            $id = $row['COLUMN_NAME'];
+            if (! array_key_exists($id, $data->fields)) {
+                continue;
             }
+
+            $field =& $data->fields[$id];
+
+            // $field['default']
+            $field['default'] = @$row['COLUMN_DEFAULT'];
+            settype($field['default'], $field['type']);
+
+            // $field['automatic']
+            $field['automatic'] = strpos($row['EXTRA'], 'auto_increment') !== FALSE;
+
+            // $field['choices']
+            if ($field['subtype'] == 'set' || $field['subtype'] == 'enum') {
+                preg_match_all("/[(,]\s*'?((?(?<=')[^']*|[0-9.]*))[^,]*/", $row['COLUMN_TYPE'], $regex);
+                $field['choices'] = $regex[1];
+            } else {
+                $field['choices'] = null;
+            }
+
+            // $field['info']
+            $field['info'] = $row['COLUMN_COMMENT'];
         }
 
         return true;
     }
 
-    function& get($filter, &$data)
+    function& get(&$data, $filter)
     {
         if (($result =& $this->runQuery('SELECT * FROM', $this->prepareName($data->path), $filter)) === false) {
-            $fake_null = null;
-            return $fake_null;
+            $result = null;
+            return $result;
         }
 
-        $this->tryFillFields($result, $data);
+        $this->tryFillFields($data->fields, $result);
         $rows = array();
 
         while ($row = mysql_fetch_assoc($result)) {
@@ -306,11 +301,11 @@ class TIP_Mysql extends TIP_Data_Engine
         }
 
         // To free or not to free
-        // mysql_free_result($result);
+        mysql_free_result($result);
         return $rows;
     }
 
-    function insert(&$row, &$data)
+    function insert(&$data, &$row)
     {
         if ($this->runQuery('INSERT INTO',
                             $this->prepareName($data->path),
@@ -321,7 +316,7 @@ class TIP_Mysql extends TIP_Data_Engine
         return mysql_insert_id($this->_connection);
     }
 
-    function update($filter, &$row, &$data)
+    function update(&$data, $filter, &$row)
     {
         $fieldset = $this->prepareFieldset($row);
         if (empty($fieldset)) {
@@ -331,7 +326,7 @@ class TIP_Mysql extends TIP_Data_Engine
         return $this->runQuery('UPDATE', $this->prepareName($data->path), $fieldset, $filter);
     }
 
-    function delete($filter, &$data)
+    function delete(&$data, $filter)
     {
         return $this->runQuery('DELETE FROM', $this->prepareName($data->path), $filter);
     }
@@ -339,6 +334,6 @@ class TIP_Mysql extends TIP_Data_Engine
     /**#@-*/
 }
 
-return new TIP_Mysql;
+return 'TIP_Mysql';
 
 ?>

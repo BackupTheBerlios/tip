@@ -19,7 +19,7 @@ class TIP_Callback extends TIP
     /**#@+ @access private */
 
     var $_callback = null;
-    var $_params = array();
+    var $_args = array();
 
     function _defaultCallback()
     {
@@ -50,15 +50,15 @@ class TIP_Callback extends TIP
      * go() method when the callback is not set.
      *
      * @param mixed|callback $default The default return value or the default callback
-     * @param array|null     $params  If $default is a callback, the params to
-     *                                pass to the callback
+     * @param array|null     $args    If $default is a callback, the arguments
+     *                                to pass to the callback
      */
-    function TIP_Callback($default = true, $params = null)
+    function TIP_Callback($default = true, $args = null)
     {
         if (is_callable($default)) {
             $this->_callback =& $default;
-            if (is_array($params)) {
-                $this->_params =& $params;
+            if (is_array($args)) {
+                $this->_args =& $args;
             }
         } else {
             $this->_callback = array(&$this, '_defaultCallback');
@@ -69,18 +69,16 @@ class TIP_Callback extends TIP
     /**
      * Set a new callback
      *
-     * Sets a new callback. If $params is omitted, no parameters will be passed
-     * when calling the callback.
+     * Sets a new callback. If $args is omitted, no fallback arguments will be
+     * used when calling the callback.
      *
      * @param callback $callback The new callback
-     * @param array    $params   The parameters to pass to the callback
+     * @param array    $args     The arguments to pass to the callback
      */
-    function set($callback, $params = null)
+    function set($callback, $args = null)
     {
         $this->_callback =& $callback;
-        if (is_array($params)) {
-            $this->_params =& $params;
-        }
+        $this->_args = is_array($args) ? $args : array();
     }
 
     /**
@@ -90,19 +88,35 @@ class TIP_Callback extends TIP
      * callback is called; it simply returns the default return value specified
      * when constructing the callback.
      *
-     * If $params is not specified, the parameters specified by set() will be
-     * passed to the call.
+     * The arguments, if any, are passed to the callback. If no arguments are
+     * specified, the ones specified by set() will be used instead.
      *
-     * @param array $params Parameters to pass to the callback
      * @return mixed The callback return value
      */
-    function go($params = null)
+    function go()
     {
-        if (! is_array($params)) {
-            $params =& $this->_params;
+        $args = func_get_args();
+        if (empty($args)) {
+            $args = $this->_args;
         }
 
-        $this->result = call_user_func_array($this->_callback, $params);
+        $this->result = call_user_func_array($this->_callback, $args);
+        return $this->result;
+    }
+
+    /**
+     * Callback call with argument array
+     *
+     * Same as go(), but uses an array of arguments insead of specifing them
+     * directly in the argument list. Useful if you need to pass any of the
+     * arguments by reference.
+     *
+     * @param array $args An array of arguments
+     * @return mixed The callback return value
+     */
+    function goWithArray($args)
+    {
+        $this->result = call_user_func_array($this->_callback, $args);
         return $this->result;
     }
 

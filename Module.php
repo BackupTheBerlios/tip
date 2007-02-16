@@ -39,10 +39,11 @@ class TIP_Module extends TIP_Type
     {
         $this->TIP_Type();
 
-        $source_engine = $this->getOption('source_engine');
-        if (is_null($source_engine)) {
-            $source_engine = TIP::getOption('application', 'source_engine');
+        if (is_null($source_engine = $this->getOption('source_engine')) &&
+            is_null($source_engine = TIP::getOption('application', 'source_engine'))) {
+            return;
         }
+
         $this->engine =& TIP_Source_Engine::getInstance($source_engine);
     }
 
@@ -102,12 +103,33 @@ class TIP_Module extends TIP_Type
      */
     function getLocale($id)
     {
-        if (! $this->_locales) {
-            include_once TIP::buildLocalePath($locale, $this->getName() . '.php');
-            $this->_locales = $messages;
+        if (is_null($this->_locales)) {
+            $this->_locales = include_once TIP::buildLocalePath($this->getName() . '.php');
         }
 
         return @$this->_locales[$id];
+    }
+
+    /**
+     * Localize an id
+     *
+     * Similar to getLocale() but the result is stored in $dst instead of
+     * returning it. Also, it provides a way to prepend a prefix and append
+     * a suffix on $id before calling getLocale() by specifing them in the
+     * $modifiers array.
+     *
+     * Useful as callback in array_walk arguments.
+     *
+     * @param mixed     &$dst       Where to store the localized text
+     * @param string     $id        The id to localize
+     * @param array|null $modifiers A ('prefix','suffix') array
+     */
+    function localize(&$dst, $id, $modifiers = null)
+    {
+        if (is_array($modifiers)) {
+            $id = $modifiers[0] . $id . $modifiers[1];
+        }
+        $dst = $this->getLocale($id);
     }
 
     /**
@@ -550,25 +572,8 @@ class TIP_Module extends TIP_Type
     {
         $application =& $GLOBALS[TIP_MAIN_MODULE];
         $path = $this->buildModulePath($file);
-        $application->prependCallback(array(&$this, 'run'), array($path));
+        $application->prependCallback($this->callback('run', array($path)));
         return true;
-
-
-        $application =& $GLOBALS[TIP_MAIN_MODULE];
-        $path = $this->buildModulePath($file);
-        $application->insertCallback(array(&$this, 'run'), array($path));
-        return true;
-
-        $path = $this->buildModulePath($file);
-        $buffer = '';
-        $result = $this->runTo($path, $buffer);
-
-        if (! empty($buffer)) {
-            $content =& $GLOBALS[TIP_MAIN_MODULE]->content;
-            $content = $buffer . $content;
-        }
-
-        return $result;
     }
 
     /**
@@ -582,19 +587,8 @@ class TIP_Module extends TIP_Type
     {
         $application =& $GLOBALS[TIP_MAIN_MODULE];
         $path = $this->buildModulePath($file);
-        $application->appendCallback(array(&$this, 'run'), array($path));
+        $application->appendCallback($this->callback('run', array($path)));
         return true;
-
-
-        $path = $this->buildModulePath($file);
-        $buffer = '';
-        $result = $this->runTo($path, $buffer);
-        if (! empty($buffer)) {
-            $content =& $GLOBALS[TIP_MAIN_MODULE]->content;
-            $content .= $buffer;
-        }
-
-        return $result;
     }
 
     /**#@-*/
@@ -632,11 +626,11 @@ class TIP_Module extends TIP_Type
     /**
      * Get a module instance
      *
-     * Gets the singleton instance of a module. The $module_name, if not yet
-     * registered, is defined by calling TIP_Type::factory().
+     * Gets the singleton instance of a module using TIP_Module::singleton()
+     * calls.
      *
      * A module is instantiated by includind its logic file found in the
-     * 'logic_module_root' directory (relative to 'logic_root').
+     * 'modules' directory (relative to 'logic_root').
      *
      * To improve consistency, the $module_name is always converted lowercase.
      * This means also the logic file name must be lowecase.
@@ -651,24 +645,12 @@ class TIP_Module extends TIP_Type
         $id = strtolower($module_name);
         $instance =& TIP_Module::singleton($id);
         if (is_null($instance)) {
-            global $_tip_profiler;
-            if(is_object($_tip_profiler)) {
-                $_tip_profiler->enterSection(strtoupper($id));
-            }
-
-            $path = TIP::getOption('application', 'logic_module_root');
-            $instance =& TIP_Module::singleton($id, TIP_Type::factory($id, $path, $required));
+            $file = TIP::buildLogicPath('modules', $id) . '.php';
+            $instance =& TIP_Module::singleton($id, $file, $required);
             if (is_object($instance)) {
                 $instance->postConstructor();
-            } elseif ($required) {
-                TIP::logFatal("Module logic not valid (id: $id; path: $path)");
-            }
-
-            if(is_object($_tip_profiler)) {
-                $_tip_profiler->leaveSection(strtoupper($id));
             }
         }
-
         return $instance;
     }
 

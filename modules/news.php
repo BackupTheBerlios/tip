@@ -198,6 +198,6 @@ class TIP_News extends TIP_Block
     }
 }
 
-return new TIP_News;
+return 'TIP_News';
 
 ?>

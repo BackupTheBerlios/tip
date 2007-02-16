@@ -51,6 +51,6 @@ class TIP_Logger extends TIP_Block
     /**#@-*/
 }
 
-return new TIP_Logger;
+return 'TIP_Logger';
 
 ?>

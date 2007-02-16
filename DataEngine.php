@@ -21,13 +21,13 @@ class TIP_Data_Engine extends TIP_Type
     /**
      * Get a data engine
      *
-     * Gets the singleton instance of a data engine. The $data_engine,
-     * if not yet registered, is defined by calling TIP_Type::factory().
+     * Gets the singleton instance of a data engine using subsequential
+     * TIP_Data_Engine::singleton() calls.
      *
      * A data engine is instantiated by includind its logic file found in the
-     * 'logic_data_root' directory (relative to 'logic_root').
+     * 'data' directory (relative to 'logic_root').
      *
-     * To improve consistency, the $data_engine name is always converted
+     * To improve consistency, the data engine name is always converted
      * lowercase. This means also the logic file name must be lowecase.
      *
      * @param string $data_engine The data engine name
@@ -39,10 +39,9 @@ class TIP_Data_Engine extends TIP_Type
         $id = strtolower($data_engine);
         $instance =& TIP_Data_Engine::singleton($id);
         if (is_null($instance)) {
-            $path = TIP::getOption('application', 'logic_data_root');
-            $instance =& TIP_Data_Engine::singleton($id, TIP_Type::factory($id, $path));
+            $file = TIP::buildLogicPath('data', $id) . '.php';
+            $instance =& TIP_Data_Engine::singleton($id, $file);
         }
-
         return $instance;
     }
 
@@ -94,7 +93,7 @@ class TIP_Data_Engine extends TIP_Type
      *
      * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
      *
-     * @param TIP_Data $data The data context
+     * @param TIP_Data &$data The data context
      * @return bool TRUE on success or FALSE on errors
      */
     function fillFields(&$data)
@@ -118,7 +117,7 @@ class TIP_Data_Engine extends TIP_Type
      * <code>
      * function fillDetails (&$data);
      * {
-     *     return TRUE;
+     *     return true;
      * }
      * </code>
      *
@@ -140,21 +139,23 @@ class TIP_Data_Engine extends TIP_Type
      * resulting array must be:
      *
      * <code>
-     * $result = array (value of PrimaryKey1 => array (FieldId1 => value of FieldId1, ...),
-     *                  value of PrimaryKey2 => array (FieldId1 => value of FieldId1, ...),
-     *                  ...);
+     * $result = array(PrimaryKey1 => array(FieldId1 => value, FieldId2 => value ...),
+     *                 PrimaryKey2 => array(FieldId1 => value, FieldId2 => value ...),
+     *                 ...);
      * </code>
      *
      * The result must be an empty array if there's no matching rows.
+     * Furthermore, the value of the fields must be casted to the proper type.
+     * Consider using TIP_Data::forceFieldType() on every row.
      *
      * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
      *
-     * @param string    $filter The filter conditions
      * @param TIP_Data &$data   The data context
+     * @param string    $filter The filter conditions
      * @return array|null A reference to an array of rows matching the
      *                    specified conditions or null on errors
      */
-    function& get($filter, &$data)
+    function& get(&$data, $filter)
     {
         $this->logFatal('method TIP_Data_Engine::get() not implemented');
     }
@@ -172,12 +173,12 @@ class TIP_Data_Engine extends TIP_Type
      *
      * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
      *
-     * @param array    &$row  The new row
      * @param TIP_Data &$data The data context
+     * @param array    &$row  The new row
      * @return mixed|null The newly inserted primary key (usually an integer,
      *                    but can be any valid type) or null on errors
      */
-    function insert(&$row, &$data)
+    function insert(&$data, &$row)
     {
         $this->logFatal('method TIP_Data_Engine::insert() not implemented');
     }
@@ -191,12 +192,12 @@ class TIP_Data_Engine extends TIP_Type
      *
      * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
      *
+     * @param TIP_Data &$data   The data context
      * @param string    $filter The filter conditions
      * @param array    &$row    The field=>value pairs to update
-     * @param TIP_Data &$data   The data context
      * @return bool TRUE on success or FALSE on errors
      */
-    function update($filter, &$row, &$data)
+    function update(&$data, $filter, &$row)
     {
         $this->logFatal('method TIP_Data_Engine::update() not implemented');
     }
@@ -208,10 +209,11 @@ class TIP_Data_Engine extends TIP_Type
      *
      * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
      *
+     * @param TIP_Data &$data   The data context
      * @param string    $filter The filter conditions
      * @return \c TRUE on success, \c FALSE otherwise.
      */
-    function delete ($filter, &$data)
+    function delete (&$data, $filter)
     {
         $this->logFatal('method TIP_Data_Engine::delete() not implemented');
     }

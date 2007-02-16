@@ -153,6 +153,7 @@ class TIP_Application extends TIP_Module
         } elseif ($module_name) {
             $module =& TIP_Module::getInstance($module_name, false);
             if (is_object($module)) {
+                $this->keys['ACTION'] = $action;
                 $result = $module->callAction($action);
                 if (is_null($result)) {
                     $anonymous = is_null(TIP::getUserId());
@@ -173,20 +174,21 @@ class TIP_Application extends TIP_Module
         }
     }
 
-    function prependCallback($callback, $params = null)
+    function prependCallback(&$callback)
     {
-        array_unshift($this->_queue, new TIP_Callback($callback, $params));
+        array_unshift($this->_queue, null);
+        $this->_queue[0] =& $callback;
     }
 
-    function appendCallback($callback, $params = null)
+    function appendCallback(&$callback)
     {
-        $this->_queue[] =& new TIP_Callback($callback, $params);
+        $this->_queue[] =& $callback;
     }
 
     /**#@-*/
 }
 
 
-return new TIP_Application;
+return 'TIP_Application';
 
 ?>

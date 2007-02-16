@@ -73,6 +73,6 @@ class TIP_Bucket extends TIP_Data_Engine
     }
 }
 
-return new TIP_Bucket;
+return 'TIP_Bucket';
 
 ?>

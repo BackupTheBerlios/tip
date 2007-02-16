@@ -399,6 +399,6 @@ class TIP_Advertisement extends TIP_Block
     /**#@-*/
 }
 
-return new TIP_Advertisement;
+return 'TIP_Advertisement';
 
 ?>

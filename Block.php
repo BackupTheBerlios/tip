@@ -23,6 +23,21 @@ class TIP_Block extends TIP_Module
 
     var $_view_stack = array ();
 
+
+    function _editRow(&$row)
+    {
+        $form =& TIP_Module::getInstance('form');
+        if (! $form->make($this, $row) || ! $form->process()) {
+            $this->setError($form->resetError());
+            return false;
+        }
+
+        $application =& $GLOBALS[TIP_MAIN_MODULE];
+        $application->appendCallback($form->callback('render'));
+        return true;
+    }
+
+
     /**#@-*/
 
 
@@ -56,14 +71,11 @@ class TIP_Block extends TIP_Module
     {
         $this->TIP_Module();
 
-        $data_path = $this->getOption('data_path');
-        if (is_null($data_path)) {
-            $data_path = TIP::getOption('application', 'data_path') . $this->getName();
-        }
-
-        $data_engine = $this->getOption('data_engine');
-        if (is_null($data_engine)) {
-            $data_engine = TIP::getOption('application', 'data_engine');
+        if (is_null($data_path = $this->getOption('data_path')) &&
+            is_null($data_path = TIP::getOption('application', 'data_path') . $this->getName()) ||
+            is_null($data_engine = $this->getOption('data_engine')) &&
+            is_null($data_engine = TIP::getOption('application', 'data_engine'))) {
+            return;
         }
 
         $this->data =& TIP_Data::getInstance($data_path, $data_engine);
@@ -135,6 +147,7 @@ class TIP_Block extends TIP_Module
      */
     function commandDhtmlHierarchy($params)
     {
+        TIP_Type::getInstance('Hierarchy');
         $hierarchy =& TIP_Hierarchy::getInstance($this);
         $hierarchy->toDhtml();
         return true;
@@ -168,7 +181,7 @@ class TIP_Block extends TIP_Module
      */
     function& getCurrentRow()
     {
-        if (is_null($this->view)) {
+        if (! isset($this->view)) {
             $fake_null = null;
             return $fake_null;
         }
@@ -199,45 +212,19 @@ class TIP_Block extends TIP_Module
     /**
      * Get a field value
      *
-     * Gets a field content from the current row. If the field exists but its
-     * content is null, the value is converted in an empty string to avoid
-     * confusion between error and valid null value.
-     *
-     * If the field is not found but the current view is a special view
-     * (that is, it is a subclass of the standard TIP_View object), this method
-     * scans the view stack for the last view that was of TIP_View type and
-     * checks if $id is present in its fields before returning null.
-     * This because the special views are considered "weaks", that is their
-     * content is not made by real data fields.
+     * Gets a field content from the current row of the current view.
      *
      * @param string $id The field id
      * @return mixed|null The requested field content or null on errors
      */
     function getField($id)
     {
-        if (is_null($this->view)) {
+        if (! isset($this->view)) {
             return null;
         }
 
         $row =& $this->view->rowCurrent();
-        $value = @$row[$id];
-
-        if (is_null($value) && is_subclass_of($this->view, 'TIP_View')) {
-            $cnt = count($this->_view_stack)-1;
-
-            // Find the last non-special view
-            do {
-                if ($cnt <= 0) {
-                    return null;
-                }
-                $view =& $this->_view_stack[-- $cnt];
-            } while (is_subclass_of($view, 'TIP_View'));
-
-            $row = @current($view->rows);
-            $value = @$row[$id];
-        }
-
-        return $value;
+        return @$row[$id];
     }
 
     /**
@@ -261,10 +248,18 @@ class TIP_Block extends TIP_Module
      *
      * Getting an item performs some search operations with this priority:
      *
-     * - Current row fields
-     * - Summary values of the current view
-     * - Module keys
-     * - Application module keys
+     * - Try to get the field in the current row throught getField().
+     *
+     * - If the field is not found but the current view is a special view
+     *   (that is, it is a subclass of the standard TIP_View object), it
+     *   scans the view stack for the last view that was of TIP_View type and
+     *   checks if $id is present as a field in the current row.
+     *   This because the special views are considered "weaks", that is their
+     *   content is not built by real data fields.
+     *
+     * - Summary value of the current view throught getSummary().
+     *
+     * - Chain-up the parent method TIP_Module::getItem().
      *
      * The first succesful search operation will stop the sequence.
      *
@@ -274,12 +269,32 @@ class TIP_Block extends TIP_Module
     function getItem($id)
     {
         $value = $this->getField($id);
-        if (! is_null($value))
+        if (isset($value)) {
             return $value;
+        }
+
+        if (@is_subclass_of($this->view, 'TIP_View')) {
+            // Find the last non-special view
+            $stack =& $this->_view_stack;
+            end($stack);
+            do {
+                prev($stack);
+                $id = key($stack);
+            } while (isset($id) && is_subclass_of($stack[$id], 'TIP_View'));
+
+            if (isset($id)) {
+                $row = @current($stack[$id]->rows);
+                $value = @$row[$id];
+                if (isset($value)) {
+                    return $value;
+                }
+            }
+        }
 
         $value = $this->getSummary($id);
-        if (! is_null($value))
+        if (isset($value)) {
             return $value;
+        }
 
         return parent::getItem($id);
     }
@@ -292,9 +307,9 @@ class TIP_Block extends TIP_Module
 
         $application =& $GLOBALS[TIP_MAIN_MODULE];
         $path = $this->buildModulePath($file);
-        $application->prependCallback(array(&$this, 'pop'));
-        $application->prependCallback(array(&$this, 'run'), array($path));
-        $application->prependCallback(array(&$this, 'push'), array(&$this->view));
+        $application->prependCallback($this->callback('pop'));
+        $application->prependCallback($this->callback('run', array($path)));
+        $application->prependCallback($this->callback('push', array(&$this->view)));
         return true;
     }
 
@@ -306,112 +321,29 @@ class TIP_Block extends TIP_Module
 
         $application =& $GLOBALS[TIP_MAIN_MODULE];
         $path = $this->buildModulePath($file);
-        $application->appendCallback(array(&$this, 'push'), array(&$this->view));
-        $application->appendCallback(array(&$this, 'run'), array($path));
-        $application->appendCallback(array(&$this, 'pop'));
+        $application->appendCallback($this->callback('push', array(&$this->view)));
+        $application->appendCallback($this->callback('run', array($path)));
+        $application->appendCallback($this->callback('pop'));
         return true;
     }
 
-    /**
-     * Validates the posts
-     *
-     * Checks if the posts contain valid data, accordling to the data source of
-     * the module.
-     *
-     * @return bool true on success or false on errors
-     * @todo Check if the PEAR Validate package can substitute this too simple
-     *       interface
-     */
-    function validatePosts ()
+    function addRow()
     {
-	if (! $this->startSpecialView ('Fields')) {
-	    $this->logWarning ('No data to validate');
-	    return true;
-	}
-
-	$result = true;
-	while ($this->nextRow ()) {
-	    $row =& $this->getCurrentRow ();
-	    if (! array_key_exists ('importance', $row))
-		continue;
-
-	    $id =& $row['id'];
-	    $label = $this->getLocale ($id . '_label');
-	    $value = tip::getPost ($id, $row['type']);
-	    if ($row['importance'] == 1 && empty ($value)) {
-		TIP::error ('E_VL_REQUIRED', " ($label)");
-		$result = false;
-		break;
-	    }
-	    if ($row['mode'] == 'secret') {
-		$re_label = $this->getLocale ('re' . $id . '_label');
-		$re_value = TIP::getPost ("re$Id", $row['type']);
-		if ($row['importance'] == 1 && empty ($re_value)) {
-		    TIP::error ('E_VL_REQUIRED', " ($re_label)");
-		    $result = false;
-		    break;
-		} elseif ($value != $re_value) {
-		    TIP::error ('E_VL_DIFFER', " ($re_label)");
-		    $result = false;
-		    break;
-		}
-	    }
-	    $length = @$row['length'];
-	    if ($length > 0 && @strlen ($value) > $length) {
-		TIP::error ('E_VL_LENGTH', " ($label)");
-		$result = false;
-		break;
-	    }
-	    $validator = @$row['validator'];
-	    if (is_object ($validator) && ! $validator->go (array (&$row, &$value))) {
-		$result = false;
-		break;
-	    }
-	}
-
-	$this->endView ();
-	return $result;
+        $fake_null = null;
+        return $this->_editRow($fake_null);
     }
 
-    /**
-     * Stores the posts
-     *
-     * Stores the posts content in the specified row, accordling to the data
-     * source of the module. This method complements validatePosts() to manage
-     * the user modules: usually you must validate the posts and after store
-     * them in some place for further data operations (update or insert).
-     *
-     * @param array &$destination Where to store the posts
-     * @return bool true on success or false on errors
-     */
-    function storePosts (&$destination)
+    function editRow($row = null)
     {
-	if (! is_array ($destination)) {
-	    $this->logWarning ('Invalid destination to store data');
-	    return true;
-	}
-	if (! $this->startSpecialView ('Fields')) {
-	    $this->logWarning ('No data to store');
-	    return true;
-	}
+        if (is_null($row)) {
+            if (!isset($this->view) || is_null($row =& $this->view->rowCurrent())) {
+                $data_id = $this->data->path;
+                $this->setError("No current row to edit ($data_id)");
+                return false;
+            }
+        }
 
-	$result = true;
-	while ($this->nextRow ()) {
-	    $row =& $this->getCurrentRow ();
-	    if (array_key_exists ('importance', $row)) {
-		$id =& $row['id'];
-		$value = TIP::getPost ($id, 'string');
-		if (strlen ($value) == 0 && $row['can_be_null'])
-		    $destination[$id] = null;
-		elseif (settype ($value, $row['type']))
-		    $destination[$id] = $value;
-		else
-		    $this->logWarning ("Unable to cast '$value' to '$row[type]'");
-	    }
-	}
-
-	$this->endView ();
-	return $result;
+        return $this->_editRow($row);
     }
 
     /**#@-*/
@@ -462,7 +394,7 @@ class TIP_Block extends TIP_Module
         }
 
         $getInstance = $class_name . '::getInstance';
-        $instance = $getInstance($this->data);
+        $instance =& $getInstance($this->data);
         return $this->push($instance);
     }
 

@@ -43,11 +43,11 @@ class TIP_Source_Engine extends TIP_Type
     /**
      * Get a source engine
      *
-     * Gets the singleton instance of a source engine. The $source_engine, if not
-     * yet registered, is defined by calling TIP_Type::factory().
+     * Gets the singleton instance of a source engine using subsequential
+     * TIP_Data_Engine::singleton() calls.
      *
      * A source engine is instantiated by includind its logic file found in the
-     * 'logic_source_root' directory (relative to 'logic_root').
+     * 'sources' directory (relative to 'logic_root').
      *
      * To improve consistency, the $source_engine name is always converted
      * lowercase. This means also the logic file name must be lowecase.
@@ -61,10 +61,9 @@ class TIP_Source_Engine extends TIP_Type
         $id = strtolower($source_engine);
         $instance =& TIP_Source_Engine::singleton($id);
         if (is_null($instance)) {
-            $path = TIP::getOption('application', 'logic_source_root');
-            $instance =& TIP_Source_Engine::singleton($id, TIP_Type::factory($id, $path));
+            $file = TIP::buildLogicPath('sources', $id) . '.php';
+            $instance =& TIP_Source_Engine::singleton($id, $file);
         }
-
         return $instance;
     }
 

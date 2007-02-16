@@ -36,7 +36,7 @@ class TIP_View extends TIP_Type
         ++ $this->_row_index;
         $row['ROW']     = $this->_row_index;
         $row['ODDEVEN'] = ($this->_row_index & 1) > 0 ? 'odd' : 'even';
-        $this->on_row->go(array(&$row));
+        $this->on_row->goWithArray(array(&$row));
     }
 
     /**#@-*/
@@ -183,7 +183,8 @@ class TIP_View extends TIP_Type
         $id = $data->path . '.' . $filter;
         $instance =& TIP_View::singleton($id);
         if (is_null($instance)) {
-            $instance =& TIP_View::singleton($id, new TIP_View($filter, $data));
+            $instance =& new TIP_View($filter, $data);
+            TIP_View::singleton($id, array($id => &$instance));
         }
         return $instance;
     }
@@ -216,7 +217,7 @@ class TIP_View extends TIP_Type
         $this->_row_index = 0;
         array_walk($this->rows, array(&$this, '_row_callback'));
         $this->summaries['COUNT'] = $this->_row_index;
-        return $this->on_view->go(array(&$this)) && $this->rowUnset();
+        return $this->on_view->goWithArray(array(&$this)) && $this->rowUnset();
     }
 
     /**

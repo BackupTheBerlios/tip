@@ -26,6 +26,7 @@ define('TIP_MAIN_MODULE', '_tip_application');
 
 
 require_once 'config.php';
+require_once 'HTTP.php';
 
 
 /**
@@ -41,19 +42,18 @@ class TIP
 {
     /**#@+ @access private */
 
-    function getTyped ($id, $type, &$collection)
+    function getTyped($id, $type, &$collection)
     {
-	if (! array_key_exists ($id, $collection))
-	    return null;
+        $value = @$collection[$id];
+        if (is_null($value) || ! settype($value, $type)) {
+            return null;
+        }
 
-	$value =& $collection[$id];
-	if (! settype ($value, $type))
-	    return null;
+        if (! is_string($value) && ! is_array($value)) {
+            return $value;
+        }
 
-	if (is_string ($value) || is_array ($value))
-	    return get_magic_quotes_gpc () ? deepStripSlashes ($value) : $value;
-
-	return $value;
+        return get_magic_quotes_gpc() ? TIP::deepStripSlashes($value) : $value;
     }
 
     function getTimestamp($date, $format)
@@ -179,9 +179,9 @@ class TIP
      * @param array|string $value Array or string to add slashes
      * @return array|string The slashized copy of $value
      */
-    function deepAddSlashes ($value)
+    function deepAddSlashes($value)
     {
-	return is_array ($value) ? array_map (array ('TIP', 'deepAddSlashes'), $value) : addslashes ($value);
+        return is_array($value) ? array_map(array('TIP', 'deepAddSlashes'), $value) : addslashes($value);
     }
 
     /**
@@ -193,9 +193,9 @@ class TIP
      * @param array|string $value Array or string to strip slashes
      * @return array|string The unslashized copy of $value
      */
-    function deepStripSlashes ($value)
+    function deepStripSlashes($value)
     {
-	return is_array ($value) ? array_map (array ('TIP', 'deepStripSlashes'), $value) : stripslashes ($value);
+        return is_array($value) ? array_map(array('TIP', 'deepStripSlashes'), $value) : stripslashes($value);
     }
 
     /**
@@ -289,9 +289,9 @@ class TIP
      * @return mixed|null The content of the requested cookie or null on errors
      * @see getGet(),getPost()
      */
-    function getCookie ($id, $type)
+    function getCookie($id, $type)
     {
-	return TIP::getTyped ($id, $type, $_COOKIE);
+        return TIP::getTyped($id, $type, $_COOKIE);
     }
 
 
@@ -519,14 +519,7 @@ class TIP
     {
         static $base_url = null;
         if (is_null($base_url)) {
-            $base_url = 'on' == @$_SERVER['HTTPS'] ? 'https://' : 'http://';
-            $base_url .= isset($_SERVER['HTTP_HOST']) ? $_SERVER['HTTP_HOST'] : getenv('HTTP_HOST');
-            $path_info = isset($_SERVER['PATH_INFO']) ? $_SERVER['PATH_INFO'] : getenv('PATH_INFO');
-            if (empty($path_info)) {
-                $path_info = isset($_SERVER['SCRIPT_NAME']) ? $_SERVER['SCRIPT_NAME'] : getenv('SCRIPT_NAME');
-            }
-            $base_url .= str_replace('\\', '/', dirname($path_info));
-            $base_url = rtrim($base_url, ' /');
+            $base_url = rtrim(HTTP::absoluteURI('/'), ' /');
         }
 
         return TIP::deepImplode(array($base_url, func_get_args()), '/');
@@ -636,23 +629,21 @@ class TIP
         $anonymous = is_null($user_id) || $user_id === false;
         if (! $anonymous) {
             $privilege =& TIP_Module::getInstance('privilege');
-
-            $anonymous = ! is_object($privilege);
-            if (! $anonymous) {
+            if (is_object($privilege)) {
                 $stored_privilege = $privilege->getStoredPrivilege($module, $user_id);
-                if ($stored_privilege !== false) {
+                if (! is_null($stored_privilege)) {
                     return $stored_privilege;
                 }
             }
         }
 
         $privilege_type = $anonymous ? 'anonymous_privilege' : 'default_privilege';
-        $privilege = $module->getOption($privilege_type);
-        if (is_null($privilege)) {
-            $privilege = TIP::getOption('application', $privilege_type);
+        $result = $module->getOption($privilege_type);
+        if (is_null($result)) {
+            $result = TIP::getOption('application', $privilege_type);
         }
 
-        return $privilege;
+        return $result;
     }
 
     /**#@-*/
@@ -666,7 +657,6 @@ require_once 'DataEngine.php';
 require_once 'Data.php';
 require_once 'View.php';
 require_once 'Block.php';
-require_once 'Hierarchy.php';
 
 
 /**

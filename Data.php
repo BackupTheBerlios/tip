@@ -24,7 +24,18 @@ class TIP_Data extends TIP_Type
     /**#@+ @access private */
 
     /**
-     * Has the $engine->fillDetails() function been called?
+     * The data engine
+     *
+     * This must be a reference to an implementation of TIP_Data_Engine. It
+     * provides the needed interface to access the data.
+     * This field is filled by the TIP_Data during this class instantiation.
+     *
+     * @var TIP_Data_Engine
+     */
+    var $_engine = null;
+
+    /**
+     * Has the $this->_engine->fillDetails() function been called?
      *
      * @var bool
      */
@@ -36,7 +47,7 @@ class TIP_Data extends TIP_Type
         $this->TIP_Type();
 
         $this->path = $path;
-        $this->engine =& TIP_Data_Engine::getInstance($engine);
+        $this->_engine =& TIP_Data_Engine::getInstance($engine);
     }
 
     /**#@-*/
@@ -69,17 +80,6 @@ class TIP_Data extends TIP_Type
      * @var string
      */
     var $path = null;
-
-    /**
-     * The data engine
-     *
-     * This must be a reference to an implementation of TIP_Data_Engine. It
-     * provides the needed interface to access the data.
-     * This field is filled by the TIP_Data during this class instantiation.
-     *
-     * @var TIP_Data_Engine
-     */
-    var $engine = null;
 
     /**
      * The primary key field
@@ -120,7 +120,7 @@ class TIP_Data extends TIP_Type
      * match the specified filter. If $condition is not specified, it defaults
      * to '=' (equal).
      *
-     * @param string $name      The field id
+     * @param string $name      A field id
      * @param mixed  $value     The reference value
      * @param string $condition The condition to apply
      * @return string The requested filter in the proper engine format
@@ -128,14 +128,30 @@ class TIP_Data extends TIP_Type
     function filter($name, $value, $condition = '=')
     {
         // Special condition
-        if (is_null($value) && stripos('is',$condition) === FALSE) {
+        if (is_null($value) && strpos('is', strtolower($condition)) === FALSE) {
             $condition = $condition == '=' ? 'IS' : 'IS NOT';
         }
 
-        return 'WHERE ' .
-            $this->engine->prepareName($name) .
-            $condition .
-            $this->engine->prepareValue($value);
+        $name = $this->_engine->prepareName($name);
+        $value = $this->_engine->prepareValue($value);
+        return 'WHERE ' . $name . $condition . $value;
+    }
+
+    /**
+     * Create a basic order clause
+     *
+     * Builds the order clause (in the proper engine format) to sort the rows
+     * using the specified field.
+     *
+     * @param string $name       A field id
+     * @param bool   $descending true for descending order
+     * @return string The requested order clause in the proper engine format
+     */
+    function order($name, $descending = false)
+    {
+        $name = $this->_engine->prepareName($name);
+        $tail = $descending ? ' DESC' : '';
+        return 'ORDER BY ' . $name . $tail;
     }
 
     /**
@@ -171,9 +187,10 @@ class TIP_Data extends TIP_Type
      *		'can_be_null' => true or false,
      * 
      *      // Filled by TIP_Data_Engine::fillDetails()
-     *		'choices'     => the number of choices for 'set' or 'enum' subtypes,
-     *		'choice1'     => the first choice,
-     *		'choice2'     => the second choice,
+     *      'default'     => default value,
+     *      'automatic    => true if the field is set by the server,
+     *		'choices'     => array of valid values for 'set' or 'enum' subtypes,
+     *		'info'        => a string of custom informations
      *		...),
      *
      *   ...);
@@ -185,11 +202,11 @@ class TIP_Data extends TIP_Type
     function& getFields($detailed = true)
     {
         if (is_null($this->fields)) {
-            $this->engine->fillFields($this);
+            $this->_engine->fillFields($this);
         }
 
         if ($detailed && ! $this->_detailed) {
-            $this->engine->fillDetails($this);
+            $this->_engine->fillDetails($this);
             $this->_detailed = true;
         }
 
@@ -203,15 +220,15 @@ class TIP_Data extends TIP_Type
      * structure in this context to be of the type specified by getFields().
      * The type forcing is done using settype().
      *
-     * @param array $row The row to cast
+     * @param array &$row The row to cast
      */
     function forceFieldType(&$row)
     {
         $fields =& $this->getFields(false);
 
         foreach ($fields as $id => $field) {
-            if (array_key_exists($id, $row)) {
-                if ($row[$id] == '' && $field['can_be_null']) {
+            if (! is_null(@$row[$id])) {
+                if ($row[$id] === '' && $field['can_be_null']) {
                     $row[$id] = null;
                 } else {
                     settype ($row[$id], $field['type']);
@@ -230,7 +247,7 @@ class TIP_Data extends TIP_Type
      */
     function& getRow($id)
     {
-        return $this->engine->get($this->rowFilter($id), $this);
+        return $this->_engine->get($this, $this->rowFilter($id));
     }
 
     /**
@@ -250,7 +267,7 @@ class TIP_Data extends TIP_Type
      */
     function& getRows($filter)
     {
-        return $this->engine->get($filter, $this);
+        return $this->_engine->get($this, $filter);
     }
 
 
@@ -275,7 +292,7 @@ class TIP_Data extends TIP_Type
             unset($row[$this->primary_key]);
         }
 
-        $id = $this->engine->insert($row, $this);
+        $id = $this->_engine->insert($this, $row);
         if (is_null($id)) {
             return false;
         }
@@ -290,41 +307,35 @@ class TIP_Data extends TIP_Type
     /**
      * Update one row
      *
-     * Updates the row matching the primary key of $old_row with the $new_row
-     * content. Only the fields that are presents in $new_row and that differs
-     * from $old_row are updated. Obviously, if $old_row and $new_row are
-     * equals no update operations are performed.
+     * Updates the row matching $id.
      *
-     * This function is quite different from the other because require an array
-     * instead of a filter string or a row id. This is done to allow a check
-     * between the old and new row content, trying to avoid the update operation.
+     * If $id is an array, the primary key of $id will be used as filter. In
+     * this case, only the fields that are presents in $id and that differs
+     * from $id are updated. Obviously, if $id and $row are equals, no
+     * update operations are performed.
      *
-     * @param array &$old_row The old row
-     * @param array &$new_row The new row
+     * The possibility to pass an array in $id is done to allow a check between
+     * the old and new row content, trying to avoid the update operation.
+     *
+     * @param mixed|array $id  The id of the row to update or the whole row content
+     * @param array      &$row The new row
      */
-    function updateRow(&$old_row, &$new_row)
+    function updateRow($id, &$row)
     {
-        $old_id = @$old_row[$this->primary_key];
-
-        // No primary key found: error
-        if (is_null($old_id)) {
-            $this->logWarning('Undefined row to update');
+        if (is_null($id) || is_array($id) && ! array_key_exists($this->primary_key, $id)) {
+            $this->logError('Undefined row to update');
             return false;
         }
 
-        $fields = $this->getFields(false);
-        $delta_row = false;
-        foreach (array_keys ($fields) as $id) {
-            if (@$old_row[$id] != @$new_row[$id])
-                $delta_row[$id] = $new_row[$id];
-        }
-
-        if (! $delta_row) {
+        $keys = array_keys($this->getFields(false));
+        $set = is_array($id) ? array_diff_assoc($row, $id) : $row;
+        $set = array_flip(array_intersect(array_flip($set), $keys));
+        if (empty($set)) {
             return true;
         }
 
-        $filter = $this->rowFilter($old_id);
-        return $this->engine->update($filter, $delta_row, $this);
+        $filter = $this->rowFilter(is_array($id) ? $id[$this->primary_key] : $id);
+        return $this->_engine->update($this, $filter, $set);
     }
 
     /**
@@ -350,7 +361,7 @@ class TIP_Data extends TIP_Type
             return false;
         }
 
-        return $this->update($filter, $row, $this);
+        return $this->_engine->update($this, $filter, $row);
     }
 
     /**
@@ -362,7 +373,7 @@ class TIP_Data extends TIP_Type
      */
     function deleteRow($id)
     {
-        return $this->engine->delete($this->rowFilter($id), $this);
+        return $this->_engine->delete($this, $this->rowFilter($id));
     }
 
     /**
@@ -385,7 +396,7 @@ class TIP_Data extends TIP_Type
             return false;
         }
 
-        return $this->engine->delete($filter, $this);
+        return $this->_engine->delete($this, $filter);
     }
 
     /**#@-*/

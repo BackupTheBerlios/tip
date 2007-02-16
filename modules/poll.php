@@ -18,15 +18,6 @@ class TIP_Poll extends TIP_Block
 {
     /**#@+ @access private */
 
-    function TIP_Poll()
-    {
-        $this->TIP_Block();
-
-        $view =& $this->startView('ORDER BY ' . $this->data->engine->prepareName('date') . ' DESC LIMIT 1');
-        $view->rowReset();
-        // No endView() call to retain this row as default row
-    }
-
     function onRow(&$row)
     {
         $total = $row['votes1']+$row['votes2']+$row['votes3']+$row['votes4']+$row['votes5']+$row['votes6'];
@@ -133,6 +124,6 @@ class TIP_Poll extends TIP_Block
     /**#@-*/
 }
 
-return new TIP_Poll;
+return 'TIP_Poll';
 
 ?>

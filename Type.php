@@ -48,37 +48,76 @@ class TIP_Type extends TIP
     }
 
     /**
+     * Get the name of an instantiated type
+     *
+     * Returns the name of the current - instantiated - type. This function
+     * simply gets the class name (in lowercase) and strips the TIP_PREFIX
+     * from the string.
+     *
+     * The result is converted to lowecase to avoid discrepancies between
+     * different PHP versions.
+     *
+     * @return string The type name
+     */
+    function getName()
+    {
+        return $this->_name;
+    }
+
+    /**
      * Singleton method
      *
-     * Manages the singleton register. This static method can be used in three
-     * different modes:
+     * Manages the singletons. It keeps a static array where you can get the
+     * singleton instances with the $id key. Not providing the $id argument, a
+     * reference to the array itsself is returned. You can add more items by
+     * specifing them in $instance in the following allowed ways:
      *
-     * - singleton()               returns the register content
-     * - singleton($id)            gets the singleton of $id
-     * - singleton($id, $instance) stores a singleton in the register and
-     *                             returns a reference to the singleton
+     * - string $instance The new $id singleton is created throught a
+     *                    TIP_Type::factory() call passing $instance as
+     *                    file argument
+     * - object $instance The $id singleton is created with this instance
+     * - array  $instance The associative array $instance is appended "as is"
+     *                    to the register
      *
-     * @param mixed  $id       The id of the singleton
-     * @param object $instance The instance to register
-     * @return array|mixed|null The register content, a singleton reference or
-     *                          null on errors, depending on the used mode
+     * WARNING: you can't append singletons by reference using the object mode.
+     * Specify in $instance array('id' => &$instance) instead.
+     *
+     * @param mixed|array         $id       The id of the singleton to retrieve
+     * @param string|object|array $instance The instance to store in the register
+     * @param bool                $required Are the errors fatal?
+     * @return array|mixed|null The singleton register, the singleton of $id
+     *                          or null on errors
      * @static
      */
-    function& singleton($id = null, $instance = null)
+    function& singleton($id = null, $instance = null, $required = true)
     {
         static $register = array();
 
         if (is_null($id)) {
-            $instance =& $register;
+            return $register;
         } elseif (is_null($instance)) {
             if (array_key_exists($id, $register)) {
-                $instance =& $register[$id];
+                return $register[$id];
+            } else {
+                return $instance; // <= return null
             }
-        } else {
-            $register[$id] =& $instance;
         }
 
-        return $instance;
+        if (is_string($instance)) {
+            $register[$id] =& TIP_Type::factory($instance);
+            if (! $register[$id] && $required) {
+                TIP::logFatal("unable to include logic file ($instance)");
+            }
+            return $register[$id];
+        } elseif (is_array($instance)) {
+            $register += $instance;
+            return $register[$id];
+        } elseif (is_object($instance)) {
+            return $register[$id] =& $instance;
+        }
+
+        TIP::logFatal('unhandled instance type (' . gettype($instance) . ')');
+
     }
 
     /**
@@ -86,43 +125,31 @@ class TIP_Type extends TIP
      *
      * The base of the TIP plug-in system: include dinamically a definition
      * file (called logic), allowing to build a real modular environement.
-     * The file name included is <code>$id . '.php'</code> and will be searched
-     * in $path (relative to the 'logic_root' application option).
      *
-     * For instantiable types, the instance is the return type of include_once:
-     * at the end of every logic file you must return an instantiated object.
+     * For instantiable types, the return type of include_once must return the
+     * class name to instantiate: at the end of every logic file you must
+     * return a string with the class name to instantiate.
      * For example, at the end of the TIP_Application logic you must have
      *
-     * <code>return new TIP_Application;</code>
+     * <code>return 'TIP_Application';</code>
      *
      * For non-instantiable types you must omit the return statement: the
      * default return value for include_once will be used instead.
      *
-     * @param mixed $id       The id of the type
-     * @param array $path     The path where to search for
-     * @param bool  $required Are the errors fatals?
+     * @param array  $file     The logic file
      * @return TIP_Type|bool A reference to the instance or true if $id is not
      *                       instantiable but the logic is properly included,
      *                       false on errors
      * @static
      */
-    function& factory($id, $path = null, $required = true)
+    function& factory($file)
     {
-        if (is_null($path)) {
-            $file = TIP::buildLogicPath($id) . '.php';
-        } else {
-            $file = TIP::buildLogicPath($path, $id) . '.php';
+        $result = @include_once $file;
+        if (is_string($result)) {
+            $result =& new $result;
         }
 
-        $instance = include_once $file;
-        if (! $instance && $required) {
-            TIP::logFatal("Unable to include file ($file)");
-        }
-        if (is_null($instance)) {
-            TIP::logFatal("Unexpected null from the logic ($file)");
-        }
-
-        return $instance;
+        return $result;
     }
 
     /**
@@ -143,7 +170,7 @@ class TIP_Type extends TIP
     }
 
     /**
-     * Gets an option for the current instance
+     * Get an option for the current instance
      *
      * Wrappers the more general TIP::getOption() function without the need to
      * specify the type.
@@ -157,20 +184,18 @@ class TIP_Type extends TIP
     }
 
     /**
-     * Gets the name of an instantiated type
+     * Create a TIP_Callback
      *
-     * Returns the name of the current - instantiated - type. This function
-     * simply gets the class name (in lowercase) and strips the TIP_PREFIX
-     * from the string.
+     * Shortcut to build a TIP_Callback from a method of this class.
      *
-     * The result is converted to lowecase to avoid discrepancies between
-     * different PHP versions.
-     *
-     * @return string The type name
+     * @param string     $method The method name
+     * @param array|null $args   The arguments to pass to the callback if the
+     *                           callback is called without arguments
      */
-    function getName()
+    function& callback($method, $args = null)
     {
-        return $this->_name;
+        $callback =& new TIP_Callback(array(&$this, $method), $args);
+        return $callback;
     }
 
     /**
@@ -228,9 +253,9 @@ class TIP_Type extends TIP
     {
         $instance =& TIP_Type::singleton($id);
         if (is_null($instance)) {
-            $instance =& TIP_Type::singleton($id, TIP_Type::factory($id));
+            $file = TIP::buildLogicPath($id) . '.php';
+            $instance =& TIP_Type::singleton($id, $file);
         }
-
         return $instance;
     }
 

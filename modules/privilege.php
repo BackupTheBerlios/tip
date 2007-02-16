@@ -282,6 +282,6 @@ class TIP_Privilege extends TIP_Block
     /**#@-*/
 }
 
-return new TIP_Privilege;
+return 'TIP_Privilege';
 
 ?>

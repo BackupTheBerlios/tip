@@ -124,6 +124,6 @@ class TIP_Notify extends TIP_Block
     /**#@-*/
 }
 
-return new TIP_Notify;
+return 'TIP_Notify';
 
 ?>

@@ -72,6 +72,6 @@ class TIP_News_Comment extends TIP_Block
   }
 }
 
-return new TIP_News_Comment;
+return 'TIP_News_Comment';
 
 ?>

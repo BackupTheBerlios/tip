@@ -29,108 +29,53 @@ class TIP_User extends TIP_Block
 {
     /**#@+ @access private */
 
-    var $_old_row = false;
+    var $_old_row = null;
+    var $_new_row = null;
 
 
     function _login()
     {
-        if (! $this->_activateUser())
-            return false;
-
-        $this->refreshPrivileges();
-
+        $row =& $this->view->rowCurrent();
+        $this->_activateUser($row);
         $expiration = strtotime($this->getOption('expiration'));
-        setcookie('usrid', $this->new_row['id'], $expiration);
-        setcookie('usrpwd', crypt ($this->new_row['password']), $expiration);
-        return true;
+        setcookie('usrid', $row['id'], $expiration);
+        setcookie('usrpwd', crypt($row['password']), $expiration);
     }
 
     function _logout()
     {
-        $this->_old_row = false;
-        $this->new_row = false;
-        $this->keys['CID'] = null;
-
-        $this->refreshPrivilege();
-
+        $fake_null = null;
+        $this->_activateUser($fake_null);
         setcookie('usrid', '', time()-3600);
         setcookie('usrpwd', '', time()-3600);
-        return true;
     }
 
-    function _activateUser($row = null)
+    function _activateUser(&$row)
     {
+        $this->_new_row =& $row;
+        $this->_old_row = $this->_new_row;
+
         if (is_null($row)) {
-            $this->new_row =& $this->view->rowCurrent();
+            $this->keys['CID'] = null;
         } else {
-            $this->new_row =& $row;
+            $this->keys['CID'] = $row['id'];
+            $row['_hits'] ++;
+            $row['_lasthit'] = TIP::formatDate('datetime_iso8601');
         }
 
-        $this->_old_row = $this->new_row;
-        if (is_null($this->new_row)) {
-            $this->logWarning('No current user to activate');
-            return false;
-        }
-
-        $this->keys['CID'] = @$this->new_row['id'];
+        // Refresh the new user id cache
         TIP::getUserId(true);
 
+        // Refresh the privileges of the yet loaded modules
         $modules =& TIP_Module::singleton();
-        foreach (array_keys($modules) as $module_name) {
-            $module =& $modules[$module_name];
-            $module->refreshPrivilege();
+        foreach (array_keys($modules) as $id) {
+            $modules[$id]->refreshPrivilege();
         }
-
-        $this->new_row['_hits'] ++;
-        $this->new_row['_lasthit'] = TIP::formatDate('datetime_iso8601');
-        return true;
     }
 
     function _onRow(&$row)
     {
         $row['OA'] = $row['sex'] == 'female' ? 'a' : 'o';
-    }
-
-    function _onFieldsView(&$view)
-    {
-        $fields = array (
-            'user'          => array (
-                'mode'      => 'entry',
-                'importance'=> 1,
-                'validator' => new TIP_Callback(array(&$this, 'ValidateUser'))),
-
-            'password'      => array (
-                'mode'      => 'secret',
-                'importance'=> 1),
-
-            'publicname'    => array (
-                'mode'      => 'entry',
-                'importance'=> 2,
-                'validator' => new TIP_Callback(array (&$this, 'ValidatePublicName'))),
-            
-            'sex'           => array (
-                'mode'      => 'choice',
-                'importance'=> 2),
-
-            'email'         => array (
-                'mode'	    => 'entry',
-                'importance'=> 2),
-
-            'mail'          => array (
-                'mode'      => 'entry',
-                'importance'=> 3),
-
-            'mobile'		=> array (
-                'mode'	    => 'entry',
-                'importance'=> 3),
-
-            'phone'		    => array (
-                'mode'	    => 'entry',
-                'importance'=> 3)
-            );
-
-        $view->rows = array_merge_recursive($fields, $view->rows);
-        return true;
     }
 
     /**#@-*/
@@ -147,7 +92,7 @@ class TIP_User extends TIP_Block
             return;
 
         $crypted_password = TIP::getCookie('usrpwd', 'string');
-        if (empty($crypted_password)) {
+        if (is_null($crypted_password)) {
             return;
         }
 
@@ -171,9 +116,8 @@ class TIP_User extends TIP_Block
             return;
         }
 
-        $this->_activateUser($row);
         // No endView() call to retain this query as the default one
-
+        $this->_activateUser($row);
         register_shutdown_function (array (&$this, 'updateUser'));
     }
 
@@ -210,7 +154,7 @@ class TIP_User extends TIP_Block
                         $advertisement->data->deleteRows($filter);
                     }
 
-                    if ($id == @$this->new_row['id'])
+                    if ($id == @$this->_new_row['id'])
                         $this->_logout ();
 
                     TIP::info ('I_DONE');
@@ -253,23 +197,20 @@ class TIP_User extends TIP_Block
              * Logout the current user (if any).
              */
         case 'unset':
-            return $this->_logout ();
+            $this->_logout();
+            return true;
 
             /* \trustedaction <b>edit</b>\n
              * Requests the modification of the current user profile.
              */
         case 'edit':
-            return $this->appendToContent('module.src');
+            return $this->editRow();
 
             /* \trustedaction <b>doedit</b>\n
              * Modifies the current user profile with the data found in $_POST.
              */
         case 'doedit':
-            if (! $this->ValidatePosts ())
-                return $this->AppendToContent ('module.src');
-            if (! $this->StorePosts ($this->new_row))
-                return false;
-            return $this->_onRow ($this->new_row);
+            return false;
         }
 
         return parent::runTrustedAction ($action);
@@ -284,47 +225,41 @@ class TIP_User extends TIP_Block
              * $_POST['user'] and $_POST['password'].
              */
         case 'set':
-            $User = TIP::GetPost ('user', 'string');
-            if (empty ($User))
-            {
-                $Label = $this->GetLocale ('user_label');
-                TIP::error ('E_VL_REQUIRED', " ($Label)");
+            $user = TIP::getPost('user', 'string');
+            if (empty($user)) {
+                $label = $this->getLocale('user_label');
+                TIP::error ('E_VL_REQUIRED', " ($label)");
                 return false;
             }
 
-            $password = TIP::GetPost ('password', 'string');
-            if (empty ($password))
-            {
-                $Label = $this->GetLocale ('password_label');
-                TIP::error('E_VL_REQUIRED', " ($Label)");
+            $password = TIP::getPost('password', 'string');
+            if (empty($password)) {
+                $label = $this->getLocale('password_label');
+                TIP::error('E_VL_REQUIRED', " ($label)");
                 return false;
             }
 
-            $this->DATA_ENGINE->Querify ($User, $this);
-            if (! $this->StartView ("WHERE `user`=$User"))
-            {
+            $filter = $this->data->filter('user', $user);
+            if (! $this->startView($filter)) {
                 TIP::error('DB_SELECT');
                 return false;
             }
 
-            if ($this->RowsCount () < 1)
-            {
-                TIP::error ('U_NOTFOUND');
-                $this->EndView ();
+            if (! $this->view->rowReset()) {
+                $this->endQuery();
+                TIP::error('U_NOTFOUND');
                 return false;
             }
 
-            $this->ResetRow ();
-            $Row =& $this->GetCurrentRow ();
-            if ($Row['password'] != $password)
-            {
-                TIP::error ('U_PWINVALID');
-                $this->EndView ();
+            if ($this->getField('password') != $password) {
+                $this->endQuery();
+                TIP::error('U_PWINVALID');
                 return false;
             }
 
             // No EndView() call to retain this row as default row
-            return $this->_login ();
+            $this->_login();
+            return true;
 
             /*
              * \untrustedaction <b>condition</b>\n
@@ -358,29 +293,16 @@ class TIP_User extends TIP_Block
         return $this->push($view);
     }
 
-    function& startSpecialView($name)
-    {
-        if (strcasecmp($name, 'FIELDS') != 0) {
-            return parent::startSpecialView($name);
-        }
-
-        $view =& TIP_Fields_View::getInstance($this->data);
-        $view->on_view->set(array('TIP_User', '_onFieldsView'));
-        return $this->push($view);
-    }
-
     /**#@-*/
 
 
     /**#@+ @access public */
 
-    var $new_row = false;
-
-
     function updateUser ()
     {
-        if (is_array ($this->_old_row) && is_array ($this->new_row))
-            $this->data->updateRow ($this->_old_row, $this->new_row);
+        if (is_array($this->_old_row) && is_array($this->_new_row)) {
+            $this->data->updateRow($this->_old_row, $this->_new_row);
+        }
     }
 
     function ValidateUser (&$Field, $Value)
@@ -397,7 +319,7 @@ class TIP_User extends TIP_Block
 
         if (@$this->keys['CID'] != $user_id)
         {
-            TIP::error ('E_VL_GENERIC', $this->GetLocale ('user_validator'));
+            TIP::error ('E_VL_GENERIC', $this->getLocale('user_validator'));
             return false;
         }
 
@@ -418,7 +340,7 @@ class TIP_User extends TIP_Block
 
         if (@$this->keys['CID'] != $user_id)
         {
-            TIP::error ('E_VL_GENERIC', $this->GetLocale ('publicname_validator'));
+            TIP::error ('E_VL_GENERIC', $this->getLocale ('publicname_validator'));
             return false;
         }
 
@@ -428,6 +350,6 @@ class TIP_User extends TIP_Block
     /**#@-*/
 }
 
-return new TIP_User;
+return 'TIP_User';
 
 ?>

@@ -19,38 +19,41 @@ class TIP_Hierarchy extends TIP_Block
 {
     /**#@+ @access protected */
 
-    var $master = null;
-    var $model = null;
+    var $_block = null;
+    var $_model = null;
 
 
     /**
      * Constructor
      *
      * Initializes a TIP_Hierarchy instance. This class provides a pseudo
-     * block that manages a hierarchy of a real block module.
+     * block that manages a hierarchy of a real block, called master.
      *
      * The data path is read from
-     * <code>$cfg[$master->getName()]['hierarchy_path']</code>.
+     * <code>$cfg[masterblockname]['hierarchy_path']</code>.
      * If not specified, it defaults to
-     * <code>$cfg[$master->getName()]['data_path'] . '_hierarchy'</code>.
+     * <code>$cfg[masterblockname]['data_path'] . '_hierarchy'</code>.
      *
-     * The data engine is the same of the master module.
+     * The data engine is the same used by the master block.
      *
-     * @param TIP_Block &$master The master module
+     * @param TIP_Block &$block The master block
      */
-    function TIP_Hierarchy(&$master)
+    function TIP_Hierarchy(&$block)
     {
-        $this->TIP_Module ();
+        /* The data engine is initialized here, so no needs to call the
+         * TIP_Block constructor */
+        $this->TIP_Block ();
 
-        $this->master =& $master;
-        $this->model =& new HTML_TreeMenu ();
+        $this->_block =& $block;
+        $this->_model =& new HTML_TreeMenu ();
 
-        $data_path = $master->getOption('hierarchy_path');
-        if (is_null($data_path)) {
-            $data_path = $master->data->path . '_hierarchy';
+        if (is_null($data_path = $block->getOption('hierarchy_path')) &&
+            is_null($data_path = $block->data->path . '_hierarchy') ||
+            is_null($data_engine = $block->getOption('data_engine')) &&
+            is_null($data_engine = TIP::getOption('application', 'data_engine'))) {
+            return;
         }
 
-        $data_engine = $master->data->engine->getName();
         $this->data =& TIP_Data::getInstance($data_path, $data_engine);
     }
 
@@ -91,7 +94,7 @@ class TIP_Hierarchy extends TIP_Block
                 $parent_tree_node->expanded = false;
                 $parent_tree_node->link = '';
             } else {
-                $this->model->addItem($tree_node);
+                $this->_model->addItem($tree_node);
             }
         }
 
@@ -99,24 +102,6 @@ class TIP_Hierarchy extends TIP_Block
     }
 
     /**#@-*/
-
-
-    function TIP_Block()
-    {
-        $this->TIP_Module();
-
-        $data_path = $this->getOption('data_path');
-        if (is_null($data_path)) {
-            $data_path = TIP::getOption('application', 'data_path') . $this->getName();
-        }
-
-        $data_engine = $this->getOption('data_engine');
-        if (is_null($data_engine)) {
-            $data_engine = TIP::getOption('application', 'data_engine');
-        }
-
-        $this->data =& TIP_Data::getInstance($data_path, $data_engine);
-    }
 
 
     /**#@+ @access public */
@@ -129,34 +114,36 @@ class TIP_Hierarchy extends TIP_Block
     /**
      * Get a hierarchy instance
      *
-     * Gets the singleton hierarchy instance of a block.
+     * Gets the singleton hierarchy instance of a block. Every block can have
+     * only one hierarchy block.
      *
-     * A module is instantiated by includind its logic file found in the
-     * 'logic_module_root' directory (relative to 'logic_root').
-     *
-     * To improve consistency, the $module name is always converted lowercase.
-     * This means also the logic file name must be lowecase.
-     *
-     * @param TIP_Block $master The master block
-     * @return TIP_Hierarchy A reference to the TIP_Hierarchy binded to $master
+     * @param TIP_Block $block The master block
+     * @return TIP_Hierarchy A reference to the TIP_Hierarchy binded to $block
      * @static
      */
-    function& getInstance(&$master)
+    function& getInstance(&$block)
     {
-        $id = $master->getName();
+        $id = $block->getName();
         $instance =& TIP_Hierarchy::singleton($id);
         if (is_null($instance)) {
-            $instance =& TIP_Hierarchy::singleton($id, new TIP_Hierarchy($master));
+            $instance =& TIP_Hierarchy::singleton($id, new TIP_Hierarchy($block));
         }
 
         return $instance;
     }
 
+    /**
+     * Render a DHTML hierarchy
+     *
+     * Renders this hierarchy in a DHTML form.
+     */
     function toDhtml()
     {
         $this->startView('');
-        $path_to_images = TIP::buildSourceURL ('shared', 'icons');
-        $menu =& new HTML_TreeMenu_DHTML($this->model, array('images' => $path_to_images, 'defaultClass' => 'hierarchy'));
+        $options['images'] = TIP::buildSourceURL('shared', 'icons');
+        $options['defaultClass'] = 'hierarchy';
+        $options['jsObjectName'] = $this->_block->getName();
+        $menu =& new HTML_TreeMenu_DHTML($this->_model, $options);
         $menu->printMenu();
         $this->endView();
     }

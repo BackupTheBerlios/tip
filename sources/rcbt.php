@@ -503,6 +503,6 @@ class TIP_Rcbt extends TIP_Source_Engine
     }
 }
 
-return new TIP_Rcbt;
+return 'TIP_Rcbt';
 
 ?>
