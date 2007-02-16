@@ -144,8 +144,8 @@ class TIP_Type extends TIP
      */
     function& factory($file)
     {
-        $result = @include_once $file;
-        if (is_string($result)) {
+        $result = is_readable($file);
+        if ($result && is_string($result = include_once $file)) {
             $result =& new $result;
         }
 

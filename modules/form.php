@@ -187,16 +187,15 @@ class TIP_Form extends TIP_Module
     function process()
     {
         if ($this->_form->validate()) {
-            if (array_key_exists('processing', $_COOKIE)) {
+            if (!TIP::getSession('form.validated')) {
+                TIP::setSession('form.validated', true);
                 $this->_form->process(array(&$this->on_process, 'go'));
-                //$this->_form->process($this->on_process->_callback);
-                setcookie('processing', '', time()-3600);
                 TIP::info('I_DONE');
             }
 
             return $this->freeze();
         } else {
-            setcookie('processing', 'true', time()+3600);
+            TIP::setSession('form.validated', false);
             $this->_form->addElement('submit', null, 'Conferma');
 
             if (is_array($this->_row)) {

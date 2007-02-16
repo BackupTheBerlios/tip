@@ -38,16 +38,14 @@ class TIP_User extends TIP_Block
         $row =& $this->view->rowCurrent();
         $this->_activateUser($row);
         $expiration = strtotime($this->getOption('expiration'));
-        setcookie('usrid', $row['id'], $expiration);
-        setcookie('usrpwd', crypt($row['password']), $expiration);
+        setcookie('TIP_User', $row['id'] . ',' . crypt($row['password'], $expiration));
     }
 
     function _logout()
     {
         $fake_null = null;
         $this->_activateUser($fake_null);
-        setcookie('usrid', '', time()-3600);
-        setcookie('usrpwd', '', time()-3600);
+        setcookie('TIP_User', '', time()-3600);
     }
 
     function _activateUser(&$row)
@@ -87,12 +85,8 @@ class TIP_User extends TIP_Block
     {
         parent::postConstructor();
 
-        $id = TIP::getCookie('usrid', 'int');
-        if (is_null($id))
-            return;
-
-        $crypted_password = TIP::getCookie('usrpwd', 'string');
-        if (is_null($crypted_password)) {
+        @list($id, $password) = explode(',', TIP::getCookie('TIP_User', 'string'), 2);
+        if (is_null($id) || is_null($password)) {
             return;
         }
 
@@ -110,7 +104,7 @@ class TIP_User extends TIP_Block
             return;
         }
 
-        if (crypt($row['password'], $crypted_password) != $crypted_password) {
+        if (crypt($row['password'], $password) != $password) {
             TIP::error('E_DENIED');
             $this->endView();
             return;
@@ -228,32 +222,32 @@ class TIP_User extends TIP_Block
             $user = TIP::getPost('user', 'string');
             if (empty($user)) {
                 $label = $this->getLocale('user_label');
-                TIP::error ('E_VL_REQUIRED', " ($label)");
+                TIP::error ('E_GENERIC', " ($label)");
                 return false;
             }
 
             $password = TIP::getPost('password', 'string');
             if (empty($password)) {
                 $label = $this->getLocale('password_label');
-                TIP::error('E_VL_REQUIRED', " ($label)");
+                TIP::error('E_GENERIC', " ($label)");
                 return false;
             }
 
             $filter = $this->data->filter('user', $user);
             if (! $this->startView($filter)) {
-                TIP::error('DB_SELECT');
+                TIP::error('E_DATA_SELECT');
                 return false;
             }
 
             if (! $this->view->rowReset()) {
-                $this->endQuery();
-                TIP::error('U_NOTFOUND');
+                $this->endView();
+                TIP::error('E_GENERIC');
                 return false;
             }
 
             if ($this->getField('password') != $password) {
-                $this->endQuery();
-                TIP::error('U_PWINVALID');
+                $this->endView();
+                TIP::error('E_GENERIC');
                 return false;
             }
 

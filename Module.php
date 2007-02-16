@@ -402,22 +402,24 @@ class TIP_Module extends TIP_Type
     /**
      * Check if a value is in a list
      *
-     * $params is a string in the form "value,list".
+     * $params is a string in the form "needle,value1,value2,...".
      *
-     * Outputs true if the value is present in the comma (or space) separated
-     * list. Useful to check if a value is contained (that is, if it is on) in
-     * a "set" field.
+     * Outputs true if needle is present in the comma separated list of values.
+     * Useful to check if a value is contained (that is, if it is on) in a
+     * "set" or "enum" field.
      */
-    function commandInList ($params)
+    function commandInList($params)
     {
-	$pos = strpos ($params, ',');
-	if ($pos === false)
-	    return false;
+        $pos = strpos($params, ',');
+        if ($pos === false) {
+            $this->setError("Invalid inList parameter ($params)");
+            return false;
+        }
 
-	$value = substr ($params, 0, $pos);
-	$list  = substr ($params, $pos+1);
-	echo TIP::inList ($value, $list) ? 'true' : 'false';
-	return true;
+        $needle = substr($params, 0, $pos);
+        $list  = explode(',', substr($params, $pos+1));
+        echo in_array($needle, $list) ? 'true' : 'false';
+        return true;
     }
 
     /**

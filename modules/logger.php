@@ -46,6 +46,9 @@ class TIP_Logger extends TIP_Block
         $row['uri'] = $uri;
 
         $this->data->putRow($row);
+        if (! array_key_exists('FIRST_LOG', $this->keys)) {
+            $this->keys['FIRST_LOG'] = $row[$this->data->primary_key];
+        }
     }
 
     /**#@-*/

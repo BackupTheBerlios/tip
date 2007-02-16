@@ -119,6 +119,40 @@ class TIP
         exit("<h3>Errore fatale: $message</h3><p>Si prega di comunicare il problema all'amministratore del sito inviando una email all'indirizzo <a href=\"mailto:webmaster@bresciapoint.it\">webmaster@bresciapoint.it</a>.</p><p>Grazie per la collaborazione.</p>");
     }
 
+    function _startSession()
+    {
+        static $initialized = false;
+        if ($initialized) {
+            return;
+        }
+
+        require_once 'HTTP/Session.php';
+
+        $user_id = TIP::getUserId();
+        if (! is_null($user_id) && $user_id !== false) {
+            // For a logged in user, the session id is its user_id
+            HTTP_Session::useCookies(false);
+            HTTP_Session::useTransSID(false);
+            HTTP_Session::start('TIP', $user_id);
+        } else {
+            // For anonymous users, try to use the TransSID feature of PHP.
+            // If not available, as last resort, use cookies.
+            HTTP_Session::useTransSID(true);
+            HTTP_Session::useTransSID() || HTTP_Session::useCookies(true);
+            HTTP_Session::start('TIP');
+        }
+
+        if (HTTP_Session::isNew()) {
+        } elseif (HTTP_Session::isExpired() || HTTP_Session::isIdle()) {
+            HTTP_Session::destroy();
+            HTTP::redirect(TIP::buildUrl('index.php'));
+            exit;
+        }
+
+        $initialized = true;
+        HTTP_Session::setExpire(3600, true);
+    }
+
     /**#@-*/
 
 
@@ -215,24 +249,6 @@ class TIP
 	if (! is_null ($glue))
 	    $the_glue = $glue;
 	return is_array ($value) ? implode ($the_glue, array_map (array ('TIP', 'deepImplode'), $value)) : $value;
-    }
-
-    /**
-     * Checks if a value is present in a list
-     *
-     * Scans a comma or space separated list for a specific value.
-     *
-     * @param string $value The value to find
-     * @param string $list  The list of values
-     * @return bool true if the value is found or false if not found
-     */
-    function inList ($value, $list)
-    {
-	for ($token = strtok ($list, ' ,'); $token !== false; $token = strtok (' ,'))
-	    if ($token == $value)
-		return true;
-
-	return false;
     }
 
     /**
@@ -644,6 +660,18 @@ class TIP
         }
 
         return $result;
+    }
+
+    function setSession($id, $value)
+    {
+        TIP::_startSession();
+        HTTP_Session::set($id, $value);
+    }
+
+    function getSession($id)
+    {
+        TIP::_startSession();
+        return HTTP_Session::get($id);
     }
 
     /**#@-*/
