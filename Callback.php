@@ -21,6 +21,7 @@ class TIP_Callback extends TIP
     var $_callback = null;
     var $_args = array();
 
+
     function _defaultCallback()
     {
         return $this->result;

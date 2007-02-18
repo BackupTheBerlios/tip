@@ -9,9 +9,9 @@
 /**
  * The TIP prefix 
  *
- * This is the prefix prepended by the type system to the instantiable object
- * to get the class name. This means all the object inherited from TIP_Type
- * must be prefixed with this string.
+ * This is the prefix used by the TIP objects. It is used in various place,
+ * such as to get the type name from the class by stripping this prefix
+ * (avoiding tedious prefix repetitions) and to manage the view names.
  */
 define('TIP_PREFIX', 'TIP_');
 
@@ -42,7 +42,7 @@ class TIP
 {
     /**#@+ @access private */
 
-    function getTyped($id, $type, &$collection)
+    function _getTyped($id, $type, &$collection)
     {
         $value = @$collection[$id];
         if (is_null($value) || ! settype($value, $type)) {
@@ -56,7 +56,7 @@ class TIP
         return get_magic_quotes_gpc() ? TIP::deepStripSlashes($value) : $value;
     }
 
-    function getTimestamp($date, $format)
+    function _getTimestamp($date, $format)
     {
         switch ($format) {
         case 'timestamp':
@@ -71,46 +71,38 @@ class TIP
         return false;
     }
 
-    function formatTimestamp ($timestamp, $format)
+    function _formatTimestamp($timestamp, $format)
     {
-	switch ($format) {
-	case 'date_iso8601':
-	    return strftime ('%F', $timestamp);
+        switch ($format) {
+        case 'date_iso8601':
+            return strftime('%F', $timestamp);
 
-	case 'datetime_iso8601':
-	    return strftime ('%F %H:%M:%S', $timestamp);
+        case 'datetime_iso8601':
+            return strftime('%F %H:%M:%S', $timestamp);
 
-	case 'date_it':
-	    $SameYear = date ('Y', $timestamp) == date ('Y');
-	    $SameDay = date ('z', $timestamp) == date ('z');
+        case 'date_it':
+            $same_year = date('Y', $timestamp) == date('Y');
+            $same_day = date('z', $timestamp) == date('z');
+            if ($same_year && $same_day) {
+                return 'oggi';
+            }
+            return strftime($same_year ? '%d %B' : '%d %B %Y', $timestamp);
 
-	    if ($SameYear && $SameDay)
-		return 'oggi';
+        case 'datetime_it':
+            $date = TIP::_formatTimestamp($timestamp, 'date_it');
+            $time = strftime('%H:%M', $timestamp);
+            return $date . ' alle ' . $time;
+        }
 
-	    $result = strftime ('%d %B', $timestamp);
-	    if (! $SameYear)
-		$result .= strftime (' %Y', $timestamp);
-
-	    return $result;
-
-	case 'datetime_it':
-	    $result = TIP::formatTimestamp ($timestamp, 'date_it');
-	    if (! $result)
-		return null;
-
-	    $result .= strftime (' alle %H:%M', $timestamp);
-	    return $result;
-	}
-
-	TIP::logWarning ("Output time format not recognized ($format)");
-	return null;
+        TIP::logWarning("Output time format not recognized ($format)");
+        return null;
     }
 
-    function logGeneric($domain, $message, $notify = false)
+    function _logGeneric($domain, $message, $notify = false)
     {
         $logger =& TIP_Module::getInstance('logger', false);
         if (is_object($logger)) {
-            $logger->logMessage ($domain, $message, @$_SERVER['REQUEST_URI'], $notify);
+            $logger->logMessage($domain, $message, @$_SERVER['REQUEST_URI'], $notify);
         }
     }
 
@@ -142,8 +134,7 @@ class TIP
             HTTP_Session::start('TIP');
         }
 
-        if (HTTP_Session::isNew()) {
-        } elseif (HTTP_Session::isExpired() || HTTP_Session::isIdle()) {
+        if (HTTP_Session::isExpired() || HTTP_Session::isIdle()) {
             HTTP_Session::destroy();
             HTTP::redirect(TIP::buildUrl('index.php'));
             exit;
@@ -172,17 +163,17 @@ class TIP
      */
     function getOS()
     {
-	$OS = 'unix';
+        $os = 'unix';
 
-	if (defined ('PHP_OS'))
-	{
-	    if (stristr (PHP_OS, 'win'))
-		$OS = 'windows';
-	    elseif (stristr (PHP_OS, 'OS/2'))
-		$OS = 'os2';
-	}
+        if (defined ('PHP_OS')) {
+            if (stristr(PHP_OS, 'win')) {
+                $os = 'windows';
+            } elseif (stristr (PHP_OS, 'OS/2')) {
+                $os = 'os2';
+            }
+        }
 
-	return $OS;
+        return $os;
     }
 
     /**
@@ -240,15 +231,17 @@ class TIP
      * original implode() function. This because the array_map() recursive
      * calls pass the array as the first argument.
      *
-     * @param array|string $value Array or string to implode
-     * @return array|string The imploded copy of $value
+     * @param array  $pieces The array to implode
+     * @param string $glue   The glue to use while imploding
+     * @return string The imploded copy of $pieces
      */
-    function deepImplode ($value, $glue = null)
+    function deepImplode($pieces, $glue = null)
     {
-	static $the_glue = null;
-	if (! is_null ($glue))
-	    $the_glue = $glue;
-	return is_array ($value) ? implode ($the_glue, array_map (array ('TIP', 'deepImplode'), $value)) : $value;
+        static $the_glue = null;
+        if (! is_null ($glue)) {
+            $the_glue = $glue;
+        }
+        return is_array($pieces) ? implode($the_glue, array_map(array('TIP', 'deepImplode'), $pieces)) : $pieces;
     }
 
     /**
@@ -273,9 +266,9 @@ class TIP
      * @return mixed|null The content of the requested get or null on errors
      * @see getPost(),getCookie()
      */
-    function getGet ($id, $type)
+    function getGet($id, $type)
     {
-	return TIP::getTyped ($id, $type, $_GET);
+        return TIP::_getTyped($id, $type, $_GET);
     }
 
     /**
@@ -289,9 +282,9 @@ class TIP
      * @return mixed|null The content of the requested post or null on errors
      * @see getGet(),getCookie()
      */
-    function getPost ($id, $type)
+    function getPost($id, $type)
     {
-	return TIP::getTyped ($id, $type, $_POST);
+        return TIP::_getTyped($id, $type, $_POST);
     }
 
     /**
@@ -307,7 +300,7 @@ class TIP
      */
     function getCookie($id, $type)
     {
-        return TIP::getTyped($id, $type, $_COOKIE);
+        return TIP::_getTyped($id, $type, $_COOKIE);
     }
 
 
@@ -337,11 +330,8 @@ class TIP
      */
     function formatDate($format, $input = null, $input_format = 'timestamp')
     {
-        $timestamp = is_null($input) ? time() : TIP::getTimestamp($input, $input_format);
-        if (! $timestamp)
-            return null;
-
-        return TIP::formatTimestamp($timestamp, $format);
+        $timestamp = is_null($input) ? time() : TIP::_getTimestamp($input, $input_format);
+        return is_null($timestamp) ? null : TIP::_formatTimestamp($timestamp, $format);
     }
 
     /**
@@ -354,9 +344,9 @@ class TIP
      * @param string $message The message to log
      * @see logError(),logFatal()
      */
-    function logWarning ($message)
+    function logWarning($message)
     {
-        TIP::logGeneric('WARNING', $message);
+        TIP::_logGeneric('WARNING', $message);
     }
 
     /**
@@ -369,9 +359,9 @@ class TIP
      * @param string $message The message to log
      * @see logWarning(),logFatal()
      */
-    function logError ($message)
+    function logError($message)
     {
-	TIP::logGeneric ('ERROR', $message);
+        TIP::_logGeneric('ERROR', $message);
     }
 
     /**
@@ -389,7 +379,7 @@ class TIP
      */
     function logFatal($message)
     {
-        TIP::logGeneric('FATAL', $message);
+        TIP::_logGeneric('FATAL', $message);
         TIP::quit($message);
     }
 

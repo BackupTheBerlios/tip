@@ -38,7 +38,7 @@ class TIP_User extends TIP_Block
         $row =& $this->view->rowCurrent();
         $this->_activateUser($row);
         $expiration = strtotime($this->getOption('expiration'));
-        setcookie('TIP_User', $row['id'] . ',' . crypt($row['password'], $expiration));
+        setcookie('TIP_User', $row['id'] . ',' . crypt($row['password']), $expiration);
     }
 
     function _logout()

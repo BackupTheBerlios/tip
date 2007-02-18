@@ -24,35 +24,34 @@ class TIP_Block extends TIP_Module
     var $_view_stack = array ();
 
 
-    function _editRow(&$row)
+    function _editRow($row)
     {
         $form =& TIP_Module::getInstance('form');
-        if (! $form->make($this, $row) || ! $form->process()) {
+        if (!$form->make($this, $row) || !$form->process()) {
             $this->setError($form->resetError());
             return false;
         }
 
-        $application =& $GLOBALS[TIP_MAIN_MODULE];
-        $application->appendCallback($form->callback('render'));
+        $GLOBALS[TIP_MAIN_MODULE]->appendCallback($form->callback('render'));
         return true;
     }
 
+    function _viewRow($row)
+    {
+        $form =& TIP_Module::getInstance('form');
+        if (!$form->make($this, $row) || !$form->view()) {
+            $this->setError($form->resetError());
+            return false;
+        }
+
+        $GLOBALS[TIP_MAIN_MODULE]->appendCallback($form->callback('render'));
+        return true;
+    }
 
     /**#@-*/
 
 
     /**#@+ @access protected */
-
-    /**
-     * The data context
-     *
-     * Contains a reference to the data from which this module will get
-     * informations. See the TIP_Data class for details on what is it.
-     *
-     * @var TIP_Data
-     */
-    var $data = null;
-
 
     /**
      * Constructor
@@ -327,12 +326,33 @@ class TIP_Block extends TIP_Module
         return true;
     }
 
+    /**
+     * Add a new row
+     *
+     * Generates an empty form and adds a new row with the user provided values,
+     * if the form is properly validated.
+     *
+     * @return bool true on success or false on errors
+     */
     function addRow()
     {
         $fake_null = null;
         return $this->_editRow($fake_null);
     }
 
+    /**
+     * Edit a row
+     *
+     * Generates a form, fills it with the default data specified in the $row
+     * associative array and updates the row with the user provided values, if
+     * the form is properly validated.
+     *
+     * If $row is not specified, the current row will be used as default one.
+     * On no default row, the function will fail.
+     *
+     * @param array|null $row The row to edit or null to use the current row
+     * @return bool true on success or false on errors
+     */
     function editRow($row = null)
     {
         if (is_null($row)) {
@@ -346,10 +366,44 @@ class TIP_Block extends TIP_Module
         return $this->_editRow($row);
     }
 
+    /**
+     * View a row
+     *
+     * Very similar to TIP_Block::editRow(), but do not allow to the user to
+     * change form nor to update the data. The goal of viewing a row is 
+     * achieved in an elegant way by freezing the HTML_QuickForm object of
+     * the block.
+     *
+     * @param array|null $row The row to edit or null to view the current row
+     * @return bool true on success or false on errors
+     */
+    function viewRow($row = null)
+    {
+        if (is_null($row)) {
+            if (!isset($this->view) || is_null($row =& $this->view->rowCurrent())) {
+                $data_id = $this->data->path;
+                $this->setError("No current row to view ($data_id)");
+                return false;
+            }
+        }
+
+        return $this->_viewRow($row);
+    }
+
     /**#@-*/
 
 
     /**#@+ @access public */
+
+    /**
+     * The data context
+     *
+     * Contains a reference to the data from which this module will get
+     * informations. See the TIP_Data class for details on what is it.
+     *
+     * @var TIP_Data
+     */
+    var $data = null;
 
     /**
      * The current view
@@ -359,6 +413,7 @@ class TIP_Block extends TIP_Module
      * @var TIP_View
      */
     var $view = null;
+
 
     /**
      * Start a view

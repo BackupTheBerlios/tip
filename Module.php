@@ -564,11 +564,10 @@ class TIP_Module extends TIP_Type
      */
 
     /**
-     * Execute a file, inserting the result in content
+     * Prepend a source file to the page content
      *
-     * Executes the $file source found in the module path using the current
-     * source engine and inserts the result at the beginning of the application
-     * content.
+     * Runs $file using the current source engine and puts the result at the
+     * beginning of the page content.
      */
     function insertInContent($file)
     {
@@ -579,11 +578,10 @@ class TIP_Module extends TIP_Type
     }
 
     /**
-     * Execute a file, appending the result to content
+     * Append a source file to the page content
      *
-     * Executes the $file source found in the module path using the current
-     * source engine and appends the result to the end of the application
-     * content.
+     * Runs $file using the current source engine and puts the result at the
+     * end of the page content.
      */
     function appendToContent($file)
     {

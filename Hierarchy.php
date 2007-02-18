@@ -7,7 +7,7 @@
  * @package TIP
  */
 
-/** TreeMenu PEAR package */
+/** HTML_TreeMenu PEAR package */
 require_once 'HTML/TreeMenu.php';
 
 /**
