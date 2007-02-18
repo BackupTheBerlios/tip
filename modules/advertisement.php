@@ -121,7 +121,7 @@ class TIP_Advertisement extends TIP_Block
             $old_row = $row;
             $row['_hits'] ++;
             $row['_lasthit'] = TIP::formatDate('datetime_iso8601');
-            if (! $this->data->updateRow($old_row, $row)) {
+            if (! $this->data->updateRow($row, $old_row)) {
                 TIP::error('E_DATA_UPDATE');
                 return false;
             }
@@ -153,7 +153,7 @@ class TIP_Advertisement extends TIP_Block
                 $old_row = $row;
                 $expiration = strtotime($this->getOption('expiration'));
                 $row['_expiration'] = TIP::formatDate('datetime_iso8601', $expiration);
-                if (! $this->engine->updateRow ($old_row, $row, $this))
+                if (! $this->data->updateRow($row, $old_row))
                     TIP::error ('E_DATA_UPDATE');
                 else
                     TIP::info ('I_DONE');
@@ -262,7 +262,7 @@ class TIP_Advertisement extends TIP_Block
                 $row['_illegalby'] = $user_id;
                 $row['_illegalon'] = TIP::formatDate('datetime_iso8601');
 
-                if (! $this->DATA_ENGINE->UpdateRow ($old_row, $row, $this))
+                if (! $this->data->updateRow($row, $old_row))
                 {
                     TIP::error ('E_DATA_UPDATE');
                 }
@@ -341,7 +341,7 @@ class TIP_Advertisement extends TIP_Block
                 $row['_public'] = 'yes';
                 $row['_illegal'] = 'no';
 
-                if (! $this->DATA_ENGINE->UpdateRow ($old_row, $row, $this))
+                if (! $this->data->updateRow($row, $old_row))
                     TIP::error ('E_DATA_UPDATE');
                 else
                     TIP::info ('I_DONE');
@@ -354,7 +354,7 @@ class TIP_Advertisement extends TIP_Block
                 $old_row = $row;
                 $row['_public'] = 'no';
 
-                if (! $this->DATA_ENGINE->UpdateRow ($old_row, $row, $this))
+                if (! $this->data->updateRow($row, $old_row))
                 {
                     TIP::error ('E_DATA_UPDATE');
                 }

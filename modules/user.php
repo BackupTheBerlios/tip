@@ -295,7 +295,7 @@ class TIP_User extends TIP_Block
     function updateUser ()
     {
         if (is_array($this->_old_row) && is_array($this->_new_row)) {
-            $this->data->updateRow($this->_old_row, $this->_new_row);
+            $this->data->updateRow($this->_new_row, $this->_old_row);
         }
     }
 

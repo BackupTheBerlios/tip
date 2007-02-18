@@ -303,11 +303,41 @@ class TIP_Module extends TIP_Type
      *
      * @uses getValidRequest() The method used to resolve the requests
      */
-    function commandTryHtml ($params)
+    function commandTryHtml($params)
     {
         $requests = explode (',', $params);
         $value = $this->getValidRequest ($requests);
         echo TIP::toHtml ($value);
+        return true;
+    }
+
+    /**
+     * Link to an action
+     *
+     * $params is a string in the form "action,param1=value1,param2=value2,..."
+     *
+     * Output a proper link to the specified action. The values are urlencoded
+     * to avoid collateral effects.
+     */
+    function commandAction($params)
+    {
+        $pos = strpos ($params, ',');
+        if ($pos === false) {
+            $action = $params;
+            $list = array();
+        } else {
+            $action = substr($params, 0, $pos);
+            $list = explode(',', substr($params, $pos+1));
+        }
+
+        if (!empty($action)) {
+            array_unshift($list, 'action=' . $action);
+        }
+        if (strpos($params, ',module=') === false) {
+            array_unshift($list, 'module=' . $this->getName());
+        }
+        $args = implode('&amp;', TIP::urlEncodeAssignment($list));
+        echo TIP::buildUrl('index.php') . '?' . $args;
         return true;
     }
 
@@ -485,14 +515,16 @@ class TIP_Module extends TIP_Type
      * Check if a module exists
      *
      * Expands to true if the module module exists or to false
-     * otherwise. This command only checks if any configuration option
-     * for the $params module exists, does not load the module itsself.
+     * otherwise. This command only checks if the logic file for the $params
+     * module exists, does not load the module itsself nor change
+     * the default module.
      *
      * Useful to provide conditional links between different modules.
      */
     function commandModuleExists($params)
     {
-        echo array_key_exists($params, $GLOBALS['cfg']) ? 'true' : 'false';
+        $file = TIP::buildLogicPath('modules', $params) . '.php';
+        echo is_readable($file) ? 'true' : 'false';
         return true;
     }
 
@@ -501,8 +533,8 @@ class TIP_Module extends TIP_Type
 
     /**#@+
      * @param string $action The action name
-     * @return bool|null true on command executed, false on command error or
-     *                   null on command not found
+     * @return bool|null true on action executed, false on action error or
+     *                   null on action not found
      */
 
     /**

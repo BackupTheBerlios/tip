@@ -172,7 +172,7 @@ class TIP_Privilege extends TIP_Block
             $new_row['_module']   = $module_name;
 
             if ($old_row) {
-                $done = $this->data->updateRow($old_row, $new_row);
+                $done = $this->data->updateRow($new_row, $old_row);
                 if ($done) {
                     TIP::info('I_DONE');
                     $old_row = $new_row;

@@ -307,35 +307,39 @@ class TIP_Data extends TIP_Type
     /**
      * Update one row
      *
-     * Updates the row matching $id.
+     * Updates $row. If $old_row is specified, the id of the row to update is
+     * get from the primary key of $old_row. If it does not exists (or $old_row
+     * is not used) the id will be the primary key of $row. If not found yet,
+     * the function will fail because does not know the id to update.
      *
-     * If $id is an array, the primary key of $id will be used as filter. In
-     * this case, only the fields that are presents in $id and that differs
-     * from $id are updated. Obviously, if $id and $row are equals, no
-     * update operations are performed.
+     * $old_row is used also as filter to remove matching field contents between
+     * $row and $old_row. This is done to allow a check between the old and new
+     * row content, trying to avoid the update operation.
      *
-     * The possibility to pass an array in $id is done to allow a check between
-     * the old and new row content, trying to avoid the update operation.
-     *
-     * @param mixed|array $id  The id of the row to update or the whole row content
-     * @param array      &$row The new row
+     * @param array &$row     The new row content
+     * @param array  $old_row The old row content
      */
-    function updateRow($id, &$row)
+    function updateRow(&$row, $old_row = null)
     {
-        if (is_null($id) || is_array($id) && ! array_key_exists($this->primary_key, $id)) {
+        if (@array_key_exists($this->primary_key, $old_row)) {
+            $id = $old_row[$this->primary_key];
+        } elseif (@array_key_exists($this->primary_key, $row)) {
+            $id = $row[$this->primary_key];
+        } else {
             $this->logError('Undefined row to update');
             return false;
         }
 
+        // Keep only the field keys differents from $old_row (if specified)
         $keys = array_keys($this->getFields(false));
-        $set = is_array($id) ? array_diff_assoc($row, $id) : $row;
+        $set = empty($old_row) ? $row : array_diff_assoc($row, $old_row);
         $set = array_flip(array_intersect(array_flip($set), $keys));
         if (empty($set)) {
+            // No fields to update
             return true;
         }
 
-        $filter = $this->rowFilter(is_array($id) ? $id[$this->primary_key] : $id);
-        return $this->_engine->update($this, $filter, $set);
+        return $this->_engine->update($this, $this->rowFilter($id), $set);
     }
 
     /**

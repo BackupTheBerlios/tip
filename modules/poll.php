@@ -98,7 +98,7 @@ class TIP_Poll extends TIP_Block
 
             ++ $row[$votes];
             $this->onRow($row);
-            $this->data->updateRow($old_row, $row, $this);
+            $this->data->updateRow($row, $old_row);
             setcookie ('plvoted', 'true', strtotime($this->getOption('expiration')));
 
         case 'browse':

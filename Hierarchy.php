@@ -69,13 +69,16 @@ class TIP_Hierarchy extends TIP_Block
         $rows =& $view->rows;
         $view->summaries['TOTAL_COUNT'] = 0;
         $total_count =& $view->summaries['TOTAL_COUNT'];
+        $base_url =
+            TIP::buildUrl('index.php') .
+            '?module=' . $this->_block->getName() .
+            '&amp;action=browse&amp;id=';
 
-        foreach (array_keys ($rows) as $id) {
+        foreach (array_keys($rows) as $id) {
             $row =& $rows[$id];
             $parent_id = @$row['parent'];
-            $tree_node =& new HTML_TreeNode (array ('text' => $row['title']));
-            $tree_node->icon =& $this->icon;
-            $tree_node->setOption ('link', 'http://www.bresciapoint.local/');
+            $options = array('text' => $row['title'], 'link' => $base_url.$id, 'icon' => $this->icon);
+            $tree_node =& new HTML_TreeNode($options);
             $count = @$row['_count'];
             $total_count += $count;
             $row['COUNT'] = $count;

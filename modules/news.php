@@ -15,187 +15,127 @@
  */
 class TIP_News extends TIP_Block
 {
-    // Overriden:
+    /**#@+
+     * @param string $action The action name
+     * @return bool|null true on action executed, false on action error or
+     *                   null on action not found
+     */
 
-    function RunAction ($Action)
+    /**
+     * Executes a management action
+     *
+     * Executes an action that requires the 'manager' privilege.
+     */
+    function runManagerAction($action)
     {
+        return null;
+    }
 
-        switch ($Action)
-        {
-            /**
-             * \action <b>view</b>\n
-             * Detailed view of a specific news, including its comments. You
-             * must specify the news id in the $_GET['id'] field.
-             */
-        case 'view':
-            $id = TIP::GetGet ('id', 'integer');
-            if (! $id > 0)
-            {
-                TIP::error ('E_NOTSPECIFIED');
-                return FALSE;
-            }
-
-            $Query = $this->DATA_ENGINE->QueryById ($id, $this);
-            if (! $this->StartView ($Query))
-            {
-                TIP::error ('E_SELECT');
-                return FALSE;
-            }
-
-            if ($this->RowsCount () < 1)
-            {
-                TIP::error ('E_NOTFOUND');
-                $this->EndView ();
-                return FALSE;
-            }
-
-            $this->ResetRow ();
-            $NewRow =& $this->GetCurrentRow ();
-            $OldRow = $NewRow;
-            $NewRow['_hits'] += 1;
-            $NewRow['_lasthit'] = TIP::formatDate('datetime_iso8601');
-            $this->DATA_ENGINE->UpdateRow ($OldRow, $NewRow, $this);
-
-            $this->AppendToContent ('view.src');
-            $this->EndView ();
-
-            return TRUE;
-
-        case 'browse':
-            global $USER;
-            if (! $USER->Populate () || ! $USER->ID)
-            {
-                error ('E_DENIED');
-                return FALSE;
-            }
-
-            $this->Spopulate ();
-            $this->TABLE->SetQuery ("WHERE `_user`=$USER->ID ORDER BY `_creation` DESC");
-            $this->EchoInContent ('browse-user.src');
-            return TRUE;
-
+    /**
+     * Executes an administrator action
+     *
+     * Executes an action that requires at least the 'admin' privilege.
+     */
+    function runAdminAction($action)
+    {
+        switch ($action) {
         case 'add':
-            if (! $User->IsAllowed ('news_add'))
-            {
-                error ('NWS_DENIED');
-                return FALSE;
-            }
-
-            if ($this->PopulateWithSource ($_POST))
-                $this->EchoInContent ('add-edit.html');
-            return TRUE;
-
-        case 'doadd':
-            global $USER, $FIELDS;
-            if ($USER && ! $USER->IsAllowed ('news_add'))
-            {
-                error ('VL_DENIED');
-                return FALSE;
-            }
-
-            if (! $this->PopulateWithSource ($_POST) || ! $this->Validate ())
-            {
-                $FIELDS['ACTION'] = 'add';
-                $this->EchoInContent ('add-edit.html');
-                return FALSE;
-            }
-
-            $Row =& $this->ROW;
-            $Row['_user'] = $USER->ID;
-            $Row['_creation'] = date ('Y-m-d H:i:s');
-            $Row['_hits'] = 1;
-            $Row['_lasthit'] = $Row['_creation'];
-
-            $this->UpdateTable ();
-            $FIELDS['ACTION'] = 'view';
-            $this->actionView ($Row['id']);
-            return TRUE;
+            $row['_user'] = TIP::getUserId();
+            $row['_creation'] = TIP::formatDate('datetime_iso8601');
+            $row['_hits'] = 1;
+            $row['_lasthit'] = $row['_creation'];
+            return $this->addRow($row);
 
         case 'edit':
-            if (! $this->AccessAllowed (@$_GET['id']))
-                return FALSE;
-
-            $this->EchoInContent ('add-edit.html');
-            return TRUE;
-
-        case 'doedit':
-            global $FIELDS;
-
-            if (! $this->AccessAllowed (@$_POST['id']))
-                return FALSE;
-
-            $OldGroup = $this->ROW['group'];
-
-            if (! $this->PopulateWithSource ($_POST) || ! $this->Validate ())
-            {
-                $FIELDS['ACTION'] = 'edit';
-                $this->EchoInContent ('add-edit.html');
-                return FALSE;
+            $id = TIP::getGet('id', 'integer');
+            if (is_null($id)) {
+                TIP::error('E_NOTSPECIFIED');
+                return false;
             }
 
-            $id =& $this->ROW['id'];
-            if (@empty ($this->ROW['id']))
-            {
-                error ('NWS_NOTSPECIFIED');
-                $FIELDS['ACTION'] = 'edit';
-                $this->EchoInContent ('add-edit.html');
-                return FALSE;
+            $row =& $this->data->getRow($id);
+            if (is_null($row)) {
+                TIP::error('E_NOTFOUND');
+                return false;
             }
 
-            if (! $this->UpdateTable ())
-            {
-                error ('DB_UPDATE');
-                $FIELDS['ACTION'] = 'edit';
-                $this->EchoInContent ('add-edit.html');
-                return FALSE;
-            }
-
-            $this->Spopulate ();
-            $FIELDS['ACTION'] = 'browse';
-            $this->actionBrowse ();
-            return TRUE;
+            return $this->editRow($row);
 
         case 'delete':
-            if (! $this->AccessAllowed (@$_GET['id']))
-                return;
-
-            $this->EchoInContent ('delete.html');
-            return TRUE;
-
-        case 'dodelete':
-            $id = @$_GET['id'];
-
-            if (! $this->AccessAllowed ($id))
-                return FALSE;
-
-            if ($this->data->deleteRow($id)) {
-                global $NEWS_COMMENT;
-                $NEWS_COMMENT->SetQuery ('WHERE `_news`=' . $id);
-                $NEWS_COMMENT->DeleteTable ();
-            } else {
-                TIP::error('E_DATA_DELETE');
-            }
-
-            $this->Spopulate ();
-            $GLOBALS['FIELDS']['ACTION'] = 'browse';
-            $this->actionBrowse ();
-            return TRUE;
+            // TODO
+            return false;
         }
 
-        return parent::RunAction ($Action);
+        return null;
     }
 
-
-    // protected virtual:
-
-    function Validate ()
+    /**
+     * Executes a trusted action
+     *
+     * Executes an action that requires at least the 'trusted' privilege.
+     */
+    function runTrustedAction($action)
     {
-        $Validate =& new cValidate ();
-        $Validate->Rule ('subject', VL_REQUIRED, 'NWS_SUBJECTREQ');
-        $Validate->Rule ('remark',  VL_REQUIRED, 'NWS_REMARKREQ');
-        $Validate->Rule ('content', VL_REQUIRED, 'NWS_CONTENTREQ');
-        return $Validate->CheckRules ($this->ROW, $this->TABLE);
+        switch ($action) {
+        case 'browse':
+            return $this->appendToContent('browse-user.src');
+        }
+
+        return null;
     }
+
+    /**
+     * Executes an untrusted action
+     *
+     * Executes an action that requires at least the 'untrusted' privilege.
+     */
+    function runUntrustedAction($action)
+    {
+        return null;
+    }
+
+    /**
+     * Executes an unprivileged action
+     *
+     * Executes an action that does not require any privileges.
+     */
+    function runAction($action)
+    {
+        switch ($action) {
+        case 'view':
+            $id = TIP::getGet('id', 'integer');
+            if (is_null($id)) {
+                TIP::error('E_NOTSPECIFIED');
+                return false;
+            }
+
+            $filter = $this->data->rowFilter($id);
+            if (!$this->startView($filter)) {
+                TIP::error('E_SELECT');
+                return false;
+            }
+
+            if (! $this->view->resetRow()) {
+                TIP::error('E_NOTFOUND');
+                $this->endView();
+                return false;
+            }
+
+            $row =& $this->view->rowCurrent();
+            $old_row = $row;
+            $row['_hits'] += 1;
+            $row['_lasthit'] = TIP::formatDate('datetime_iso8601');
+            $this->data->updateRow($row, $old_row);
+
+            $this->appendToContent('view.src');
+            $this->endView();
+            return true;
+        }
+
+        return null;
+    }
+
+    /**#@-*/
 }
 
 return 'TIP_News';

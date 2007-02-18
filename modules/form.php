@@ -23,9 +23,10 @@ class TIP_Form extends TIP_Module
 {
     /**#@+ @access private */
 
-    var $_block = null;
     var $_form = null;
+    var $_block = null;
     var $_defaults = null;
+    var $_is_add = false;
 
 
     function TIP_Form()
@@ -103,16 +104,14 @@ class TIP_Form extends TIP_Module
 
     function _onProcess($row)
     {
-        $primary_key = $this->_block->data->primary_key;
         $this->_block->data->forceFieldType($row);
 
-        $id = @$row[$primary_key];
-        if (is_null($id)) {
+        if ($this->_is_add) {
             // Put operation
             $this->_block->data->putRow($row);
         } else {
             // Update operation
-            $this->_block->data->updateRow($id, $row);
+            $this->_block->data->updateRow($row);
         }
     }
 
@@ -137,50 +136,59 @@ class TIP_Form extends TIP_Module
 
 
     /**
+     * Set the TIP_Form
+     *
+     * Defines some needed setting.
+     *
+     * @param TIP_Block &$block  The requesting block
+     * @param array      $row    The default values
+     * @param bool       $is_add Is this an add form?
+     * @return bool true on success or false on errors
+     */
+    function setForm(&$block, $row = null, $is_add = false)
+    {
+        $this->_block =& $block;
+        $this->_defaults = $row;
+        $this->_is_add = $is_add;
+    }
+
+    /**
      * Create a generic form
      *
      * This is the main function of the form management: it creates a form
-     * for $block by inspecting the field structure of its $data object.
-     * The structure is obtained from $data by calling TIP_Data::getFields()
-     * and passing true as $detailed argument.
-     *
-     * The default values of the fields can be optionally passed in the $row
-     * associative array.
+     * for the block by inspecting the field structure of its $data object.
+     * The structure is obtained from the $data object of the caller block
+     * by calling TIP_Data::getFields() and passing true as $detailed argument.
      *
      * This form is only created as data structure: no echo operations are
      * performed in this step.
      *
-     * @param TIP_Block &$block The requesting block
-     * @param array     &$row   The default values
      * @return bool true on success or false on errors
      */
-    function make(&$block, $row = null)
+    function make()
     {
-        $this->_block =& $block;
-        $this->_form =& new HTML_QuickForm($block->data->path);
-        $this->_defaults =& $row;
+        $this->_form =& new HTML_QuickForm($this->_block->data->path);
 
         $application =& $GLOBALS[TIP_MAIN_MODULE];
-        $fields =& $block->data->getFields();
-        $primary_key = $block->data->primary_key;
+        $fields =& $this->_block->data->getFields();
+        $primary_key = $this->_block->data->primary_key;
 
         $this->_form->removeAttribute('name'); // XHTML compliance
 
-        $header = $block->getLocale(is_null($row) ? 'add_header' : 'edit_header');
+        $header = $this->_block->getLocale($this->_is_add ? 'add_header' : 'edit_header');
         $this->_form->addElement('header', 'PageHeader', $header);
         $this->_form->addElement('hidden', 'module', $this->_block->getName());
         $this->_form->addElement('hidden', 'action', $application->keys['ACTION']);
-        if (array_key_exists($primary_key, $row)) {
-            $this->_form->addElement('hidden', $primary_key, $row[$primary_key]);
-        }
 
         foreach (array_keys($fields) as $id) {
-            if (substr($id, 0, 1) == '_') {
-                continue;
-            }
-
             $field =& $fields[$id];
-            if ($field['automatic']) {
+
+            if (substr($id, 0, 1) == '_' || $field['automatic']) {
+                // By default, fields starting with '_' and automatic fields
+                // cannot be edited, so are included as hidden (if defined)
+                if (array_key_exists($id, $this->_defaults)) {
+                    $this->_form->addElement('hidden', $id, $this->_defaults[$id]);
+                }
                 continue;
             }
 

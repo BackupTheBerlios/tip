@@ -24,10 +24,12 @@ class TIP_Block extends TIP_Module
     var $_view_stack = array ();
 
 
-    function _editRow($row)
+    function _editRow($row, $is_add)
     {
         $form =& TIP_Module::getInstance('form');
-        if (!$form->make($this, $row) || !$form->process()) {
+        $form->setForm($this, $row, $is_add);
+
+        if (!$form->make() || !$form->process()) {
             $this->setError($form->resetError());
             return false;
         }
@@ -39,6 +41,8 @@ class TIP_Block extends TIP_Module
     function _viewRow($row)
     {
         $form =& TIP_Module::getInstance('form');
+        $form->setForm($this, $row);
+
         if (!$form->make($this, $row) || !$form->view()) {
             $this->setError($form->resetError());
             return false;
@@ -332,12 +336,14 @@ class TIP_Block extends TIP_Module
      * Generates an empty form and adds a new row with the user provided values,
      * if the form is properly validated.
      *
+     * You can specify automatic fields providing an associative array in $row.
+     *
+     * @param array|null $row The automatic row content
      * @return bool true on success or false on errors
      */
-    function addRow()
+    function addRow($row = null)
     {
-        $fake_null = null;
-        return $this->_editRow($fake_null);
+        return $this->_editRow($row, true);
     }
 
     /**
@@ -363,7 +369,7 @@ class TIP_Block extends TIP_Module
             }
         }
 
-        return $this->_editRow($row);
+        return $this->_editRow($row, false);
     }
 
     /**

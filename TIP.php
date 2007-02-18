@@ -245,6 +245,26 @@ class TIP
     }
 
     /**
+     * Urlencode an assignment
+     *
+     * Urlencodes only the value part of an assignment. An assignment is a
+     * string in the form 'param=value', often used as construct to pass values
+     * in URLs. This function works also on array.
+     *
+     * @param string|array $assignment The assignment (or array of assignments) to encode
+     * @return string|array The encoded copy of $assignment
+     */
+    function urlEncodeAssignment($assignment)
+    {
+        if (is_array($assignment)) {
+            return array_map(array('TIP', 'urlEncodeAssignment'), $assignment);
+        }
+
+        list($param, $value) = explode('=', $assignment);
+        return $param . '=' . urlencode($value);
+    }
+
+    /**
      * Gets a $_GET in a typesafe manner
      *
      * Gets a value from the superglobal $_GET array, forcing the result to
