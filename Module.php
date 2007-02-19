@@ -521,7 +521,7 @@ class TIP_Module extends TIP_Type
      */
     function commandModuleExists($params)
     {
-        $file = TIP::buildLogicPath('modules', $params) . '.php';
+        $file = TIP::buildLogicPath('module', $params) . '.php';
         echo is_readable($file) ? 'true' : 'false';
         return true;
     }
@@ -660,7 +660,7 @@ class TIP_Module extends TIP_Type
      * calls.
      *
      * A module is instantiated by includind its logic file found in the
-     * 'modules' directory (relative to 'logic_root').
+     * 'module' directory (relative to 'logic_root').
      *
      * To improve consistency, the $module_name is always converted lowercase.
      * This means also the logic file name must be lowecase.
@@ -675,7 +675,7 @@ class TIP_Module extends TIP_Type
         $id = strtolower($module_name);
         $instance =& TIP_Module::singleton($id);
         if (is_null($instance)) {
-            $file = TIP::buildLogicPath('modules', $id) . '.php';
+            $file = TIP::buildLogicPath('module', $id) . '.php';
             $instance =& TIP_Module::singleton($id, $file, $required);
             if (is_object($instance)) {
                 $instance->postConstructor();

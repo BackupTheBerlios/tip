@@ -39,7 +39,7 @@ class TIP_Data_Engine extends TIP_Type
         $id = strtolower($data_engine);
         $instance =& TIP_Data_Engine::singleton($id);
         if (is_null($instance)) {
-            $file = TIP::buildLogicPath('data', $id) . '.php';
+            $file = TIP::buildLogicPath('data_engine', $id) . '.php';
             $instance =& TIP_Data_Engine::singleton($id, $file);
         }
         return $instance;

@@ -61,7 +61,7 @@ class TIP_Source_Engine extends TIP_Type
         $id = strtolower($source_engine);
         $instance =& TIP_Source_Engine::singleton($id);
         if (is_null($instance)) {
-            $file = TIP::buildLogicPath('sources', $id) . '.php';
+            $file = TIP::buildLogicPath('source_engine', $id) . '.php';
             $instance =& TIP_Source_Engine::singleton($id, $file);
         }
         return $instance;
