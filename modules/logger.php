@@ -24,10 +24,10 @@ class TIP_Logger extends TIP_Block
      *
      * Appends a log message to the data source of the logger object.
      *
-     * @param string @domain A custom domain description
-     * @param string @message The text of the log
-     * @param string @uri     The URI that caused the log
-     * @param bool   @notify  Wheter or not to notify the log to the webmaster
+     * @param string $domain A custom domain description
+     * @param string $message The text of the log
+     * @param string $uri     The URI that caused the log
+     * @param bool   $notify  Wheter or not to notify the log to the webmaster
      */
     function logMessage($domain, $message, $uri, $notify = false)
     {

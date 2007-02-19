@@ -196,6 +196,31 @@ class TIP
     }
 
     /**
+     * Get a localized text
+     *
+     * Gets the localized text for the specified id and module. The locale used
+     * is get from the 'locale' option of the application, which must be
+     * properly set.
+     *
+     * See the TIP_Locale::get() method for technical details on how the text
+     * is localized.
+     *
+     * @param string $id     The text identifier
+     * @param string $module The name of the caller module
+     * @param bool   $cached Whether to perform or not a cached read
+     * @return string The requested localized text
+     */
+    function getLocale($id, $module = 'application', $cached = true)
+    {
+        static $locale = false;
+        if ($locale === false) {
+            $locale =& TIP_Module::getInstance('locale', false);
+        }
+
+        return is_object($locale) ? $locale->get($id, $module, $cached) : $id;
+    }
+
+    /**
      * Deep addslashes()
      *
      * Wrappes addslashes() in a deeper form, allowing to add slashes also to

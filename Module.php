@@ -91,36 +91,34 @@ class TIP_Module extends TIP_Type
     }
 
     /**
-     * Gets a localized text
+     * Get a localized text
      *
-     * Gets the localized text from the specified id. The locale used is get
-     * from the 'locale' option of the $_tip_application object, which must
+     * Gets the localized text for the specified id. The locale used
+     * is get from the 'locale' option of the application, which must be
      * properly set.
      *
-     * @param string $id The identifier
-     * @return string|null The localized text requested or null on errors
-     * @todo Implement this function with a module.
+     * See the TIP_Locale::get() method for technical details on how the text
+     * is localized.
+     *
+     * @param string $id The text identifier
+     * @return string The requested localized text
      */
     function getLocale($id)
     {
-        if (is_null($this->_locales)) {
-            $this->_locales = include_once TIP::buildLocalePath($this->getName() . '.php');
-        }
-
-        return @$this->_locales[$id];
+        return TIP::getLocale($id, $this->getName());
     }
 
     /**
      * Localize an id
      *
      * Similar to getLocale() but the result is stored in $dst instead of
-     * returning it. Also, it provides a way to prepend a prefix and append
+     * returned. Also, it provides a way to prepend a prefix and append
      * a suffix on $id before calling getLocale() by specifing them in the
      * $modifiers array.
      *
      * Useful as callback in array_walk arguments.
      *
-     * @param mixed     &$dst       Where to store the localized text
+     * @param string    &$dst       Where to store the localized text
      * @param string     $id        The id to localize
      * @param array|null $modifiers A ('prefix','suffix') array
      */

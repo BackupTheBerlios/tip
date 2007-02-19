@@ -278,7 +278,7 @@ class TIP_Form extends TIP_Module
     /**
      * Prepare the form to be viewed
      *
-     * Simply adds a 'Back' button and freezes the form. The link the 'Back'
+     * Simply adds a 'Close' button and freezes the form. The link the 'Close'
      * button must point to is defined with the $referer argument: if not
      * specified, the referer of the server ($_SERVER['HTTP_REFERER']) will be
      * used instead.
@@ -292,9 +292,9 @@ class TIP_Form extends TIP_Module
             $referer = TIP::buildUrl('index.php');
         }
 
-        // Add the 'Back' button
-        $element =& $this->_form->addElement('link', 'back', null, $referer);
-        $element->setText($this->getLocale('back'));
+        // Add the 'Close' button
+        $element =& $this->_form->addElement('link', 'close', null, $referer);
+        $element->setText($this->getLocale('close'));
         $element->setAttribute('class', 'command');
 
         $this->_form->freeze();
