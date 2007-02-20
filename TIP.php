@@ -86,7 +86,7 @@ class TIP
             if ($same_year && $same_day) {
                 return 'oggi';
             }
-            return strftime($same_year ? '%d %B' : '%d %B %Y', $timestamp);
+            return strftime($same_year ? 'il %d %B' : 'il %d %B %Y', $timestamp);
 
         case 'datetime_it':
             $date = TIP::_formatTimestamp($timestamp, 'date_it');
@@ -134,9 +134,9 @@ class TIP
             HTTP_Session::start('TIP');
         }
 
-        if (HTTP_Session::isExpired() || HTTP_Session::isIdle()) {
+        if (HTTP_Session::isExpired()) {
             HTTP_Session::destroy();
-            HTTP::redirect(TIP::buildUrl('index.php'));
+            HTTP::redirect($_SERVER['HTTP_REFERER']);
             exit;
         }
 
@@ -697,6 +697,26 @@ class TIP
         return $result;
     }
 
+    /**
+     * Get the Text_Wiki instance
+     *
+     * Singleton to get the Text_Wiki instance properly configured for the
+     * TIP system.
+     *
+     * @return Text_Wiki The requested instance
+     */
+    function& getWiki()
+    {
+        static $wiki = null;
+        if (is_null($wiki)) {
+            require_once 'Text/Wiki.php';
+            $wiki =& Text_Wiki::singleton('Default');
+            $wiki->setFormatConf('Xhtml', 'charset', 'UTF-8');
+        }
+
+        return $wiki;
+    }
+
     function setSession($id, $value)
     {
         TIP::_startSession();
@@ -732,5 +752,17 @@ require_once 'Block.php';
  * @var TIP_Application
  */
 $GLOBALS[TIP_MAIN_MODULE] =& TIP_Module::getInstance('application');
+
+if (!function_exists('array_intersect_key')) {
+    function array_intersect_key($array1, $array2)
+    {
+        $GLOBALS['_TIP_ARRAY'] = array();
+        $callback = create_function('$v,$k,&$a', 'if(array_key_exists($k,$a)) $GLOBALS["_TIP_ARRAY"][$k]=$v;');
+        array_walk($array1, $callback, $array2);
+        $result =& $GLOBALS['_TIP_ARRAY'];
+        unset($GLOBALS['_TIP_ARRAY']);
+        return $result;
+    }
+}
 
 ?>

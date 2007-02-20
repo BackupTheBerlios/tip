@@ -33,6 +33,7 @@ class TIP_Form extends TIP_Module
     {
         $this->TIP_Module();
         $this->on_process =& $this->callback('_onProcess');
+        HTML_QuickForm::registerElementType('wikiarea', TIP::buildLogicPath('lib', 'wikiarea.php'), 'HTML_QuickForm_wikiarea');
     }
 
     function& _addEnum(&$field)
@@ -44,7 +45,7 @@ class TIP_Form extends TIP_Module
 
         // On lot of available choices, use a select menu
         if (count($field['choices']) > 3) {
-            return $this->_form->addElement('select', $id, $label, $items);
+            return $this->_form->addElement('select', $id, $label, $items, array('class'=>'expand'));
         }
 
         // On few available choices, use radio button
@@ -53,7 +54,7 @@ class TIP_Form extends TIP_Module
             $item =& $this->_form->createElement('radio', $id, $label, $i_label, $i_value);
             $group[] =& $item;
         }
-        return $this->_form->addElement('group', $id, $label, $group, ' &nbsp; ', false);
+        return $this->_form->addElement('group', $id, $label, $group, null, false);
     }
 
     function& _addSet(&$field)
@@ -69,7 +70,17 @@ class TIP_Form extends TIP_Module
             $group[] =& $item;
         }
 
-        return $this->_form->addElement('group', $id, $label, $group, ' &nbsp; ');
+        return $this->_form->addElement('group', $id, $label, $group);
+    }
+
+    function& _addText(&$field)
+    {
+        $id = $field['id'];
+        $label = $this->_block->getLocale($id . '_label');
+        $element =& $this->_form->addElement('wikiarea', $id, $label, array('class'=>'expand'));
+        $element->setWiki(TIP::getWiki());
+        $element->setRows('8');
+        return $element;
     }
 
     function& _addGeneric(&$field)
@@ -78,11 +89,11 @@ class TIP_Form extends TIP_Module
         $label = $this->_block->getLocale($id . '_label');
 
         if (strpos(strtolower($id), 'password') !== false) {
-            $element =& $this->_form->addElement('password', $id, $label);
+            $element =& $this->_form->addElement('password', $id, $label, array('class'=>'expand'));
 
             $reid = 're' . $id;
             $relabel = $this->_block->getLocale($reid . '_label');
-            $slave =& $this->_form->addElement('password', $reid, $relabel);
+            $slave =& $this->_form->addElement('password', $reid, $relabel, array('class'=>'expand'));
             if ($field['length'] > 0) {
                 $slave->setMaxLength($field['length']);
             }
@@ -93,7 +104,7 @@ class TIP_Form extends TIP_Module
             return $element;
         }
 
-        return $this->_form->addElement('text', $id, $label);
+        return $this->_form->addElement('text', $id, $label, array('class'=>'expand'));
     }
 
     function _addRule($element, $type, $format = '')
@@ -104,8 +115,6 @@ class TIP_Form extends TIP_Module
 
     function _onProcess($row)
     {
-        $this->_block->data->forceFieldType($row);
-
         if ($this->_is_add) {
             // Put operation
             $this->_block->data->putRow($row);
@@ -293,9 +302,9 @@ class TIP_Form extends TIP_Module
         }
 
         // Add the 'Close' button
-        $element =& $this->_form->addElement('link', 'close', null, $referer);
-        $element->setText($this->getLocale('close'));
+        $element =& $this->_form->addElement('link', 'buttons', null, $referer);
         $element->setAttribute('class', 'command');
+        $element->setText($this->getLocale('close'));
 
         $this->_form->freeze();
         return true;
@@ -312,7 +321,13 @@ class TIP_Form extends TIP_Module
      */
     function render()
     {
-        $this->_form->display();
+        require_once 'HTML/QuickForm/Renderer/Tableless.php';
+
+        $renderer =& new HTML_QuickForm_Renderer_Tableless();
+        $renderer->addStopFieldsetElements('buttons');
+        $this->_form->accept($renderer);
+
+        echo $renderer->toHtml();
         return true;
     }
 

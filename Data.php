@@ -14,7 +14,8 @@
  * valid field id.
  *
  * This class is a context used to represent a source of data. This can be a
- * database table, an XML file or whatever can provides rows of data.
+ * database table, an XML file or whatever can provides rows of data (and that
+ * has a TIP_Data_Engine implementation).
  *
  * @package TIP
  * @final
@@ -49,6 +50,36 @@ class TIP_Data extends TIP_Type
         $this->path = $path;
         $this->_engine =& TIP_Data_Engine::getInstance($engine);
     }
+
+    function _castField(&$value, $key)
+    {
+        if (isset($value)) {
+            $field =& $this->fields[$key];
+            if ($value === '' && $field['can_be_null']) {
+                $value = null;
+            } elseif (!settype ($value, $field['type'])) {
+                $this->logWarning("Invalid type for field['$key'] => $value ({$field['type']})");
+            }
+        }
+    }
+
+    /**
+     * Cast a row content to the proper type
+     *
+     * Given a row, forces every field in the row that matches the field
+     * structure in this context to be of the type specified by getFields().
+     * The type forcing is done using settype().
+     *
+     * At least, the non-detailed part of the $fields property MUST be filled
+     * before calling this method.
+     *
+     * @param array &$row The row to cast
+     */
+    function _castRow(&$row)
+    {
+        array_walk($row, array(&$this, '_castField'));
+    }
+
 
     /**#@-*/
 
@@ -180,9 +211,10 @@ class TIP_Data extends TIP_Type
      *   'fieldid1' => array (
      *
      *      // Filled by TIP_Data_Engine::fillFields()
-     *		'id'          => 'fieldid1',
+     *		'id'          => 'fieldid1' (must be ever a string type),
      *		'type'        => a valid settype() type string,
-     *		'subtype'     => 'date', 'time', 'datetime', 'enum', 'set', 'unsigned' or null,
+     *		'subtype'     => 'date', 'time', 'datetime', 'enum', 'set', 'text',
+     *		                 'unsigned' or null,
      *		'length'      => an integer specifing the max length, or 0 if not used,
      *		'can_be_null' => true or false,
      * 
@@ -214,30 +246,6 @@ class TIP_Data extends TIP_Type
     }
 
     /**
-     * Cast a row content to the proper type
-     *
-     * Given a row, forces every field in the row that matches the field
-     * structure in this context to be of the type specified by getFields().
-     * The type forcing is done using settype().
-     *
-     * @param array &$row The row to cast
-     */
-    function forceFieldType(&$row)
-    {
-        $fields =& $this->getFields(false);
-
-        foreach ($fields as $id => $field) {
-            if (! is_null(@$row[$id])) {
-                if ($row[$id] === '' && $field['can_be_null']) {
-                    $row[$id] = null;
-                } else {
-                    settype ($row[$id], $field['type']);
-                }
-            }
-        }
-    }
-
-    /**
      * Read one row
      *
      * Retrieves the content of the row with the specified $id.
@@ -247,7 +255,15 @@ class TIP_Data extends TIP_Type
      */
     function& getRow($id)
     {
-        return $this->_engine->get($this, $this->rowFilter($id));
+        $rows =& $this->_engine->get($this, $this->rowFilter($id));
+        if (!is_array($rows[(string) $id])) {
+            $fake_null = null;
+            return $fake_null;
+        }
+
+        $this->getFields(false);
+        $this->_castRow($rows[$id]);
+        return $rows[$id];
     }
 
     /**
@@ -267,7 +283,12 @@ class TIP_Data extends TIP_Type
      */
     function& getRows($filter)
     {
-        return $this->_engine->get($this, $filter);
+        $rows =& $this->_engine->get($this, $filter);
+        if (is_array($rows)) {
+            $this->getFields(false);
+            array_walk($rows, array(&$this, '_castRow'));
+        }
+        return $rows;
     }
 
 
@@ -287,19 +308,18 @@ class TIP_Data extends TIP_Type
      */
     function putRow(&$row)
     {
-        // Remove the primary key from row, if present
-        if (array_key_exists($this->primary_key, $row)) {
-            unset($row[$this->primary_key]);
-        }
+        // Keep only the keys that are fields
+        $this->getFields(false);
+        $set = array_intersect_key($row, $this->fields);
 
-        $id = $this->_engine->insert($this, $row);
+        $this->_castRow($set);
+        $id = $this->_engine->insert($this, $set);
         if (is_null($id)) {
             return false;
         }
 
         // Add the recently added primary key to row
-        $fields =& $this->getFields(false);
-        settype($id, $fields[$this->primary_key]['type']);
+        settype($id, $this->fields[$this->primary_key]['type']);
         $row[$this->primary_key] = $id;
         return true;
     }
@@ -330,15 +350,18 @@ class TIP_Data extends TIP_Type
             return false;
         }
 
-        // Keep only the field keys differents from $old_row (if specified)
-        $keys = array_keys($this->getFields(false));
+        // Keep only the items that differs between $row and $old_row
         $set = empty($old_row) ? $row : array_diff_assoc($row, $old_row);
-        $set = array_flip(array_intersect(array_flip($set), $keys));
+
+        // Keep only the keys that are fields
+        $set = array_intersect_key($set, $this->getFields(false));
+
         if (empty($set)) {
             // No fields to update
             return true;
         }
 
+        $this->_castRow($set);
         return $this->_engine->update($this, $this->rowFilter($id), $set);
     }
 
@@ -365,6 +388,8 @@ class TIP_Data extends TIP_Type
             return false;
         }
 
+        $this->getFields(false);
+        $this->_castRow($set);
         return $this->_engine->update($this, $filter, $row);
     }
 

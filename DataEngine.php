@@ -94,7 +94,7 @@ class TIP_Data_Engine extends TIP_Type
      * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
      *
      * @param TIP_Data &$data The data context
-     * @return bool TRUE on success or FALSE on errors
+     * @return bool true on success or false on errors
      */
     function fillFields(&$data)
     {
@@ -124,7 +124,7 @@ class TIP_Data_Engine extends TIP_Type
      * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
      *
      * @param TIP_Data $data The data context
-     * @return bool TRUE on success or FALSE on errors
+     * @return bool true on success or false on errors
      */
     function fillDetails(&$data)
     {
@@ -145,8 +145,8 @@ class TIP_Data_Engine extends TIP_Type
      * </code>
      *
      * The result must be an empty array if there's no matching rows.
-     * Furthermore, the value of the fields must be casted to the proper type.
-     * Consider using TIP_Data::forceFieldType() on every row.
+     * The type of the field values is not important: the resulting array will
+     * be casted to the proper type in the TIP_Data object.
      *
      * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
      *
@@ -195,7 +195,7 @@ class TIP_Data_Engine extends TIP_Type
      * @param TIP_Data &$data   The data context
      * @param string    $filter The filter conditions
      * @param array    &$row    The field=>value pairs to update
-     * @return bool TRUE on success or FALSE on errors
+     * @return bool true on success or false on errors
      */
     function update(&$data, $filter, &$row)
     {
@@ -211,7 +211,7 @@ class TIP_Data_Engine extends TIP_Type
      *
      * @param TIP_Data &$data   The data context
      * @param string    $filter The filter conditions
-     * @return \c TRUE on success, \c FALSE otherwise.
+     * @return true on success or false on errors
      */
     function delete (&$data, $filter)
     {

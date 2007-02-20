@@ -47,8 +47,7 @@ class TIP_News extends TIP_Block
             return $this->addRow($row);
 
         case 'edit':
-            $id = TIP::getGet('id', 'integer');
-            if (is_null($id)) {
+            if (is_null($id = TIP::getGet('id', 'integer')) && is_null($id = TIP::getPost('id', 'integer'))) {
                 TIP::error('E_NOTSPECIFIED');
                 return false;
             }
@@ -115,7 +114,7 @@ class TIP_News extends TIP_Block
                 return false;
             }
 
-            if (! $this->view->resetRow()) {
+            if (! $this->view->rowReset()) {
                 TIP::error('E_NOTFOUND');
                 $this->endView();
                 return false;

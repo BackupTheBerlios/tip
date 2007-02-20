@@ -187,24 +187,12 @@ class TIP_User extends TIP_Block
     {
         switch ($action)
         {
-            /* \trustedaction <b>unset</b>\n
-             * Logout the current user (if any).
-             */
         case 'unset':
             $this->_logout();
             return true;
 
-            /* \trustedaction <b>edit</b>\n
-             * Requests the modification of the current user profile.
-             */
         case 'edit':
             return $this->editRow();
-
-            /* \trustedaction <b>doedit</b>\n
-             * Modifies the current user profile with the data found in $_POST.
-             */
-        case 'doedit':
-            return false;
         }
 
         return parent::runTrustedAction ($action);

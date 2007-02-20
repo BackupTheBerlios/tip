@@ -265,7 +265,7 @@ class TIP_Module extends TIP_Type
      */
 
     /**
-     * Outputs the content of the first defined request
+     * Htmlize the content of the first defined request
      *
      * $params is a string in the form "request,request,...".
      *
@@ -276,12 +276,8 @@ class TIP_Module extends TIP_Type
      */
     function commandHtml($params)
     {
-        if (! strpos(',', $params)) {
-            $value = $this->getRequest($params);
-        } else {
-            $requests = explode(',', $params);
-            $value = $this->getValidRequest($requests);
-        }
+        $requests = explode(',', $params);
+        $value = $this->getValidRequest($requests);
         if (is_null($value)) {
             $this->setError("no valid request found ($params)");
             return false;
@@ -292,20 +288,44 @@ class TIP_Module extends TIP_Type
     }
 
     /**
-     * Tries to output the content of the first defined request
+     * Try to htmlize the content of the first defined request
      *
      * $params is a string in the form "request,request,...".
      *
-     * Equal to commandHtml(), but do not log any message if the request is not
+     * Equal to commandHtml(), but do not log any warning if the request is not
      * found.
      *
      * @uses getValidRequest() The method used to resolve the requests
      */
     function commandTryHtml($params)
     {
-        $requests = explode (',', $params);
-        $value = $this->getValidRequest ($requests);
-        echo TIP::toHtml ($value);
+        $requests = explode(',', $params);
+        $value = $this->getValidRequest($requests);
+        echo TIP::toHtml($value);
+        return true;
+    }
+
+    /**
+     * Wikize the content of the first defined request
+     *
+     * $params is a string in the form "request,request,...".
+     *
+     * Similar to commandHtml, but the value is parsed and rendered by a
+     * Text_Wiki object.
+     *
+     * @uses getValidRequest() The method used to resolve the requests
+     */
+    function commandWiki($params)
+    {
+        $requests = explode(',', $params);
+        $value = $this->getValidRequest($requests);
+        if (is_null($value)) {
+            $this->setError("no valid request found ($params)");
+            return false;
+        }
+
+        $wiki =& TIP::getWiki();
+        echo $wiki->transform($value, 'Xhtml');
         return true;
     }
 

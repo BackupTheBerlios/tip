@@ -142,14 +142,6 @@ class TIP_Mysql extends TIP_Data_Engine
             case 'VARCHAR':
             case 'BINARY':
             case 'VARBINARY':
-            case 'TINYBLOB':
-            case 'TINYTEXT':
-            case 'BLOB':
-            case 'TEXT':
-            case 'MEDIUMBLOB':
-            case 'MEDIUMTEXT':
-            case 'LONGBLOB':
-            case 'LONGTEXT':
                 $field['type'] = 'string';
                 if (strpos($flags, 'enum') !== false) {
                     $field['subtype'] = 'enum';
@@ -159,6 +151,34 @@ class TIP_Mysql extends TIP_Data_Engine
                     $field['subtype'] = null;
                 }
                 $field['length'] = mysql_field_len($resource, $n) / 3;
+                break;
+
+            case 'TINYBLOB':
+            case 'TINYTEXT':
+                $field['type'] = 'string';
+                $field['subtype'] = 'text';
+                $field['length'] = 255;
+                break;
+
+            case 'BLOB':
+            case 'TEXT':
+                $field['type'] = 'string';
+                $field['subtype'] = 'text';
+                $field['length'] = 65535;
+                break;
+
+            case 'MEDIUMBLOB':
+            case 'MEDIUMTEXT':
+                $field['type'] = 'string';
+                $field['subtype'] = 'text';
+                $field['length'] = 16777215;
+                break;
+
+            case 'LONGBLOB':
+            case 'LONGTEXT':
+                $field['type'] = 'string';
+                $field['subtype'] = 'text';
+                $field['length'] = 4294967295;
                 break;
 
             case 'ENUM':
@@ -295,9 +315,7 @@ class TIP_Mysql extends TIP_Data_Engine
         $rows = array();
 
         while ($row = mysql_fetch_assoc($result)) {
-            $data->forceFieldType($row);
-            $rows[$row[$data->primary_key]] =& $row;
-            unset($row);
+            $rows[$row[$data->primary_key]] = $row;
         }
 
         // To free or not to free
