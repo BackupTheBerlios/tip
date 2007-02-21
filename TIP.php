@@ -136,7 +136,7 @@ class TIP
 
         if (HTTP_Session::isExpired()) {
             HTTP_Session::destroy();
-            HTTP::redirect($_SERVER['HTTP_REFERER']);
+            HTTP::redirect($_SERVER['REQUEST_URI']);
             exit;
         }
 
