@@ -199,6 +199,33 @@ class TIP_Block extends TIP_Module
         return true;
     }
 
+    /**
+     * Wikize the content of the field specified in $params
+     *
+     * The value is parsed and rendered by the TIP::getWiki() instance
+     * accordling to the wiki rules defined in the 'wiki_rules' option of the
+     * field structure.
+     */
+    function commandWiki($params)
+    {
+        $value = $this->getField($params);
+        if (is_null($value)) {
+            $this->setError("no field found ($params)");
+            return false;
+        }
+
+        $fields =& $this->data->getFields();
+        $field =& $fields[$params];
+        if (array_key_exists('wiki_rules', $field)) {
+            $wiki_rules = explode(',', $field['wiki_rules']);
+        } else {
+            $wiki_rules = null;
+        }
+        $wiki =& TIP::getWiki($wiki_rules);
+        echo $wiki->transform($value, 'Xhtml');
+        return true;
+    }
+
     /**#@-*/
 
     /**
@@ -265,7 +292,7 @@ class TIP_Block extends TIP_Module
      */
     function getField($id)
     {
-        if (! isset($this->view)) {
+        if (!isset($this->view)) {
             return null;
         }
 

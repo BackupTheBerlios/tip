@@ -306,30 +306,6 @@ class TIP_Module extends TIP_Type
     }
 
     /**
-     * Wikize the content of the first defined request
-     *
-     * $params is a string in the form "request,request,...".
-     *
-     * Similar to commandHtml, but the value is parsed and rendered by a
-     * Text_Wiki object.
-     *
-     * @uses getValidRequest() The method used to resolve the requests
-     */
-    function commandWiki($params)
-    {
-        $requests = explode(',', $params);
-        $value = $this->getValidRequest($requests);
-        if (is_null($value)) {
-            $this->setError("no valid request found ($params)");
-            return false;
-        }
-
-        $wiki =& TIP::getWiki();
-        echo $wiki->transform($value, 'Xhtml');
-        return true;
-    }
-
-    /**
      * Link to an action
      *
      * $params is a string in the form "action,param1=value1,param2=value2,..."

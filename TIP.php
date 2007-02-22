@@ -741,28 +741,53 @@ class TIP
      * Get the Text_Wiki instance
      *
      * Singleton to get the Text_Wiki instance properly configured for the
-     * TIP system.
+     * TIP system. You can specify an array of rules to use in the $rules
+     * array, or leave it undefined to use all the available rules.
      *
+     * @param array|null $rules The array of rules to enable
      * @return Text_Wiki The requested instance
      */
-    function& getWiki()
+    function& getWiki($rules = null)
     {
         static $wiki = null;
+        static $all_rules = null;
+
         if (is_null($wiki)) {
             require_once 'Text/Wiki.php';
-            $wiki =& Text_Wiki::singleton('Default');
+            $wiki =& Text_Wiki::singleton('Default', array('Prefilter', 'Heading', 'Toc', 'Horiz', 'Blockquote', 'List', 'Deflist', 'Table', 'Center', 'Paragraph', 'Url', 'Strong', 'Emphasis', 'Revise', 'Tighten'));
+            $all_rules = array('Heading', 'Toc', 'Horiz', 'Blockquote', 'List', 'Deflist', 'Table', 'Center', 'Url', 'Strong', 'Emphasis', 'Revise');
             $wiki->setFormatConf('Xhtml', 'charset', 'UTF-8');
         }
 
+        $wiki->disable = is_array($rules) ? array_diff($all_rules, $rules) : array();
         return $wiki;
     }
 
+    /**
+     * Add a new value to the session
+     *
+     * Associates $value to $id and adds this pairs to the current session.
+     * The session, if does not exist, it is created on-the-fly.
+     *
+     * @param string $id    The id of the pair
+     * @param mixed  $value The value to store
+     */
     function setSession($id, $value)
     {
         TIP::_startSession();
         HTTP_Session::set($id, $value);
     }
 
+    /**
+     * Get a value from the session
+     *
+     * Gets the previously stored value of the pair identified by $id.
+     * If the session is expired, it is destroyed and regenerated and
+     * null is returned.
+     *
+     * @param string $id The id of the pair
+     * @param mixed|null The requested value or null on errors
+     */
     function getSession($id)
     {
         TIP::_startSession();

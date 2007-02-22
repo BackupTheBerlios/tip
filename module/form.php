@@ -119,8 +119,13 @@ class TIP_Form extends TIP_Module
     {
         $id = $field['id'];
         $label = $this->_block->getLocale($id . '_label');
+        if (array_key_exists('wiki_rules', $field)) {
+            $wiki_rules = explode(',', $field['wiki_rules']);
+        } else {
+            $wiki_rules = null;
+        }
         $element =& $this->_form->addElement('wikiarea', $id, $label, array('class'=>'expand'));
-        $element->setWiki(TIP::getWiki());
+        $element->setWiki(TIP::getWiki($wiki_rules));
         $element->setRows('10');
         return $element;
     }
