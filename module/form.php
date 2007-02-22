@@ -27,18 +27,31 @@ class TIP_Form extends TIP_Module
     var $_defaults = null;
     var $_fields = null;
     var $_is_add = false;
+    var $_converter = array();
 
-
-    function TIP_Form()
-    {
-        $this->TIP_Module();
-
-        $this->on_process =& $this->callback('_onProcess');
-    }
 
     function _customizations()
     {
-        HTML_QuickForm::registerElementType('wikiarea', TIP::buildLogicPath('lib', 'wikiarea.php'), 'HTML_QuickForm_wikiarea');
+        $this->_form->registerElementType('wikiarea', TIP::buildLogicPath('lib', 'wikiarea.php'), 'HTML_QuickForm_wikiarea');
+        $this->_form->registerRule('date', 'callback', '_ruleDate', 'TIP_Form');
+    }
+
+    function _ruleDate($value)
+    {
+        list($day, $month, $year) = array_values($value);
+        return checkdate($month, $day, $year);
+    }
+
+    function _converterTimestamp(&$value)
+    {
+        list($day, $month, $year) = array_values($value);
+        $value = mktime(0, 0, 0, $month, $day, $year);
+    }
+
+    function _converterISO8601(&$value)
+    {
+        list($day, $month, $year) = array_values($value);
+        $value = sprintf('%04d%02d%02d', $year, $month, $day);
     }
 
     function& _widgetText(&$field)
@@ -68,13 +81,6 @@ class TIP_Form extends TIP_Module
         $message = $this->getLocale('repeat');
         $this->_addRule(array($reid, $id), 'compare');
 
-        return $element;
-    }
-
-    function& _widgetEmail(&$field)
-    {
-        $element =& $this->_widgetText($field);
-        $this->_addRule($field['id'], 'email');
         return $element;
     }
 
@@ -130,6 +136,31 @@ class TIP_Form extends TIP_Module
         return $element;
     }
 
+    function& _widgetDate(&$field)
+    {
+        $id = $field['id'];
+        $label = $this->_block->getLocale($id . '_label');
+
+        // Set the date in a format suitable for HTML_QuickForm_date
+        $this->_defaults[$id] = TIP::getTimestamp($this->_defaults[$id], 'iso8601');
+
+        $field_year = date('Y', $this->_defaults[$id]);
+        $this_year = date('Y');
+
+        // $min_year > $max_year so the year list is properly sorted in reversed order
+        $options = array(
+            'language' => TIP::getOption('application', 'locale'),
+            'format'   => 'dFY',
+            'minYear'  => $this_year+1,
+            'maxYear'  => $field_year < $this_year-5 ? $field_year : $this_year-5
+        );
+
+        $element =& $this->_form->addElement('date', $id, $label, $options);
+        $this->_addRule($id, 'date');
+        $this->_addConverter($id, 'ISO8601');
+        return $element;
+    }
+
     function _addRule($id, $type, $format = '')
     {
         $message = $this->getLocale($type);
@@ -155,6 +186,21 @@ class TIP_Form extends TIP_Module
             }
             $this->_addRule($id, $type, $format);
         }
+    }
+
+    function _addConverter($id, $type)
+    {
+        $this->_converter[$id] = $type;
+    }
+
+    function _onConversion($row)
+    {
+        foreach ($this->_converter as $id => $type) {
+            $method = '_converter' . $type;
+            $this->$method(&$row[$id]);
+        }
+
+        $this->on_process->go($row);
     }
 
     function _onProcess($row)
@@ -187,6 +233,18 @@ class TIP_Form extends TIP_Module
      */
     var $on_process = null;
 
+
+    /**
+     * Form constructor
+     *
+     * Initializes the on_process callback to the default one.
+     */
+    function TIP_Form()
+    {
+        $this->TIP_Module();
+
+        $this->on_process =& $this->callback('_onProcess');
+    }
 
     /**
      * Set the TIP_Form
@@ -225,8 +283,8 @@ class TIP_Form extends TIP_Module
         require_once 'HTML/QuickForm.php';
         require_once 'HTML/QuickForm/DHTMLRulesTableless.php';
 
-        $this->_customizations();
         $this->_form =& new HTML_QuickForm_DHTMLRulesTableless($this->_block->getId());
+        $this->_customizations();
         $this->_form->removeAttribute('name'); // XHTML compliance
 
         $application =& $GLOBALS[TIP_MAIN_MODULE];
@@ -294,7 +352,7 @@ class TIP_Form extends TIP_Module
     {
         if ($this->_form->validate()) {
             if (@TIP::getSession('form.to_process')) {
-                $this->_form->process(array(&$this->on_process, 'go'));
+                $this->_form->process(array(&$this, '_onConversion'));
                 TIP::setSession('form.to_process', null);
                 TIP::info('I_DONE');
             }
@@ -317,6 +375,7 @@ class TIP_Form extends TIP_Module
             }
 
             $this->_form->setDefaults($defaults);
+            $element =& $this->_form->getElement('date');
         }
 
         return true;

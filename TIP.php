@@ -63,21 +63,6 @@ class TIP
         return get_magic_quotes_gpc() ? TIP::deepStripSlashes($value) : $value;
     }
 
-    function _getTimestamp($date, $format)
-    {
-        switch ($format) {
-        case 'timestamp':
-            return $date;
-
-        case 'iso8601':
-            list($year, $month, $day, $hour, $min, $sec) = sscanf($date, '%d-%d-%d %d:%d:%d');
-            return mktime($hour, $min, $sec, $month, $day, $year);
-        }
-
-        TIP::logWarning("Input time format not recognized ($format)");
-        return false;
-    }
-
     function _formatTimestamp($timestamp, $format)
     {
         switch ($format) {
@@ -388,6 +373,26 @@ class TIP
         return TIP::_getTyped($id, $type, $_COOKIE);
     }
 
+    /**
+     * Get the timestamp from a special date
+     *
+     * Parses $date, specified in $format format, and return the timestamp.
+     * The currently supported formats are:
+     *
+     * - 'iso8601' for ISO8601 date or datetime (the format used, for instance, by MySql)
+     *
+     */
+    function getTimestamp($date, $format)
+    {
+        switch ($format) {
+        case 'iso8601':
+            @list($year, $month, $day, $hour, $min, $sec) = sscanf($date, '%d-%d-%d %d:%d:%d');
+            return mktime($hour, $min, $sec, $month, $day, $year);
+        }
+
+        TIP::logWarning("Input time format not recognized ($format)");
+        return false;
+    }
 
     /**
      * Date/time formatter
@@ -415,7 +420,13 @@ class TIP
      */
     function formatDate($format, $input = null, $input_format = 'timestamp')
     {
-        $timestamp = is_null($input) ? time() : TIP::_getTimestamp($input, $input_format);
+        if (is_null($input)) {
+            $timestamp = time();
+        } elseif ($input_format == 'timestamp') {
+            $timestamp = $input;
+        } else {
+            $timestamp = TIP::getTimestamp($input, $input_format);
+        }
         return is_null($timestamp) ? null : TIP::_formatTimestamp($timestamp, $format);
     }
 
