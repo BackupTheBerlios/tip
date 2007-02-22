@@ -42,16 +42,16 @@ class TIP_Form extends TIP_Module
         return checkdate($month, $day, $year);
     }
 
-    function _converterTimestamp(&$value)
+    function _converterTimestamp($value)
     {
         list($day, $month, $year) = array_values($value);
-        $value = mktime(0, 0, 0, $month, $day, $year);
+        return mktime(0, 0, 0, $month, $day, $year);
     }
 
-    function _converterISO8601(&$value)
+    function _converterISO8601($value)
     {
         list($day, $month, $year) = array_values($value);
-        $value = sprintf('%04d%02d%02d', $year, $month, $day);
+        return sprintf('%04d%02d%02d', $year, $month, $day);
     }
 
     function& _widgetText(&$field)
@@ -197,7 +197,7 @@ class TIP_Form extends TIP_Module
     {
         foreach ($this->_converter as $id => $type) {
             $method = '_converter' . $type;
-            $this->$method(&$row[$id]);
+            $row[$id] = $this->$method($row[$id]);
         }
 
         $this->on_process->go($row);
