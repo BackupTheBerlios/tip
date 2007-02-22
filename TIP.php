@@ -8,38 +8,8 @@
 
 
 /**#@+ Backward compatibily functions */
-if (!function_exists('array_intersect_key')) {
-    function array_intersect_key($array1, $array2)
-    {
-        $GLOBALS['_TIP_ARRAY'] = array();
-        $GLOBALS['_TIP_ARRAY2'] =& $array2;
-        $callback = create_function(
-            '$v, $k',
-            'if (@array_key_exists($k, $GLOBALS["_TIP_ARRAY2"]))
-                 $GLOBALS["_TIP_ARRAY"][$k] = $v;'
-        );
-        array_walk($array1, $callback);
-        $result =& $GLOBALS['_TIP_ARRAY'];
-        unset($GLOBALS['_TIP_ARRAY2']);
-        unset($GLOBALS['_TIP_ARRAY']);
-        return $result;
-    }
-}
-if (!function_exists('array_combine')) {
-    function array_combine($keys, $values)
-    {
-        $GLOBALS['_TIP_ARRAY'] = false;
-        $callback = create_function(
-            '$v, $k',
-            '$GLOBALS["_TIP_ARRAY"][$k] = $v;
-             return $k;'
-        );
-        array_map($callback, $values, $keys);
-        $result =& $GLOBALS['_TIP_ARRAY'];
-        unset($GLOBALS['_TIP_ARRAY']);
-        return $result;
-    }
-}
+require_once 'PHP/Compat/Function/array_intersect_key.php';
+require_once 'PHP/Compat/Function/array_combine.php';
 /**#@-*/
 
 
