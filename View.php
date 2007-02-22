@@ -31,6 +31,11 @@ class TIP_View extends TIP_Type
     var $_row_index = 0;
 
 
+    function _buildId(&$filter, &$data)
+    {
+        return $data->getId() . '/' . $filter;
+    }
+
     function _row_callback(&$row)
     {
         ++ $this->_row_index;
@@ -77,6 +82,7 @@ class TIP_View extends TIP_Type
     {
         $this->TIP_Type();
 
+        $this->_id     =  TIP_View::_buildId($filter, $data);
         $this->data    =& $data;
         $this->filter  =  $filter;
         $this->on_row  =& new TIP_Callback;
@@ -180,7 +186,7 @@ class TIP_View extends TIP_Type
      */
     function& getInstance($filter, &$data)
     {
-        $id = $data->path . '.' . $filter;
+        $id = TIP_View::_buildId($filter, $data);
         $instance =& TIP_View::singleton($id);
         if (is_null($instance)) {
             $instance =& new TIP_View($filter, $data);
@@ -388,10 +394,11 @@ class TIP_Fields_View extends TIP_View
      */
     function& getInstance(&$data)
     {
-        $id = $data->path;
+        $id = $data->getId();
         $instance =& TIP_Fields_View::singleton($id);
         if (is_null($instance)) {
-            $instance =& TIP_Fields_View::singleton($id, new TIP_Fields_View($data));
+            $instance =& new TIP_Fields_View($data);
+            TIP_Fields_View::singleton($id, array($id => &$instance));
         }
         return $instance;
     }

@@ -17,16 +17,28 @@ class TIP_Data extends TIP_Type
     /**#@+ @access private */
 
     /**
+     * The data identifier
+     *
+     * The path (or name) which univoquely identify the data.
+     * This field is filled by the TIP_Data during this class instantiation.
+     *
+     * @var string
+     */
+    var $_path = null;
+
+    /**
      * The data engine
      * @var TIP_Data_Engine
      */
     var $_engine = null;
 
     /**
-     * Has the $this->_engine->fillDetails() function been called?
-     * @var bool
+     * Subset of fields used by this object
+     *
+     * An array of field ids used by this object. If left undefined, all the
+     * fields are used.
      */
-    var $_detailed = false;
+    var $_fields_subset = null;
 
     /**
      * Fields structure
@@ -34,13 +46,30 @@ class TIP_Data extends TIP_Type
      */
     var $_fields = null;
     
+    /**
+     * Has the $this->_engine->fillDetails() function been called?
+     * @var bool
+     */
+    var $_detailed = false;
 
-    function TIP_Data($path, $engine)
+
+    function TIP_Data($path, $engine, $fields_subset)
     {
         $this->TIP_Type();
 
-        $this->path = $path;
+        $this->_id = TIP_Data::_buildId($path, $engine, $fields_subset);
+        $this->_path = $path;
         $this->_engine =& TIP_Data_Engine::getInstance($engine);
+        $this->_fields_subset =& $fields_subset;
+    }
+
+    function _buildId(&$path, &$engine, &$fields_subset)
+    {
+        $id = $engine . ':/' . $path;
+        if (is_array($fields_subset)) {
+            $id .= '(' . implode(',', $fields_subset) . ')';
+        }
+        return $id;
     }
 
     function _castField(&$value, $key)
@@ -86,16 +115,6 @@ class TIP_Data extends TIP_Type
     /**#@+ @access public */
 
     /**
-     * The data identifier
-     *
-     * The path (or name) which univoquely identify the data.
-     * This field is filled by the TIP_Data during this class instantiation.
-     *
-     * @var string
-     */
-    var $path = null;
-
-    /**
      * The primary key field
      *
      * Defaults to 'id' but can be changed with setPrimaryKey(). The primary
@@ -109,20 +128,23 @@ class TIP_Data extends TIP_Type
     /**
      * Get a TIP_Data instance
      *
-     * Gets the previously defined $path table object or instantiates
-     * a new one and returns it.
+     * Gets the previously defined $_path table object or instantiates
+     * a new one and returns it. In $fields_subset you can specify the list of
+     * fields used by this object or leave it null to use all the fields.
      *
-     * @param string $path   The path (or name) identifying the dataset
-     * @param string $engine The data engine name to use
-     * @return TIP_Data A reference to the table instance
+     * @param string     $path          The string identifying the dataset
+     * @param string     $engine        The data engine name to use
+     * @param array|null $fields_subset Array of field ids to enable
+     * @return TIP_Data A reference to the data instance
      * @static
      */
-    function& getInstance($path, $engine)
+    function& getInstance($path, $engine, $fields_subset = null)
     {
-        $id = $path . '.' . $engine;
+        $id = TIP_Data::_buildId($path, $engine, $fields_subset);
         $instance =& TIP_Data::singleton($id);
         if (is_null($instance)) {
-            $instance =& TIP_Data::singleton($id, new TIP_Data($path, $engine));
+            $instance =& new TIP_Data($path, $engine, $fields_subset);
+            TIP_Data::singleton($id, array($id => &$instance));
         }
         return $instance;
     }

@@ -105,7 +105,7 @@ class TIP_Module extends TIP_Type
      */
     function getLocale($id)
     {
-        return TIP::getLocale($id, $this->getName());
+        return TIP::getLocale($id, $this->getId());
     }
 
     /**
@@ -240,7 +240,7 @@ class TIP_Module extends TIP_Type
     function buildModulePath()
     {
         $pieces = func_get_args();
-        return TIP::buildSourcePath($this->getName(), $pieces);
+        return TIP::buildSourcePath($this->getId(), $pieces);
     }
 
     /**
@@ -255,7 +255,7 @@ class TIP_Module extends TIP_Type
     function buildModuleUrl()
     {
         $pieces = func_get_args();
-        return TIP::buildSourceUrl($this->getName(), $pieces);
+        return TIP::buildSourceUrl($this->getId(), $pieces);
     }
 
     /**#@+
@@ -352,7 +352,7 @@ class TIP_Module extends TIP_Type
             array_unshift($list, 'action=' . $action);
         }
         if (strpos($params, ',module=') === false) {
-            array_unshift($list, 'module=' . $this->getName());
+            array_unshift($list, 'module=' . $this->getId());
         }
         $args = implode('&amp;', TIP::urlEncodeAssignment($list));
         echo TIP::buildUrl('index.php') . '?' . $args;

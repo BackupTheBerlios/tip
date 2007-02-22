@@ -62,11 +62,11 @@ class TIP_Block extends TIP_Module
      *
      * Initializes a TIP_Block instance.
      *
-     * The data path is read from <code>$cfg[getName()]['data_path']</code>.
+     * The data path is read from <code>$cfg[getId()]['data_path']</code>.
      * If not specified, it defaults to
-     * <code>$cfg['application']['data_path'] . $getName()</code>.
+     * <code>$cfg['application']['data_path'] . getId()</code>.
      *
-     * The data engine is read from <code>$cfg[getName()]['data_engine']</code>.
+     * The data engine is read from <code>$cfg[getId()]['data_engine']</code>.
      * If not specified, it defaults to
      * <code>$cfg['application']['data_engine']</code>.
      */
@@ -74,14 +74,57 @@ class TIP_Block extends TIP_Module
     {
         $this->TIP_Module();
 
-        if (is_null($data_path = $this->getOption('data_path')) &&
-            is_null($data_path = TIP::getOption('application', 'data_path') . $this->getName()) ||
-            is_null($data_engine = $this->getOption('data_engine')) &&
-            is_null($data_engine = TIP::getOption('application', 'data_engine'))) {
+        if (is_null($data_path = $this->guessDataPath()) ||
+            is_null($data_engine = $this->guessDataEngine())) {
             return;
         }
 
         $this->data =& TIP_Data::getInstance($data_path, $data_engine);
+    }
+
+    /**
+     * The data path this block must use
+     *
+     * Gets the data path to be used by this block. Usually, it is get from
+     * the following configuration option:
+     * <code>$cfg[blockid]['data_path']</code>.
+     *
+     * If not defined, the data path will be:
+     * <code>$cfg['application']['data_path'] . blockid</code>.
+     *
+     * @return string The data path to use
+     */
+    function guessDataPath()
+    {
+        $data_path = $this->getOption('data_path');
+        if (is_null($data_path)) {
+            $data_path = TIP::getOption('application', 'data_path');
+            if (isset($data_path)) {
+                $data_path .= $this->getId();
+            }
+        }
+        return $data_path;
+    }
+
+    /**
+     * The data engine this block must use
+     *
+     * Gets the data engine to be used by this block. Usually, it is get from
+     * the following configuration option:
+     * <code>$cfg[blockid]['data_engine']</code>.
+     *
+     * If not defined, the data engine will be:
+     * <code>$cfg['application']['data_engine']</code>.
+     *
+     * @return string The data engine to use
+     */
+    function guessDataEngine()
+    {
+        $data_engine = $this->getOption('data_engine');
+        if (is_null($data_engine)) {
+            $data_engine = TIP::getOption('application', 'data_engine');
+        }
+        return $data_engine;
     }
 
     /**
@@ -363,8 +406,8 @@ class TIP_Block extends TIP_Module
     {
         if (is_null($row)) {
             if (!isset($this->view) || is_null($row =& $this->view->rowCurrent())) {
-                $data_id = $this->data->path;
-                $this->setError("No current row to edit ($data_id)");
+                $id = $this->data->getId();
+                $this->setError("No current row to edit ($id)");
                 return false;
             }
         }
@@ -387,8 +430,8 @@ class TIP_Block extends TIP_Module
     {
         if (is_null($row)) {
             if (!isset($this->view) || is_null($row =& $this->view->rowCurrent())) {
-                $data_id = $this->data->path;
-                $this->setError("No current row to view ($data_id)");
+                $id = $this->data->getId();
+                $this->setError("No current row to view ($id)");
                 return false;
             }
         }

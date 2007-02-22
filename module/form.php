@@ -34,6 +34,7 @@ class TIP_Form extends TIP_Module
     function TIP_Form()
     {
         $this->TIP_Module();
+
         $this->on_process =& $this->callback('_onProcess');
         HTML_QuickForm::registerElementType('wikiarea', TIP::buildLogicPath('lib', 'wikiarea.php'), 'HTML_QuickForm_wikiarea');
     }
@@ -186,7 +187,7 @@ class TIP_Form extends TIP_Module
      */
     function make()
     {
-        $this->_form =& new HTML_QuickForm($this->_block->data->path);
+        $this->_form =& new HTML_QuickForm($this->_block->getId());
 
         $application =& $GLOBALS[TIP_MAIN_MODULE];
         $this->_fields =& $this->_block->data->getFields();
@@ -196,7 +197,7 @@ class TIP_Form extends TIP_Module
 
         $header = $this->_block->getLocale($this->_is_add ? 'add_header' : 'edit_header');
         $this->_form->addElement('header', 'PageHeader', $header);
-        $this->_form->addElement('hidden', 'module', $this->_block->getName());
+        $this->_form->addElement('hidden', 'module', $this->_block->getId());
         $this->_form->addElement('hidden', 'action', $application->keys['ACTION']);
 
         foreach (array_keys($this->_fields) as $id) {

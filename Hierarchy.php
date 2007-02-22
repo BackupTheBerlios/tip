@@ -29,32 +29,42 @@ class TIP_Hierarchy extends TIP_Block
      * Initializes a TIP_Hierarchy instance. This class provides a pseudo
      * block that manages a hierarchy of a real block, called master.
      *
-     * The data path is read from
-     * <code>$cfg[masterblockname]['hierarchy_path']</code>.
-     * If not specified, it defaults to
-     * <code>$cfg[masterblockname]['data_path'] . '_hierarchy'</code>.
-     *
      * The data engine is the same used by the master block.
      *
      * @param TIP_Block &$block The master block
      */
     function TIP_Hierarchy(&$block)
     {
-        /* The data engine is initialized here, so no needs to call the
-         * TIP_Block constructor */
-        $this->TIP_Block ();
+        // The data engine is initialized as for $block but with the overriden
+        // guessDataPath() method
+        $this->_id = $block->getId();
+        $this->TIP_Block();
 
         $this->_block =& $block;
-        $this->_model =& new HTML_TreeMenu ();
+        $this->_model =& new HTML_TreeMenu();
+    }
 
-        if (is_null($data_path = $block->getOption('hierarchy_path')) &&
-            is_null($data_path = $block->data->path . '_hierarchy') ||
-            is_null($data_engine = $block->getOption('data_engine')) &&
-            is_null($data_engine = TIP::getOption('application', 'data_engine'))) {
-            return;
+    /**
+     * The data path this block must use
+     *
+     * The data path is read from
+     * <code>$cfg[masterblockid]['hierarchy_path']</code>.
+     *
+     * If not specified, it defaults to
+     * <code>$cfg[masterblockid]['data_path'] . '_hierarchy'</code>.
+     *
+     * @return string The data path to use
+     */
+    function guessDataPath()
+    {
+        $data_path = $this->getOption('hierarchy_path');
+        if (is_null($data_path)) {
+            $data_path = parent::guessDataPath();
+            if (isset($data_path)) {
+                $data_path .= '_hierarchy';
+            }
         }
-
-        $this->data =& TIP_Data::getInstance($data_path, $data_engine);
+        return $data_path;
     }
 
     function& startView($filter)
@@ -69,10 +79,9 @@ class TIP_Hierarchy extends TIP_Block
         $rows =& $view->rows;
         $view->summaries['TOTAL_COUNT'] = 0;
         $total_count =& $view->summaries['TOTAL_COUNT'];
-        $base_url =
-            TIP::buildUrl('index.php') .
-            '?module=' . $this->_block->getName() .
-            '&amp;action=browse&amp;id=';
+        $module = $this->getId();
+        $action = $this->action;
+        $base_url = TIP::buildUrl("index.php?module=$module&amp;action=$action&amp;id=");
 
         foreach (array_keys($rows) as $id) {
             $row =& $rows[$id];
@@ -109,6 +118,7 @@ class TIP_Hierarchy extends TIP_Block
 
     /**#@+ @access public */
 
+    var $action = 'browse';
     var $icon = 'generic.png';
     var $folder_icon = 'folder.png';
     var $folder_expanded_icon = 'folder-expanded.png';
@@ -126,10 +136,11 @@ class TIP_Hierarchy extends TIP_Block
      */
     function& getInstance(&$block)
     {
-        $id = $block->getName();
+        $id = $block->getId();
         $instance =& TIP_Hierarchy::singleton($id);
         if (is_null($instance)) {
-            $instance =& TIP_Hierarchy::singleton($id, new TIP_Hierarchy($block));
+            $instance =& new TIP_Hierarchy($block);
+            TIP_Hierarchy::singleton($id, array($id => &$instance));
         }
 
         return $instance;
@@ -145,7 +156,7 @@ class TIP_Hierarchy extends TIP_Block
         $this->startView('');
         $options['images'] = TIP::buildSourceURL('shared', 'icons');
         $options['defaultClass'] = 'hierarchy';
-        $options['jsObjectName'] = $this->_block->getName();
+        $options['jsObjectName'] = $this->getId();
         $menu =& new HTML_TreeMenu_DHTML($this->_model, $options);
         $menu->printMenu();
         $this->endView();

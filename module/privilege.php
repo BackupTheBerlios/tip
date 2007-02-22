@@ -272,7 +272,7 @@ class TIP_Privilege extends TIP_Block
         if (is_null($view))
             return null;
 
-        $filter = create_function('$row', 'return $row["_module"]=="' . $module->getName() . '";');
+        $filter = create_function('$r', 'return $r[\'_module\']==\'' . $module->getId() . '\';');
         $row = @end(array_filter($view->rows, $filter));
         $this->endView();
 

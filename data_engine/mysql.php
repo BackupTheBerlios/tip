@@ -53,11 +53,13 @@ class TIP_Mysql extends TIP_Data_Engine
         return $result;
     }
 
-    function prepareFieldset(&$row)
+    function prepareFieldset(&$data, &$row)
     {
         $fieldset = array();
         foreach ($row as $id => $value) {
-            $fieldset[] = $this->prepareName($id) . '=' . $this->prepareValue($value);
+            if (is_null($data->_fields_subset) || in_array($id, $data->_fields_subset)) {
+                $fieldset[] = $this->prepareName($id) . '=' . $this->prepareValue($value);
+            }
         }
 
         return empty($fieldset) ? '' : 'SET ' . implode(',', $fieldset);
@@ -228,7 +230,7 @@ class TIP_Mysql extends TIP_Data_Engine
 
     function fillFields(&$data)
     {
-        $result = mysql_list_fields($this->_database, $data->path, $this->_connection);
+        $result = mysql_list_fields($this->_database, $data->_path, $this->_connection);
         if (! $result) {
             $data->setError(mysql_error($this->_connection));
             return false;
@@ -242,7 +244,7 @@ class TIP_Mysql extends TIP_Data_Engine
         $result =& $this->runQuery('SELECT COLUMN_NAME,COLUMN_DEFAULT,COLUMN_TYPE,EXTRA,COLUMN_COMMENT',
                                    'FROM information_schema.COLUMNS',
                                    'WHERE `TABLE_SCHEMA`=' . $this->prepareValue($this->_database),
-                                   'AND `TABLE_NAME`=' . $this->prepareValue($data->path));
+                                   'AND `TABLE_NAME`=' . $this->prepareValue($data->_path));
         if (! $result) {
             return false;
         }
@@ -279,7 +281,16 @@ class TIP_Mysql extends TIP_Data_Engine
 
     function& get(&$data, $filter)
     {
-        if (($result =& $this->runQuery('SELECT * FROM', $this->prepareName($data->path), $filter)) === false) {
+        if (is_null($data->_fields_subset)) {
+            $what = '*';
+        } else {
+            $callback = array(&$this, 'prepareName');
+            $what = implode(',', array_map($callback, $data->_fields_subset));
+        }
+
+        if (($result =& $this->runQuery('SELECT', $what, 'FROM',
+                                        $this->prepareName($data->_path),
+                                        $filter)) === false) {
             $result = null;
             return $result;
         }
@@ -299,8 +310,8 @@ class TIP_Mysql extends TIP_Data_Engine
     function insert(&$data, &$row)
     {
         if ($this->runQuery('INSERT INTO',
-                            $this->prepareName($data->path),
-                            $this->prepareFieldset($row)) === false) {
+                            $this->prepareName($data->_path),
+                            $this->prepareFieldset($data, $row)) === false) {
             return null;
         }
 
@@ -309,17 +320,17 @@ class TIP_Mysql extends TIP_Data_Engine
 
     function update(&$data, $filter, &$row)
     {
-        $fieldset = $this->prepareFieldset($row);
+        $fieldset = $this->prepareFieldset($data, $row);
         if (empty($fieldset)) {
             return true;
         }
 
-        return $this->runQuery('UPDATE', $this->prepareName($data->path), $fieldset, $filter);
+        return $this->runQuery('UPDATE', $this->prepareName($data->_path), $fieldset, $filter);
     }
 
     function delete(&$data, $filter)
     {
-        return $this->runQuery('DELETE FROM', $this->prepareName($data->path), $filter);
+        return $this->runQuery('DELETE FROM', $this->prepareName($data->_path), $filter);
     }
 
     /**#@-*/

@@ -18,6 +18,34 @@
  */
 class TIP_Locale extends TIP_Block
 {
+    /**#@+ @access private */
+
+    var $_locale = null;
+
+    /**#@-*/
+
+
+    /**#@+ @access protected */
+
+    function TIP_Locale()
+    {
+        // The data stuff is initialized here, so the call to $this->TIP_Block
+        // will be skipped
+        $this->TIP_Module();
+
+        $this->_locale = TIP::getOption('application', 'locale');
+
+        if (is_null($data_path = $this->guessDataPath()) ||
+            is_null($data_engine = $this->guessDataEngine())) {
+            return;
+        }
+
+        $this->data =& TIP_Data::getInstance($data_path, $data_engine, array('id', $this->_locale));
+    }
+
+    /**#@-*/
+
+
     /**#@+ @access public */
 
     /**
@@ -47,7 +75,6 @@ class TIP_Locale extends TIP_Block
             $filter = $this->data->filter('id', $module . '.%', 'LIKE');
             $view =& $this->startView($filter);
             if (is_null($view)) {
-                $this->logWarning("Module not localized ($module)");
                 return $id;
             }
 
@@ -68,13 +95,7 @@ class TIP_Locale extends TIP_Block
             return $id;
         }
 
-        $locale = TIP::getOption('application', 'locale');
-        if (!array_key_exists($locale, $row)) {
-            $this->logWarning("Locale not defined ($locale)");
-            return $id;
-        }
-
-        return $row[$locale];
+        return @$row[$this->_locale];
     }
 
     /**#@-*/

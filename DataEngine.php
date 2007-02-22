@@ -121,7 +121,9 @@ class TIP_Data_Engine extends TIP_Type
     /**
      * Read data
      *
-     * Gets the rows that satisfy the $filter conditions.
+     * Gets the rows that satisfy the $filter conditions. Only the fields
+     * specified by TIP_Data::$_fieldset must be read. If this fieldset is
+     * null, all the fields are assumed.
      *
      * The result must be an empty array if there's no matching rows.
      * The type of the field values is not important: the resulting array will

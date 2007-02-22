@@ -25,9 +25,9 @@ class TIP_Type extends TIP
 {
     /**#@+ @access private */
 
-    var $_name = null;
+    var $_tip_type = null;
+    var $_id = null;
     var $_error = null;
-
 
     /**#@-*/
 
@@ -39,29 +39,40 @@ class TIP_Type extends TIP
      *
      * Initializes a TIP_Type instance.
      *
+     * Basically, this class set the $_tip_type and $_id private properties.
+     * By default, these properties are equals. This is valid for singletons
+     * (such as almost all the TIP_Module derived objects), where a single
+     * class has only a single instance.
+     *
+     * If you want to have a class with more instances, you must define in the
+     * constructor the $_id property to something unique inside this class.
+     *
      * @todo Derive this class from PEAR instead of TIP and remove
      *       all error management from TIP_Type.
      */
     function TIP_Type()
     {
-        $this->_name = strtolower(TIP::stripTipPrefix(get_class($this)));
+        $this->_tip_type = strtolower(TIP::stripTipPrefix(get_class($this)));
+        if (is_null($this->_id)) {
+            $this->_id = $this->_tip_type;
+        }
     }
 
     /**
-     * Get the name of an instantiated type
+     * Get the type of a TIP instance
      *
-     * Returns the name of the current - instantiated - type. This function
-     * simply gets the class name (in lowercase) and strips the TIP_PREFIX
-     * from the string.
+     * Returns the type of the current - instantiated - TIP object. This
+     * function simply gets the class name (in lowercase) and strips the
+     * TIP_PREFIX from the string.
      *
      * The result is converted to lowecase to avoid discrepancies between
      * different PHP versions.
      *
      * @return string The type name
      */
-    function getName()
+    function getTipType()
     {
-        return $this->_name;
+        return $this->_tip_type;
     }
 
     /**
@@ -158,15 +169,15 @@ class TIP_Type extends TIP
      * Sets or appends to the internal error string a message. This error is
      * publicly available throught the getError() method.
      */
-    function setError ($message)
+    function setError($message)
     {
-	if (empty ($message))
-	    return;
+        if (empty($message))
+            return;
 
-	if ($this->_error)
-	    $this->_error .= '\n' . $message;
-	else
-	    $this->_error = $message;
+        if ($this->_error)
+            $this->_error .= '\n' . $message;
+        else
+            $this->_error = $message;
     }
 
     /**
@@ -180,7 +191,7 @@ class TIP_Type extends TIP
      */
     function getOption($option)
     {
-        return TIP::getOption($this->_name, $option);
+        return TIP::getOption($this->_tip_type, $option);
     }
 
     /**
@@ -199,39 +210,39 @@ class TIP_Type extends TIP
     }
 
     /**
-     * Logs a warning message
+     * Log a warning message
      *
      * Wrappes TIP::logWarning() appending specific type informations.
      *
      * @see logError(),logFatal()
      */
-    function logWarning ($message)
+    function logWarning($message)
     {
-	TIP::logWarning ($message . " from the '$this->_name' type");
+        TIP::logWarning($message . " from the '{$this->_tip_type}::{$this->_id}' instance");
     }
 
     /**
-     * Logs an error message
+     * Log an error message
      *
      * Wrappes TIP::logError() appending specific type informations.
      *
      * @see logWarning(),logFatal()
      */
-    function logError ($message)
+    function logError($message)
     {
-	TIP::logError ($message . " from the '$this->_name' type");
+        TIP::logError($message . " from the '{$this->_tip_type}::{$this->_id}' instance");
     }
 
     /**
-     * Logs an error message and quits the application
+     * Log an error message and quits the application
      *
      * Wrappes TIP::logFatal() appending specific type informations.
      *
      * @see logWarning(),logError()
      */
-    function logFatal ($message)
+    function logFatal($message)
     {
-	TIP::logFatal ($message . " from the '$this->_name' type");
+        TIP::logFatal($message . " from the '{$this->_tip_type}::{$this->_id}' instance");
     }
 
     /**#@-*/
@@ -260,6 +271,20 @@ class TIP_Type extends TIP
     }
 
     /**
+     * Get the id of a TIP instance
+     *
+     * Returns the id of the current - instantiated - TIP object. The id is
+     * a string that univoquely identifies this instance. Check the TIP_Type
+     * constructor for further details.
+     *
+     * @return string The id name
+     */
+    function getId()
+    {
+        return $this->_id;
+    }
+
+    /**
      * Resets the error messages
      *
      * Resets the internal error messages. The previous list of error messages
@@ -267,11 +292,11 @@ class TIP_Type extends TIP
      *
      * @return string|null The error messages or null if there are no errors.
      */
-    function resetError ()
+    function resetError()
     {
-	$result = $this->_error;
-	$this->_error = null;
-	return $result;
+        $result = $this->_error;
+        $this->_error = null;
+        return $result;
     }
 
     /**
@@ -282,9 +307,9 @@ class TIP_Type extends TIP
      *
      * @return string|null The error messages or null if there are no errors.
      */
-    function getError ()
+    function getError()
     {
-	return $this->_error;
+        return $this->_error;
     }
 
     /**#@-*/
