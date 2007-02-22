@@ -9,8 +9,8 @@
  * Base class for modules
  *
  * @abstract
- * @package TIP
- * @tutorial Module.pkg#TIP_Module
+ * @package  TIP
+ * @tutorial TIP/Module.pkg#TIP_Module
  */
 class TIP_Module extends TIP_Type
 {
@@ -723,7 +723,7 @@ class TIP_Module extends TIP_Type
      * @param string $params  Parameters to pass to the command
      * @return bool|null true on success, false on errors or null if the
      *                   command is not found
-     * @tutorial SourceEngine.pkg#commands
+     * @tutorial TIP/SourceEngine/SourceEngine.pkg#commands
      */
     function callCommand($command, $params)
     {

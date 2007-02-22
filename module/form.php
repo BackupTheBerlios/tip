@@ -2,7 +2,7 @@
 /* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
 
 /**
- * @package TIP
+ * @package    TIP
  * @subpackage Module
  */
 
@@ -16,8 +16,9 @@ require_once 'HTML/QuickForm.php';
  * package.
  *
  * @final
- * @package TIP
+ * @package    TIP
  * @subpackage Module
+ * @tutorial   TIP/Module/TIP_Form.cls
  */
 class TIP_Form extends TIP_Module
 {
@@ -26,6 +27,7 @@ class TIP_Form extends TIP_Module
     var $_form = null;
     var $_block = null;
     var $_defaults = null;
+    var $_fields = null;
     var $_is_add = false;
 
 
@@ -36,7 +38,44 @@ class TIP_Form extends TIP_Module
         HTML_QuickForm::registerElementType('wikiarea', TIP::buildLogicPath('lib', 'wikiarea.php'), 'HTML_QuickForm_wikiarea');
     }
 
-    function& _addEnum(&$field)
+    function& _widgetText(&$field)
+    {
+        $id = $field['id'];
+        $label = $this->_block->getLocale($id . '_label');
+        return $this->_form->addElement('text', $id, $label, array('class'=>'expand'));
+    }
+
+    function& _widgetPassword(&$field)
+    {
+        $id = $field['id'];
+        $label = $this->_block->getLocale($id . '_label');
+        $element =& $this->_form->addElement('password', $id, $label, array('class'=>'expand'));
+
+        $reid = 're' . $id;
+        $relabel = $this->_block->getLocale($reid . '_label');
+        $reelement =& $this->_form->addElement('password', $reid, $relabel, array('class'=>'expand'));
+        if (!array_key_exists($reid, $this->_defaults)) {
+            $this->_defaults[$reid] = $this->_defaults[$id];
+        }
+
+        $this->_addRule($reid, 'required');
+        if ($field['length'] > 0) {
+            $reelement->setMaxLength($field['length']);
+        }
+        $message = $this->getLocale('repeat');
+        $this->_form->addRule(array($reid, $id), $message, 'compare', null);
+
+        return $element;
+    }
+
+    function& _widgetEmail(&$field)
+    {
+        $element =& $this->_widgetText($field);
+        $this->_addRule($field['id'], 'email');
+        return $element;
+    }
+
+    function& _widgetEnum(&$field)
     {
         $id = $field['id'];
         $label = $this->_block->getLocale($id . '_label');
@@ -57,7 +96,7 @@ class TIP_Form extends TIP_Module
         return $this->_form->addElement('group', $id, $label, $group, null, false);
     }
 
-    function& _addSet(&$field)
+    function& _widgetSet(&$field)
     {
         $id = $field['id'];
         $label = $this->_block->getLocale($id . '_label');
@@ -73,38 +112,14 @@ class TIP_Form extends TIP_Module
         return $this->_form->addElement('group', $id, $label, $group);
     }
 
-    function& _addText(&$field)
+    function& _widgetTextArea(&$field)
     {
         $id = $field['id'];
         $label = $this->_block->getLocale($id . '_label');
         $element =& $this->_form->addElement('wikiarea', $id, $label, array('class'=>'expand'));
         $element->setWiki(TIP::getWiki());
-        $element->setRows('8');
+        $element->setRows('10');
         return $element;
-    }
-
-    function& _addGeneric(&$field)
-    {
-        $id = $field['id'];
-        $label = $this->_block->getLocale($id . '_label');
-
-        if (strpos(strtolower($id), 'password') !== false) {
-            $element =& $this->_form->addElement('password', $id, $label, array('class'=>'expand'));
-
-            $reid = 're' . $id;
-            $relabel = $this->_block->getLocale($reid . '_label');
-            $slave =& $this->_form->addElement('password', $reid, $relabel, array('class'=>'expand'));
-            if ($field['length'] > 0) {
-                $slave->setMaxLength($field['length']);
-            }
-
-            $this->_addRule($reid, 'required');
-            $message = $this->getLocale('repeat');
-            $this->_form->addRule(array($reid, $id), $message, 'compare', null);
-            return $element;
-        }
-
-        return $this->_form->addElement('text', $id, $label, array('class'=>'expand'));
     }
 
     function _addRule($element, $type, $format = '')
@@ -164,12 +179,7 @@ class TIP_Form extends TIP_Module
     /**
      * Create a generic form
      *
-     * This is the main function of the form management: it creates a form
-     * for the block by inspecting the field structure of its $data object.
-     * The structure is obtained from the $data object of the caller block
-     * by calling TIP_Data::getFields() and passing true as $detailed argument.
-     *
-     * This form is only created as data structure: no echo operations are
+     * The form is only created as data structure: no echo operations are
      * performed in this step.
      *
      * @return bool true on success or false on errors
@@ -179,7 +189,7 @@ class TIP_Form extends TIP_Module
         $this->_form =& new HTML_QuickForm($this->_block->data->path);
 
         $application =& $GLOBALS[TIP_MAIN_MODULE];
-        $fields =& $this->_block->data->getFields();
+        $this->_fields =& $this->_block->data->getFields();
         $primary_key = $this->_block->data->primary_key;
 
         $this->_form->removeAttribute('name'); // XHTML compliance
@@ -189,8 +199,8 @@ class TIP_Form extends TIP_Module
         $this->_form->addElement('hidden', 'module', $this->_block->getName());
         $this->_form->addElement('hidden', 'action', $application->keys['ACTION']);
 
-        foreach (array_keys($fields) as $id) {
-            $field =& $fields[$id];
+        foreach (array_keys($this->_fields) as $id) {
+            $field =& $this->_fields[$id];
 
             if (substr($id, 0, 1) == '_' || $field['automatic']) {
                 // By default, fields starting with '_' and automatic fields
@@ -201,9 +211,9 @@ class TIP_Form extends TIP_Module
                 continue;
             }
 
-            $method = '_add' . @$field['subtype'];
+            $method = '_widget' . @$field['widget'];
             if (! method_exists($this, $method)) {
-                $method = '_addGeneric';
+                $method = '_widgetText';
             }
 
             $element =& $this->$method($field);
@@ -223,7 +233,7 @@ class TIP_Form extends TIP_Module
                 $this->_addRule($id, 'numeric');
             }
 
-            if ($field['info'] == 'required') {
+            if (@$field['category'] == 'required') {
                 $this->_addRule($id, 'required');
             }
         }
@@ -234,20 +244,6 @@ class TIP_Form extends TIP_Module
 
     /**
      * Process the form
-     *
-     * Processing a form means executing all the tasks the form is born for:
-     * validating, storing the result and freezing the form. Only the render
-     * process is left over to the TIP_Form::render() method. This is done
-     * to allow the rendering of the form when you need it, usually in a
-     * callback of the application.
-     *
-     * If the validation fails, the render process will reshow the form not
-     * frozed (ready for input) showing the failed validation using the
-     * HTML_QuickForm methods.
-     *
-     * If the validation is succesful, the storing of the data will be done
-     * by calling to the TIP_Form::$on_process callback and the form will
-     * be reshown throught TIP_Form::view().
      *
      * @return bool true on success or false on errors
      */
@@ -274,8 +270,7 @@ class TIP_Form extends TIP_Module
                 $defaults =& $this->_defaults;
             } else {
                 // Set the default values with the defaults from TIP_Data
-                $fields =& $this->_block->data->getFields();
-                $defaults = array_map(create_function('&$f', 'return $f["default"];'), $fields);
+                $defaults = array_map(create_function('&$f', 'return $f["default"];'), $this->_fields);
             }
 
             $this->_form->setDefaults($defaults);
@@ -286,11 +281,6 @@ class TIP_Form extends TIP_Module
 
     /**
      * Prepare the form to be viewed
-     *
-     * Simply adds a 'Close' button and freezes the form. The link the 'Close'
-     * button must point to is defined with the $referer argument: if not
-     * specified, the referer of the server ($_SERVER['HTTP_REFERER']) will be
-     * used instead.
      *
      * @param string $referer The link where to turn back
      * @return bool true on success or false on errors
@@ -314,8 +304,6 @@ class TIP_Form extends TIP_Module
      * Render the form
      *
      * This is the final step of the TIP_Form module: the rendering.
-     * An HTML representation of the form in the current state (frozen or not)
-     * is output.
      *
      * @return bool true on success or false on errors
      */

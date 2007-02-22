@@ -488,9 +488,9 @@ class TIP_Rcbt_Tag
  *
  * Simple implementation of TIP_SourceEngine.
  *
- * @package TIP
+ * @package    TIP
  * @subpackage SourceEngine
- * @tutorial TIP_Rcbt.cls
+ * @tutorial   TIP/SourceEngine/TIP_Rcbt.cls
  * @final
  */
 class TIP_Rcbt extends TIP_Source_Engine

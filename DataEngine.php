@@ -12,7 +12,8 @@
  * Provides a common interface to access any data requested by TIP.
  *
  * @abstract
- * @package TIP
+ * @package  TIP
+ * @tutorial TIP/DataEngine/DataEngine.pkg
  */
 class TIP_Data_Engine extends TIP_Type
 {
@@ -107,20 +108,6 @@ class TIP_Data_Engine extends TIP_Type
      * Fills the detailed part of the fields array: read the TIP_Data
      * documentation for further details.
      *
-     * The reason to split the fields filling procedure in two step is
-     * performance. While the fillFields() operation is quite inexpensive and
-     * often required, getting the field details is usually an relative
-     * expensive operation and required only for automatic form generation.
-     * If you do not need to split this operation, simply implement
-     * fillFields() only and code fillDetails() as following:
-     *
-     * <code>
-     * function fillDetails (&$data);
-     * {
-     *     return true;
-     * }
-     * </code>
-     *
      * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
      *
      * @param TIP_Data $data The data context
@@ -134,15 +121,7 @@ class TIP_Data_Engine extends TIP_Type
     /**
      * Read data
      *
-     * Gets the rows that satisfy the $filter conditions. The result returned
-     * by this function must be homogeneus. This means for all the engines the
-     * resulting array must be:
-     *
-     * <code>
-     * $result = array(PrimaryKey1 => array(FieldId1 => value, FieldId2 => value ...),
-     *                 PrimaryKey2 => array(FieldId1 => value, FieldId2 => value ...),
-     *                 ...);
-     * </code>
+     * Gets the rows that satisfy the $filter conditions.
      *
      * The result must be an empty array if there's no matching rows.
      * The type of the field values is not important: the resulting array will
@@ -211,7 +190,7 @@ class TIP_Data_Engine extends TIP_Type
      *
      * @param TIP_Data &$data   The data context
      * @param string    $filter The filter conditions
-     * @return true on success or false on errors
+     * @return bool true on success or false on errors
      */
     function delete (&$data, $filter)
     {

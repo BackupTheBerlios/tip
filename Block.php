@@ -14,8 +14,8 @@
  * the TIP_View interface.
  *
  * @abstract
- * @package TIP
- * @tutorial Module.pkg#TIP_Block
+ * @package  TIP
+ * @tutorial TIP/Module.pkg#TIP_Block
  */
 class TIP_Block extends TIP_Module
 {

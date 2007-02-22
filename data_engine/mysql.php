@@ -11,32 +11,10 @@
  *
  * Interface to the MySql database.
  *
- * The filter parameters must be specified without the SQL command and the
- * FROM clause and can include everything acceptable by the server.
- *
- * For example, if you want to show the user called 'nicola', you must specify
- * the filter <code>WHERE `user`='nicola'</code> in the appropriate module.
- * This applies also to every method that has a filter parameter on a Mysql
- * based module. Using the tipRcbt engine, for instance, you could create a
- * source file like the following:
- *
- * <code>
- * <h1>List of the first ten users whose name begins with 'c'</h1>
- *
- * {user.ForRows(WHERE `user` LIKE 'c%' LIMIT 10)}
- * <p>{user} ({publicname})</p>
- * {}
- * </code>
- *
- * In the above example, the ForRows is called from the 'user' module. Also,
- * the ForRows is by definition a read method (SELECT, in SQL). This means the
- * command will expand to the real SQL query:
- *
- * <code>SELECT * FROM `tip_user` WHERE `user` LIKE 'c\%' LIMIT 10)</code>
- *
  * @final
- * @package TIP
+ * @package    TIP
  * @subpackage DataEngine
+ * @tutorial   TIP/DataEngine/TIP_Mysql.cls
  */
 class TIP_Mysql extends TIP_Data_Engine
 {
@@ -104,12 +82,15 @@ class TIP_Mysql extends TIP_Data_Engine
             $fields[$name] = array('id' => $name);
             $field =& $fields[$name];
 
+            // Default fallbacks
+            $field['widget'] = null;
+            $field['length'] = 0;
+
             switch (strtoupper($type)) {
             case 'BOOL':
             case 'BOOLEAN':
                 $field['type'] = 'bool';
-                $field['subtype'] = null;
-                $field['length'] = 0;
+                $field['widget'] = 'set';
                 break;
 
             case 'BIT':
@@ -120,8 +101,6 @@ class TIP_Mysql extends TIP_Data_Engine
             case 'INTEGER':
             case 'BIGINT':
                 $field['type'] = 'int';
-                $field['subtype'] = strpos($flags, 'unsigned') !== false ? 'unsigned' : null;
-                $field['length'] = 0;
                 break;
 
             case 'FLOAT':
@@ -133,8 +112,6 @@ class TIP_Mysql extends TIP_Data_Engine
             case 'NUMERIC':
             case 'FIXED':
                 $field['type'] = 'float';
-                $field['subtype'] = null;
-                $field['length'] = 0;
                 break;
 
             case 'STRING':
@@ -144,82 +121,78 @@ class TIP_Mysql extends TIP_Data_Engine
             case 'VARBINARY':
                 $field['type'] = 'string';
                 if (strpos($flags, 'enum') !== false) {
-                    $field['subtype'] = 'enum';
+                    $field['widget'] = 'enum';
                 } elseif (strpos($flags, 'set') !== false) {
-                    $field['subtype'] = 'set';
-                } else {
-                    $field['subtype'] = null;
+                    $field['widget'] = 'set';
                 }
+
+                // UTF-8 chars are 3 bytes long
                 $field['length'] = mysql_field_len($resource, $n) / 3;
                 break;
 
             case 'TINYBLOB':
             case 'TINYTEXT':
                 $field['type'] = 'string';
-                $field['subtype'] = 'text';
+                $field['widget'] = 'textarea';
                 $field['length'] = 255;
                 break;
 
             case 'BLOB':
             case 'TEXT':
                 $field['type'] = 'string';
-                $field['subtype'] = 'text';
+                $field['widget'] = 'textarea';
                 $field['length'] = 65535;
                 break;
 
             case 'MEDIUMBLOB':
             case 'MEDIUMTEXT':
                 $field['type'] = 'string';
-                $field['subtype'] = 'text';
+                $field['widget'] = 'textarea';
                 $field['length'] = 16777215;
                 break;
 
             case 'LONGBLOB':
             case 'LONGTEXT':
                 $field['type'] = 'string';
-                $field['subtype'] = 'text';
+                $field['widget'] = 'textarea';
                 $field['length'] = 4294967295;
                 break;
 
             case 'ENUM':
                 $field['type'] = 'string';
-                $field['subtype'] = 'enum';
-                $field['length'] = 0;
+                $field['widget'] = 'enum';
                 break;
 
             case 'SET':
                 $field['type'] = 'string';
-                $field['subtype'] = 'set';
-                $field['length'] = 0;
+                $field['widget'] = 'set';
                 break;
 
             case 'DATE':
                 $field['type'] = 'string';
-                $field['subtype'] = 'date';
+                $field['widget'] = 'date';
                 $field['length'] = 10;
                 break;
 
             case 'TIME':
                 $field['type'] = 'string';
-                $field['subtype'] = 'time';
+                $field['widget'] = 'time';
                 $field['length'] = 8;
                 break;
 
             case 'DATETIME':
                 $field['type'] = 'string';
-                $field['subtype'] = 'datetime';
+                $field['widget'] = 'datetime';
                 $field['length'] = 19;
                 break;
 
             case 'TIMESTAMP':
                 $field['type'] = 'int';
-                $field['subtype'] = 'datetime';
-                $field['length'] = 0;
+                $field['widget'] = 'datetime';
                 break;
 
             case 'YEAR':
                 $field['type'] = 'string';
-                $field['subtype'] = null; // Not implemented
                 $field['length'] = 4;
                 break;
 
@@ -230,7 +203,7 @@ class TIP_Mysql extends TIP_Data_Engine
             $field['can_be_null'] = (bool) (strpos($flags, 'not_null') === false);
         }
 
-        return ! is_null($fields);
+        return !is_null($fields);
     }
 
     /**#@-*/
@@ -261,7 +234,7 @@ class TIP_Mysql extends TIP_Data_Engine
             return false;
         }
 
-        return $this->tryFillFields($data->fields, $result);
+        return $this->tryFillFields($data->_fields, $result);
     }
 
     function fillDetails(&$data)
@@ -276,11 +249,11 @@ class TIP_Mysql extends TIP_Data_Engine
 
         while ($row = mysql_fetch_assoc($result)) {
             $id = $row['COLUMN_NAME'];
-            if (! array_key_exists($id, $data->fields)) {
+            if (! array_key_exists($id, $data->_fields)) {
                 continue;
             }
 
-            $field =& $data->fields[$id];
+            $field =& $data->_fields[$id];
 
             // $field['default']
             $field['default'] = @$row['COLUMN_DEFAULT'];
@@ -290,7 +263,7 @@ class TIP_Mysql extends TIP_Data_Engine
             $field['automatic'] = strpos($row['EXTRA'], 'auto_increment') !== FALSE;
 
             // $field['choices']
-            if ($field['subtype'] == 'set' || $field['subtype'] == 'enum') {
+            if ($field['widget'] == 'set' || $field['widget'] == 'enum') {
                 preg_match_all("/[(,]\s*'?((?(?<=')[^']*|[0-9.]*))[^,]*/", $row['COLUMN_TYPE'], $regex);
                 $field['choices'] = $regex[1];
             } else {
@@ -311,7 +284,7 @@ class TIP_Mysql extends TIP_Data_Engine
             return $result;
         }
 
-        $this->tryFillFields($data->fields, $result);
+        $this->tryFillFields($data->_fields, $result);
         $rows = array();
 
         while ($row = mysql_fetch_assoc($result)) {

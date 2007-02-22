@@ -8,17 +8,9 @@
 /**
  * A generic data provider
  *
- * In TIP, all the data are based on a primary key access, that is there must
- * be, for every source data, a field that identify a row (record). The primary
- * key field is named by default 'id', but can be easely changed to any other
- * valid field id.
- *
- * This class is a context used to represent a source of data. This can be a
- * database table, an XML file or whatever can provides rows of data (and that
- * has a TIP_Data_Engine implementation).
- *
- * @package TIP
  * @final
+ * @package  TIP
+ * @tutorial TIP/DataEngine/DataEngine.pkg#TIP_Data
  */
 class TIP_Data extends TIP_Type
 {
@@ -26,22 +18,22 @@ class TIP_Data extends TIP_Type
 
     /**
      * The data engine
-     *
-     * This must be a reference to an implementation of TIP_Data_Engine. It
-     * provides the needed interface to access the data.
-     * This field is filled by the TIP_Data during this class instantiation.
-     *
      * @var TIP_Data_Engine
      */
     var $_engine = null;
 
     /**
      * Has the $this->_engine->fillDetails() function been called?
-     *
      * @var bool
      */
     var $_detailed = false;
 
+    /**
+     * Fields structure
+     * @var array
+     */
+    var $_fields = null;
+    
 
     function TIP_Data($path, $engine)
     {
@@ -54,7 +46,7 @@ class TIP_Data extends TIP_Type
     function _castField(&$value, $key)
     {
         if (isset($value)) {
-            $field =& $this->fields[$key];
+            $field =& $this->_fields[$key];
             if ($value === '' && $field['can_be_null']) {
                 $value = null;
             } elseif (!settype ($value, $field['type'])) {
@@ -70,7 +62,7 @@ class TIP_Data extends TIP_Type
      * structure in this context to be of the type specified by getFields().
      * The type forcing is done using settype().
      *
-     * At least, the non-detailed part of the $fields property MUST be filled
+     * At least, the non-detailed part of the $_fields property MUST be filled
      * before calling this method.
      *
      * @param array &$row The row to cast
@@ -80,23 +72,14 @@ class TIP_Data extends TIP_Type
         array_walk($row, array(&$this, '_castField'));
     }
 
+    function _mergeFieldInfo(&$field)
+    {
+        if (!empty($field['info'])) {
+            $info = TIP::doubleExplode('|', '=', $field['info']);
+            $field = array_merge($field, $info);
+        }
+    }
 
-    /**#@-*/
-
-
-    /**#@+ @access protected */
-
-    /**
-     * Fields structure
-     *
-     * Contains the description of all the fields of this table. It can be
-     * filled by the engine at any time. This allows a sort of performance
-     * gain if filled, for example, after a select query.
-     *
-     * @var array
-     */
-    var $fields = null;
-    
     /**#@-*/
 
 
@@ -203,46 +186,25 @@ class TIP_Data extends TIP_Type
     /**
      * Get the fields structure
      *
-     * Gets the field structure of this data context. This array will strictly
-     * have the following format:
-     *
-     * <code>
-     * $fields = array (
-     *   'fieldid1' => array (
-     *
-     *      // Filled by TIP_Data_Engine::fillFields()
-     *		'id'          => 'fieldid1' (must be ever a string type),
-     *		'type'        => a valid settype() type string,
-     *		'subtype'     => 'date', 'time', 'datetime', 'enum', 'set', 'text',
-     *		                 'unsigned' or null,
-     *		'length'      => an integer specifing the max length, or 0 if not used,
-     *		'can_be_null' => true or false,
-     * 
-     *      // Filled by TIP_Data_Engine::fillDetails()
-     *      'default'     => default value,
-     *      'automatic    => true if the field is set by the server,
-     *		'choices'     => array of valid values for 'set' or 'enum' subtypes,
-     *		'info'        => a string of custom informations
-     *		...),
-     *
-     *   ...);
-     * </code>
+     * Gets the field structure of this data context.
      *
      * @param bool $detailed Force a TIP_Data_Engine::fillDetails() call
      * @return array|null The field structure or null on errors
+     * @tutorial TIP/DataEngine/DataEngine.pkg#fields
      */
     function& getFields($detailed = true)
     {
-        if (is_null($this->fields)) {
+        if (is_null($this->_fields)) {
             $this->_engine->fillFields($this);
         }
 
         if ($detailed && ! $this->_detailed) {
             $this->_engine->fillDetails($this);
+            array_walk($this->_fields, array(&$this, '_mergeFieldInfo'));
             $this->_detailed = true;
         }
 
-        return $this->fields;
+        return $this->_fields;
     }
 
     /**
@@ -271,15 +233,13 @@ class TIP_Data extends TIP_Type
      *
      * Gets the rows that satisfy the $filter conditions. The syntax of the
      * filter is data engine dependent: no assumptions are made by the TIP_Data
-     * class. This also means the $filter parameter must be prepared for the
-     * engine: use the prepare... primitives provided by the data engine.
-     *
-     * Of course, the result can be an empty array if there's no matching rows
-     * that satisfy $filter.
+     * class. Whenever possible, use the filter() and rowFilter() to build a
+     * proper filter.
      *
      * @param string $filter The filter conditions
      * @return array|null The array of rows matching the specified filter or
      *                    null on errors
+     * @tutorial TIP/DataEngine/DataEngine.pkg#rows
      */
     function& getRows($filter)
     {
@@ -310,7 +270,7 @@ class TIP_Data extends TIP_Type
     {
         // Keep only the keys that are fields
         $this->getFields(false);
-        $set = array_intersect_key($row, $this->fields);
+        $set = array_intersect_key($row, $this->_fields);
 
         $this->_castRow($set);
         $id = $this->_engine->insert($this, $set);
@@ -319,7 +279,7 @@ class TIP_Data extends TIP_Type
         }
 
         // Add the recently added primary key to row
-        settype($id, $this->fields[$this->primary_key]['type']);
+        settype($id, $this->_fields[$this->primary_key]['type']);
         $row[$this->primary_key] = $id;
         return true;
     }

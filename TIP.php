@@ -6,6 +6,43 @@
  * @package TIP
  */
 
+
+/**#@+ Backward compatibily functions */
+if (!function_exists('array_intersect_key')) {
+    function array_intersect_key($array1, $array2)
+    {
+        $GLOBALS['_TIP_ARRAY'] = array();
+        $GLOBALS['_TIP_ARRAY2'] =& $array2;
+        $callback = create_function(
+            '$v, $k',
+            'if (@array_key_exists($k, $GLOBALS["_TIP_ARRAY2"]))
+                 $GLOBALS["_TIP_ARRAY"][$k] = $v;'
+        );
+        array_walk($array1, $callback);
+        $result =& $GLOBALS['_TIP_ARRAY'];
+        unset($GLOBALS['_TIP_ARRAY2']);
+        unset($GLOBALS['_TIP_ARRAY']);
+        return $result;
+    }
+}
+if (!function_exists('array_combine')) {
+    function array_combine($keys, $values)
+    {
+        $GLOBALS['_TIP_ARRAY'] = false;
+        $callback = create_function(
+            '$v, $k',
+            '$GLOBALS["_TIP_ARRAY"][$k] = $v;
+             return $k;'
+        );
+        array_map($callback, $values, $keys);
+        $result =& $GLOBALS['_TIP_ARRAY'];
+        unset($GLOBALS['_TIP_ARRAY']);
+        return $result;
+    }
+}
+/**#@-*/
+
+
 /**
  * The TIP prefix 
  *
@@ -287,6 +324,39 @@ class TIP
 
         list($param, $value) = explode('=', $assignment);
         return $param . '=' . urlencode($value);
+    }
+
+    /**
+     * Double explode a string
+     *
+     * Given an item separator and a pair separator, performs the explode()
+     * operation twice and return the result as an associative array.
+     *
+     * The $string must have the following format:
+     * <code>key1{$pair_separator}value1{$item_separator}key2{$pair_separator}value2{$item_separator}...</code>
+     * If, for instance, $item_separator is ',' and $pair_separator is '=',
+     * this function will properly parse the following string:
+     * <code>key1=value1,key2=value2,key_n=value_n</code>
+     *
+     * The spaces are no stripped, so be aware to keep $string compact.
+     *
+     * @param string $item_separator The item separator character
+     * @param string $pair_separator The key-value separator character
+     * @param string $string         The string to parse
+     * @return array The resulting associative array
+     */
+    function doubleExplode($item_separator, $pair_separator, $string)
+    {
+        $GLOBALS['_TIP_ARRAY'] = false;
+        $callback = create_function(
+            '$v, $k',
+            'list($k, $v) = @explode(\'' . $pair_separator . '\', $v, 2);
+             $GLOBALS[\'_TIP_ARRAY\'][$k] = $v;');
+        $items = explode($item_separator, $string);
+        array_walk($items, $callback);
+        $result =& $GLOBALS['_TIP_ARRAY'];
+        unset($GLOBALS['_TIP_ARRAY']);
+        return $result;
     }
 
     /**
@@ -752,17 +822,5 @@ require_once 'Block.php';
  * @var TIP_Application
  */
 $GLOBALS[TIP_MAIN_MODULE] =& TIP_Module::getInstance('application');
-
-if (!function_exists('array_intersect_key')) {
-    function array_intersect_key($array1, $array2)
-    {
-        $GLOBALS['_TIP_ARRAY'] = array();
-        $callback = create_function('$v,$k,&$a', 'if(array_key_exists($k,$a)) $GLOBALS["_TIP_ARRAY"][$k]=$v;');
-        array_walk($array1, $callback, $array2);
-        $result =& $GLOBALS['_TIP_ARRAY'];
-        unset($GLOBALS['_TIP_ARRAY']);
-        return $result;
-    }
-}
 
 ?>
