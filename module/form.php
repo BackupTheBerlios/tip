@@ -6,9 +6,6 @@
  * @subpackage Module
  */
 
-/** HTML_QuickForm PEAR package */
-require_once 'HTML/QuickForm.php';
-
 /**
  * Form generator
  *
@@ -25,6 +22,7 @@ class TIP_Form extends TIP_Module
     /**#@+ @access private */
 
     var $_form = null;
+    var $_validation = 'client';
     var $_block = null;
     var $_defaults = null;
     var $_fields = null;
@@ -36,6 +34,10 @@ class TIP_Form extends TIP_Module
         $this->TIP_Module();
 
         $this->on_process =& $this->callback('_onProcess');
+    }
+
+    function _customizations()
+    {
         HTML_QuickForm::registerElementType('wikiarea', TIP::buildLogicPath('lib', 'wikiarea.php'), 'HTML_QuickForm_wikiarea');
     }
 
@@ -64,7 +66,7 @@ class TIP_Form extends TIP_Module
             $reelement->setMaxLength($field['length']);
         }
         $message = $this->getLocale('repeat');
-        $this->_form->addRule(array($reid, $id), $message, 'compare', null);
+        $this->_addRule(array($reid, $id), 'compare');
 
         return $element;
     }
@@ -123,10 +125,31 @@ class TIP_Form extends TIP_Module
         return $element;
     }
 
-    function _addRule($element, $type, $format = '')
+    function _addRule($id, $type, $format = '')
     {
         $message = $this->getLocale($type);
-        $this->_form->addRule($element, $message, $type, $format);
+        $this->_form->addRule($id, $message, $type, $format, $this->_validation);
+    }
+
+    function _addCustomRules($id, $text)
+    {
+        $rules = explode(',', $text);
+        foreach ($rules as $rule) {
+            $open_brace = strpos($text, '(');
+            if ($open_brace === false) {
+                $type = $text;
+                $format = '';
+            } else {
+                $close_brace = strrpos($text, ')');
+                if ($close_brace === false || $close_brace < $open_brace) {
+                    $this->logWarning("invalid custom rule for field $id ($rule)");
+                    continue;
+                }
+                $type = substr($text, 0, $open_brace);
+                $format = substr($text, $open_brace+1, $close_brace-$open_brace-1);
+            }
+            $this->_addRule($id, $type, $format);
+        }
     }
 
     function _onProcess($row)
@@ -165,16 +188,23 @@ class TIP_Form extends TIP_Module
      *
      * Defines some needed setting.
      *
-     * @param TIP_Block &$block  The requesting block
-     * @param array      $row    The default values
-     * @param bool       $is_add Is this an add form?
+     * @param TIP_Block &$block      The requesting block
+     * @param array      $row        The default values
+     * @param bool       $is_add     Is this an add form?
+     * @param string     $validation Validation mode ('client' | 'server')
      * @return bool true on success or false on errors
      */
-    function setForm(&$block, $row = null, $is_add = false)
+    function setForm(&$block, $row = null, $is_add = null, $validation = null)
     {
         $this->_block =& $block;
         $this->_defaults = $row;
-        $this->_is_add = $is_add;
+
+        if (isset($is_add)) {
+            $this->_is_add = $is_add;
+        }
+        if (isset($validation)) {
+            $this->_validation = $validation;
+        }
     }
 
     /**
@@ -187,13 +217,16 @@ class TIP_Form extends TIP_Module
      */
     function make()
     {
-        $this->_form =& new HTML_QuickForm($this->_block->getId());
+        require_once 'HTML/QuickForm.php';
+        require_once 'HTML/QuickForm/DHTMLRulesTableless.php';
+
+        $this->_customizations();
+        $this->_form =& new HTML_QuickForm_DHTMLRulesTableless($this->_block->getId());
+        $this->_form->removeAttribute('name'); // XHTML compliance
 
         $application =& $GLOBALS[TIP_MAIN_MODULE];
         $this->_fields =& $this->_block->data->getFields();
         $primary_key = $this->_block->data->primary_key;
-
-        $this->_form->removeAttribute('name'); // XHTML compliance
 
         $header = $this->_block->getLocale($this->_is_add ? 'add_header' : 'edit_header');
         $this->_form->addElement('header', 'PageHeader', $header);
@@ -236,6 +269,10 @@ class TIP_Form extends TIP_Module
 
             if (@$field['category'] == 'required') {
                 $this->_addRule($id, 'required');
+            }
+
+            if (isset($field['rules'])) {
+                $this->_addCustomRules($id, $field['rules']);
             }
         }
 
