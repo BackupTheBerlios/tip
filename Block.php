@@ -24,18 +24,21 @@ class TIP_Block extends TIP_Module
     var $_view_stack = array ();
 
 
-    function _editRow($row, $is_add)
+    function _editRow($row, $is_add, $auto_render)
     {
         $form =& TIP_Module::getInstance('form');
         $form->setForm($this, $row, $is_add);
 
-        if (!$form->make() || !$form->process()) {
+        if (!$form->make() || is_null($processed = $form->process())) {
             $this->setError($form->resetError());
-            return false;
+            return null;
         }
 
-        $GLOBALS[TIP_MAIN_MODULE]->appendCallback($form->callback('render'));
-        return true;
+        if (!$processed || $auto_render) {
+            $GLOBALS[TIP_MAIN_MODULE]->appendCallback($form->callback('render'));
+        }
+
+        return $processed;
     }
 
     function _viewRow($row)
@@ -196,6 +199,12 @@ class TIP_Block extends TIP_Module
         TIP_Type::getInstance('Hierarchy');
         $hierarchy =& TIP_Hierarchy::getInstance($this);
         $hierarchy->toDhtml();
+        return true;
+    }
+
+    function commandUploadUrl($params)
+    {
+        echo TIP::buildUrl('data', $this->getId(), $params);
         return true;
     }
 
@@ -408,12 +417,15 @@ class TIP_Block extends TIP_Module
      *
      * You can specify automatic fields providing an associative array in $row.
      *
-     * @param array|null $row The automatic row content
-     * @return bool true on success or false on errors
+     * @param array|null $row         The row default values
+     * @param bool       $auto_render Whether to render or not a freezed view of
+     *                                the form if it has been processed
+     * @return bool|null true if the form has been processed, false if the form
+     *                   must be processed or null on errors
      */
-    function addRow($row = null)
+    function addRow($row = null, $auto_render = true)
     {
-        return $this->_editRow($row, true);
+        return $this->_editRow($row, true, $auto_render);
     }
 
     /**
@@ -426,20 +438,23 @@ class TIP_Block extends TIP_Module
      * If $row is not specified, the current row will be used as default one.
      * On no default row, the function will fail.
      *
-     * @param array|null $row The row to edit or null to use the current row
-     * @return bool true on success or false on errors
+     * @param array|null $row         The row to edit or null for the current row
+     * @param bool       $auto_render Whether to render or not a freezed view of
+     *                                the form if it has been processed
+     * @return bool|null true if the form has been processed, false if the form
+     *                   must be processed or null on errors
      */
-    function editRow($row = null)
+    function editRow($row = null, $auto_render = true)
     {
         if (is_null($row)) {
             if (!isset($this->view) || is_null($row =& $this->view->rowCurrent())) {
                 $id = $this->data->getId();
                 $this->setError("No current row to edit ($id)");
-                return false;
+                return null;
             }
         }
 
-        return $this->_editRow($row, false);
+        return $this->_editRow($row, false, $auto_render);
     }
 
     /**

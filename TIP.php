@@ -588,24 +588,22 @@ class TIP
     }
 
     /**
-     * Build a locale path
+     * Build a data path
      *
-     * Shortcut for building a path prepending the application 'locale_root'
-     * and the application 'locale'.
+     * Shortcut for building a path prepending the application 'data_root'.
      *
      * @param string|array $subpath,... A list of partial paths
      * @return string The constructed path
      */
-    function buildLocalePath()
+    function buildDataPath()
     {
-        static $locale_path = null;
-        if (is_null($locale_path)) {
-            $locale_root = TIP::getOption('application', 'locale_root', true);
-            $locale = TIP::getOption('application', 'locale', true);
-            $locale_path = TIP::buildPath($locale_root, $locale);
+        static $data_path = null;
+        if (is_null($data_path)) {
+            $data_root = TIP::getOption('application', 'data_root', true);
+            $data_path = TIP::buildPath($data_root);
         }
 
-        return TIP::deepImplode (array ($locale_path, func_get_args()), DIRECTORY_SEPARATOR);
+        return TIP::deepImplode(array($data_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
 
     /**

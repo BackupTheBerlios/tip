@@ -34,6 +34,20 @@ class TIP_Form extends TIP_Module
     {
         $this->_form->registerElementType('wikiarea', TIP::buildLogicPath('lib', 'wikiarea.php'), 'HTML_QuickForm_wikiarea');
         $this->_form->registerRule('date', 'callback', '_ruleDate', 'TIP_Form');
+        $this->_form->registerRule('minimagesize', 'callback', '_ruleMinImageSize', 'TIP_Form');
+        $this->_form->registerRule('maximagesize', 'callback', '_ruleMaxImageSize', 'TIP_Form');
+    }
+
+    function _getValidTmpFile($struct)
+    {
+        if (isset($struct['error']) && $struct['error'] != UPLOAD_ERR_OK) {
+            return null;
+        }
+        $tmp_name = @$struct['tmp_name'];
+        if (empty($tmp_name) || $tmp_name == 'none') {
+            return null;
+        }
+        return $tmp_name;
     }
 
     function _ruleDate($value)
@@ -42,44 +56,144 @@ class TIP_Form extends TIP_Module
         return checkdate($month, $day, $year);
     }
 
-    function _converterTimestamp($value)
+    function _ruleMinImageSize($value, $size)
     {
-        list($day, $month, $year) = array_values($value);
-        return mktime(0, 0, 0, $month, $day, $year);
+        if (is_null($tmp_file = TIP_Form::_getValidTmpFile($value))) {
+            // Yet invalid or no uploaded file found
+            return true;
+        }
+
+        list($min_width, $min_height) = $size;
+        list($width, $height) = getimagesize($tmp_file);
+        if (empty($width) || empty($height)) {
+            // getimagesize() failed to get the size
+            return false;
+        }
+
+        return $width >= $min_width && $height >= $min_height;
     }
 
-    function _converterISO8601($value)
+    function _ruleMaxImageSize($value, $size)
     {
-        list($day, $month, $year) = array_values($value);
-        return sprintf('%04d%02d%02d', $year, $month, $day);
+        if (is_null($tmp_file = TIP_Form::_getValidTmpFile($value))) {
+            // Yet invalid or no uploaded file found
+            return true;
+        }
+
+        list($max_width, $max_height) = $size;
+        list($width, $height) = getimagesize($tmp_file);
+        if (empty($width) || empty($height)) {
+            // getimagesize() failed to get the size
+            return false;
+        }
+
+        return $width <= $max_width && $height <= $max_height;
+    }
+
+    function _converterTimestamp(&$row, $field)
+    {
+        list($day, $month, $year) = array_values($row[$field]);
+        $row[$field] = mktime(0, 0, 0, $month, $day, $year);
+    }
+
+    function _converterISO8601(&$row, $field)
+    {
+        list($day, $month, $year) = array_values($row[$field]);
+        $row[$field] = sprintf('%04d%02d%02d', $year, $month, $day);
+    }
+
+    function _converterCancel(&$row, $field)
+    {
+        $row[$field] = $this->_defaults[$field];
+    }
+
+    function _converterUpload(&$row, $field)
+    {
+        $value =& $row[$field];
+        if (is_null($tmp_file = TIP_Form::_getValidTmpFile($value))) {
+            // Yet invalid or no uploaded file found
+            $this->_converterCancel($row, $field);
+            return;
+        }
+
+        $extension = substr($value['type'], strpos($value['type'], '/')+1);
+        if (empty($extension)) {
+            $extension = 'jpeg';
+        }
+
+        $path = TIP::buildDataPath($this->_block->getId());
+        $id = @$row[$this->_block->data->primary_key];
+        $error = true;
+
+        for (;;) {
+            if (empty($id)) {
+                // Here there is a race condition, but I want $file with the
+                // specific extension provided by the mime type to avoid user
+                // agents pitfalls
+                $file = tempnam($path, 'tmp');
+                if (empty($file) || !rename($file, $file . '.' . $extension)) {
+                    break;
+                }
+                $file .= '.' . $extension;
+                $name = basename($file);
+            } else {
+                // If this is a yet stored row, using the $id will make the
+                // work a lot safer and cleaner
+                $name = $id . '.' . $extension;
+                $file = $path . DIRECTORY_SEPARATOR . $name;
+            }
+
+            $error = !move_uploaded_file($tmp_file, $file);
+            break;
+        }
+
+        if ($error) {
+            TIP::error('e_upload');
+            $this->_converterCancel($row, $field);
+            return;
+        }
+
+        $old_name = @$this->_defaults[$field];
+        $value = $name;
+
+        if (!empty($old_name) && $old_name != $name) {
+            unlink($path . DIRECTORY_SEPARATOR . $old_name);
+        }
     }
 
     function& _widgetText(&$field)
     {
         $id = $field['id'];
-        $label = $this->_block->getLocale($id . '_label');
-        return $this->_form->addElement('text', $id, $label, array('class'=>'expand'));
+        $element =& $this->_addElement('text', $id);
+        $element->setAttribute('class', 'expand');
+
+        if (@$field['length'] > 0) {
+            $element->setMaxLength($field['length']);
+            $this->_addRule($id, 'maxlength', $field['length']);
+        }
+
+        return $element;
     }
 
     function& _widgetPassword(&$field)
     {
         $id = $field['id'];
-        $label = $this->_block->getLocale($id . '_label');
-        $element =& $this->_form->addElement('password', $id, $label, array('class'=>'expand'));
+        $element =& $this->_addElement('password', $id);
+        $element->setAttribute('class', 'expand');
+
+        if (@$field['length'] > 0) {
+            $element->setMaxLength($field['length']);
+            $this->_addRule($id, 'maxlength', $field['length']);
+        }
 
         $reid = 're' . $id;
-        $relabel = $this->_block->getLocale($reid . '_label');
-        $reelement =& $this->_form->addElement('password', $reid, $relabel, array('class'=>'expand'));
+        $reelement =& $this->_addElement('password', $reid);
+        $reelement->setAttribute('class', 'expand');
+
+        $this->_addRule(array($reid, $id), 'compare');
         if (!array_key_exists($reid, $this->_defaults)) {
             $this->_defaults[$reid] = $this->_defaults[$id];
         }
-
-        $this->_addRule($reid, 'required');
-        if ($field['length'] > 0) {
-            $reelement->setMaxLength($field['length']);
-        }
-        $message = $this->getLocale('repeat');
-        $this->_addRule(array($reid, $id), 'compare');
 
         return $element;
     }
@@ -91,18 +205,21 @@ class TIP_Form extends TIP_Module
         $items = array_flip($field['choices']);
         array_walk($items, array(&$this->_block, 'localize'), array($id . '_', '_label'));
 
-        // On lot of available choices, use a select menu
         if (count($field['choices']) > 3) {
-            return $this->_form->addElement('select', $id, $label, $items, array('class'=>'expand'));
+            // On lot of available choices, use a select menu
+            $element =& $this->_form->addElement('select', $id, $label, $items);
+            $element->setAttribute('class', 'expand');
+        } else {
+            // On few available choices, use radio button
+            $group = array();
+            foreach ($items as $i_value => $i_label) {
+                $item =& $this->_form->createElement('radio', $id, $label, $i_label, $i_value);
+                $group[] =& $item;
+            }
+            $element =& $this->_form->addElement('group', $id, $label, $group, null, false);
         }
 
-        // On few available choices, use radio button
-        $group = array();
-        foreach ($items as $i_value => $i_label) {
-            $item =& $this->_form->createElement('radio', $id, $label, $i_label, $i_value);
-            $group[] =& $item;
-        }
-        return $this->_form->addElement('group', $id, $label, $group, null, false);
+        return $element;
     }
 
     function& _widgetSet(&$field)
@@ -124,15 +241,17 @@ class TIP_Form extends TIP_Module
     function& _widgetTextArea(&$field)
     {
         $id = $field['id'];
-        $label = $this->_block->getLocale($id . '_label');
+        $element =& $this->_addElement('wikiarea', $id);
+        $element->setAttribute('class', 'expand');
+
         if (array_key_exists('wiki_rules', $field)) {
             $wiki_rules = explode(',', $field['wiki_rules']);
         } else {
             $wiki_rules = null;
         }
-        $element =& $this->_form->addElement('wikiarea', $id, $label, array('class'=>'expand'));
         $element->setWiki(TIP::getWiki($wiki_rules));
         $element->setRows('10');
+
         return $element;
     }
 
@@ -142,7 +261,9 @@ class TIP_Form extends TIP_Module
         $label = $this->_block->getLocale($id . '_label');
 
         // Set the date in a format suitable for HTML_QuickForm_date
-        $this->_defaults[$id] = TIP::getTimestamp($this->_defaults[$id], 'iso8601');
+        $iso8601 = @$this->_defaults[$id];
+        $timestamp = empty($iso8601) ? time() : TIP::getTimestamp($iso8601, 'iso8601');
+        $this->_defaults[$id] = $timestamp;
 
         $field_year = date('Y', $this->_defaults[$id]);
         $this_year = date('Y');
@@ -155,10 +276,24 @@ class TIP_Form extends TIP_Module
             'maxYear'  => $field_year < $this_year-5 ? $field_year : $this_year-5
         );
 
-        $element =& $this->_form->addElement('date', $id, $label, $options);
         $this->_addRule($id, 'date');
         $this->_addConverter($id, 'ISO8601');
+        return $this->_form->addElement('date', $id, $label, $options);
+    }
+
+    function& _widgetFile(&$field)
+    {
+        $id = $field['id'];
+        $element =& $this->_addElement('file', $id);
+
+        $this->_addConverter($id, 'upload');
         return $element;
+    }
+
+    function& _addElement($type, $id)
+    {
+        $label = $this->_block->getLocale($id . '_label');
+        return $this->_form->addElement($type, $id, $label);
     }
 
     function _addRule($id, $type, $format = '')
@@ -171,18 +306,21 @@ class TIP_Form extends TIP_Module
     {
         $rules = explode(',', $text);
         foreach ($rules as $rule) {
-            $open_brace = strpos($text, '(');
+            $open_brace = strpos($rule, '(');
             if ($open_brace === false) {
-                $type = $text;
+                $type = $rule;
                 $format = '';
             } else {
-                $close_brace = strrpos($text, ')');
+                $close_brace = strrpos($rule, ')');
                 if ($close_brace === false || $close_brace < $open_brace) {
                     $this->logWarning("invalid custom rule for field $id ($rule)");
                     continue;
                 }
-                $type = substr($text, 0, $open_brace);
-                $format = substr($text, $open_brace+1, $close_brace-$open_brace-1);
+                $type = substr($rule, 0, $open_brace);
+                $format = substr($rule, $open_brace+1, $close_brace-$open_brace-1);
+                if (strpos($format, ' ')) {
+                    $format = explode(' ', $format);
+                }
             }
             $this->_addRule($id, $type, $format);
         }
@@ -193,11 +331,11 @@ class TIP_Form extends TIP_Module
         $this->_converter[$id] = $type;
     }
 
-    function _onConversion($row)
+    function _onConversion(&$row)
     {
-        foreach ($this->_converter as $id => $type) {
+        foreach ($this->_converter as $field => $type) {
             $method = '_converter' . $type;
-            $row[$id] = $this->$method($row[$id]);
+            $this->$method($row, $field);
         }
 
         $this->on_process->go($row);
@@ -309,7 +447,7 @@ class TIP_Form extends TIP_Module
             }
 
             $method = '_widget' . @$field['widget'];
-            if (! method_exists($this, $method)) {
+            if (!method_exists($this, $method)) {
                 $method = '_widgetText';
             }
 
@@ -318,22 +456,15 @@ class TIP_Form extends TIP_Module
                 continue;
             }
 
-            $maxlength = $field['length'];
-            if ($maxlength > 0) {
-                if (method_exists($element, 'setMaxLength')) {
-                    $element->setMaxLength($maxlength);
-                }
-                $this->_addRule($id, 'maxlength', $field['length']);
-            }
-
+            // Automatic adding of the rules guessed by TIP
             if (is_numeric($field['default'])) {
                 $this->_addRule($id, 'numeric');
             }
-
             if (@$field['category'] == 'required') {
                 $this->_addRule($id, 'required');
             }
 
+            // Add the explicitelly defined rules
             if (isset($field['rules'])) {
                 $this->_addCustomRules($id, $field['rules']);
             }
@@ -346,7 +477,10 @@ class TIP_Form extends TIP_Module
     /**
      * Process the form
      *
-     * @return bool true on success or false on errors
+     * Processes, or better said try to process, the form.
+     *
+     * @return bool|null true if the form is processed, false if the form must
+     *                   be processed or null on errors
      */
     function process()
     {
@@ -358,27 +492,25 @@ class TIP_Form extends TIP_Module
             }
 
             return $this->view(TIP::buildUrl('index.php'));
-        } else {
-            TIP::setSession('form.to_process', true);
-
-            // Add reset and submit buttons
-            $group[] = $this->_form->createElement('reset', null, $this->getLocale('reset'));
-            $group[] = $this->_form->createElement('submit', null, $this->getLocale('submit'));
-            $this->_form->addElement('group', 'buttons', null, $group);
-
-            if (is_array($this->_defaults)) {
-                // Set the default values from the given row
-                $defaults =& $this->_defaults;
-            } else {
-                // Set the default values with the defaults from TIP_Data
-                $defaults = array_map(create_function('&$f', 'return $f["default"];'), $this->_fields);
-            }
-
-            $this->_form->setDefaults($defaults);
-            $element =& $this->_form->getElement('date');
         }
 
-        return true;
+        TIP::setSession('form.to_process', true);
+
+        // Add reset and submit buttons
+        $group[] = $this->_form->createElement('reset', null, $this->getLocale('reset'));
+        $group[] = $this->_form->createElement('submit', null, $this->getLocale('submit'));
+        $this->_form->addElement('group', 'buttons', null, $group);
+
+        if (is_array($this->_defaults)) {
+            // Set the default values from the given row
+            $defaults =& $this->_defaults;
+        } else {
+            // Set the default values with the defaults from TIP_Data
+            $defaults = array_map(create_function('&$f', 'return $f["default"];'), $this->_fields);
+        }
+
+        $this->_form->setDefaults($defaults);
+        return false;
     }
 
     /**

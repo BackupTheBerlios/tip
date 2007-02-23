@@ -136,9 +136,7 @@ class HTML_QuickForm_wikiarea extends HTML_QuickForm_textarea
         if (empty($html)) {
             $html = nl2br($value)."\n";
         }
-        $start_tag = '<div ' . $this->getAttributes(true) . '>';
-        $end_tag = '</div>';
-        return $start_tag . $html . $end_tag . $this->_getPersistantData();
+        return $html . $this->_getPersistantData();
     } //end func getFrozenHtml
 
     // }}}

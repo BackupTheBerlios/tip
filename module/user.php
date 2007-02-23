@@ -192,7 +192,7 @@ class TIP_User extends TIP_Block
             return true;
 
         case 'edit':
-            return $this->editRow();
+            return !is_null($this->editRow());
         }
 
         return parent::runTrustedAction ($action);
@@ -254,7 +254,7 @@ class TIP_User extends TIP_Block
              * Registration request.
              */
         case 'add':
-            return $this->AppendToContent ('module.html');
+            return !is_null($this->addRow());
 
             /* \untrustedaction <b>doadd</b>\n
              * New user registration. The user data must be filled in the $_POST

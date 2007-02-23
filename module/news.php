@@ -44,7 +44,25 @@ class TIP_News extends TIP_Block
             $row['_creation'] = TIP::formatDate('datetime_iso8601');
             $row['_hits'] = 1;
             $row['_lasthit'] = $row['_creation'];
-            return $this->addRow($row);
+            $processed = $this->addRow($row, false);
+            if (is_null($processed)) {
+                return false;
+            } elseif ($processed) {
+                $id = TIP::getPost('id', 'integer');
+                $filter = $this->data->rowFilter($id);
+                if (!$this->startView($filter)) {
+                    TIP::error('E_SELECT');
+                    return false;
+                }
+                if (! $this->view->rowReset()) {
+                    TIP::error('E_NOTFOUND');
+                    $this->endView();
+                    return false;
+                }
+                $this->appendToContent('view.src');
+                $this->endView();
+            }
+            return true;
 
         case 'edit':
             if (is_null($id = TIP::getGet('id', 'integer')) && is_null($id = TIP::getPost('id', 'integer'))) {
@@ -58,7 +76,25 @@ class TIP_News extends TIP_Block
                 return false;
             }
 
-            return $this->editRow($row);
+            $processed = $this->editRow($row, false);
+            if (is_null($processed)) {
+                return false;
+            } elseif ($processed) {
+                $id = TIP::getPost('id', 'integer');
+                $filter = $this->data->rowFilter($id);
+                if (!$this->startView($filter)) {
+                    TIP::error('E_SELECT');
+                    return false;
+                }
+                if (! $this->view->rowReset()) {
+                    TIP::error('E_NOTFOUND');
+                    $this->endView();
+                    return false;
+                }
+                $this->appendToContent('view.src');
+                $this->endView();
+            }
+            return true;
 
         case 'delete':
             // TODO
