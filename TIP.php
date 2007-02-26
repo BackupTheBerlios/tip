@@ -6,14 +6,6 @@
  * @package TIP
  */
 
-
-/**#@+ Backward compatibily functions */
-require_once 'PHP/Compat/Function/array_intersect_key.php';
-require_once 'PHP/Compat/Function/array_combine.php';
-/**#@-*/
-
-require_once 'PEAR.php';
-
 /**
  * The TIP prefix 
  *
@@ -34,7 +26,6 @@ define('TIP_MAIN_MODULE', '_tip_application');
 
 
 require_once 'config.php';
-require_once 'HTTP.php';
 
 
 /**
@@ -770,10 +761,10 @@ class TIP
      * TIP system. You can specify an array of rules to use in the $rules
      * array, or leave it undefined to use all the available rules.
      *
-     * @param array|null $enable_rules The array of rules to enable
+     * @param array|null $enabled The array of rules to enable
      * @return Text_Wiki The requested instance
      */
-    function& getWiki($enable_rules = null)
+    function& getWiki($enabled = null)
     {
         static $wiki = null;
         static $rules = null;
@@ -793,7 +784,7 @@ class TIP
             $wiki->setFormatConf('Xhtml', 'charset', 'UTF-8');
         }
 
-        $wiki->disable = is_array($rules) ? array_diff($rules, $enable_rules) : array();
+        $wiki->disable = is_array($enabled) ? array_diff($rules, $enabled) : array();
         return $wiki;
     }
 
@@ -830,6 +821,15 @@ class TIP
 
     /**#@-*/
 }
+
+set_include_path(TIP::buildLogicPath('pear'));
+
+/**#@+ Backward compatibily functions */
+require_once 'PHP/Compat/Function/array_intersect_key.php';
+require_once 'PHP/Compat/Function/array_combine.php';
+/**#@-*/
+
+require_once 'HTTP.php';
 
 require_once 'Type.php';
 require_once 'Callback.php';

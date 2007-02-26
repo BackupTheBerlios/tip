@@ -98,7 +98,7 @@ class TIP_Callback extends TIP
     {
         $args = func_get_args();
         if (empty($args)) {
-            $args = $this->_args;
+            $args =& $this->_args;
         }
 
         $this->result = call_user_func_array($this->_callback, $args);

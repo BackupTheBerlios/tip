@@ -51,11 +51,10 @@ class TIP_Notify extends TIP_Module
         $message_id = $this->getId() . '.' . $message_id;
         $view =& $locale->startView($locale->data->rowFilter($message_id));
         if (!is_object($view)) {
-            TIP::error('notification impossible');
             return false;
         }
 
-        $view->summaries['TITLE'] = $locale->get($title_id, $this->getId());
+        $view->summaries['TITLE'] = $locale->get($title_id, $this->getId(), null, false);
         if (!$view->rowReset()) {
             TIP::warning("message id not found ($message_id)");
             $view->summaries['MESSAGE'] = $message_id;

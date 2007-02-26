@@ -21,6 +21,7 @@ class TIP_Locale extends TIP_Block
     /**#@+ @access private */
 
     var $_locale = null;
+    var $_cache = array();
 
 
     function _onRow(&$row)
@@ -108,7 +109,12 @@ class TIP_Locale extends TIP_Block
 
             $this->endView();
         } else {
-            $row =& $this->data->getRow($row_id);
+            if (array_key_exists($row_id, $this->_cache)) {
+                $row =& $this->_cache[$row_id];
+            } else {
+                $row =& $this->data->getRow($row_id);
+                $this->_cache[$row_id] =& $row;
+            }
         }
 
         if (is_null($row)) {

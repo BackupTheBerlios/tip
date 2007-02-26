@@ -22,7 +22,7 @@ class TIP_Form extends TIP_Module
     /**#@+ @access private */
 
     var $_form = null;
-    var $_validation = 'server';
+    var $_validation = 'client';
     var $_block = null;
     var $_defaults = null;
     var $_fields = null;
@@ -282,9 +282,10 @@ class TIP_Form extends TIP_Module
             'maxYear'  => $field_year < $this_year-5 ? $field_year : $this_year-5
         );
 
+        $element =& $this->_form->addElement('date', $id, $label, $options);
         $this->_addRule($id, 'date');
         $this->_addConverter($id, 'ISO8601');
-        return $this->_form->addElement('date', $id, $label, $options);
+        return $element;
     }
 
     function& _widgetFile(&$field)

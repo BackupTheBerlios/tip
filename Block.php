@@ -134,12 +134,13 @@ class TIP_Block extends TIP_Module
      * Pushes a view object in the stack of this module. You can restore the
      * previous view calling pop().
      *
-     * @param TIP_View &$view The view to push
+     * @param TIP_View &$view     The view to push
+     * @param bool      $populate Whether to populate or not the view
      * @return TIP_View|null The pushed view on success or null on errors
      */
-    function &push(&$view)
+    function &push(&$view, $populate = true)
     {
-        if ($view->populate()) {
+        if (!$populate || $view->populate()) {
             $this->_view_stack[count($this->_view_stack)] =& $view;
             $this->view =& $view;
             $result =& $view;
@@ -387,7 +388,7 @@ class TIP_Block extends TIP_Module
     function insertInContent($file)
     {
         if (! $this->view) {
-            return parent::appendToContent($file);
+            return parent::insertToContent($file);
         }
 
         if (strpos($file, DIRECTORY_SEPARATOR) === false) {
@@ -397,13 +398,13 @@ class TIP_Block extends TIP_Module
         $application =& $GLOBALS[TIP_MAIN_MODULE];
         $application->prependCallback($this->callback('pop'));
         $application->prependCallback($this->callback('run', array($file)));
-        $application->prependCallback($this->callback('push', array(&$this->view)));
+        $application->prependCallback($this->callback('push', array(&$this->view, false)));
         return true;
     }
 
     function appendToContent($file)
     {
-        if (! $this->view) {
+        if (!$this->view) {
             return parent::appendToContent($file);
         }
 
@@ -412,7 +413,7 @@ class TIP_Block extends TIP_Module
         }
 
         $application =& $GLOBALS[TIP_MAIN_MODULE];
-        $application->appendCallback($this->callback('push', array(&$this->view)));
+        $application->appendCallback($this->callback('push', array(&$this->view, false)));
         $application->appendCallback($this->callback('run', array($file)));
         $application->appendCallback($this->callback('pop'));
         return true;

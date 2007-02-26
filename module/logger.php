@@ -22,11 +22,9 @@ class TIP_Logger extends TIP_Block
     var $_rows = null;
 
 
-    function _TIP_Logger()
+    function _storeLogs()
     {
-        if (is_array($this->_rows)) {
-            $this->data->putRows($this->_rows);
-        }
+        $this->data->putRows($this->_rows);
     }
 
     /**#@-*/
@@ -64,9 +62,9 @@ class TIP_Logger extends TIP_Block
      */
     function log($severity, $message, &$backtrace)
     {
+        // Careful scans the backtrace to find useful informations and store
+        // them in the $context array
         $context = array();
-
-        // Careful scans the backtrace to find useful informations
         foreach ($backtrace as $n => $trace) {
             if ($n == 0) {
                 $file = @$trace['file'];
@@ -134,6 +132,11 @@ class TIP_Logger extends TIP_Block
             if (array_key_exists($key, $fields)) {
                 $row[$key] = $context[$key];
             }
+        }
+
+        if (is_null($this->_rows)) {
+            // First time log() is called (the $_rows array is empty)
+            register_shutdown_function(array(&$this, '_storeLogs'));
         }
 
         $this->_rows[] =& $row;

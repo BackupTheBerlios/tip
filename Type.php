@@ -21,7 +21,7 @@
  * @package  TIP
  * @tutorial TIP/Module.pkg#TIP_Type
  */
-class TIP_Type extends PEAR
+class TIP_Type
 {
     /**#@+ @access private */
 
@@ -48,7 +48,6 @@ class TIP_Type extends PEAR
      */
     function TIP_Type()
     {
-        $this->PEAR();
         $this->_type = strtolower(TIP::stripTipPrefix(get_class($this)));
         if (is_null($this->_id)) {
             $this->_id = $this->_type;
