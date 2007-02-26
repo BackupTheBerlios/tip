@@ -91,43 +91,58 @@ class TIP_Rcbt_Parser
 {
     /**#@+ @access private */
 
-    var $_context_message = 'undefined sources';
+    var $_main_tag = null;
     var $_context_stack = array();
     var $_tp_stack = array();
-
-
-    function _buildMessage($message)
-    {
-        $line = substr_count(substr($this->buffer, 0, $this->pos), "\n") + 1;
-        return "$this->_context_message: $message on line $line";
-    }
 
     /**#@-*/
 
 
     /**#@+ @access public */
 
-    var $buffer = null;
+    var $source = null;
     var $context = null;
     var $nested_text = false;
     var $pos = 0;
     var $tp = 0;
 
-    function TIP_Rcbt_Parser(&$buffer, &$module, $context_message)
-    {
-        $this->buffer =& $buffer;
-        $this->context =& new TIP_Rcbt_Context($module);
 
-        if ($context_message) {
-            $this->_context_message = $context_message;
+    function TIP_Rcbt_Parser(&$source)
+    {
+        $this->source =& $source;
+    }
+
+    function parse()
+    {
+        $this->_main_tag =& new TIP_Rcbt_Tag;
+        if (!$this->_main_tag->buildTag($this, true)) {
+            $this->_main_tag = false;
+            return false;
         }
+
+        return true;
+    }
+
+    function run(&$module)
+    {
+        if (!$this->_main_tag) {
+            return false;
+        }
+
+        $this->context =& new TIP_Rcbt_Context($module);
+        if (!$this->_main_tag->recurseTag($this) || !$this->reset()) {
+            $this->_main_tag = false;
+            return false;
+        }
+
+        return true;
     }
 
     function reset()
     {
         if (count($this->_context_stack) > 0) {
             $this->pos = $this->context->start_pos;
-            $this->logError('unclosed context');
+            TIP::error('unclosed context');
             return false;
         }
 
@@ -179,7 +194,8 @@ class TIP_Rcbt_Parser
 
     function beginParse(&$tag)
     {
-        echo substr($this->buffer, $this->pos, $tag->start-$this->pos);
+        $buffer =& $this->source->_buffer;
+        echo substr($buffer, $this->pos, $tag->start-$this->pos);
         $this->pos = $tag->start;
         if (count($this->_tp_stack) > 0) {
             ++ $this->pos;
@@ -188,26 +204,18 @@ class TIP_Rcbt_Parser
 
     function endParse(&$tag)
     {
+        $buffer =& $this->source->_buffer;
+
         if ($tag->end === false) {
-            echo substr($this->buffer, $this->pos);
+            echo substr($buffer, $this->pos);
             $this->pos = false;
             return true;
         }
 
-        $text = $this->nested_text . substr($this->buffer, $this->pos, $tag->end-$this->pos);
+        $text = $this->nested_text . substr($buffer, $this->pos, $tag->end-$this->pos);
         $this->nested_text = false;
         $this->pos = $tag->end+1;
         return $tag->explodeTag($this, $text) && $tag->runTag($this);
-    }
-
-    function logWarning($message)
-    {
-        TIP::logWarning($this->_buildMessage($message));
-    }
-
-    function logError($message)
-    {
-        TIP::logError($this->_buildMessage($message));
     }
 
     /**#@-*/
@@ -253,13 +261,15 @@ class TIP_Rcbt_Tag
 
     function buildTag(&$parser, $unclosed_tag = false)
     {
+        $buffer =& $parser->source->_buffer;
+
         $this->start = $parser->pos;
         if (! $unclosed_tag)
             ++ $parser->pos;
 
         for (;;) {
-            $open_brace = strpos ($parser->buffer, '{', $parser->pos);
-            $close_brace = strpos ($parser->buffer, '}', $parser->pos);
+            $open_brace = strpos ($buffer, '{', $parser->pos);
+            $close_brace = strpos ($buffer, '}', $parser->pos);
             if ($close_brace === false) {
                 if ($open_brace !== false) {
                     $parser->pos = $open_brace;
@@ -267,7 +277,7 @@ class TIP_Rcbt_Tag
                     return true;
                 }
 
-                $parser->logError('unclosed tag');
+                TIP::error('unclosed tag');
                 return false;
             }
 
@@ -276,11 +286,11 @@ class TIP_Rcbt_Tag
             }
 
             $parser->pos = $open_brace;
-            $Subtag =& new TIP_Rcbt_Tag;
-            if (! $Subtag->buildTag($parser))
+            $subtag =& new TIP_Rcbt_Tag;
+            if (!$subtag->buildTag($parser))
                 return false;
 
-            $this->subtag[$this->subtags] =& $Subtag;
+            $this->subtag[$this->subtags] =& $subtag;
             ++ $this->subtags;
         }
 
@@ -320,7 +330,7 @@ class TIP_Rcbt_Tag
             $params_pos = $open_brace+1;
             $close_brace = strrpos($text, ')');
             if ($close_brace === false) {
-                $parser->logError('unclosed parameter');
+                TIP::error('unclosed parameter');
                 return false;
             }
 
@@ -352,7 +362,7 @@ class TIP_Rcbt_Tag
         default:
             if (strlen($text) > 20)
                 $text = substr($text, 0, 17) . '...';
-            $parser->logError("malformed tag ($text)");
+            TIP::error("malformed tag ($text)");
             return false;
         }
 
@@ -367,16 +377,10 @@ class TIP_Rcbt_Tag
             $module =& $parser->context->module;
         }
 
-        if (! $this->command) {
-            $error = $module->resetError();
-            if ($error) {
-                $parser->logWarning($error);
+        if (!$this->command) {
+            if (!$parser->pop()) {
+                TIP::warning('too much {} tags');
             }
-
-            if (! $parser->pop()) {
-                $parser->logWarning('too much {} tags');
-            }
-
             return true;
         }
 
@@ -387,7 +391,7 @@ class TIP_Rcbt_Tag
                 if ($condition) {
                     $context->skipIf(! $condition());
                 } else {
-                    $parser->logWarning("invalid condition ($this->params)");
+                    TIP::warning("invalid condition ($this->params)");
                     $context->skipIf(true);
                 }
                 $parser->push($context);
@@ -441,13 +445,13 @@ class TIP_Rcbt_Tag
 
         case 'foreach':
             if ($context =& $this->createContext($parser, $module)) {
-                if (empty ($this->params)) {
+                if (empty($this->params)) {
                     $view =& $module->view;
                     if ($view) {
                         $context->on_start->set(array(&$view, 'rowReset'));
                         $context->on_loop->set(array(&$view, 'rowNext'));
                     } else {
-                        $this->logWarning('no current views');
+                        TIP::warning('no current view');
                         $context->skipIf(true);
                     }
                 } elseif ($this->params > 0) {
@@ -456,7 +460,7 @@ class TIP_Rcbt_Tag
                     $context->on_stop->set(create_function('&$module', 'unset($module->keys[\'CNT\']); return true;'), array(&$module));
                 } else {
                     $view =& $module->startSpecialView($this->params);
-                    if (! is_object($view)) {
+                    if ($view) {
                         $context->on_start->set(array(&$view, 'rowReset'));
                         $context->on_loop->set(array(&$view, 'rowNext'));
                         $context->on_destroy->set(array(&$module, 'endView'));
@@ -469,12 +473,8 @@ class TIP_Rcbt_Tag
             return true;
         }
 
-        if (! $parser->context->skip) {
+        if (!$parser->context->skip) {
             $module->callCommand($this->command, $this->params);
-            $error = $module->resetError();
-            if ($error) {
-                $parser->logWarning($error);
-            }
         }
 
         return true;
@@ -495,11 +495,36 @@ class TIP_Rcbt_Tag
  */
 class TIP_Rcbt extends TIP_Source_Engine
 {
-    function run(&$buffer, &$module, $context_message)
+    /**#@+ @access private */
+
+    function& _getParser(&$source)
     {
-        $parser =& new TIP_Rcbt_Parser($buffer, $module, $context_message);
-        $source =& new TIP_Rcbt_Tag;
-        return $source->buildTag($parser, true) && $parser->reset() && $source->recurseTag($parser);
+        return $source->_implementation;
+    }
+
+    /**#@-*/
+
+
+    function run(&$source, &$module)
+    {
+        $parser =& $this->_getParser($source);
+        if (is_null($parser)) {
+            $parser =& new TIP_Rcbt_Parser($source);
+            $source->_implementation =& $parser;
+            $parser->parse();
+        }
+
+        return $parser->run($module);
+    }
+
+    function getLine(&$source)
+    {
+        $parser =& $this->_getParser($source);
+        if (is_null($parser)) {
+            return null;
+        }
+
+        return substr_count(substr($source->_buffer, 0, $parser->pos), "\n") + 1;
     }
 }
 

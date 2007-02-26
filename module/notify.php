@@ -25,9 +25,9 @@
  * @package TIP
  * @subpackage Module
  */
-class TIP_Notify extends TIP_Block
+class TIP_Notify extends TIP_Module
 {
-    /**#@+ @access public */
+    /**#@+ @access protected */
 
     /**
      * Generic message notification
@@ -37,89 +37,107 @@ class TIP_Notify extends TIP_Block
      * at the beginning of the page content.
      *
      * @param mixed  $id   The message id
-     * @param string $file The source file to use as template
-     * @return bool TRUE on success or FALSE on errors
+     * @param string $source The source file to use as template
+     * @return bool true on success or false on errors
      */
-    function echoMessage($id, $file)
+    function notify($source, $title_id, $message_id, $context)
     {
-        $view =& $this->startView($this->data->rowFilter($id));
-        $done = is_object($view);
-        if ($done) {
-            $done = ! is_null($view->rowReset()) && $this->insertInContent($file);
-            $this->endView();
+        $locale =& TIP_Module::getInstance('locale', false);
+        if (!is_object($locale)) {
+            // TIP_Notify without TIP_Locale is not implemented 
+            return false;
         }
 
-        $this->keys['CONTEXT_MESSAGE'] = null;
-        return $done;
+        $message_id = $this->getId() . '.' . $message_id;
+        $view =& $locale->startView($locale->data->rowFilter($message_id));
+        if (!is_object($view)) {
+            TIP::error('notification impossible');
+            return false;
+        }
+
+        $view->summaries['TITLE'] = $locale->get($title_id, $this->getId());
+        if (!$view->rowReset()) {
+            TIP::warning("message id not found ($message_id)");
+            $view->summaries['MESSAGE'] = $message_id;
+        }
+
+        $locale->insertInContent($this->buildModulePath($source));
+        $locale->endView();
+        return true;
     }
 
+    /**#@-*/
+
+
     /**#@+
-     * @param mixed $id The id of the system message to show
-     * @return bool TRUE on success or FALSE on errors
+     * @access public
+     * @param string $id      The locale id of the message
+     * @param array  $context The message context
+     * @return bool true on success or false on errors
      */
 
     /**
-     * User error notification
+     * Error notification
      *
-     * This is a convenience function that wraps echoMessage().
-     * Outputs the specified error message to notify the user about something
-     * wrong. The output is generated running the source specified in the
-     * 'error_source' configuration option and using the current source engine.
+     * This is a convenience function that wraps notify(), passing the
+     * proper arguments for error notifications.
      *
-     * If $id is not specified, the error id defaults to the one configured
-     * by the 'error_fallback' option.
+     * If $id is not specified, it will default to 'error.fallback'.
+     * If there are no dots in $id, 'error.' will be prepended.
      */
-    function echoError($id = null)
+    function notifyError($id = null, $context = null)
     {
         if (is_null($id)) {
-            $id = $this->getOption('error_fallback');
+            $id = 'error.fallback';
+        } elseif (strpos($id, '.') === false) {
+            $id = 'error.' . $id;
         }
 
-        return $this->echoMessage($id, $this->getOption('error_source'));
+        $source = $this->getOption('error_source');
+        return $this->notify($source, 'error', $id, $context);
     }
 
     /**
      * User warning notification
      *
-     * This is a convenience function that wraps echoMessage().
-     * Outputs the specified warning message to notify the user about something
-     * important. The output is generated running the source specified in the
-     * 'warning_source' configuration option and using the current source
-     * engine.
+     * This is a convenience function that wraps notify(), passing the
+     * proper arguments for warning notifications.
      *
-     * If $id is not specified, the warning id defaults to the one configured
-     * by the 'warning_fallback' option.
+     * If $id is not specified, it will default to 'warning.fallback'.
+     * If there are no dots in $id, 'warning.' will be prepended.
      */
-    function echoWarning($id = null)
+    function notifyWarning($id = null, $context = null)
     {
         if (is_null($id)) {
-            $id = $this->getOption('warning_fallback');
+            $id = 'warning.fallback';
+        } elseif (strpos($id, '.') === false) {
+            $id = 'warning.' . $id;
         }
 
-        return $this->echoMessage($id, $this->getOption('warning_source'));
+        $source = $this->getOption('warning_source');
+        return $this->notify($source, 'warning', $id, $context);
     }
 
     /**
      * User info notification
      *
-     * This is a convenience function that wraps echoMessage().
-     * Outputs the specified info message to notify the user about something.
-     * The output is generated running the source specified in the
-     * 'info_source' configuration option and using the current source engine.
+     * This is a convenience function that wraps notify(), passing the
+     * proper arguments for info notifications.
      *
-     * If $id is not specified, the info id defaults to the one configured
-     * by the 'info_fallback' option.
+     * If $id is not specified, it will default to 'info.fallback'.
+     * If there are no dots in $id, 'info.' will be prepended.
      */
-    function echoInfo($id = null)
+    function notifyInfo($id = null, $context = null)
     {
         if (is_null($id)) {
-            $id = $this->getOption('info_fallback');
+            $id = 'info.fallback';
+        } elseif (strpos($id, '.') === false) {
+            $id = 'info.' . $id;
         }
 
-        return $this->echoMessage($id, $this->getOption('info_source'));
+        $source = $this->getOption('info_source');
+        return $this->notify($source, 'info', $id, $context);
     }
-
-    /**#@-*/
 
     /**#@-*/
 }

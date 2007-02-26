@@ -30,7 +30,6 @@ class TIP_Block extends TIP_Module
         $form->setForm($this, $row, $is_add);
 
         if (!$form->make() || is_null($processed = $form->process())) {
-            $this->setError($form->resetError());
             return null;
         }
 
@@ -47,7 +46,6 @@ class TIP_Block extends TIP_Module
         $form->setForm($this, $row);
 
         if (!$form->make($this, $row) || !$form->view()) {
-            $this->setError($form->resetError());
             return false;
         }
 
@@ -146,7 +144,6 @@ class TIP_Block extends TIP_Module
             $this->view =& $view;
             $result =& $view;
         } else {
-            $this->setError($view->resetError());
             $result = null;
         }
         return $result;
@@ -202,6 +199,12 @@ class TIP_Block extends TIP_Module
         return true;
     }
 
+    /**
+     * Echo an uploaded URL
+     *
+     * Shortcut for the often used upload url. The upload URL is under the
+     * directory "data", relative to the site root URL.
+     */
     function commandUploadUrl($params)
     {
         echo TIP::buildUrl('data', $this->getId(), $params);
@@ -219,7 +222,7 @@ class TIP_Block extends TIP_Module
     {
         $value = $this->getField($params);
         if (is_null($value)) {
-            $this->setError("no field found ($params)");
+            TIP::error("no field found ($params)");
             return false;
         }
 
@@ -387,10 +390,13 @@ class TIP_Block extends TIP_Module
             return parent::appendToContent($file);
         }
 
+        if (strpos($file, DIRECTORY_SEPARATOR) === false) {
+            $file = $this->buildModulePath($file);
+        }
+
         $application =& $GLOBALS[TIP_MAIN_MODULE];
-        $path = $this->buildModulePath($file);
         $application->prependCallback($this->callback('pop'));
-        $application->prependCallback($this->callback('run', array($path)));
+        $application->prependCallback($this->callback('run', array($file)));
         $application->prependCallback($this->callback('push', array(&$this->view)));
         return true;
     }
@@ -401,10 +407,13 @@ class TIP_Block extends TIP_Module
             return parent::appendToContent($file);
         }
 
+        if (strpos($file, DIRECTORY_SEPARATOR) === false) {
+            $file = $this->buildModulePath($file);
+        }
+
         $application =& $GLOBALS[TIP_MAIN_MODULE];
-        $path = $this->buildModulePath($file);
         $application->appendCallback($this->callback('push', array(&$this->view)));
-        $application->appendCallback($this->callback('run', array($path)));
+        $application->appendCallback($this->callback('run', array($file)));
         $application->appendCallback($this->callback('pop'));
         return true;
     }
@@ -449,7 +458,7 @@ class TIP_Block extends TIP_Module
         if (is_null($row)) {
             if (!isset($this->view) || is_null($row =& $this->view->rowCurrent())) {
                 $id = $this->data->getId();
-                $this->setError("No current row to edit ($id)");
+                TIP::error("no current row to edit ($id)");
                 return null;
             }
         }
@@ -473,7 +482,7 @@ class TIP_Block extends TIP_Module
         if (is_null($row)) {
             if (!isset($this->view) || is_null($row =& $this->view->rowCurrent())) {
                 $id = $this->data->getId();
-                $this->setError("No current row to view ($id)");
+                TIP::error("no current row to view ($id)");
                 return false;
             }
         }
@@ -535,7 +544,7 @@ class TIP_Block extends TIP_Module
         $class_name = TIP_PREFIX . $name . '_View';
         if (! class_exists($class_name)) {
             $fake_null = null;
-            $this->setError("Special view does not exist ($class_name)");
+            TIP::error("special view does not exist ($class_name)");
             return $fake_null;
         }
 
@@ -560,7 +569,7 @@ class TIP_Block extends TIP_Module
     function endView()
     {
         if ($this->pop() === FALSE) {
-            $this->setError("'endView()' requested without a previous 'startView()' or 'startSpecialView()' call");
+            TIP::error("'endView()' requested without a previous 'startView()' or 'startSpecialView()' call");
             return false;
         }
 

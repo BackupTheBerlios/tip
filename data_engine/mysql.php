@@ -36,7 +36,7 @@ class TIP_Mysql extends TIP_Data_Engine
         $this->_database = $this->getOption('database');
 
         if (! $this->_connection || ! mysql_select_db($this->_database, $this->_connection)) {
-            $this->setError(mysql_error($this->_connection));
+            TIP::error(mysql_error($this->_connection));
         } else {
             $this->runQuery('SET CHARACTER SET utf8');
         }
@@ -48,7 +48,7 @@ class TIP_Mysql extends TIP_Data_Engine
         $query = implode(' ', $pieces);
         $result = mysql_query($query, $this->_connection);
         if ($result === false) {
-            $this->setError(mysql_error ($this->_connection) . " ($query)");
+            TIP::error(mysql_error($this->_connection) . " ($query)");
         }
         return $result;
     }
@@ -199,13 +199,26 @@ class TIP_Mysql extends TIP_Data_Engine
                 break;
 
             default:
-                $this->logWarning("field type not supported ($type)");
+                $field['type'] = 'string';
+                TIP::warning("field type not supported ($type)");
             }
 
             $field['can_be_null'] = (bool) (strpos($flags, 'not_null') === false);
         }
 
         return !is_null($fields);
+    }
+
+    function _groupedNames($names, $enclosed = true)
+    {
+        $result = implode(',', $this->prepareName($names));
+        return $enclosed ? '(' . $result . ')' : $result;
+    }
+
+    function _groupedValues($values, $enclosed = true)
+    {
+        $result = implode(',', $this->prepareValue($values));
+        return $enclosed ? '(' . $result . ')' : $result;
     }
 
     /**#@-*/
@@ -215,12 +228,16 @@ class TIP_Mysql extends TIP_Data_Engine
 
     function prepareName($name)
     {
-        return '`' . str_replace('`', '``', $name) . '`';
+        return is_array($name) ?
+            array_map(array(&$this, 'prepareName'), $name) :
+            '`' . str_replace('`', '``', $name) . '`';
     }
 
     function prepareValue($value)
     {
-        if (is_null($value)) {
+        if (is_array($value)) {
+            return array_map(array(&$this, 'prepareValue'), $value);
+        } elseif (is_null($value)) {
             return 'NULL';
         } elseif (is_string($value)) {
             return "'" . mysql_real_escape_string($value, $this->_connection) . "'";
@@ -232,7 +249,7 @@ class TIP_Mysql extends TIP_Data_Engine
     {
         $result = mysql_list_fields($this->_database, $data->_path, $this->_connection);
         if (! $result) {
-            $data->setError(mysql_error($this->_connection));
+            TIP::error(mysql_error($this->_connection));
             return false;
         }
 
@@ -282,13 +299,12 @@ class TIP_Mysql extends TIP_Data_Engine
     function& get(&$data, $filter)
     {
         if (is_null($data->_fields_subset)) {
-            $what = '*';
+            $prepared_fields = '*';
         } else {
-            $callback = array(&$this, 'prepareName');
-            $what = implode(',', array_map($callback, $data->_fields_subset));
+            $prepared_fields = $this->_groupedNames($data->_fields_subset, false);
         }
 
-        if (($result =& $this->runQuery('SELECT', $what, 'FROM',
+        if (($result =& $this->runQuery('SELECT', $prepared_fields, 'FROM',
                                         $this->prepareName($data->_path),
                                         $filter)) === false) {
             $result = null;
@@ -307,11 +323,12 @@ class TIP_Mysql extends TIP_Data_Engine
         return $rows;
     }
 
-    function insert(&$data, &$row)
+    function insert(&$data, &$rows)
     {
-        if ($this->runQuery('INSERT INTO',
-                            $this->prepareName($data->_path),
-                            $this->prepareFieldset($data, $row)) === false) {
+        $prepared_fields = $this->_groupedNames(array_keys($rows[0]));
+        $prepared_values = implode(',', array_map(array(&$this, '_groupedValues'), $rows));
+        if ($this->runQuery('INSERT INTO', $this->prepareName($data->_path),
+                            $prepared_fields, 'VALUES', $prepared_values) === false) {
             return null;
         }
 

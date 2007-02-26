@@ -51,11 +51,11 @@ class TIP_News extends TIP_Block
                 $id = TIP::getPost('id', 'integer');
                 $filter = $this->data->rowFilter($id);
                 if (!$this->startView($filter)) {
-                    TIP::error('E_SELECT');
+                    TIP::notifyError('E_SELECT');
                     return false;
                 }
                 if (! $this->view->rowReset()) {
-                    TIP::error('E_NOTFOUND');
+                    TIP::notifyError('E_NOTFOUND');
                     $this->endView();
                     return false;
                 }
@@ -66,13 +66,13 @@ class TIP_News extends TIP_Block
 
         case 'edit':
             if (is_null($id = TIP::getGet('id', 'integer')) && is_null($id = TIP::getPost('id', 'integer'))) {
-                TIP::error('E_NOTSPECIFIED');
+                TIP::notifyError('E_NOTSPECIFIED');
                 return false;
             }
 
             $row =& $this->data->getRow($id);
             if (is_null($row)) {
-                TIP::error('E_NOTFOUND');
+                TIP::notifyError('E_NOTFOUND');
                 return false;
             }
 
@@ -83,11 +83,11 @@ class TIP_News extends TIP_Block
                 $id = TIP::getPost('id', 'integer');
                 $filter = $this->data->rowFilter($id);
                 if (!$this->startView($filter)) {
-                    TIP::error('E_SELECT');
+                    TIP::notifyError('E_SELECT');
                     return false;
                 }
                 if (! $this->view->rowReset()) {
-                    TIP::error('E_NOTFOUND');
+                    TIP::notifyError('E_NOTFOUND');
                     $this->endView();
                     return false;
                 }
@@ -140,18 +140,18 @@ class TIP_News extends TIP_Block
         case 'view':
             $id = TIP::getGet('id', 'integer');
             if (is_null($id)) {
-                TIP::error('E_NOTSPECIFIED');
+                TIP::notifyError('E_NOTSPECIFIED');
                 return false;
             }
 
             $filter = $this->data->rowFilter($id);
             if (!$this->startView($filter)) {
-                TIP::error('E_SELECT');
+                TIP::notifyError('E_SELECT');
                 return false;
             }
 
             if (! $this->view->rowReset()) {
-                TIP::error('E_NOTFOUND');
+                TIP::notifyError('E_NOTFOUND');
                 $this->endView();
                 return false;
             }

@@ -24,19 +24,19 @@ class TIP_Advertisement extends TIP_Block
 
         $advertisement_id = TIP::getGet('advertisement', 'int');
         if (is_null($advertisement_id)) {
-            TIP::error('E_NOTSPECIFIED');
+            TIP::notifyError('E_NOTSPECIFIED');
             return $row;
         }
 
         $view =& $this->startView($this->data->rowFilter($advertisement_id));
         if (is_null($view)) {
-            TIP::error('E_DATA_SELECT');
+            TIP::notifyError('E_DATA_SELECT');
             return $row;
         }
 
         $row =& $this->getRow($advertisement_id);
         if (is_null($row)) {
-            TIP::error('E_NOTFOUND');
+            TIP::notifyError('E_NOTFOUND');
         }
 
         $this->endView ();
@@ -47,7 +47,7 @@ class TIP_Advertisement extends TIP_Block
     {
         $user_id = TIP::getUserId();
         if (is_null($user_id) || $user_id === FALSE) {
-            TIP::error('E_RESERVED');
+            TIP::notifyError('E_RESERVED');
             return false;
         }
 
@@ -73,7 +73,7 @@ class TIP_Advertisement extends TIP_Block
             $user_id = TIP::GetUserId ();
             if (is_null ($user_id) || $user_id === FALSE)
             {
-                TIP::error ('E_RESERVED');
+                TIP::notifyError ('E_RESERVED');
                 return FALSE;
             }
 
@@ -89,7 +89,7 @@ class TIP_Advertisement extends TIP_Block
             $Id = tip::GetGet ('group', 'integer');
             if (is_null ($Id))
             {
-                TIP::error ('E_NOTSPECIFIED');
+                TIP::notifyError ('E_NOTSPECIFIED');
                 return FALSE;
             }
 
@@ -122,7 +122,7 @@ class TIP_Advertisement extends TIP_Block
             $row['_hits'] ++;
             $row['_lasthit'] = TIP::formatDate('datetime_iso8601');
             if (! $this->data->updateRow($row, $old_row)) {
-                TIP::error('E_DATA_UPDATE');
+                TIP::notifyError('E_DATA_UPDATE');
                 return false;
             }
 
@@ -154,9 +154,9 @@ class TIP_Advertisement extends TIP_Block
                 $expiration = strtotime($this->getOption('expiration'));
                 $row['_expiration'] = TIP::formatDate('datetime_iso8601', $expiration);
                 if (! $this->data->updateRow($row, $old_row))
-                    TIP::error ('E_DATA_UPDATE');
+                    TIP::notifyError ('E_DATA_UPDATE');
                 else
-                    TIP::info ('I_DONE');
+                    TIP::notifyInfo ('I_DONE');
 
                 $this->AppendToContent ('browse-user.src');
             }
@@ -190,13 +190,13 @@ class TIP_Advertisement extends TIP_Block
                 $Query = $this->DATA_ENGINE->QueryById ($Id, $this);
                 if (is_null ($Query) || ! $this->DATA_ENGINE->DeleteRows ($Query, $this))
                 {
-                    TIP::error ('E_DATA_DELETE');
+                    TIP::notifyError ('E_DATA_DELETE');
                 }
                 else
                 {
                     $Rows =& $this->GetCurrentRows ();
                     unset ($Rows[$Id]);
-                    TIP::info ('I_DONE');
+                    TIP::notifyInfo ('I_DONE');
                 }
 
                 $this->AppendToContent ('browse-user.src');
@@ -228,27 +228,27 @@ class TIP_Advertisement extends TIP_Block
             $user_id = TIP::GetUserId ();
             if (is_null ($user_id) || $user_id === FALSE)
             {
-                TIP::error ('E_RESERVED');
+                TIP::notifyError ('E_RESERVED');
                 return FALSE;
             }
 
             $Id = tip::GetGet ('id', 'integer');
             if (is_null ($Id))
             {
-                TIP::error ('E_NOTSPECIFIED');
+                TIP::notifyError ('E_NOTSPECIFIED');
                 return FALSE;
             }
 
             $Query = $this->DATA_ENGINE->QueryById ($Id, $this);
             if (! $this->StartView ($Query))
             {
-                TIP::error('E_DATA_SELECT');
+                TIP::notifyError('E_DATA_SELECT');
                 return FALSE;
             }
 
             if (! $this->ResetRow ())
             {
-                TIP::error ('E_NOTFOUND');
+                TIP::notifyError ('E_NOTFOUND');
                 $this->EndView ();
                 return FALSE;
             }
@@ -264,7 +264,7 @@ class TIP_Advertisement extends TIP_Block
 
                 if (! $this->data->updateRow($row, $old_row))
                 {
-                    TIP::error ('E_DATA_UPDATE');
+                    TIP::notifyError ('E_DATA_UPDATE');
                 }
                 else
                 {
@@ -280,7 +280,7 @@ class TIP_Advertisement extends TIP_Block
                         $User->DATA_ENGINE->runQuery ($RealQuery);
                     }
 
-                    TIP::info ('I_DONE');
+                    TIP::notifyInfo ('I_DONE');
                 }
             }
             else
@@ -315,20 +315,20 @@ class TIP_Advertisement extends TIP_Block
             $Id = tip::GetGet ('id', 'integer');
             if (is_null ($Id))
             {
-                TIP::error ('E_NOTSPECIFIED');
+                TIP::notifyError ('E_NOTSPECIFIED');
                 return FALSE;
             }
 
             $Query = $this->DATA_ENGINE->QueryById ($Id, $this);
             if (! $this->StartView ($Query))
             {
-                TIP::error('E_DATA_SELECT');
+                TIP::notifyError('E_DATA_SELECT');
                 return FALSE;
             }
 
             if (! $this->ResetRow ())
             {
-                TIP::error ('E_NOTFOUND');
+                TIP::notifyError ('E_NOTFOUND');
                 $this->EndView ();
                 return FALSE;
             }
@@ -342,9 +342,9 @@ class TIP_Advertisement extends TIP_Block
                 $row['_illegal'] = 'no';
 
                 if (! $this->data->updateRow($row, $old_row))
-                    TIP::error ('E_DATA_UPDATE');
+                    TIP::notifyError ('E_DATA_UPDATE');
                 else
-                    TIP::info ('I_DONE');
+                    TIP::notifyInfo ('I_DONE');
 
                 $this->AppendToContent ('browse-illegal.src');
                 break;
@@ -356,7 +356,7 @@ class TIP_Advertisement extends TIP_Block
 
                 if (! $this->data->updateRow($row, $old_row))
                 {
-                    TIP::error ('E_DATA_UPDATE');
+                    TIP::notifyError ('E_DATA_UPDATE');
                 }
                 else
                 {
@@ -379,7 +379,7 @@ class TIP_Advertisement extends TIP_Block
                         $User->DATA_ENGINE->runQuery ($RealQuery);
                     }
 
-                    TIP::info ('I_DONE');
+                    TIP::notifyInfo ('I_DONE');
                 }
 
                 $this->AppendToContent ('browse-illegal.src');

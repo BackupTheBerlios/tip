@@ -33,7 +33,7 @@ class TIP_View extends TIP_Type
 
     function _buildId(&$filter, &$data)
     {
-        return $data->getId() . '/' . $filter;
+        return (isset($data) ? $data->getId() . '/' : '') . $filter;
     }
 
     function _row_callback(&$row)
@@ -56,7 +56,7 @@ class TIP_View extends TIP_Type
      *
      * @var TIP_Data
      */
-    var $data;
+    var $data = null;
 
     /**
      * The filter conditions
@@ -67,7 +67,7 @@ class TIP_View extends TIP_Type
      *
      * @var string
      */
-    var $filter;
+    var $filter = null;
 
 
     /**
@@ -445,7 +445,8 @@ class TIP_Modules_View extends TIP_View
      */
     function TIP_Modules_View()
     {
-        $this->TIP_View('__MODULES__', $data);
+        $fake_null = null;
+        $this->TIP_View('__MODULES__', $fake_null);
     }
 
     /**#@-*/
@@ -470,6 +471,50 @@ class TIP_Modules_View extends TIP_View
             $instance =& new TIP_Modules_View;
         }
         return $instance;
+    }
+
+    /**#@-*/
+}
+
+/**
+ * An array view
+ *
+ * A special view to traverse a defined array or rows.
+ *
+ * @package TIP
+ */
+class TIP_Array_View extends TIP_View
+{
+    /**#@+ @access private */
+
+    var $_stored_rows = null;
+
+    /**#@-*/
+
+    
+    /**#@+ @access protected */
+
+    function fillRows()
+    {
+        $this->rows = $this->_stored_rows;
+        return true;
+    }
+
+    /**#@-*/
+
+
+    /**#@+ @access public */
+
+    /**
+     * Constructor
+     *
+     * Initializes a TIP_Array_View instance.
+     */
+    function TIP_Array_View(&$rows)
+    {
+        $fake_null = null;
+        $this->TIP_View('__ARRAY__', $fake_null);
+        $this->_stored_rows =& $rows;
     }
 
     /**#@-*/

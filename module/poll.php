@@ -49,14 +49,14 @@ class TIP_Poll extends TIP_Block
         case 'edit':
             $answer = TIP::getGet('answer', 'int');
             if (is_null($answer)) {
-                TIP::error('E_NOTSPECIFIED');
+                TIP::notifyError('E_NOTSPECIFIED');
                 return false;
             }
 
             $row =& $this->GetCurrentRow ();
             $votes = 'votes' . $answer;
             if (! array_key_exists($votes, $row)) {
-                TIP::error('E_INVALID');
+                TIP::notifyError('E_INVALID');
                 return false;
             }
 
@@ -71,19 +71,19 @@ class TIP_Poll extends TIP_Block
              */
         case 'doedit':
             if (! array_key_exists('plvoting', $_COOKIE)) {
-                TIP::error ('E_COOKIEOFF');
+                TIP::notifyError ('E_COOKIEOFF');
                 return false;
             }
             setcookie ('plvoting', '');
 
             if (array_key_exists('plvoted', $_COOKIE)) {
-                TIP::error ('E_PL_DOUBLE');
+                TIP::notifyError ('E_PL_DOUBLE');
                 return false;
             }
 
             $answer = TIP::getGet('answer', 'int');
             if (is_null($answer)) {
-                TIP::error ('E_NOTSPECIFIED');
+                TIP::notifyError ('E_NOTSPECIFIED');
                 return false;
             }
 
@@ -92,7 +92,7 @@ class TIP_Poll extends TIP_Block
             $votes = "votes$_GET[answer]";
             if (! array_key_exists ($votes, $row))
             {
-                TIP::error ('E_INVALID');
+                TIP::notifyError ('E_INVALID');
                 return false;
             }
 

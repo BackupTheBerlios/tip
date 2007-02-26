@@ -22,7 +22,7 @@ class TIP_Form extends TIP_Module
     /**#@+ @access private */
 
     var $_form = null;
-    var $_validation = 'client';
+    var $_validation = 'server';
     var $_block = null;
     var $_defaults = null;
     var $_fields = null;
@@ -148,7 +148,7 @@ class TIP_Form extends TIP_Module
         }
 
         if ($error) {
-            TIP::error('e_upload');
+            TIP::notifyError('upload');
             $this->_converterCancel($row, $field);
             return;
         }
@@ -189,6 +189,12 @@ class TIP_Form extends TIP_Module
         $reid = 're' . $id;
         $reelement =& $this->_addElement('password', $reid);
         $reelement->setAttribute('class', 'expand');
+
+        // The repetition field must have the same features of the original,
+        // so the field structure is copyed
+        if (!array_key_exists($reid, $this->_fields)) {
+            $this->_fields[$reid] = $field;
+        }
 
         $this->_addRule(array($reid, $id), 'compare');
         if (!array_key_exists($reid, $this->_defaults)) {
@@ -298,7 +304,17 @@ class TIP_Form extends TIP_Module
 
     function _addRule($id, $type, $format = '')
     {
-        $message = $this->getLocale($type);
+        // Add the format as context to getLocale (in case the message will
+        // embed them)
+        if (is_array($format)) {
+            $context = $format;
+        } elseif (!empty($format)) {
+            $context[0] = $format;
+        } else {
+            $context = null;
+        }
+            
+        $message = $this->getLocale($type, $context);
         $this->_form->addRule($id, $message, $type, $format, $this->_validation);
     }
 
@@ -313,7 +329,7 @@ class TIP_Form extends TIP_Module
             } else {
                 $close_brace = strrpos($rule, ')');
                 if ($close_brace === false || $close_brace < $open_brace) {
-                    $this->logWarning("invalid custom rule for field $id ($rule)");
+                    TIP::warning("invalid custom rule for field $id ($rule)");
                     continue;
                 }
                 $type = substr($rule, 0, $open_brace);
@@ -488,7 +504,7 @@ class TIP_Form extends TIP_Module
             if (@TIP::getSession('form.to_process')) {
                 $this->_form->process(array(&$this, '_onConversion'));
                 TIP::setSession('form.to_process', null);
-                TIP::info('I_DONE');
+                TIP::notifyInfo('done');
             }
 
             return $this->view(TIP::buildUrl('index.php'));

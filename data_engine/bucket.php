@@ -37,38 +37,38 @@ class TIP_Bucket extends TIP_Data_Engine
 
     function fillFields(&$data)
     {
-        $this->logWarning("fillFields($data->_path)");
+        TIP::warning("fillFields($data->_path)");
         return true;
     }
 
     function fillDetails(&$data)
     {
-        $this->logWarning("fillDetails($data->_path)");
+        TIP::warning("fillDetails($data->_path)");
         return true;
     }
 
     function& get($filter, &$data)
     {
-        $this->logWarning("get($filter, $data->_path)");
+        TIP::warning("get($filter, $data->_path)");
         $fake_result = array();
         return $fake_result;
     }
 
     function insert(&$row, &$data)
     {
-        $this->logWarning("insert(row, $data->_path)");
+        TIP::warning("insert(row, $data->_path)");
         return true;
     }
 
     function update($filter, &$row, &$data)
     {
-        $this->logWarning("update($filter, row, $data->_path)");
+        TIP::warning("update($filter, row, $data->_path)");
         return true;
     }
 
     function delete($filter, &$data)
     {
-        $this->logWarning("delete($filter, $data->_path)");
+        TIP::warning("delete($filter, $data->_path)");
         return true;
     }
 }

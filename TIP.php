@@ -12,6 +12,7 @@ require_once 'PHP/Compat/Function/array_intersect_key.php';
 require_once 'PHP/Compat/Function/array_combine.php';
 /**#@-*/
 
+require_once 'PEAR.php';
 
 /**
  * The TIP prefix 
@@ -86,21 +87,8 @@ class TIP
             return $date . ' alle ' . $time;
         }
 
-        TIP::logWarning("Output time format not recognized ($format)");
+        TIP::warning("Output time format not recognized ($format)");
         return null;
-    }
-
-    function _logGeneric($domain, $message, $notify = false)
-    {
-        $logger =& TIP_Module::getInstance('logger', false);
-        if (is_object($logger)) {
-            $logger->logMessage($domain, $message, @$_SERVER['REQUEST_URI'], $notify);
-        }
-    }
-
-    function quit($message)
-    {
-        exit("<h3>Errore fatale: $message</h3><p>Si prega di comunicare il problema all'amministratore del sito inviando una email all'indirizzo <a href=\"mailto:webmaster@bresciapoint.it\">webmaster@bresciapoint.it</a>.</p><p>Grazie per la collaborazione.</p>");
     }
 
     function _startSession()
@@ -182,7 +170,7 @@ class TIP
     {
         $value = @$GLOBALS['cfg'][$type][$option];
         if ($required && is_null($value)) {
-            TIP::logFatal("Required option not defined (\$cfg['$type']['$option'])");
+            TIP::fatal("Required option not defined (\$cfg['$type']['$option'])");
         }
         return $value;
     }
@@ -190,26 +178,23 @@ class TIP
     /**
      * Get a localized text
      *
-     * Gets the localized text for the specified id and module. The locale used
-     * is get from the 'locale' option of the application, which must be
-     * properly set.
+     * Gets the localized text for the specified id and module.
+     * The parameters are passed throught: this is merely a shortcut.
      *
      * See the TIP_Locale::get() method for technical details on how the text
      * is localized.
      *
      * @param string $id     The text identifier
-     * @param string $module The name of the caller module
-     * @param bool   $cached Whether to perform or not a cached read
-     * @return string The requested localized text
+     * @return string The requested localized text or $id if the text is not found
      */
-    function getLocale($id, $module = 'application', $cached = true)
+    function getLocale($id)
     {
-        static $locale = false;
-        if ($locale === false) {
-            $locale =& TIP_Module::getInstance('locale', false);
+        $locale =& TIP_Module::getInstance('locale', false);
+        if (isset($locale)) {
+            $args = func_get_args();
+            return call_user_func_array(array(&$locale, 'get'), $args);
         }
-
-        return is_object($locale) ? $locale->get($id, $module, $cached) : $id;
+        return $id;
     }
 
     /**
@@ -390,7 +375,7 @@ class TIP
             return mktime($hour, $min, $sec, $month, $day, $year);
         }
 
-        TIP::logWarning("Input time format not recognized ($format)");
+        TIP::warning("Input time format not recognized ($format)");
         return false;
     }
 
@@ -431,103 +416,140 @@ class TIP
     }
 
     /**
-     * Log a warning message
+     * Log a generic message
      *
-     * Logs the specified warning message using the default logger mechanism.
-     * The difference between warnings and errors is developer-dependent: TIP
-     * does not make any assumption, apart of writing WARNING instead of ERROR.
+     * Calls the TIP_Logger::log() function, if present, to log a custom
+     * message.
      *
-     * @param string $message The message to log
-     * @see logError(),logFatal()
+     * The parameters are passed throught: this is merely a shortcut.
+     *
+     * @param string  $severity  The text of the log
+     * @param string  $message   A custom message
+     * @param array  &$backtrace The backtrace array
      */
-    function logWarning($message)
+    function log($severity, $message, &$backtrace)
     {
-        TIP::_logGeneric('WARNING', $message);
-    }
-
-    /**
-     * Log an error message
-     *
-     * Logs the specified error message using the default logger mechanism.
-     * The difference between warnings and errors is developer-dependent: TIP
-     * does not make any assumption, apart of writing ERROR instead of WARNING.
-     *
-     * @param string $message The message to log
-     * @see logWarning(),logFatal()
-     */
-    function logError($message)
-    {
-        TIP::_logGeneric('ERROR', $message);
-    }
-
-    /**
-     * Log an error message and quits the application
-     *
-     * Logs the specified error message using the default logger mechanism and
-     * quits the application, trying to output the error in an HTML fashion with
-     * some useful informations such as the webmaster email address.
-     *
-     * @param string $message The message to log
-     * @see logWarning(),logError()
-     * @todo The HTML output does not work well because it is generated in an
-     *       unknown HTML context. Furthermore, I want to avoid output buffers
-     *       on the whole context. So, what is the solution?
-     */
-    function logFatal($message)
-    {
-        TIP::_logGeneric('FATAL', $message);
-        TIP::quit($message);
-    }
-
-    /**
-     * Info notification to the user
-     *
-     * Outputs the specified info message to notify the user about something.
-     * This is merely a wrapper that calls the TIP_Notify::echoInfo() method,
-     * so check the TIP_Notify documentation for further informations.
-     *
-     * If the info id is not found, a new call to echoInfo() without any
-     * argument is performed to try to get a default info message.
-     *
-     * @param mixed  $id              The id of the system message
-     * @param string $context_message A custom message to append
-     */
-    function info($id, $context_message = '')
-    {
-        $notify =& TIP_Module::getInstance('notify');
-        if (is_object($notify)) {
-            $notify->keys['CONTEXT_MESSAGE'] = $context_message;
-
-            if (! $notify->echoInfo($id)) {
-                $notify->echoInfo();
-            }
+        $logger =& TIP_Module::getInstance('logger', false);
+        if (isset($logger)) {
+            $logger->log($severity, $message, $backtrace);
         }
     }
+
+    /**
+     * Application warnings
+     *
+     * Logs the specified warning message (for developement purpose only)
+     * using the TIP_Logger instance, if present.
+     *
+     * The difference between warnings and errors is that errors generate a
+     * notifyError() call while warnings don't.
+     *
+     * @param string $message A custom message
+     */
+    function warning($message)
+    {
+        $backtrace = debug_backtrace();
+        TIP::log('WARNING', $message, $backtrace);
+    }
+
+    /**
+     * Application errors
+     *
+     * Logs the specified warning message (for developement purpose only)
+     * using the TIP_Logger instance, if present.
+     *
+     * The difference between warnings and errors is that errors generate a
+     * notifyError() call while warnings don't.
+     *
+     * @param string $message A custom message
+     */
+    function error($message)
+    {
+        $backtrace = debug_backtrace();
+        TIP::log('ERROR', $message, $backtrace);
+        TIP::notifyError();
+    }
+
+    /**
+     * Application fatal errors
+     *
+     * Log an error message and quits the application. This is done by
+     * redirecting the user agent to a special page.
+     *
+     * @param string $message A custom message
+     */
+    function fatal($message)
+    {
+        $backtrace = debug_backtrace();
+        TIP::log('FATAL', $message, $backtrace);
+        $fatal_uri = HTTP::absoluteURI(TIP::getOption('application', 'fatal_url'));
+        if ($fatal_uri == @$_SERVER['REQUEST_URI']) {
+            // This is a recursive redirection
+            HTTP::redirect('/fatal.html');
+        } else {
+            // This is the first redirection
+            HTTP::redirect($fatal_uri);
+        }
+        exit;
+    }
+
+
+    /** #@+
+     * The parameters are passed throught: this is merely a shortcut.
+     * @return bool|null The return value of the wrapped function or null if
+     *                   the TIP_Notify module is not present
+     */
 
     /**
      * Error notification to the user
      *
-     * Outputs the specified error message to notify the user about something
-     * wrong. This is merely a wrapper that calls the TIP_Notify::echoError()
-     * method, so check the TIP_Notify documentation for further informations.
-     *
-     * If the error id is not found, a new call to echoError() without any
-     * argument is performed to try to get a default error message.
-     *
-     * @param mixed  $id              The id of the system message
-     * @param string $context_message A custom message to append
+     * Notifies an error to the user throught TIP_Notify::notifyError().
+     * Check the TIP_Notify documentation for further informations.
      */
-    function error($id, $context_message = '')
+    function notifyError()
     {
-        $notify =& TIP_Module::getInstance('notify');
-        if (is_object($notify)) {
-            $notify->keys['CONTEXT_MESSAGE'] = $context_message;
-
-            if (! $notify->echoError($id)) {
-                $notify->echoError();
-            }
+        $notify =& TIP_Module::getInstance('notify', false);
+        if (isset($notify)) {
+            $args = func_get_args();
+            return call_user_func_array(array(&$notify, 'notifyError'), $args);
         }
+        return null;
     }
+
+    /**
+     * Warning notification to the user
+     *
+     * Notifies a warning to the user throught TIP_Notify::notifyWarning().
+     * Check the TIP_Notify documentation for further informations.
+     */
+    function notifyWarning()
+    {
+        $notify =& TIP_Module::getInstance('notify', false);
+        if (isset($notify)) {
+            $args = func_get_args();
+            return call_user_func_array(array(&$notify, 'notifyWarning'), $args);
+        }
+        return null;
+    }
+
+    /**
+     * Notification to the user
+     *
+     * Notifies a generic information to the user throught TIP_Notify::notifyInfo().
+     * Check the TIP_Notify documentation for further informations.
+     */
+    function notifyInfo()
+    {
+        $notify =& TIP_Module::getInstance('notify', false);
+        if (isset($notify)) {
+            $args = func_get_args();
+            return call_user_func_array(array(&$notify, 'notifyInfo'), $args);
+        }
+        return null;
+    }
+
+    /**#@-*/
+
 
     /**
      * Build a path
@@ -697,12 +719,7 @@ class TIP
 
         if (! $initialized || $refresh) {
             $user =& TIP_Module::getInstance('user');
-            if (! is_object($user)) {
-                $user_id = false;
-            } else {
-                $user_id = @$user->keys['CID'];
-            }
-
+            $user_id = isset($user) ? @$user->keys['CID'] : false;
             $initialized = true;
         }
 
@@ -729,9 +746,9 @@ class TIP
         $anonymous = is_null($user_id) || $user_id === false;
         if (! $anonymous) {
             $privilege =& TIP_Module::getInstance('privilege');
-            if (is_object($privilege)) {
+            if (isset($privilege)) {
                 $stored_privilege = $privilege->getStoredPrivilege($module, $user_id);
-                if (! is_null($stored_privilege)) {
+                if (!is_null($stored_privilege)) {
                     return $stored_privilege;
                 }
             }
@@ -753,22 +770,30 @@ class TIP
      * TIP system. You can specify an array of rules to use in the $rules
      * array, or leave it undefined to use all the available rules.
      *
-     * @param array|null $rules The array of rules to enable
+     * @param array|null $enable_rules The array of rules to enable
      * @return Text_Wiki The requested instance
      */
-    function& getWiki($rules = null)
+    function& getWiki($enable_rules = null)
     {
         static $wiki = null;
-        static $all_rules = null;
+        static $rules = null;
 
         if (is_null($wiki)) {
             require_once 'Text/Wiki.php';
-            $wiki =& Text_Wiki::singleton('Default', array('Prefilter', 'Heading', 'Toc', 'Horiz', 'Blockquote', 'List', 'Deflist', 'Table', 'Center', 'Paragraph', 'Url', 'Strong', 'Emphasis', 'Revise', 'Tighten'));
-            $all_rules = array('Heading', 'Toc', 'Horiz', 'Blockquote', 'List', 'Deflist', 'Table', 'Center', 'Url', 'Strong', 'Emphasis', 'Revise');
+            $all_rules = array(
+                'Prefilter', 'Heading', 'Toc', 'Horiz', 'Blockquote', 
+                'List', 'Deflist', 'Table', 'Center', 'Paragraph', 'Url',
+                'Strong', 'Emphasis', 'Revise', 'Tighten'
+            );
+            $wiki =& Text_Wiki::singleton('Default', $all_rules);
+            $rules = array(
+                'Heading', 'Toc', 'Horiz', 'Blockquote', 'List', 'Deflist',
+                'Table', 'Center', 'Url', 'Strong', 'Emphasis', 'Revise'
+            );
             $wiki->setFormatConf('Xhtml', 'charset', 'UTF-8');
         }
 
-        $wiki->disable = is_array($rules) ? array_diff($all_rules, $rules) : array();
+        $wiki->disable = is_array($rules) ? array_diff($rules, $enable_rules) : array();
         return $wiki;
     }
 
@@ -809,6 +834,7 @@ class TIP
 require_once 'Type.php';
 require_once 'Callback.php';
 require_once 'SourceEngine.php';
+require_once 'Source.php';
 require_once 'Module.php';
 require_once 'DataEngine.php';
 require_once 'Data.php';

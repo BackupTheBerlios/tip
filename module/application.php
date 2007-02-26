@@ -9,16 +9,32 @@
 /**
  * The main module
  *
- * The global variable $_tip_application contains a reference to the
- * TIP_Application instantiated object.
+ * This module manages the generation of the page content (the most dynamic
+ * part of a TIP site). This is done by using a callback queue, stored in the
+ * private $_queue property, where the modules will prepend or append there
+ * callbacks.
  *
- * Your index.php, other than includes the basic TIP files, must only call
- * the go() method of $_tip_application:
- * <code>$_tip_application->go ();</code>
- * and TIP will (hopefully) start working.
+ * When the commandContent() is called, usually throught a tag in the main
+ * source file, the TIP_Application module will call the callbacks stored in
+ * the queue in sequential order. The page content is the output of these
+ * callbacks.
+ *
+ * The global variable $GLOBALS[TIP_MAIN_MODULE] contains a reference to the
+ * TIP_Application instantiated object. Your index.php, if the TIP system is
+ * properly configured, will usually be as the following one:
+ *
+ * <code>
+ * <?php
+ *
+ * require_once 'logic/TIP.php';
+ * $GLOBALS[TIP_MAIN_MODULE]->go('index.src');
+ *
+ * ?>
+ * </code>
  *
  * @final
- * @package TIP
+ * @package  TIP
+ * @tutorial TIP/TIP.pkg
  */
 class TIP_Application extends TIP_Module
 {
@@ -107,6 +123,17 @@ class TIP_Application extends TIP_Module
 
     /**#@-*/
 
+
+    function runAction($action)
+    {
+        switch($action) {
+        case 'fatal':
+            return TIP::notifyError('fatal');
+        }
+
+        return null;
+    }
+
     /**#@-*/
 
 
@@ -147,39 +174,48 @@ class TIP_Application extends TIP_Module
         }
 
         if ($module_name && ! $action) {
-            TIP::error('E_URL_ACTION');
+            TIP::notifyError('noaction');
         } elseif (! $module_name && $action) {
-            TIP::error('E_URL_MODULE');
+            TIP::notifyError('nomodule');
         } elseif ($module_name) {
             $module =& TIP_Module::getInstance($module_name, false);
             if (is_object($module)) {
                 $this->keys['ACTION'] = $action;
-                $result = $module->callAction($action);
-                if (is_null($result)) {
+                if (is_null($module->callAction($action))) {
                     $anonymous = is_null(TIP::getUserId());
-                    TIP::error($anonymous ? 'E_URL_RESERVED' : 'E_URL_DENIED');
-                } elseif ($result === false) {
-                    TIP::error('E_FALLBACK');
-                    $module->logError($module->resetError());
+                    TIP::notifyError($anonymous ? 'reserved' : 'denied');
                 }
             } else {
-                TIP::error('E_URL_MODULE');
+                TIP::notifyError('module');
             }
         }
 
         // Generates the page
-        if (! $this->commandRun($main_source)) {
-            TIP::error('E_FALLBACK');
-            $this->logError($this->resetError());
-        }
+        $this->commandRun($main_source);
     }
 
+    /**
+     * Prepend a page content callback
+     *
+     * Inserts at the beginning of $_queue the specified callback, that will
+     * be called while generating the page content.
+     *
+     * @param TIP_Callback &$callback The callback
+     */
     function prependCallback(&$callback)
     {
         array_unshift($this->_queue, null);
         $this->_queue[0] =& $callback;
     }
 
+    /**
+     * Append a page content callback
+     *
+     * Appends at the end of $_queue the specified callback, that will
+     * be called while generating the page content.
+     *
+     * @param TIP_Callback &$callback The callback
+     */
     function appendCallback(&$callback)
     {
         $this->_queue[] =& $callback;

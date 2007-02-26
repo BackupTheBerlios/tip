@@ -93,19 +93,19 @@ class TIP_User extends TIP_Block
         $filter = $this->data->rowFilter($id);
         $view =& $this->startView($filter);
         if (is_null($view)) {
-            TIP::error('E_DATA_SELECT');
+            TIP::notifyError('E_DATA_SELECT');
             return;
         }
 
         $row =& $view->rowReset();
         if (is_null($row)) {
-            TIP::error('E_NOTFOUND');
+            TIP::notifyError('E_NOTFOUND');
             $this->endView();
             return;
         }
 
         if (crypt($row['password'], $password) != $password) {
-            TIP::error('E_DENIED');
+            TIP::notifyError('E_DENIED');
             $this->endView();
             return;
         }
@@ -151,9 +151,9 @@ class TIP_User extends TIP_Block
                     if ($id == @$this->_new_row['id'])
                         $this->_logout ();
 
-                    TIP::info ('I_DONE');
+                    TIP::notifyInfo ('I_DONE');
                 } else {
-                    TIP::error('E_DATA_DELETE');
+                    TIP::notifyError('E_DATA_DELETE');
                 }
             }
             else
@@ -210,32 +210,32 @@ class TIP_User extends TIP_Block
             $user = TIP::getPost('user', 'string');
             if (empty($user)) {
                 $label = $this->getLocale('user_label');
-                TIP::error ('E_GENERIC', " ($label)");
+                TIP::notifyError ('E_GENERIC', " ($label)");
                 return false;
             }
 
             $password = TIP::getPost('password', 'string');
             if (empty($password)) {
                 $label = $this->getLocale('password_label');
-                TIP::error('E_GENERIC', " ($label)");
+                TIP::notifyError('E_GENERIC', " ($label)");
                 return false;
             }
 
             $filter = $this->data->filter('user', $user);
             if (! $this->startView($filter)) {
-                TIP::error('E_DATA_SELECT');
+                TIP::notifyError('E_DATA_SELECT');
                 return false;
             }
 
             if (! $this->view->rowReset()) {
                 $this->endView();
-                TIP::error('E_GENERIC');
+                TIP::notifyError('E_GENERIC');
                 return false;
             }
 
             if ($this->getField('password') != $password) {
                 $this->endView();
-                TIP::error('E_GENERIC');
+                TIP::notifyError('E_GENERIC');
                 return false;
             }
 
@@ -292,7 +292,7 @@ class TIP_User extends TIP_Block
         $this->DATA_ENGINE->Querify ($Value, $this);
         if (! $this->StartView ("WHERE `user`=$Value"))
         {
-            TIP::error ('E_DATA_SELECT');
+            TIP::notifyError ('E_DATA_SELECT');
             return false;
         }
 
@@ -301,7 +301,7 @@ class TIP_User extends TIP_Block
 
         if (@$this->keys['CID'] != $user_id)
         {
-            TIP::error ('E_VL_GENERIC', $this->getLocale('user_validator'));
+            TIP::notifyError ('E_VL_GENERIC', $this->getLocale('user_validator'));
             return false;
         }
 
@@ -313,7 +313,7 @@ class TIP_User extends TIP_Block
         $this->DATA_ENGINE->Querify ($Value, $this);
         if (! $this->StartView ("WHERE `publicname`=$Value"))
         {
-            TIP::error ('E_DATA_SELECT');
+            TIP::notifyError ('E_DATA_SELECT');
             return false;
         }
 
@@ -322,7 +322,7 @@ class TIP_User extends TIP_Block
 
         if (@$this->keys['CID'] != $user_id)
         {
-            TIP::error ('E_VL_GENERIC', $this->getLocale ('publicname_validator'));
+            TIP::notifyError ('E_VL_GENERIC', $this->getLocale ('publicname_validator'));
             return false;
         }
 

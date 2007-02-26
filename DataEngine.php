@@ -26,7 +26,7 @@ class TIP_Data_Engine extends TIP_Type
      * TIP_Data_Engine::singleton() calls.
      *
      * A data engine is instantiated by includind its logic file found in the
-     * 'data' directory (relative to 'logic_root').
+     * 'data_engine' directory (relative to 'logic_root').
      *
      * To improve consistency, the data engine name is always converted
      * lowercase. This means also the logic file name must be lowecase.
@@ -47,17 +47,17 @@ class TIP_Data_Engine extends TIP_Type
     }
 
     /**
-     * Prepare a name for a query or a filter
+     * Prepare names for a query or a filter
      *
-     * Prepares an identifier to be inserted in a query or in a filter. The
-     * TIP_Mysql engine, for example, backtickes the string.
+     * Prepares one or more identifiers to be inserted in a query or in a
+     * filter. The TIP_Mysql engine, for example, backtickes the names.
      *
      * This method SHOULD be overriden by implementations of TIP_Data_Engine
      * that use client-server communications. This includes SQL based engines
      * that must avoid SQL injection.
      *
-     * @param string $name The name to prepare
-     * @return string The name prepared for the query
+     * @param string|array $name The name/names to prepare
+     * @return string|array $name prepared for the query
      */
     function prepareName($name)
     {
@@ -65,17 +65,17 @@ class TIP_Data_Engine extends TIP_Type
     }
 
     /**
-     * Prepares a value for a query or a filter
+     * Prepare values for a query or a filter
      *
-     * Prepares a value to be inserted in a query or in a filter. The TIP_Mysql
-     * engine, for example, escapes and quotes all the string values.
+     * Prepares one or more values to be inserted in a query or in a filter.
+     * The TIP_Mysql engine, for example, escapes and quotes all the values.
      *
      * This method SHOULD be overriden by implementations of TIP_Data_Engine
      * that use client-server communications. This includes SQL based engines
      * that must avoid SQL injection.
      *
-     * @param mixed $value The value to prepare
-     * @return string The value prepared for the query
+     * @param mixed|array $value The value/values to prepare
+     * @return string|array $value prepared for the query
      */
     function prepareValue($value)
     {
@@ -122,7 +122,7 @@ class TIP_Data_Engine extends TIP_Type
      * Read data
      *
      * Gets the rows that satisfy the $filter conditions. Only the fields
-     * specified by TIP_Data::$_fieldset must be read. If this fieldset is
+     * specified by $data->_fieldset must be read. If this fieldset is
      * null, all the fields are assumed.
      *
      * The result must be an empty array if there's no matching rows.
@@ -142,24 +142,27 @@ class TIP_Data_Engine extends TIP_Type
     }
 
     /**
-     * Insert a new row
+     * Insert new rows
      *
-     * Inserts a new row. The primary key of the new row is returned. If the
-     * primary key is specified in $row and a row with this primary key yet
-     * exists, this function must fail.
+     * Inserts new rows. The autoincrement value of the last row is returned.
+     * If the primary keys are specified in $rows and a row with any primary
+     * key yet exists, this function must fail.
      *
-     * Notice $row can be an empty array, in which case a new empty row must
+     * The rows must be homogeneus: if the first row has five fields, all the
+     * other rows must have the same five fields (obviously, with different
+     * values).
+     *
+     * Notice $rows can be an empty array, in which case a new empty row must
      * be added without errors. In this case, the row must be filled with
      * its default values.
      *
      * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
      *
      * @param TIP_Data &$data The data context
-     * @param array    &$row  The new row
-     * @return mixed|null The newly inserted primary key (usually an integer,
-     *                    but can be any valid type) or null on errors
+     * @param array    &$rows An array of rows
+     * @return int|null The last autoincrement value or null on errors
      */
-    function insert(&$data, &$row)
+    function insert(&$data, &$rows)
     {
         $this->logFatal('method TIP_Data_Engine::insert() not implemented');
     }
@@ -170,6 +173,10 @@ class TIP_Data_Engine extends TIP_Type
      * Updates the rows that match the $filter conditions using the new $row
      * contents. To leave the fields untouched, simply do not specify these
      * fields in $row.
+     *
+     * The update method is subject to the fields subset: if
+     * $data->_fields_subset is not null, only the fields present in this
+     * subset will be updated.
      *
      * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
      *

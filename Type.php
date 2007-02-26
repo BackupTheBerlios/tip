@@ -21,13 +21,12 @@
  * @package  TIP
  * @tutorial TIP/Module.pkg#TIP_Type
  */
-class TIP_Type extends TIP
+class TIP_Type extends PEAR
 {
     /**#@+ @access private */
 
-    var $_tip_type = null;
+    var $_type = null;
     var $_id = null;
-    var $_error = null;
 
     /**#@-*/
 
@@ -39,40 +38,21 @@ class TIP_Type extends TIP
      *
      * Initializes a TIP_Type instance.
      *
-     * Basically, this class set the $_tip_type and $_id private properties.
+     * Basically, this class set the $_type and $_id private properties.
      * By default, these properties are equals. This is valid for singletons
      * (such as almost all the TIP_Module derived objects), where a single
      * class has only a single instance.
      *
      * If you want to have a class with more instances, you must define in the
      * constructor the $_id property to something unique inside this class.
-     *
-     * @todo Derive this class from PEAR instead of TIP and remove
-     *       all error management from TIP_Type.
      */
     function TIP_Type()
     {
-        $this->_tip_type = strtolower(TIP::stripTipPrefix(get_class($this)));
+        $this->PEAR();
+        $this->_type = strtolower(TIP::stripTipPrefix(get_class($this)));
         if (is_null($this->_id)) {
-            $this->_id = $this->_tip_type;
+            $this->_id = $this->_type;
         }
-    }
-
-    /**
-     * Get the type of a TIP instance
-     *
-     * Returns the type of the current - instantiated - TIP object. This
-     * function simply gets the class name (in lowercase) and strips the
-     * TIP_PREFIX from the string.
-     *
-     * The result is converted to lowecase to avoid discrepancies between
-     * different PHP versions.
-     *
-     * @return string The type name
-     */
-    function getTipType()
-    {
-        return $this->_tip_type;
     }
 
     /**
@@ -97,7 +77,8 @@ class TIP_Type extends TIP
      * @param string|object|array $instance The instance to store in the register
      * @param bool                $required Are the errors fatal?
      * @return array|mixed|null The singleton register, the singleton of $id
-     *                          or null on errors
+     *                          or null if registered instance not found of false
+     *                          on errors
      * @static
      */
     function& singleton($id = null, $instance = null, $required = true)
@@ -116,8 +97,13 @@ class TIP_Type extends TIP
 
         if (is_string($instance)) {
             $register[$id] =& TIP_Type::factory($instance);
-            if (! $register[$id] && $required) {
-                TIP::logFatal("unable to include logic file ($instance)");
+            if (!$register[$id]) {
+                if ($required) {
+                    TIP::fatal("unable to include logic file ($instance)");
+                    exit;
+                } else {
+                    $register[$id] = false;
+                }
             }
             return $register[$id];
         } elseif (is_array($instance)) {
@@ -127,8 +113,7 @@ class TIP_Type extends TIP
             return $register[$id] =& $instance;
         }
 
-        TIP::logFatal('unhandled instance type (' . gettype($instance) . ')');
-
+        TIP::fatal('unhandled instance type (' . gettype($instance) . ')');
     }
 
     /**
@@ -147,10 +132,10 @@ class TIP_Type extends TIP
      * For non-instantiable types you must omit the return statement: the
      * default return value for include_once will be used instead.
      *
-     * @param array  $file     The logic file
-     * @return TIP_Type|bool A reference to the instance or true if $id is not
-     *                       instantiable but the logic is properly included,
-     *                       false on errors
+     * @param array $file The logic file
+     * @return TIP_Type|bool A reference to the instance or true if $file
+     *                       contains a not instantiable class but the logic
+     *                       is properly included, false on errors
      * @static
      */
     function& factory($file)
@@ -164,23 +149,6 @@ class TIP_Type extends TIP
     }
 
     /**
-     * Sets an error message
-     *
-     * Sets or appends to the internal error string a message. This error is
-     * publicly available throught the getError() method.
-     */
-    function setError($message)
-    {
-        if (empty($message))
-            return;
-
-        if ($this->_error)
-            $this->_error .= '\n' . $message;
-        else
-            $this->_error = $message;
-    }
-
-    /**
      * Get an option for the current instance
      *
      * Wrappers the more general TIP::getOption() function without the need to
@@ -191,7 +159,7 @@ class TIP_Type extends TIP
      */
     function getOption($option)
     {
-        return TIP::getOption($this->_tip_type, $option);
+        return TIP::getOption($this->_type, $option);
     }
 
     /**
@@ -209,42 +177,6 @@ class TIP_Type extends TIP
         return $callback;
     }
 
-    /**
-     * Log a warning message
-     *
-     * Wrappes TIP::logWarning() appending specific type informations.
-     *
-     * @see logError(),logFatal()
-     */
-    function logWarning($message)
-    {
-        TIP::logWarning($message . " from the '{$this->_tip_type}::{$this->_id}' instance");
-    }
-
-    /**
-     * Log an error message
-     *
-     * Wrappes TIP::logError() appending specific type informations.
-     *
-     * @see logWarning(),logFatal()
-     */
-    function logError($message)
-    {
-        TIP::logError($message . " from the '{$this->_tip_type}::{$this->_id}' instance");
-    }
-
-    /**
-     * Log an error message and quits the application
-     *
-     * Wrappes TIP::logFatal() appending specific type informations.
-     *
-     * @see logWarning(),logError()
-     */
-    function logFatal($message)
-    {
-        TIP::logFatal($message . " from the '{$this->_tip_type}::{$this->_id}' instance");
-    }
-
     /**#@-*/
 
 
@@ -253,21 +185,38 @@ class TIP_Type extends TIP
     /**
      * Overridable type instantiation
      *
-     * Defines a type dinamically. If the $id type is not defined, the logic
+     * Defines a type dinamically. If the $class type is not defined, the logic
      * file found in the 'logic_root' path is included by TIP_Type::factory().
      *
-     * @param string $id The type name without the 'TIP_' prefix
+     * @param string $class The type name without the 'TIP_' prefix
      * @return bool Always returns true because errors are fatals
      * @static
      */
-    function& getInstance($id)
+    function& getInstance($class)
     {
-        $instance =& TIP_Type::singleton($id);
+        $instance =& TIP_Type::singleton($class);
         if (is_null($instance)) {
-            $file = TIP::buildLogicPath($id) . '.php';
-            $instance =& TIP_Type::singleton($id, $file);
+            $file = TIP::buildLogicPath($class) . '.php';
+            $instance =& TIP_Type::singleton($class, $file);
         }
         return $instance;
+    }
+
+    /**
+     * Get the type of a TIP instance
+     *
+     * Returns the type of the current - instantiated - TIP object. This
+     * function simply gets the class name (in lowercase) and strips the
+     * TIP_PREFIX from the string.
+     *
+     * The result is converted to lowecase to avoid discrepancies between
+     * different PHP versions.
+     *
+     * @return string The type name
+     */
+    function getType()
+    {
+        return $this->_type;
     }
 
     /**
@@ -282,34 +231,6 @@ class TIP_Type extends TIP
     function getId()
     {
         return $this->_id;
-    }
-
-    /**
-     * Resets the error messages
-     *
-     * Resets the internal error messages. The previous list of error messages
-     * is returned to the caller.
-     *
-     * @return string|null The error messages or null if there are no errors.
-     */
-    function resetError()
-    {
-        $result = $this->_error;
-        $this->_error = null;
-        return $result;
-    }
-
-    /**
-     * Get the list of error messages
-     *
-     * Gets the description of the errors set by this module. If there are no
-     * errors, this function simply returns null.
-     *
-     * @return string|null The error messages or null if there are no errors.
-     */
-    function getError()
-    {
-        return $this->_error;
     }
 
     /**#@-*/

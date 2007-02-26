@@ -22,6 +22,12 @@ class TIP_Locale extends TIP_Block
 
     var $_locale = null;
 
+
+    function _onRow(&$row)
+    {
+        $row['MESSAGE'] = $row[$this->_locale];
+    }
+
     /**#@-*/
 
 
@@ -43,6 +49,13 @@ class TIP_Locale extends TIP_Block
         $this->data =& TIP_Data::getInstance($data_path, $data_engine, array('id', $this->_locale));
     }
 
+    function& startView($filter)
+    {
+        $view =& TIP_View::getInstance($filter, $this->data);
+        $view->on_row->set(array(&$this, '_onRow'));
+        return $this->push($view);
+    }
+
     /**#@-*/
 
 
@@ -62,12 +75,20 @@ class TIP_Locale extends TIP_Block
      * as for the TIP_Notify module) you can disable the cache by passig false
      * to the $cached argument.
      *
-     * @param string $id     The text identifier
-     * @param string $module The name of the caller module
-     * @param bool   $cached Whether to perform or not a cached read
+     * The $context associative array contains a series of key=>value pairs
+     * that can be substituted in the localized text. The get() method will
+     * search in the localized text for any key enclosed by '|' and will put 
+     * the corresponding value. For instance, if there is a 'size'=>200 in
+     * the $context array, the text 'Max allowed size is |size|...' will
+     * expand to 'Max allowed size is 200...'.
+     *
+     * @param string $id      The text identifier
+     * @param string $module  The name of the caller module
+     * @param array  $context The context associative array
+     * @param bool   $cached  Whether to perform or not a cached read
      * @return string The requested localized text or $id on errors
      */
-    function get($id, $module, $cached = true)
+    function get($id, $module, $context = null, $cached = true)
     {
         $row_id = $module . '.' . $id;
 
@@ -91,11 +112,24 @@ class TIP_Locale extends TIP_Block
         }
 
         if (is_null($row)) {
-            $this->logWarning("Localized text not found ($row_id)");
+            TIP::warning("Localized text not found ($row_id)");
             return $id;
         }
 
-        return @$row[$this->_locale];
+        $text = @$row[$this->_locale];
+        if (is_null($context) || strpos($text, '|') === false) {
+            return $text;
+        }
+
+        // There are some embedded keys to expand ...
+        $token = explode('|', $text);
+        foreach ($token as $n => $value) {
+            // Odd tokens are keys
+            if ($n & 1) {
+                $token[$n] = @$context[$value];
+            }
+        }
+        return implode($token);
     }
 
     /**#@-*/

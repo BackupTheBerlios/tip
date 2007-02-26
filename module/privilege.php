@@ -82,10 +82,10 @@ class TIP_Privilege extends TIP_Block
 
         $this->_subject_id = TIP::getGet('user', 'int');
         if (is_null($this->_subject_id)) {
-            TIP::error('E_NOTSPECIFIED');
+            TIP::notifyError('E_NOTSPECIFIED');
             return null;
         } elseif ($this->_subject_id == TIP::getUserId()) {
-            TIP::error('E_DENIED');
+            TIP::notifyError('E_DENIED');
             $this->_subject_id = null;
             return null;
         }
@@ -151,7 +151,7 @@ class TIP_Privilege extends TIP_Block
             $module_name = TIP::getGet('where', 'string');
             $privilege = TIP::getGet('privilege', 'string');
             if (empty($module_name) || empty($privilege)) {
-                TIP::error('E_NOTSPECIFIED');
+                TIP::notifyError('E_NOTSPECIFIED');
                 $this->appendToContent('edit.src');
                 return true;
             }
@@ -174,20 +174,20 @@ class TIP_Privilege extends TIP_Block
             if ($old_row) {
                 $done = $this->data->updateRow($new_row, $old_row);
                 if ($done) {
-                    TIP::info('I_DONE');
+                    TIP::notifyInfo('I_DONE');
                     $old_row = $new_row;
                 } else {
-                    TIP::error('E_DATA_UPDATE');
+                    TIP::notifyError('E_DATA_UPDATE');
                 }
             } else {
                 $done = $this->data->putRow($new_row);
                 if ($done) {
-                    TIP::info('I_DONE');
+                    TIP::notifyInfo('I_DONE');
                     if ($view) {
                         $view->rows[$new_row['id']] = $new_row;
                     }
                 } else {
-                    TIP::error('E_DATA_INSERT');
+                    TIP::notifyError('E_DATA_INSERT');
                 }
             }
 
@@ -211,12 +211,12 @@ class TIP_Privilege extends TIP_Block
 
             $filter = $this->data->filter('_user', $subject_id);
             if (! $this->data->deleteRows($filter)) {
-                TIP::error('E_DATA_DELETE');
+                TIP::notifyError('E_DATA_DELETE');
                 $this->appendToContent('edit.src');
                 return false;
             }
 
-            TIP::info('I_DONE');
+            TIP::notifyInfo('I_DONE');
             $this->appendToContent('edit.src');
             return true;
         }

@@ -100,12 +100,14 @@ class TIP_Module extends TIP_Type
      * See the TIP_Locale::get() method for technical details on how the text
      * is localized.
      *
-     * @param string $id The text identifier
+     * @param string $id      The text identifier
+     * @param array  $context The context associative array
+     * @param bool   $cached  Whether to perform or not a cached read
      * @return string The requested localized text
      */
-    function getLocale($id)
+    function getLocale($id, $context = null, $cached = true)
     {
-        return TIP::getLocale($id, $this->getId());
+        return TIP::getLocale($id, $this->getId(), $context, $cached);
     }
 
     /**
@@ -279,7 +281,7 @@ class TIP_Module extends TIP_Type
         $requests = explode(',', $params);
         $value = $this->getValidRequest($requests);
         if (is_null($value)) {
-            $this->setError("no valid request found ($params)");
+            TIP::error("no valid request found ($params)");
             return false;
         }
 
@@ -436,7 +438,7 @@ class TIP_Module extends TIP_Type
     {
         $pos = strpos($params, ',');
         if ($pos === false) {
-            $this->setError("Invalid inList parameter ($params)");
+            TIP::error("invalid inList parameter ($params)");
             return false;
         }
 
@@ -493,7 +495,7 @@ class TIP_Module extends TIP_Type
     {
         $pos = strpos ($params, ',');
         if ($pos === false) {
-            $this->setError('no text to replace');
+            TIP::error('no text to replace');
             return false;
         }
 
@@ -598,8 +600,10 @@ class TIP_Module extends TIP_Type
     function insertInContent($file)
     {
         $application =& $GLOBALS[TIP_MAIN_MODULE];
-        $path = $this->buildModulePath($file);
-        $application->prependCallback($this->callback('run', array($path)));
+        if (strpos($file, DIRECTORY_SEPARATOR) === false) {
+            $file = $this->buildModulePath($file);
+        }
+        $application->prependCallback($this->callback('run', array($file)));
         return true;
     }
 
@@ -612,8 +616,10 @@ class TIP_Module extends TIP_Type
     function appendToContent($file)
     {
         $application =& $GLOBALS[TIP_MAIN_MODULE];
-        $path = $this->buildModulePath($file);
-        $application->appendCallback($this->callback('run', array($path)));
+        if (strpos($file, DIRECTORY_SEPARATOR) === false) {
+            $file = $this->buildModulePath($file);
+        }
+        $application->appendCallback($this->callback('run', array($file)));
         return true;
     }
 
@@ -685,7 +691,7 @@ class TIP_Module extends TIP_Type
      *
      * Executes the specified command, using $params as arguments. This
      * function prepend 'command' to $command and try to call the so
-     * formed method. If you, for instance, runs callCommand ('Test', ''), a
+     * formed method. If you, for instance, runs callCommand('Test', ''), a
      * commandTest('') call will be performed.
      *
      * A command is a request from the source engine to echoes something. It can
@@ -705,9 +711,9 @@ class TIP_Module extends TIP_Type
     {
         $command = strtolower($command);
         $method = 'command' . $command;
-        if (! method_exists($this, $method)) {
-            $class = get_class($this);
-            $this->setError("the method does not exist ($class::$method)");
+
+        if (!method_exists($this, $method)) {
+            TIP::error("the method does not exist ($method)");
             return null;
         }
 
@@ -809,40 +815,8 @@ class TIP_Module extends TIP_Type
      */
     function run($file)
     {
-        if (empty($file)) {
-            $this->setError('file not specified');
-            return false;
-        }
-
-        $buffer = file_get_contents($file, false);
-        if (! $buffer) {
-            $this->setError("file not found ($file)");
-            return false;
-        }
-
-        if (! $this->engine->run($buffer, $this, "Source '$file'")) {
-            $this->setError($this->engine->resetError());
-            return false;
-        }
-
-        return true;
-    }
-
-    /**
-     * Execute a source file redirecting the output
-     *
-     * Similar to run(), but redirects the output to $buffer.
-     *
-     * @param string  $file   The file to run
-     * @param string &$buffer The destination buffer
-     * @return bool true on success or false on errors
-     */
-    function runTo($file, &$buffer)
-    {
-        ob_start();
-        $result = $this->run($file);
-        $buffer = ob_get_clean();
-        return $result;
+        $source =& TIP_Source::getInstance($file, $this->engine);
+        return $source->run($this);
     }
 
     /**#@-*/

@@ -20,7 +20,7 @@ class TIP_Data extends TIP_Type
      * The data identifier
      *
      * The path (or name) which univoquely identify the data.
-     * This field is filled by the TIP_Data during this class instantiation.
+     * This field is filled by TIP_Data during this class instantiation.
      *
      * @var string
      */
@@ -53,7 +53,17 @@ class TIP_Data extends TIP_Type
     var $_detailed = false;
 
 
-    function TIP_Data($path, $engine, $fields_subset)
+    /**
+     * TIP_Data constructor
+     *
+     * Must not be called directly: use getInstace() instead.
+     * If the fields subset is not specified, all fields are assumed.
+     *
+     * @param string $path          The id of the data source (engine dependent)
+     * @param string $engine        The data engine
+     * @param array  $fields_subset Use only this subset of fields
+     */
+    function TIP_Data($path, $engine, $fields_subset = null)
     {
         $this->TIP_Type();
 
@@ -79,7 +89,7 @@ class TIP_Data extends TIP_Type
             if ($value === '' && $field['can_be_null']) {
                 $value = null;
             } elseif (!settype ($value, $field['type'])) {
-                $this->logWarning("Invalid type for field['$key'] => $value ({$field['type']})");
+                TIP::warning("invalid type for field['$key'] => $value ({$field['type']})");
             }
         }
     }
@@ -107,6 +117,29 @@ class TIP_Data extends TIP_Type
             $info = TIP::doubleExplode('|', '=', $field['info']);
             $field = array_merge($field, $info);
         }
+    }
+
+    function _validFields(&$row)
+    {
+        $this->getFields(false);
+
+        // Keep only the keys that are fields
+        $row = array_intersect_key($row, $this->_fields);
+
+        if (isset($this->_fields_subset)) {
+            // Apply the $_fields_subset property filter
+            $row = array_intersect_key($row, array_flip($this->_fields_subset));
+        }
+
+        // Check for empty set
+        if (empty($row)) {
+            TIP::error('no valid field found');
+            return false;
+        }
+
+        // Cast the set to the proper type
+        $this->_castRow($row);
+        return true;
     }
 
     /**#@-*/
@@ -240,7 +273,7 @@ class TIP_Data extends TIP_Type
     function& getRow($id)
     {
         $rows =& $this->_engine->get($this, $this->rowFilter($id));
-        if (!is_array($rows[(string) $id])) {
+        if (!@is_array($rows[(string) $id])) {
             $fake_null = null;
             return $fake_null;
         }
@@ -279,10 +312,16 @@ class TIP_Data extends TIP_Type
     /**
      * Insert a new row
      *
-     * Inserts a new row in the data source. If the primary key is not
-     * found in $row, will be defined after the insert operation so after this
-     * call $row['id'] (or whatever have you choosed as primary key) will
-     * contain the value of the recently added row.
+     * Inserts a new row in the data source. If the insert() method returns an
+     * autoincrement value, it will be used as the primary key of $row.
+     *
+     * If $row is an empty array, a new row with default values will be
+     * inserted without errors.
+     *
+     * Also, this method is subject to the fields subset: if the $_fields_subset
+     * property is not null, only the fields present in this subset will be
+     * inserted.
+     *
      * Instead, if the primary key is defined in $row, this function fails if
      * a row with the same primary key exists.
      *
@@ -290,20 +329,64 @@ class TIP_Data extends TIP_Type
      */
     function putRow(&$row)
     {
-        // Keep only the keys that are fields
-        $this->getFields(false);
-        $set = array_intersect_key($row, $this->_fields);
-
-        $this->_castRow($set);
-        $id = $this->_engine->insert($this, $set);
-        if (is_null($id)) {
+        if (!is_array($row)) {
+            $type = gettype($row);
+            TIP::error("unhandled row type ($type)");
             return false;
         }
 
-        // Add the recently added primary key to row
-        settype($id, $this->_fields[$this->primary_key]['type']);
-        $row[$this->primary_key] = $id;
+        if (empty($row)) {
+            $rows = array();
+        } else {
+            // Get the valid set
+            $rows = array($row);
+            if (!$this->_validFields($rows[0])) {
+                return false;
+            }
+        }
+
+        $result = $this->_engine->insert($this, $rows);
+        if (is_null($result)) {
+            return false;
+        }
+
+        if (empty($row[$this->primary_key]) && $result) {
+            // Set the primary key to the last autoincrement value, if any
+            $row[$this->primary_key] = $result;
+        }
+
         return true;
+    }
+
+    /**
+     * Insert more rows
+     *
+     * Multiple inserts rows in the data source.
+     *
+     * This method, as its single row counterpart, is subject to the fields
+     * subset in the same way putRow() is.
+     *
+     * The primary keys can be defined, but if someone of them is yet present
+     * in the data source, this function will fail.
+     *
+     * @param array $rows An array of rows to insert
+     */
+    function putRows($rows)
+    {
+        if (!is_array($rows)) {
+            $type = gettype($rows);
+            TIP::error("unhandled rows type ($type)");
+            return false;
+        }
+
+        array_walk($rows, array(&$this, '_validFields'));
+        if (empty($rows) || empty($rows[0])) {
+            TIP::error('no valid rows to insert');
+            return false;
+        }
+
+        $result = $this->_engine->insert($this, $rows);
+        return !is_null($result);
     }
 
     /**
@@ -321,30 +404,39 @@ class TIP_Data extends TIP_Type
      * @param array &$row     The new row content
      * @param array  $old_row The old row content
      */
-    function updateRow(&$row, $old_row = null)
+    function updateRow($row, $old_row = null)
     {
+        if (!is_array($row)) {
+            $type = gettype($row);
+            TIP::error("unhandled row type ($type)");
+            return false;
+        }
+
         if (@array_key_exists($this->primary_key, $old_row)) {
             $id = $old_row[$this->primary_key];
         } elseif (@array_key_exists($this->primary_key, $row)) {
             $id = $row[$this->primary_key];
         } else {
-            $this->logError('Undefined row to update');
+            TIP::error('undefined row to update');
             return false;
         }
 
-        // Keep only the items that differs between $row and $old_row
-        $set = empty($old_row) ? $row : array_diff_assoc($row, $old_row);
+        // Get the valid set
+        if (!$this->_validFields($row)) {
+            return false;
+        }
 
-        // Keep only the keys that are fields
-        $set = array_intersect_key($set, $this->getFields(false));
+        if (isset($old_row)) {
+            // Keep only the items that differs between $row and $old_row
+            $row = array_diff_assoc($row, $old_row);
+        }
 
-        if (empty($set)) {
+        if (empty($row)) {
             // No fields to update
             return true;
         }
 
-        $this->_castRow($set);
-        return $this->_engine->update($this, $this->rowFilter($id), $set);
+        return $this->_engine->update($this, $this->rowFilter($id), $row);
     }
 
     /**
@@ -361,17 +453,28 @@ class TIP_Data extends TIP_Type
      * To update only one row, use updateRow() instead.
      *
      * @param string $filter The filter conditions
-     * @param array &$row    A row with the field => value pairs to update
+     * @param array  $row    A row with the field => value pairs to update
      */
-    function updateRows($filter, &$row)
+    function updateRows($filter, $row)
     {
-        // Found a primary key: error
-        if (array_key_exists($this->primary_key, $row)) {
+        if (!is_array($row)) {
+            $type = gettype($row);
+            TIP::error("unhandled row type ($type)");
             return false;
         }
 
-        $this->getFields(false);
-        $this->_castRow($set);
+        // Found a primary key: error
+        if (array_key_exists($this->primary_key, $row)) {
+            $key = $row[$this->primary_key];
+            TIP::error("updateRows() impossible with a primary key defined ($key)");
+            return false;
+        }
+
+        // Get the valid set
+        if (!$this->_validFields($row)) {
+            return false;
+        }
+
         return $this->_engine->update($this, $filter, $row);
     }
 
