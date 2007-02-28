@@ -19,7 +19,6 @@ class TIP_Hierarchy extends TIP_Block
 {
     /**#@+ @access protected */
 
-    var $_block = null;
     var $_model = null;
 
 
@@ -31,21 +30,19 @@ class TIP_Hierarchy extends TIP_Block
      *
      * The data engine is the same used by the master block.
      *
-     * @param TIP_Block &$block The master block
+     * @param string $block_id The id of the master block
      */
-    function TIP_Hierarchy(&$block)
+    function TIP_Hierarchy($block_id)
     {
-        // The data engine is initialized as for $block but with the overriden
-        // guessDataPath() method
-        $this->_id = $block->getId();
+        // The data engine is initialized as for $block_id but with the overriden
+        // getDataOptions() method
+        $this->_id = $block_id;
         $this->TIP_Block();
-
-        $this->_block =& $block;
         $this->_model =& new HTML_TreeMenu();
     }
 
     /**
-     * The data path this block must use
+     * Overrides the data options
      *
      * The data path is read from
      * <code>$cfg[masterblockid]['hierarchy_path']</code>.
@@ -53,18 +50,18 @@ class TIP_Hierarchy extends TIP_Block
      * If not specified, it defaults to
      * <code>$cfg[masterblockid]['data_path'] . '_hierarchy'</code>.
      *
-     * @return string The data path to use
+     * @return array The array of data options
      */
-    function guessDataPath()
+    function getDataOptions()
     {
-        $data_path = $this->getOption('hierarchy_path');
-        if (is_null($data_path)) {
-            $data_path = parent::guessDataPath();
-            if (isset($data_path)) {
-                $data_path .= '_hierarchy';
-            }
+        if (is_null($options = parent::getDataOptions())) {
+            return null;
+        } elseif (is_null($path = $this->getOption('hierarchy_path'))) {
+            $path = $options['path'] . '_hierarchy';
         }
-        return $data_path;
+        $options['path'] = $path;
+        $options['fieldset'] = array($path => array('*'));
+        return $options;
     }
 
     function& startView($filter)
@@ -130,17 +127,16 @@ class TIP_Hierarchy extends TIP_Block
      * Gets the singleton hierarchy instance of a block. Every block can have
      * only one hierarchy block.
      *
-     * @param TIP_Block $block The master block
-     * @return TIP_Hierarchy A reference to the TIP_Hierarchy binded to $block
+     * @param string $block_id The master block id
+     * @return TIP_Hierarchy A reference to the TIP_Hierarchy
      * @static
      */
-    function& getInstance(&$block)
+    function& getInstance($block_id)
     {
-        $id = $block->getId();
-        $instance =& TIP_Hierarchy::singleton($id);
+        $instance =& TIP_Hierarchy::singleton($block_id);
         if (is_null($instance)) {
-            $instance =& new TIP_Hierarchy($block);
-            TIP_Hierarchy::singleton($id, array($id => &$instance));
+            $instance =& new TIP_Hierarchy($block_id);
+            TIP_Hierarchy::singleton($block_id, array($block_id => &$instance));
         }
 
         return $instance;

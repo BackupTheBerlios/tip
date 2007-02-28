@@ -55,34 +55,45 @@ class TIP_Mysql extends TIP_Data_Engine
 
     function prepareFieldset(&$data, &$row)
     {
+        $keys = $this->prepareName(array_keys($row));
+        $values = $this->prepareValue(array_values($row));
+        $callback = create_function('$k,$v', 'return $k . \'=\' . $v;');
+        $fieldset = array_map($callback, $keys, $values);
+
+        /*
         $fieldset = array();
         foreach ($row as $id => $value) {
-            if (is_null($data->_fields_subset) || in_array($id, $data->_fields_subset)) {
+            if (!$data->_is_subset || in_array($id, $data->_fieldset[$data->_path])) {
                 $fieldset[] = $this->prepareName($id) . '=' . $this->prepareValue($value);
             }
         }
+        */
 
         return empty($fieldset) ? '' : 'SET ' . implode(',', $fieldset);
     }
 
-    function tryFillFields(&$fields, &$resource)
+    function tryFillFields(&$data, &$resource)
     {
-        if (! is_null($fields)) {
+        if (!empty($data->fields)) {
             return true;
         }
 
-        if (! is_resource($resource)) {
+        if (!is_resource($resource)) {
             return false;
         }
 
         $n_fields = mysql_num_fields($resource);
         for ($n = 0; $n < $n_fields; ++ $n) {
+            if (mysql_field_table($resource, $n) != $data->_path) {
+                continue;
+            }
+
             $name = mysql_field_name($resource, $n);
             $type = mysql_field_type($resource, $n);
             $flags = mysql_field_flags($resource, $n);
 
-            $fields[$name] = array('id' => $name);
-            $field =& $fields[$name];
+            $data->_fields[$name] = array('id' => $name);
+            $field =& $data->_fields[$name];
 
             // Default fallbacks
             $field['widget'] = null;
@@ -206,19 +217,34 @@ class TIP_Mysql extends TIP_Data_Engine
             $field['can_be_null'] = (bool) (strpos($flags, 'not_null') === false);
         }
 
-        return !is_null($fields);
+        return !is_null($data->_fields);
     }
 
+    /**
+     * @static
+     */
     function _groupedNames($names, $enclosed = true)
     {
-        $result = implode(',', $this->prepareName($names));
+        $result = implode(',', TIP_Mysql::prepareName($names));
         return $enclosed ? '(' . $result . ')' : $result;
     }
 
+    /**
+     * @static
+     */
     function _groupedValues($values, $enclosed = true)
     {
-        $result = implode(',', $this->prepareValue($values));
+        $result = implode(',', TIP_Mysql::prepareValue($values));
         return $enclosed ? '(' . $result . ')' : $result;
+    }
+
+    function _prepareField(&$id, $as, $table)
+    {
+        $result = TIP_Mysql::prepareName($table) . '.' . TIP_Mysql::prepareName($id);
+        if (is_string($as)) {
+            $result .= ' AS ' . TIP_Mysql::prepareName($as);
+        }
+        $id = $result;
     }
 
     /**#@-*/
@@ -226,21 +252,31 @@ class TIP_Mysql extends TIP_Data_Engine
 
     /**#@+ @access public */
 
+    /**
+     * @static
+     */
     function prepareName($name)
     {
-        return is_array($name) ?
-            array_map(array(&$this, 'prepareName'), $name) :
-            '`' . str_replace('`', '``', $name) . '`';
+        if (is_array($name)) {
+            return array_map(array('TIP_Mysql', 'prepareName'), $name);
+        //} elseif ($name{0} == '`' || $name{0} == '*') {
+        } elseif ($name == '*') {
+            return $name;
+        }
+        return '`' . str_replace('`', '``', $name) . '`';
     }
 
+    /**
+     * @static
+     */
     function prepareValue($value)
     {
         if (is_array($value)) {
-            return array_map(array(&$this, 'prepareValue'), $value);
+            return array_map(array('TIP_Mysql', 'prepareValue'), $value);
         } elseif (is_null($value)) {
             return 'NULL';
         } elseif (is_string($value)) {
-            return "'" . mysql_real_escape_string($value, $this->_connection) . "'";
+            return "'" . mysql_real_escape_string($value) . "'";
         }
         return (string) $value;
     }
@@ -253,7 +289,7 @@ class TIP_Mysql extends TIP_Data_Engine
             return false;
         }
 
-        return $this->tryFillFields($data->_fields, $result);
+        return $this->tryFillFields($data, $result);
     }
 
     function fillDetails(&$data)
@@ -268,7 +304,7 @@ class TIP_Mysql extends TIP_Data_Engine
 
         while ($row = mysql_fetch_assoc($result)) {
             $id = $row['COLUMN_NAME'];
-            if (! array_key_exists($id, $data->_fields)) {
+            if (!array_key_exists($id, $data->_fields)) {
                 continue;
             }
 
@@ -298,20 +334,21 @@ class TIP_Mysql extends TIP_Data_Engine
 
     function& get(&$data, $filter)
     {
-        if (is_null($data->_fields_subset)) {
-            $prepared_fields = '*';
-        } else {
-            $prepared_fields = $this->_groupedNames($data->_fields_subset, false);
+        $prepared_fields = array();
+        foreach(array_keys($data->_fieldset) as $table) {
+            $fields = $data->_fieldset[$table];
+            array_walk($fields, array('TIP_Mysql', '_prepareField'), $table);
+            $prepared_fields = array_merge($prepared_fields, $fields);
         }
-
-        if (($result =& $this->runQuery('SELECT', $prepared_fields, 'FROM',
-                                        $this->prepareName($data->_path),
+        
+        if (($result =& $this->runQuery('SELECT', implode(',', $prepared_fields),
+                                        'FROM', $this->prepareName($data->_path), $data->_joins,
                                         $filter)) === false) {
             $result = null;
             return $result;
         }
 
-        $this->tryFillFields($data->_fields, $result);
+        $this->tryFillFields($data, $result);
         $rows = array();
 
         while ($row = mysql_fetch_assoc($result)) {
@@ -326,7 +363,7 @@ class TIP_Mysql extends TIP_Data_Engine
     function insert(&$data, &$rows)
     {
         $prepared_fields = $this->_groupedNames(array_keys($rows[0]));
-        $prepared_values = implode(',', array_map(array(&$this, '_groupedValues'), $rows));
+        $prepared_values = implode(',', array_map(array('TIP_Mysql', '_groupedValues'), $rows));
         if ($this->runQuery('INSERT INTO', $this->prepareName($data->_path),
                             $prepared_fields, 'VALUES', $prepared_values) === false) {
             return null;

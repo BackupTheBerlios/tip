@@ -129,15 +129,11 @@ class TIP_News extends TIP_Block
         return null;
     }
 
-    /**
-     * Executes an unprivileged action
-     *
-     * Executes an action that does not require any privileges.
-     */
     function runAction($action)
     {
         switch ($action) {
         case 'view':
+            TIP::_startSession();
             $id = TIP::getGet('id', 'integer');
             if (is_null($id)) {
                 TIP::notifyError('E_NOTSPECIFIED');
@@ -146,7 +142,7 @@ class TIP_News extends TIP_Block
 
             $filter = $this->data->rowFilter($id);
             if (!$this->startView($filter)) {
-                TIP::notifyError('E_SELECT');
+                TIP::notifyError('select');
                 return false;
             }
 

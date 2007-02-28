@@ -34,20 +34,13 @@ class TIP_Locale extends TIP_Block
 
     /**#@+ @access protected */
 
-    function TIP_Locale()
+    function getDataOptions()
     {
-        // The data stuff is initialized here, so the call to $this->TIP_Block
-        // will be skipped
-        $this->TIP_Module();
-
         $this->_locale = TIP::getOption('application', 'locale');
-
-        if (is_null($data_path = $this->guessDataPath()) ||
-            is_null($data_engine = $this->guessDataEngine())) {
-            return;
-        }
-
-        $this->data =& TIP_Data::getInstance($data_path, $data_engine, array('id', $this->_locale));
+        $options = parent::getDataOptions();
+        $path = $options['path'];
+        $options['fieldset'] = array($path => array('id', $this->_locale));
+        return $options;
     }
 
     function& startView($filter)
@@ -89,7 +82,7 @@ class TIP_Locale extends TIP_Block
      * @param bool   $cached  Whether to perform or not a cached read
      * @return string The requested localized text or $id on errors
      */
-    function get($id, $module, $context = null, $cached = true)
+    function get($id, $module, $context, $cached)
     {
         $row_id = $module . '.' . $id;
 
@@ -97,6 +90,7 @@ class TIP_Locale extends TIP_Block
             $filter = $this->data->filter('id', $module . '.%', 'LIKE');
             $view =& $this->startView($filter);
             if (is_null($view)) {
+                TIP::warning("localized text not found ($row_id)");
                 return $id;
             }
 
@@ -113,12 +107,12 @@ class TIP_Locale extends TIP_Block
                 $row =& $this->_cache[$row_id];
             } else {
                 $row =& $this->data->getRow($row_id);
-                $this->_cache[$row_id] =& $row;
+                $this->_cache[$row_id] = $row;
             }
         }
 
         if (is_null($row)) {
-            TIP::warning("Localized text not found ($row_id)");
+            TIP::warning("localized text not found ($row_id)");
             return $id;
         }
 

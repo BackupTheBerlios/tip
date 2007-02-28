@@ -26,7 +26,7 @@ class TIP_Form extends TIP_Module
     var $_block = null;
     var $_defaults = null;
     var $_fields = null;
-    var $_is_add = false;
+    var $_is_add = true;
     var $_converter = array();
 
 
@@ -104,7 +104,7 @@ class TIP_Form extends TIP_Module
 
     function _converterCancel(&$row, $field)
     {
-        $row[$field] = $this->_defaults[$field];
+        $row[$field] = @$this->_defaults[$field];
     }
 
     function _converterUpload(&$row, $field)
@@ -138,7 +138,7 @@ class TIP_Form extends TIP_Module
                 $name = basename($file);
             } else {
                 // If this is a yet stored row, using the $id will make the
-                // work a lot safer and cleaner
+                // job a lot safer and cleaner
                 $name = $id . '.' . $extension;
                 $file = $path . DIRECTORY_SEPARATOR . $name;
             }
@@ -397,7 +397,6 @@ class TIP_Form extends TIP_Module
     function TIP_Form()
     {
         $this->TIP_Module();
-
         $this->on_process =& $this->callback('_onProcess');
     }
 
@@ -410,16 +409,12 @@ class TIP_Form extends TIP_Module
      * @param array      $row        The default values
      * @param bool       $is_add     Is this an add form?
      * @param string     $validation Validation mode ('client' | 'server')
-     * @return bool true on success or false on errors
      */
-    function setForm(&$block, $row = null, $is_add = null, $validation = null)
+    function setForm(&$block, $row = null, $is_add = true, $validation = null)
     {
         $this->_block =& $block;
         $this->_defaults = $row;
-
-        if (isset($is_add)) {
-            $this->_is_add = $is_add;
-        }
+        $this->_is_add = $is_add;
         if (isset($validation)) {
             $this->_validation = $validation;
         }
@@ -450,6 +445,7 @@ class TIP_Form extends TIP_Module
         $this->_form->addElement('header', 'PageHeader', $header);
         $this->_form->addElement('hidden', 'module', $this->_block->getId());
         $this->_form->addElement('hidden', 'action', $application->keys['ACTION']);
+
 
         foreach (array_keys($this->_fields) as $id) {
             $field =& $this->_fields[$id];
@@ -544,7 +540,6 @@ class TIP_Form extends TIP_Module
 
         // Add the 'Close' button
         $element =& $this->_form->addElement('link', 'buttons', null, $referer);
-        $element->setAttribute('class', 'command');
         $element->setText($this->getLocale('close'));
 
         $this->_form->freeze();

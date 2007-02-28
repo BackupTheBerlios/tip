@@ -70,7 +70,7 @@ class TIP
             if ($same_year && $same_day) {
                 return 'oggi';
             }
-            return strftime($same_year ? 'il %d %B' : 'il %d %B %Y', $timestamp);
+            return strftime($same_year ? '%d %B' : '%d %B %Y', $timestamp);
 
         case 'datetime_it':
             $date = TIP::_formatTimestamp($timestamp, 'date_it');
@@ -175,15 +175,17 @@ class TIP
      * See the TIP_Locale::get() method for technical details on how the text
      * is localized.
      *
-     * @param string $id     The text identifier
+     * @param string $id      The text identifier
+     * @param string $module  The name of the caller module
+     * @param array  $context The context associative array
+     * @param bool   $cached  Whether to perform or not a cached read
      * @return string The requested localized text or $id if the text is not found
      */
-    function getLocale($id)
+    function getLocale($id, $module, $context = null, $cached = true)
     {
         $locale =& TIP_Module::getInstance('locale', false);
         if (isset($locale)) {
-            $args = func_get_args();
-            return call_user_func_array(array(&$locale, 'get'), $args);
+            return $locale->get($id, $module, $context, $cached);
         }
         return $id;
     }
@@ -766,25 +768,35 @@ class TIP
      */
     function& getWiki($enabled = null)
     {
-        static $wiki = null;
         static $rules = null;
+        static $forced_rules = null;
 
-        if (is_null($wiki)) {
-            require_once 'Text/Wiki.php';
-            $all_rules = array(
-                'Prefilter', 'Heading', 'Toc', 'Horiz', 'Blockquote', 
+        if (is_null($rules)) {
+            // All the rules, in order, made available for the TIP system.
+            // The case is important!
+            $rules = array(
+                'Prefilter', 'Heading', 'Toc', 'Horiz', 'Break', 'Blockquote', 
                 'List', 'Deflist', 'Table', 'Center', 'Paragraph', 'Url',
                 'Strong', 'Emphasis', 'Revise', 'Tighten'
             );
-            $wiki =& Text_Wiki::singleton('Default', $all_rules);
-            $rules = array(
-                'Heading', 'Toc', 'Horiz', 'Blockquote', 'List', 'Deflist',
-                'Table', 'Center', 'Url', 'Strong', 'Emphasis', 'Revise'
-            );
-            $wiki->setFormatConf('Xhtml', 'charset', 'UTF-8');
+            // Rules always included
+            $forced_rules = array('Prefilter', 'Break', 'Paragraph', 'Tighten');
         }
 
-        $wiki->disable = is_array($enabled) ? array_diff($rules, $enabled) : array();
+        require_once 'Text/Wiki.php';
+        if (is_array($enabled)) {
+            // Capitalize the $enabled values
+            $enabled = array_map('ucfirst', array_map('strtolower', $enabled));
+            // Join the forced rules
+            $enabled = array_merge($enabled, $forced_rules);
+            // Get the real rules to apply
+            $real_rules = array_intersect($rules, $enabled);
+        } else {
+            $real_rules =& $rules;
+        }
+
+        $wiki =& Text_Wiki::singleton('Default', $real_rules);
+        $wiki->setFormatConf('Xhtml', 'charset', 'UTF-8');
         return $wiki;
     }
 
@@ -829,6 +841,7 @@ require_once 'PHP/Compat/Function/array_intersect_key.php';
 require_once 'PHP/Compat/Function/array_combine.php';
 /**#@-*/
 
+require_once 'PEAR.php';
 require_once 'HTTP.php';
 
 require_once 'Type.php';

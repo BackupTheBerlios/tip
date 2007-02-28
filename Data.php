@@ -5,6 +5,186 @@
  * @package TIP
  */
 
+
+/**
+ * Ascending order, used by TIP_Query::setOrder()
+ */
+define('TIP_ASCENDING', false);
+
+/**
+ * Descending order, used by TIP_Query::setOrder()
+ */
+define('TIP_DESCENDING', true);
+
+/**
+ * The expression class
+ *
+ * A class representing a generic expression, used by the TIP_Query to build
+ * conditional expressions.
+ *
+ * @todo Implementation using MDB2
+ * @final
+ * @package  TIP
+ */
+class TIP_Expr
+{
+    var $_lvalue = null;
+    var $_operator = null;
+    var $_rvalue = null;
+
+    function TIP_Expr($lvalue, $operator, $rvalue)
+    {
+        $this->_name = $lvalue;
+        $this->_operator = $operator;
+        $this->_value = $rvalue;
+    }
+}
+
+/**
+ * A generic query interface
+ *
+ * @final
+ * @package  TIP
+ *
+ * @todo Implementation using MDB2
+ */
+class TIP_Query
+{
+    /**#@+
+     * This variable must be accessed only by the data engine implementation.
+     * @access public
+     * @internal
+     */
+
+    var $_where = null;
+    var $_joins = null;
+    var $_order = null;
+
+    /**
+     * Limits a select query to this rows count.
+     * @var int
+     */
+    var $_limit = null;
+
+    /**#@-*/
+
+
+    /**
+     * Set the where clause
+     *
+     * Sets the where conditions for this query, discarding the previous ones.
+     * You should specify the conditions in a specific way: take a look to the
+     * following examples to get an idea.
+     *
+     * A simple condition:
+     * <code>
+     * setWhere(new TIP_Expr('id', '=', 5));
+     * </code>
+     * 
+     * A serie of conditions:
+     * <code>
+     * setWhere(new TIP_Expr('name', '<>', 'Emmanuele'),
+     *   'and', new TIP_Expr('city', '<>', 'Rome'),
+     *    'or', new TIP_Expr('date',  '>', '19430908));
+     * </code>
+     *
+     * Sample of nested conditions:
+     * <code>
+     * setWhere(new TIP_Expr('age', '>', 18), 'and', array(new TIP_Expr('name', '<>', null),
+     *                                               'or', new TIP_Expr('lastname', '<>', null)));
+     * </code>
+     */
+    function setWhere()
+    {
+        $this->_where = func_get_args();
+    }
+
+    /**
+     * Set the joins
+     *
+     * Joins $table, that is appends to the result of a select query the
+     * $fieldset fields (of $table) of the rows that satisfy $condition.
+     *
+     * You can specify more than one join: simply follows to feed setJoins()
+     * with $table, $master, $slave and $fieldset.
+     *
+     * Simple example:
+     * <code>
+     * setOrder('name', TIP_ASCENDING);
+     * </code>
+     *
+     * Using more fields:
+     * <code>
+     * setOrder('lastname', TIP_ASCENDING, 'name', TIP_ASCENDING);
+     * </code>
+     *
+     * Mixed order:
+     * <code>
+     * setOrder('title', TIP_ASCENDING, 'date', TIP_DESCENDING);
+     * </code>
+     *
+     * @param string                       $field The field id
+     * @param TIP_ASCENDING|TIP_DESCENDING $order The order to use
+     */
+    function setJoins($table, $master, $slave, $fieldset)
+    {
+        $args = func_get_args();
+        if (count($args) % 4) {
+            TIP::error('invalid setJoins call');
+        } else {
+            $this->_joins = array_chunk($args, 4);
+        }
+    }
+
+    /**
+     * Set the query order
+     *
+     * Defines the order the rows must be returned, discarding the old order.
+     * You can specify more than one order: simply follows to feed setOrder()
+     * with $field and $order pairs.
+     *
+     * Simple example:
+     * <code>
+     * setOrder('name', TIP_ASCENDING);
+     * </code>
+     *
+     * Using more fields:
+     * <code>
+     * setOrder('lastname', TIP_ASCENDING, 'name', TIP_ASCENDING);
+     * </code>
+     *
+     * Mixed order:
+     * <code>
+     * setOrder('title', TIP_ASCENDING, 'date', TIP_DESCENDING);
+     * </code>
+     *
+     * @param string                       $field The field id
+     * @param TIP_ASCENDING|TIP_DESCENDING $order The order to use
+     */
+    function setOrder($field, $order)
+    {
+        $args = func_get_args();
+        if (count($args) % 2) {
+            TIP::error('invalid setOrder call');
+        } else {
+            $this->_order = array_chunk($args, 2);
+        }
+    }
+
+    /**
+     * Set the limit clause
+     *
+     * Limits the result to the first $limit rows, discarding the previous
+     * limit value.
+     *
+     * @param int $limit Number of rows
+     */
+    function setLimit($limit)
+    {
+        $this->_limit = $limit;
+    }
+}
+
 /**
  * A generic data provider
  *
@@ -33,12 +213,23 @@ class TIP_Data extends TIP_Type
     var $_engine = null;
 
     /**
-     * Subset of fields used by this object
+     * Fields to use in queries
      *
-     * An array of field ids used by this object. If left undefined, all the
-     * fields are used.
+     * An array of field ids used by this object.
+     * @var array
      */
-    var $_fields_subset = null;
+    var $_fieldset = null;
+
+    var $_joins = null;
+
+    /**
+     * Subset flag
+     *
+     * It is false if $_fieldset is a superset of the fields of $_path
+     * or true if it is a subset.
+     * @var bool
+     */
+    var $_is_subset = false;
 
     /**
      * Fields structure
@@ -57,34 +248,30 @@ class TIP_Data extends TIP_Type
      * TIP_Data constructor
      *
      * Must not be called directly: use getInstace() instead.
-     * If the fields subset is not specified, all fields are assumed.
      *
-     * @param string $path          The id of the data source (engine dependent)
-     * @param string $engine        The data engine
-     * @param array  $fields_subset Use only this subset of fields
+     * @param array $options An array of options
      */
-    function TIP_Data($path, $engine, $fields_subset = null)
+    function TIP_Data($options)
     {
         $this->TIP_Type();
 
-        $this->_id = TIP_Data::_buildId($path, $engine, $fields_subset);
-        $this->_path = $path;
-        $this->_engine =& TIP_Data_Engine::getInstance($engine);
-        $this->_fields_subset =& $fields_subset;
+        $this->_id = TIP_Data::_buildId($options);
+        $this->_path = $options['path'];
+        $this->_joins = $options['joins'];
+        $this->_engine =& TIP_Data_Engine::getInstance($options['engine']);
+        $this->_fieldset =& $options['fieldset'];
+        $this->_is_subset = !in_array('*', $this->_fieldset[$this->_path]);
     }
 
-    function _buildId(&$path, &$engine, &$fields_subset)
+    function _buildId($options)
     {
-        $id = $engine . ':/' . $path;
-        if (is_array($fields_subset)) {
-            $id .= '(' . implode(',', $fields_subset) . ')';
-        }
-        return $id;
+        $fields = implode(',', $options['fieldset'][$options['path']]);
+        return $options['engine'] . ':/' . $options['path'] . ' ' . $fields;
     }
 
     function _castField(&$value, $key)
     {
-        if (isset($value)) {
+        if (isset($value) && array_key_exists($key, $this->_fields)) {
             $field =& $this->_fields[$key];
             if ($value === '' && $field['can_be_null']) {
                 $value = null;
@@ -108,6 +295,7 @@ class TIP_Data extends TIP_Type
      */
     function _castRow(&$row)
     {
+        $this->getFields(false);
         array_walk($row, array(&$this, '_castField'));
     }
 
@@ -126,9 +314,9 @@ class TIP_Data extends TIP_Type
         // Keep only the keys that are fields
         $row = array_intersect_key($row, $this->_fields);
 
-        if (isset($this->_fields_subset)) {
-            // Apply the $_fields_subset property filter
-            $row = array_intersect_key($row, array_flip($this->_fields_subset));
+        if ($this->_is_subset) {
+            // Apply the fieldset filter
+            $row = array_intersect_key($row, array_flip($this->_fieldset[$this->_path]));
         }
 
         // Check for empty set
@@ -162,21 +350,20 @@ class TIP_Data extends TIP_Type
      * Get a TIP_Data instance
      *
      * Gets the previously defined $_path table object or instantiates
-     * a new one and returns it. In $fields_subset you can specify the list of
-     * fields used by this object or leave it null to use all the fields.
+     * a new one and returns it. In fieldset you can specify the list of
+     * fields used by this object. If '*' is contained in this array,
+     * all the fields of $path are included.
      *
-     * @param string     $path          The string identifying the dataset
-     * @param string     $engine        The data engine name to use
-     * @param array|null $fields_subset Array of field ids to enable
+     * @param array $options An array of options
      * @return TIP_Data A reference to the data instance
      * @static
      */
-    function& getInstance($path, $engine, $fields_subset = null)
+    function& getInstance($options)
     {
-        $id = TIP_Data::_buildId($path, $engine, $fields_subset);
+        $id = TIP_Data::_buildId($options);
         $instance =& TIP_Data::singleton($id);
         if (is_null($instance)) {
-            $instance =& new TIP_Data($path, $engine, $fields_subset);
+            $instance =& new TIP_Data($options);
             TIP_Data::singleton($id, array($id => &$instance));
         }
         return $instance;
@@ -202,8 +389,13 @@ class TIP_Data extends TIP_Type
         }
 
         $name = $this->_engine->prepareName($name);
+        if (count($this->_fieldset) > 1) {
+            $path = $this->_engine->prepareName($this->_path);
+            $name = $path . '.' . $name;
+        }
+
         $value = $this->_engine->prepareValue($value);
-        return 'WHERE ' . $name . $condition . $value;
+        return 'WHERE ' . $name . ' ' . $condition . ' ' . $value;
     }
 
     /**
@@ -273,12 +465,11 @@ class TIP_Data extends TIP_Type
     function& getRow($id)
     {
         $rows =& $this->_engine->get($this, $this->rowFilter($id));
-        if (!@is_array($rows[(string) $id])) {
+        if (!@is_array($rows[$id])) {
             $fake_null = null;
             return $fake_null;
         }
 
-        $this->getFields(false);
         $this->_castRow($rows[$id]);
         return $rows[$id];
     }
@@ -300,7 +491,6 @@ class TIP_Data extends TIP_Type
     {
         $rows =& $this->_engine->get($this, $filter);
         if (is_array($rows)) {
-            $this->getFields(false);
             array_walk($rows, array(&$this, '_castRow'));
         }
         return $rows;
@@ -318,9 +508,8 @@ class TIP_Data extends TIP_Type
      * If $row is an empty array, a new row with default values will be
      * inserted without errors.
      *
-     * Also, this method is subject to the fields subset: if the $_fields_subset
-     * property is not null, only the fields present in this subset will be
-     * inserted.
+     * Also, this method is subject to the fieldset: if $_is_subset is true,
+     * only the fields present in the $_fieldset[$_path] array will be inserted.
      *
      * Instead, if the primary key is defined in $row, this function fails if
      * a row with the same primary key exists.
@@ -363,8 +552,8 @@ class TIP_Data extends TIP_Type
      *
      * Multiple inserts rows in the data source.
      *
-     * This method, as its single row counterpart, is subject to the fields
-     * subset in the same way putRow() is.
+     * This method, as its single row counterpart, is subject to the fieldset
+     * in the same way putRow() is.
      *
      * The primary keys can be defined, but if someone of them is yet present
      * in the data source, this function will fail.

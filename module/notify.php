@@ -27,6 +27,13 @@
  */
 class TIP_Notify extends TIP_Module
 {
+    /**#@+ @access private */
+
+    var $_no_reentrant = false;
+
+    /**#@-*/
+
+
     /**#@+ @access protected */
 
     /**
@@ -42,6 +49,12 @@ class TIP_Notify extends TIP_Module
      */
     function notify($source, $title_id, $message_id, $context)
     {
+        if ($this->_no_reentrant) {
+            TIP::warning('recursive call to notify()');
+            return false;
+        }
+
+        $this->_no_reentrant = true;
         $locale =& TIP_Module::getInstance('locale', false);
         if (!is_object($locale)) {
             // TIP_Notify without TIP_Locale is not implemented 
@@ -62,6 +75,7 @@ class TIP_Notify extends TIP_Module
 
         $locale->insertInContent($this->buildModulePath($source));
         $locale->endView();
+        $this->_no_reentrant = false;
         return true;
     }
 

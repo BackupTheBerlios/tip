@@ -174,9 +174,8 @@ class TIP_Data_Engine extends TIP_Type
      * contents. To leave the fields untouched, simply do not specify these
      * fields in $row.
      *
-     * The update method is subject to the fields subset: if
-     * $data->_fields_subset is not null, only the fields present in this
-     * subset will be updated.
+     * The update method is subject to the fieldset: if the set is a subset,
+     * only the fields in that array will be updated.
      *
      * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
      *

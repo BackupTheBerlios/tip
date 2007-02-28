@@ -133,9 +133,6 @@ class HTML_QuickForm_wikiarea extends HTML_QuickForm_textarea
 
         $value = $this->getValue();
         $html = $wiki->transform($value, $this->_renderer);
-        if (empty($html)) {
-            $html = nl2br($value)."\n";
-        }
         return $html . $this->_getPersistantData();
     } //end func getFrozenHtml
 

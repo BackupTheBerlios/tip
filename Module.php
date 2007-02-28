@@ -426,6 +426,26 @@ class TIP_Module extends TIP_Type
     }
 
     /**
+     * Echo the hierarchy of a block
+     *
+     * $params must contain the name of a block with a defined data hierarchy
+     *
+     * Outputs the DHTML hierarchy of the specified block.
+     *
+     * @uses TIP_Hierarchy::toHtml()
+     */
+    function commandDhtmlHierarchy($params)
+    {
+        // Dinamically load the Hierarchy type
+        TIP_Type::getInstance('Hierarchy');
+        // Create a new instance of TIP_Hierarchy
+        $hierarchy =& TIP_Hierarchy::getInstance($params);
+        // Render the tree
+        $hierarchy->toDhtml();
+        return true;
+    }
+
+    /**
      * Check if a value is in a list
      *
      * $params is a string in the form "needle,value1,value2,...".

@@ -149,6 +149,7 @@ class TIP_Application extends TIP_Module
      */
     function go($main_source)
     {
+        TIP::_startSession();
         $locale = $this->getOption('locale');
 
         // Locale settings

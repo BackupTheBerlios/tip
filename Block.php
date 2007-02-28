@@ -74,58 +74,34 @@ class TIP_Block extends TIP_Module
     function TIP_Block()
     {
         $this->TIP_Module();
-
-        if (is_null($data_path = $this->guessDataPath()) ||
-            is_null($data_engine = $this->guessDataEngine())) {
+        if (is_null($options = $this->getDataOptions())) {
             return;
         }
 
-        $this->data =& TIP_Data::getInstance($data_path, $data_engine);
+        $this->data =& TIP_Data::getInstance($options);
     }
 
-    /**
-     * The data path this block must use
-     *
-     * Gets the data path to be used by this block. Usually, it is get from
-     * the following configuration option:
-     * <code>$cfg[blockid]['data_path']</code>.
-     *
-     * If not defined, the data path will be:
-     * <code>$cfg['application']['data_path'] . blockid</code>.
-     *
-     * @return string The data path to use
-     */
-    function guessDataPath()
+    function getDataOptions()
     {
-        $data_path = $this->getOption('data_path');
-        if (is_null($data_path)) {
-            $data_path = TIP::getOption('application', 'data_path');
-            if (isset($data_path)) {
-                $data_path .= $this->getId();
+        if (is_null($path = $this->getOption('data_path'))) {
+            if (is_null($path = TIP::getOption('application', 'data_path'))) {
+                return null;
+            }
+            $path .= $this->getId();
+        }
+
+        if (is_null($engine = $this->getOption('data_engine'))) {
+            if (is_null($engine = TIP::getOption('application', 'data_engine'))) {
+                return null;
             }
         }
-        return $data_path;
-    }
 
-    /**
-     * The data engine this block must use
-     *
-     * Gets the data engine to be used by this block. Usually, it is get from
-     * the following configuration option:
-     * <code>$cfg[blockid]['data_engine']</code>.
-     *
-     * If not defined, the data engine will be:
-     * <code>$cfg['application']['data_engine']</code>.
-     *
-     * @return string The data engine to use
-     */
-    function guessDataEngine()
-    {
-        $data_engine = $this->getOption('data_engine');
-        if (is_null($data_engine)) {
-            $data_engine = TIP::getOption('application', 'data_engine');
+        $joins = $this->getOption('data_joins');
+        if (is_null($fieldset = $this->getOption('data_fieldset'))) {
+            $fieldset = array($path => array('*'));
         }
-        return $data_engine;
+
+        return array('path' => $path, 'engine' => $engine, 'joins' => $joins, 'fieldset' => $fieldset);
     }
 
     /**
@@ -186,18 +162,12 @@ class TIP_Block extends TIP_Module
      */
 
     /**
-     * Echo the hierarchy of a block
-     *
-     * Outputs the DHTML hierarchy of a block.
-     *
-     * @uses TIP_Hierarchy::toHtml()
+     * Generates an add form
      */
-    function commandDhtmlHierarchy($params)
+    function commandAddRow($params)
     {
-        TIP_Type::getInstance('Hierarchy');
-        $hierarchy =& TIP_Hierarchy::getInstance($this);
-        $hierarchy->toDhtml();
         return true;
+        return !is_null($this->addRow());
     }
 
     /**
@@ -387,7 +357,7 @@ class TIP_Block extends TIP_Module
 
     function insertInContent($file)
     {
-        if (! $this->view) {
+        if (empty($this->view)) {
             return parent::insertToContent($file);
         }
 
@@ -404,7 +374,7 @@ class TIP_Block extends TIP_Module
 
     function appendToContent($file)
     {
-        if (!$this->view) {
+        if (empty($this->view)) {
             return parent::appendToContent($file);
         }
 
@@ -427,13 +397,13 @@ class TIP_Block extends TIP_Module
      *
      * You can specify automatic fields providing an associative array in $row.
      *
-     * @param array|null $row         The row default values
-     * @param bool       $auto_render Whether to render or not a freezed view of
-     *                                the form if it has been processed
+     * @param array $row         The row default values
+     * @param bool  $auto_render Whether to render or not a freezed view of
+     *                           the form if it has been processed
      * @return bool|null true if the form has been processed, false if the form
      *                   must be processed or null on errors
      */
-    function addRow($row = null, $auto_render = true)
+    function addRow($row = array(), $auto_render = true)
     {
         return $this->_editRow($row, true, $auto_render);
     }

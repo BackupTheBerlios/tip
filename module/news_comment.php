@@ -10,66 +10,56 @@
  * Add comments to TIP_News
  *
  * @package TIP
+ * @todo Implement a generic comment block
  */
 class TIP_News_Comment extends TIP_Block
 {
-  // Overriden:
+    function commandAddRow($params)
+    {
+        return true;
+        $row['_news'] = TIP::getGet('id', 'int');
+        if (empty($row['_news'])) {
+            TIP::error('no news specified');
+            return false;
+        }
+        $row['_creation'] = TIP::formatDate('datetime_iso8601');
+        $row['_user'] = TIP::getUserId();
+        $processed = $this->addRow($row, false);
+        return isset($processed);
+    }
 
-  function RunAction ($Action)
-  {
-    $User =& tipType::GetInstance ('user');
+    function runManagerAction($action)
+    {
+        switch ($action) {
+        case 'edit':
+            if (is_null($id = TIP::getGet('id', 'integer')) && is_null($id = TIP::getPost('id', 'integer'))) {
+                TIP::notifyError('noparams');
+                return false;
+            }
 
-    switch ($Action)
-      {
-      case 'add':
-	$Content = @$_POST['content'];
-	if (empty ($Content))
-	  {
-	    error ('NWS_COMMENTREQ');
-	    return FALSE;
-	  }
+            $row =& $this->data->getRow($id);
+            if (is_null($row)) {
+                TIP::notifyError('notfound');
+                return false;
+            }
 
-	$this->AppendToContent ('comment.src');
-	return TRUE;
+            return !is_null($this->editRow($row));
+        }
 
-      case 'doadd':
-	if (! $User->IsAllowed ('news_comment'))
-	  {
-	    error ('VL_DENIED');
-	    return FALSE;
-	  }
+        return null;
+    }
 
-	$NewsId = @$_POST['id'];
-	if (empty ($NewsId))
-	  {
-	    error ('NWS_NEWSREQ');
-	    return FALSE;
-	  }
+    function runAdminAction($action)
+    {
+        switch ($action) {
+        case 'delete':
+            // TODO
+            return false;
+        }
 
-	$Content = @$_POST['content'];
-	if (empty ($Content))
-	  {
-	    error ('NWS_COMMENTREQ');
-	    return FALSE;
-	  }
+        return null;
+    }
 
-	$Row =& $this->ROW;
-	$Row['_creation'] = date ('Y-m-d H:i:s');
-	$Row['_user'] = $USER->ID;
-	$Row['_news'] = $NewsId;
-	$Row['content'] = $Content;
-
-	$this->UpdateTable ();
-
-	global $FIELDS, $NEWS;
-	$FIELDS['MODULE'] = 'news';
-	$FIELDS['ACTION'] = 'view';
-	$NEWS->actionView ($NewsId);
-	return TRUE;
-      }
-
-    return parent::RunAction ($Action);
-  }
 }
 
 return 'TIP_News_Comment';
