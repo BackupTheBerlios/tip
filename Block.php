@@ -24,7 +24,7 @@ class TIP_Block extends TIP_Module
     var $_view_stack = array ();
 
 
-    function _editRow($row, $is_add, $auto_render)
+    function _addEdit($row, $is_add, $auto_render, $queued)
     {
         $form =& TIP_Module::getInstance('form');
         $form->setForm($this, $row, $is_add);
@@ -34,7 +34,11 @@ class TIP_Block extends TIP_Module
         }
 
         if (!$processed || $auto_render) {
-            $GLOBALS[TIP_MAIN_MODULE]->appendCallback($form->callback('render'));
+            if ($queued) {
+                $GLOBALS[TIP_MAIN_MODULE]->appendCallback($form->callback('render'));
+            } else {
+                $form->render();
+            }
         }
 
         return $processed;
@@ -97,11 +101,8 @@ class TIP_Block extends TIP_Module
         }
 
         $joins = $this->getOption('data_joins');
-        if (is_null($fieldset = $this->getOption('data_fieldset'))) {
-            $fieldset = array($path => array('*'));
-        }
-
-        return array('path' => $path, 'engine' => $engine, 'joins' => $joins, 'fieldset' => $fieldset);
+        $fieldset = @$this->getOption('data_fieldset');
+        return compact('path', 'engine', 'joins', 'fieldset');
     }
 
     /**
@@ -403,9 +404,9 @@ class TIP_Block extends TIP_Module
      * @return bool|null true if the form has been processed, false if the form
      *                   must be processed or null on errors
      */
-    function addRow($row = array(), $auto_render = true)
+    function addRow($row = array(), $auto_render = true, $queued = true)
     {
-        return $this->_editRow($row, true, $auto_render);
+        return $this->_addEdit($row, true, $auto_render, $queued);
     }
 
     /**
@@ -424,7 +425,7 @@ class TIP_Block extends TIP_Module
      * @return bool|null true if the form has been processed, false if the form
      *                   must be processed or null on errors
      */
-    function editRow($row = null, $auto_render = true)
+    function editRow($row = null, $auto_render = true, $queued = true)
     {
         if (is_null($row)) {
             if (!isset($this->view) || is_null($row =& $this->view->rowCurrent())) {
@@ -434,7 +435,7 @@ class TIP_Block extends TIP_Module
             }
         }
 
-        return $this->_editRow($row, false, $auto_render);
+        return $this->_addEdit($row, false, $auto_render, $queued);
     }
 
     /**

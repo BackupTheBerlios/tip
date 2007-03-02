@@ -46,7 +46,7 @@ class TIP_Expr
  * @final
  * @package  TIP
  *
- * @todo Implementation using MDB2
+ * @todo Join to TIP_View
  */
 class TIP_Query
 {
@@ -56,8 +56,8 @@ class TIP_Query
      * @internal
      */
 
+    var $_raw = null;
     var $_where = null;
-    var $_joins = null;
     var $_order = null;
 
     /**
@@ -68,6 +68,19 @@ class TIP_Query
 
     /**#@-*/
 
+
+    /**
+     * Set a row query
+     *
+     * Sets a query in raw format, by-passing all the other methods. A raw
+     * query is sent to the data engine "as is", without any transformations.
+     *
+     * @param mixed $query The raw query content
+     */
+    function setRaw($query)
+    {
+        $this->_raw = $query;
+    }
 
     /**
      * Set the where clause
@@ -97,43 +110,6 @@ class TIP_Query
     function setWhere()
     {
         $this->_where = func_get_args();
-    }
-
-    /**
-     * Set the joins
-     *
-     * Joins $table, that is appends to the result of a select query the
-     * $fieldset fields (of $table) of the rows that satisfy $condition.
-     *
-     * You can specify more than one join: simply follows to feed setJoins()
-     * with $table, $master, $slave and $fieldset.
-     *
-     * Simple example:
-     * <code>
-     * setOrder('name', TIP_ASCENDING);
-     * </code>
-     *
-     * Using more fields:
-     * <code>
-     * setOrder('lastname', TIP_ASCENDING, 'name', TIP_ASCENDING);
-     * </code>
-     *
-     * Mixed order:
-     * <code>
-     * setOrder('title', TIP_ASCENDING, 'date', TIP_DESCENDING);
-     * </code>
-     *
-     * @param string                       $field The field id
-     * @param TIP_ASCENDING|TIP_DESCENDING $order The order to use
-     */
-    function setJoins($table, $master, $slave, $fieldset)
-    {
-        $args = func_get_args();
-        if (count($args) % 4) {
-            TIP::error('invalid setJoins call');
-        } else {
-            $this->_joins = array_chunk($args, 4);
-        }
     }
 
     /**
@@ -213,23 +189,19 @@ class TIP_Data extends TIP_Type
     var $_engine = null;
 
     /**
-     * Fields to use in queries
+     * Fields of $_path to use in queries
      *
-     * An array of field ids used by this object.
+     * An array of field ids used by this object. If left null, all the fields
+     * of $_path are assumed.
      * @var array
      */
     var $_fieldset = null;
 
-    var $_joins = null;
-
     /**
-     * Subset flag
-     *
-     * It is false if $_fieldset is a superset of the fields of $_path
-     * or true if it is a subset.
-     * @var bool
+     * Join definitions
+     * @var array
      */
-    var $_is_subset = false;
+    var $_joins = null;
 
     /**
      * Fields structure
@@ -259,14 +231,18 @@ class TIP_Data extends TIP_Type
         $this->_path = $options['path'];
         $this->_joins = $options['joins'];
         $this->_engine =& TIP_Data_Engine::getInstance($options['engine']);
-        $this->_fieldset =& $options['fieldset'];
-        $this->_is_subset = !in_array('*', $this->_fieldset[$this->_path]);
+        if (array_key_exists('fieldset', $options)) {
+            $this->_fieldset =& $options['fieldset'];
+        }
     }
 
     function _buildId($options)
     {
-        $fields = implode(',', $options['fieldset'][$options['path']]);
-        return $options['engine'] . ':/' . $options['path'] . ' ' . $fields;
+        $id = $options['engine'] . ':/' . $options['path'];
+        if (isset($options['fieldset'])) {
+            $id .= ' ' . implode(',', $options['fieldset']);
+        }
+        return $id;
     }
 
     function _castField(&$value, $key)
@@ -307,16 +283,16 @@ class TIP_Data extends TIP_Type
         }
     }
 
-    function _validFields(&$row)
+    function _validate(&$row)
     {
         $this->getFields(false);
 
         // Keep only the keys that are fields
         $row = array_intersect_key($row, $this->_fields);
 
-        if ($this->_is_subset) {
+        if (isset($this->_fieldset)) {
             // Apply the fieldset filter
-            $row = array_intersect_key($row, array_flip($this->_fieldset[$this->_path]));
+            $row = array_intersect_key($row, array_flip($this->_fieldset));
         }
 
         // Check for empty set
@@ -388,13 +364,11 @@ class TIP_Data extends TIP_Type
             $condition = $condition == '=' ? 'IS' : 'IS NOT';
         }
 
-        $name = $this->_engine->prepareName($name);
-        if (count($this->_fieldset) > 1) {
-            $path = $this->_engine->prepareName($this->_path);
-            $name = $path . '.' . $name;
-        }
+        $name = $this->_engine->_preparedName($name);
+        $path = $this->_engine->_preparedName($this->_path);
+        $name = $path . '.' . $name;
 
-        $value = $this->_engine->prepareValue($value);
+        $value = $this->_engine->_preparedValue($value);
         return 'WHERE ' . $name . ' ' . $condition . ' ' . $value;
     }
 
@@ -410,7 +384,7 @@ class TIP_Data extends TIP_Type
      */
     function order($name, $descending = false)
     {
-        $name = $this->_engine->prepareName($name);
+        $name = $this->_engine->_prepareName($name);
         $tail = $descending ? ' DESC' : '';
         return 'ORDER BY ' . $name . $tail;
     }
@@ -441,14 +415,13 @@ class TIP_Data extends TIP_Type
      */
     function& getFields($detailed = true)
     {
-        if (is_null($this->_fields)) {
-            $this->_engine->fillFields($this);
-        }
-
-        if ($detailed && ! $this->_detailed) {
-            $this->_engine->fillDetails($this);
-            array_walk($this->_fields, array(&$this, '_mergeFieldInfo'));
+        if (is_null($this->_fields) || $detailed && !$this->_detailed) {
             $this->_detailed = true;
+            if (!$this->_engine->fillFields($this)) {
+                TIP::error("no way to get the table structure ($data->_path)");
+            } else {
+                array_walk($this->_fields, array(&$this, '_mergeFieldInfo'));
+            }
         }
 
         return $this->_fields;
@@ -464,7 +437,7 @@ class TIP_Data extends TIP_Type
      */
     function& getRow($id)
     {
-        $rows =& $this->_engine->get($this, $this->rowFilter($id));
+        $rows =& $this->_engine->select($this, $this->rowFilter($id));
         if (!@is_array($rows[$id])) {
             $fake_null = null;
             return $fake_null;
@@ -489,7 +462,7 @@ class TIP_Data extends TIP_Type
      */
     function& getRows($filter)
     {
-        $rows =& $this->_engine->get($this, $filter);
+        $rows =& $this->_engine->select($this, $filter);
         if (is_array($rows)) {
             array_walk($rows, array(&$this, '_castRow'));
         }
@@ -508,8 +481,8 @@ class TIP_Data extends TIP_Type
      * If $row is an empty array, a new row with default values will be
      * inserted without errors.
      *
-     * Also, this method is subject to the fieldset: if $_is_subset is true,
-     * only the fields present in the $_fieldset[$_path] array will be inserted.
+     * Also, this method is subject to the fieldset: if $_fieldset is set,
+     * only the fields present in this subset will be inserted.
      *
      * Instead, if the primary key is defined in $row, this function fails if
      * a row with the same primary key exists.
@@ -529,7 +502,7 @@ class TIP_Data extends TIP_Type
         } else {
             // Get the valid set
             $rows = array($row);
-            if (!$this->_validFields($rows[0])) {
+            if (!$this->_validate($rows[0])) {
                 return false;
             }
         }
@@ -568,7 +541,7 @@ class TIP_Data extends TIP_Type
             return false;
         }
 
-        array_walk($rows, array(&$this, '_validFields'));
+        array_walk($rows, array(&$this, '_validate'));
         if (empty($rows) || empty($rows[0])) {
             TIP::error('no valid rows to insert');
             return false;
@@ -611,7 +584,7 @@ class TIP_Data extends TIP_Type
         }
 
         // Get the valid set
-        if (!$this->_validFields($row)) {
+        if (!$this->_validate($row)) {
             return false;
         }
 
@@ -660,7 +633,7 @@ class TIP_Data extends TIP_Type
         }
 
         // Get the valid set
-        if (!$this->_validFields($row)) {
+        if (!$this->_validate($row)) {
             return false;
         }
 

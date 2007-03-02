@@ -16,7 +16,6 @@ class TIP_News_Comment extends TIP_Block
 {
     function commandAddRow($params)
     {
-        return true;
         $row['_news'] = TIP::getGet('id', 'int');
         if (empty($row['_news'])) {
             TIP::error('no news specified');
@@ -24,8 +23,7 @@ class TIP_News_Comment extends TIP_Block
         }
         $row['_creation'] = TIP::formatDate('datetime_iso8601');
         $row['_user'] = TIP::getUserId();
-        $processed = $this->addRow($row, false);
-        return isset($processed);
+        return !is_null($this->addRow($row, false, false));
     }
 
     function runManagerAction($action)
@@ -60,6 +58,17 @@ class TIP_News_Comment extends TIP_Block
         return null;
     }
 
+    function runTrustedAction($action)
+    {
+        switch ($action) {
+        case 'add':
+            $row['_creation'] = TIP::formatDate('datetime_iso8601');
+            $row['_user'] = TIP::getUserId();
+            return !is_null($this->addRow($row));
+        }
+
+        return null;
+    }
 }
 
 return 'TIP_News_Comment';

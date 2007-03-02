@@ -51,11 +51,11 @@ class TIP_News extends TIP_Block
                 $id = TIP::getPost('id', 'integer');
                 $filter = $this->data->rowFilter($id);
                 if (!$this->startView($filter)) {
-                    TIP::notifyError('E_SELECT');
+                    TIP::notifyError('select');
                     return false;
                 }
                 if (! $this->view->rowReset()) {
-                    TIP::notifyError('E_NOTFOUND');
+                    TIP::notifyError('notfound');
                     $this->endView();
                     return false;
                 }
@@ -66,13 +66,13 @@ class TIP_News extends TIP_Block
 
         case 'edit':
             if (is_null($id = TIP::getGet('id', 'integer')) && is_null($id = TIP::getPost('id', 'integer'))) {
-                TIP::notifyError('E_NOTSPECIFIED');
+                TIP::notifyError('noparams');
                 return false;
             }
 
             $row =& $this->data->getRow($id);
             if (is_null($row)) {
-                TIP::notifyError('E_NOTFOUND');
+                TIP::notifyError('notfound');
                 return false;
             }
 
@@ -83,11 +83,11 @@ class TIP_News extends TIP_Block
                 $id = TIP::getPost('id', 'integer');
                 $filter = $this->data->rowFilter($id);
                 if (!$this->startView($filter)) {
-                    TIP::notifyError('E_SELECT');
+                    TIP::notifyError('select');
                     return false;
                 }
                 if (! $this->view->rowReset()) {
-                    TIP::notifyError('E_NOTFOUND');
+                    TIP::notifyError('notfound');
                     $this->endView();
                     return false;
                 }
@@ -136,7 +136,7 @@ class TIP_News extends TIP_Block
             TIP::_startSession();
             $id = TIP::getGet('id', 'integer');
             if (is_null($id)) {
-                TIP::notifyError('E_NOTSPECIFIED');
+                TIP::notifyError('noparams');
                 return false;
             }
 
@@ -147,7 +147,7 @@ class TIP_News extends TIP_Block
             }
 
             if (! $this->view->rowReset()) {
-                TIP::notifyError('E_NOTFOUND');
+                TIP::notifyError('notfound');
                 $this->endView();
                 return false;
             }

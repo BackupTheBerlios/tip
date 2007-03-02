@@ -56,11 +56,12 @@ class TIP_Hierarchy extends TIP_Block
     {
         if (is_null($options = parent::getDataOptions())) {
             return null;
-        } elseif (is_null($path = $this->getOption('hierarchy_path'))) {
-            $path = $options['path'] . '_hierarchy';
+        } elseif ($path = $this->getOption('hierarchy_path')) {
+            $options['path'] = $path;
+        } else {
+            $options['path'] .= '_hierarchy';
         }
-        $options['path'] = $path;
-        $options['fieldset'] = array($path => array('*'));
+
         return $options;
     }
 

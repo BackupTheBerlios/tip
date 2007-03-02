@@ -38,8 +38,7 @@ class TIP_Locale extends TIP_Block
     {
         $this->_locale = TIP::getOption('application', 'locale');
         $options = parent::getDataOptions();
-        $path = $options['path'];
-        $options['fieldset'] = array($path => array('id', $this->_locale));
+        $options['fieldset'] = array('id', $this->_locale);
         return $options;
     }
 

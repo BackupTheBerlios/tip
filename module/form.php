@@ -437,14 +437,13 @@ class TIP_Form extends TIP_Module
         $this->_customizations();
         $this->_form->removeAttribute('name'); // XHTML compliance
 
-        $application =& $GLOBALS[TIP_MAIN_MODULE];
         $this->_fields =& $this->_block->data->getFields();
         $primary_key = $this->_block->data->primary_key;
 
         $header = $this->_block->getLocale($this->_is_add ? 'add_header' : 'edit_header');
         $this->_form->addElement('header', 'PageHeader', $header);
         $this->_form->addElement('hidden', 'module', $this->_block->getId());
-        $this->_form->addElement('hidden', 'action', $application->keys['ACTION']);
+        $this->_form->addElement('hidden', 'action', $this->_is_add ? 'add' : 'edit');
 
 
         foreach (array_keys($this->_fields) as $id) {

@@ -47,65 +47,9 @@ class TIP_Data_Engine extends TIP_Type
     }
 
     /**
-     * Prepare names for a query or a filter
+     * Fill the fields structure
      *
-     * Prepares one or more identifiers to be inserted in a query or in a
-     * filter. The TIP_Mysql engine, for example, backtickes the names.
-     *
-     * This method SHOULD be overriden by implementations of TIP_Data_Engine
-     * that use client-server communications. This includes SQL based engines
-     * that must avoid SQL injection.
-     *
-     * @param string|array $name The name/names to prepare
-     * @return string|array $name prepared for the query
-     */
-    function prepareName($name)
-    {
-        return $name;
-    }
-
-    /**
-     * Prepare values for a query or a filter
-     *
-     * Prepares one or more values to be inserted in a query or in a filter.
-     * The TIP_Mysql engine, for example, escapes and quotes all the values.
-     *
-     * This method SHOULD be overriden by implementations of TIP_Data_Engine
-     * that use client-server communications. This includes SQL based engines
-     * that must avoid SQL injection.
-     *
-     * @param mixed|array $value The value/values to prepare
-     * @return string|array $value prepared for the query
-     */
-    function prepareValue($value)
-    {
-        return (string) $value;
-    }
-
-    /**
-     * Fill the fields
-     *
-     * Gets the data source structure and store the result in $data->fields.
-     * Obviously, the implementation must fills the fields array a specific way:
-     * read the TIP_Data documentation for further details.
-     *
-     * The field array can be filled by the engine at any time. This allows a
-     * sort of performance gain if filled, for example, after a select query.
-     *
-     * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
-     *
-     * @param TIP_Data &$data The data context
-     * @return bool true on success or false on errors
-     */
-    function fillFields(&$data)
-    {
-        $this->logFatal('method TIP_Data_Engine::fillFields() not implemented');
-    }
-
-    /**
-     * Fill the fields details
-     *
-     * Fills the detailed part of the fields array: read the TIP_Data
+     * Fills the $_fields property of the TIP_Data object: read the TIP_Data
      * documentation for further details.
      *
      * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
@@ -113,9 +57,9 @@ class TIP_Data_Engine extends TIP_Type
      * @param TIP_Data $data The data context
      * @return bool true on success or false on errors
      */
-    function fillDetails(&$data)
+    function fillFields(&$data)
     {
-        $this->logFatal('method TIP_Data_Engine::fillDetails() not implemented');
+        $this->logFatal('method TIP_Data_Engine::fillFields() not implemented');
     }
 
     /**
@@ -136,9 +80,9 @@ class TIP_Data_Engine extends TIP_Type
      * @return array|null A reference to an array of rows matching the
      *                    specified conditions or null on errors
      */
-    function& get(&$data, $filter)
+    function& select(&$data, $filter)
     {
-        $this->logFatal('method TIP_Data_Engine::get() not implemented');
+        $this->logFatal('method TIP_Data_Engine::select() not implemented');
     }
 
     /**
@@ -173,9 +117,6 @@ class TIP_Data_Engine extends TIP_Type
      * Updates the rows that match the $filter conditions using the new $row
      * contents. To leave the fields untouched, simply do not specify these
      * fields in $row.
-     *
-     * The update method is subject to the fieldset: if the set is a subset,
-     * only the fields in that array will be updated.
      *
      * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
      *

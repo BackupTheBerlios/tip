@@ -276,15 +276,15 @@ class TIP
      * @param string $item_separator The item separator character
      * @param string $pair_separator The key-value separator character
      * @param string $string         The string to parse
-     * @return array The resulting associative array
+     * @return array|null The resulting associative array or null on errors
      */
     function doubleExplode($item_separator, $pair_separator, $string)
     {
-        $GLOBALS['_TIP_ARRAY'] = false;
+        $GLOBALS['_TIP_ARRAY'] = null;
         $callback = create_function(
             '$v, $k',
-            'list($k, $v) = @explode(\'' . $pair_separator . '\', $v, 2);
-             $GLOBALS[\'_TIP_ARRAY\'][$k] = $v;');
+            'list($k, $v) = @explode(\'' . $pair_separator . '\', $v, 2);' .
+            '$GLOBALS[\'_TIP_ARRAY\'][$k] = $v;');
         $items = explode($item_separator, $string);
         array_walk($items, $callback);
         $result =& $GLOBALS['_TIP_ARRAY'];
