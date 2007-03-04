@@ -24,6 +24,41 @@ define('TIP_PREFIX', 'TIP_');
  */
 define('TIP_MAIN_MODULE', '_tip_application');
 
+/**
+ * TIP_Comments postfix
+ */
+define('TIP_COMMENTS_POSTFIX', 'comments');
+
+/**
+ * TIP_Hierarchy postfix
+ */
+define('TIP_HIERARCHY_POSTFIX', 'hierarchy');
+
+/**#@+ Form related constants */
+
+/**#@+ Form action */
+define('TIP_FORM_ACTION_ADD',    'add');
+define('TIP_FORM_ACTION_EDIT',   'edit');
+define('TIP_FORM_ACTION_VIEW',   'view');
+define('TIP_FORM_ACTION_DELETE', 'delete');
+/**#@-*/
+
+/**#@+ Form button */
+define('TIP_FORM_BUTTON_SUBMIT', 1);
+define('TIP_FORM_BUTTON_RESET',  2);
+define('TIP_FORM_BUTTON_DELETE', 4);
+define('TIP_FORM_BUTTON_CANCEL', 8);
+define('TIP_FORM_BUTTON_CLOSE',  16);
+/**#@-*/
+
+/**#@+ Form rendering */
+define('TIP_FORM_RENDER_HERE',        1);
+define('TIP_FORM_RENDER_IN_CONTENT',  2);
+define('TIP_FORM_RENDER_NOTHING',     3);
+/**#@-*/
+
+/**#@-*/
+
 
 require_once 'config.php';
 
@@ -82,39 +117,6 @@ class TIP
         return null;
     }
 
-    function _startSession()
-    {
-        static $initialized = false;
-        if ($initialized) {
-            return;
-        }
-
-        require_once 'HTTP/Session.php';
-
-        $user_id = TIP::getUserId();
-        if (! is_null($user_id) && $user_id !== false) {
-            // For a logged in user, the session id is its user_id
-            HTTP_Session::useCookies(false);
-            HTTP_Session::useTransSID(false);
-            HTTP_Session::start('TIP', $user_id);
-        } else {
-            // For anonymous users, try to use the TransSID feature of PHP.
-            // If not available, as last resort, use cookies.
-            HTTP_Session::useTransSID(true);
-            HTTP_Session::useTransSID() || HTTP_Session::useCookies(true);
-            HTTP_Session::start('TIP');
-        }
-
-        if (HTTP_Session::isExpired()) {
-            HTTP_Session::destroy();
-            HTTP::redirect($_SERVER['REQUEST_URI']);
-            exit;
-        }
-
-        $initialized = true;
-        HTTP_Session::setExpire(3600, true);
-    }
-
     /**#@-*/
 
 
@@ -160,7 +162,7 @@ class TIP
     function getOption($type, $option, $required = false)
     {
         $value = @$GLOBALS['cfg'][$type][$option];
-        if ($required && is_null($value)) {
+        if ($required && !isset($value)) {
             TIP::fatal("Required option not defined (\$cfg['$type']['$option'])");
         }
         return $value;
@@ -189,6 +191,35 @@ class TIP
         }
         return $id;
     }
+
+    /**
+     * Start the session
+     */
+    function startSession()
+    {
+        require_once 'HTTP/Session.php';
+
+        $user_id = TIP::getUserId();
+        if (isset($user_id) && $user_id !== false) {
+            // For a logged in user, the session id is its user_id
+            HTTP_Session::useCookies(false);
+            HTTP_Session::useTransSID(false);
+            HTTP_Session::start('TIP_Session', $user_id);
+        } else {
+            // For anonymous users, try to use the TransSID feature of PHP.
+            // If not available, as last resort, use cookies.
+            HTTP_Session::useTransSID(true);
+            HTTP_Session::useTransSID() || HTTP_Session::useCookies(true);
+            HTTP_Session::start('TIP_Session');
+        }
+
+        HTTP_Session::setExpire(time() + 3600*2);
+        if (HTTP_Session::isExpired()) {
+            HTTP_Session::destroy();
+            TIP::notifyInfo('session');
+        }
+    }
+
 
     /**
      * Deep addslashes()
@@ -283,7 +314,7 @@ class TIP
         $GLOBALS['_TIP_ARRAY'] = null;
         $callback = create_function(
             '$v, $k',
-            'list($k, $v) = @explode(\'' . $pair_separator . '\', $v, 2);' .
+            '@list($k, $v) = explode(\'' . $pair_separator . '\', $v, 2);' .
             '$GLOBALS[\'_TIP_ARRAY\'][$k] = $v;');
         $items = explode($item_separator, $string);
         array_walk($items, $callback);
@@ -737,7 +768,7 @@ class TIP
         }
 
         $anonymous = is_null($user_id) || $user_id === false;
-        if (! $anonymous) {
+        if (!$anonymous) {
             $privilege =& TIP_Module::getInstance('privilege');
             if (isset($privilege)) {
                 $stored_privilege = $privilege->getStoredPrivilege($module, $user_id);
@@ -798,37 +829,6 @@ class TIP
         $wiki =& Text_Wiki::singleton('Default', $real_rules);
         $wiki->setFormatConf('Xhtml', 'charset', 'UTF-8');
         return $wiki;
-    }
-
-    /**
-     * Add a new value to the session
-     *
-     * Associates $value to $id and adds this pairs to the current session.
-     * The session, if does not exist, it is created on-the-fly.
-     *
-     * @param string $id    The id of the pair
-     * @param mixed  $value The value to store
-     */
-    function setSession($id, $value)
-    {
-        TIP::_startSession();
-        HTTP_Session::set($id, $value);
-    }
-
-    /**
-     * Get a value from the session
-     *
-     * Gets the previously stored value of the pair identified by $id.
-     * If the session is expired, it is destroyed and regenerated and
-     * null is returned.
-     *
-     * @param string $id The id of the pair
-     * @param mixed|null The requested value or null on errors
-     */
-    function getSession($id)
-    {
-        TIP::_startSession();
-        return HTTP_Session::get($id);
     }
 
     /**#@-*/

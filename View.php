@@ -419,20 +419,27 @@ class TIP_Modules_View extends TIP_View
     /**#@+ @access protected */
 
     /**
-     * Get the configured modules
+     * Get the installed modules
      *
-     * Fills the $rows property with all the configured modules that are
-     * subclass of TIP_Module.
+     * Fills the $rows property with all the installed modules.
      *
      * @return bool true on success or false on errors
      */
     function fillRows()
     {
-        foreach (array_keys ($GLOBALS['cfg']) as $module_name) {
-            $instance =& TIP_Module::getInstance($module_name, false);
-            if (is_a($instance, 'TIP_Module')) {
-                $this->rows[$module_name] = array('id' => $module_name);
+        $register =& TIP_Module::singleton();
+
+        if ($handle = opendir(TIP::buildLogicPath('module'))) {
+            while (($file = readdir($handle)) !== false) {
+                if (strcasecmp(substr($file, -4), '.php') == 0) {
+                    $module = strtolower(substr($file, 0, -4));
+                    $this->rows[$module] = array(
+                        'id'     => $module,
+                        'in_use' => array_key_exists($module, $register)
+                    );
+                }
             }
+            closedir($handle);
         }
 
         return true;

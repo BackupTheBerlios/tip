@@ -40,11 +40,15 @@ class TIP_News extends TIP_Block
     {
         switch ($action) {
         case 'add':
-            $row['_user'] = TIP::getUserId();
-            $row['_creation'] = TIP::formatDate('datetime_iso8601');
-            $row['_hits'] = 1;
-            $row['_lasthit'] = $row['_creation'];
-            $processed = $this->addRow($row, false);
+            $processed = $this->form(TIP_FORM_ACTION_ADD, null, array(
+                'defaults' => array(
+                    '_creation' => TIP::formatDate('datetime_iso8601'),
+                    '_user'     => TIP::getUserId(),
+                    '_hits'     => 1,
+                    '_lasthit'  => $row['_creation'],
+                    '_comments' => 0
+                )
+            ));
             if (is_null($processed)) {
                 return false;
             } elseif ($processed) {
@@ -66,35 +70,11 @@ class TIP_News extends TIP_Block
 
         case 'edit':
             if (is_null($id = TIP::getGet('id', 'integer')) && is_null($id = TIP::getPost('id', 'integer'))) {
-                TIP::notifyError('noparams');
+                TIP::error('no id specified');
                 return false;
             }
-
-            $row =& $this->data->getRow($id);
-            if (is_null($row)) {
-                TIP::notifyError('notfound');
-                return false;
-            }
-
-            $processed = $this->editRow($row, false);
-            if (is_null($processed)) {
-                return false;
-            } elseif ($processed) {
-                $id = TIP::getPost('id', 'integer');
-                $filter = $this->data->rowFilter($id);
-                if (!$this->startView($filter)) {
-                    TIP::notifyError('select');
-                    return false;
-                }
-                if (! $this->view->rowReset()) {
-                    TIP::notifyError('notfound');
-                    $this->endView();
-                    return false;
-                }
-                $this->appendToContent('view.src');
-                $this->endView();
-            }
-            return true;
+            $processed = $this->form(TIP_FORM_ACTION_EDIT, $id);
+            return !is_null($processed);
 
         case 'delete':
             // TODO
@@ -133,7 +113,6 @@ class TIP_News extends TIP_Block
     {
         switch ($action) {
         case 'view':
-            TIP::_startSession();
             $id = TIP::getGet('id', 'integer');
             if (is_null($id)) {
                 TIP::notifyError('noparams');

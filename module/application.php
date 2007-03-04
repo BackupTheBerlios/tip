@@ -149,7 +149,6 @@ class TIP_Application extends TIP_Module
      */
     function go($main_source)
     {
-        TIP::_startSession();
         $locale = $this->getOption('locale');
 
         // Locale settings
@@ -165,6 +164,9 @@ class TIP_Application extends TIP_Module
             break;
         }
 
+        // Start the session
+        TIP::startSession();
+
         // Executes the action
         $action = TIP::getGet('action', 'string');
         if ($action) {
@@ -174,7 +176,7 @@ class TIP_Application extends TIP_Module
             $module_name = TIP::getPost('module', 'string');
         }
 
-        if ($module_name && ! $action) {
+        if ($module_name && !$action) {
             TIP::notifyError('noaction');
         } elseif (! $module_name && $action) {
             TIP::notifyError('nomodule');

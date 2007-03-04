@@ -23,40 +23,6 @@ class TIP_Block extends TIP_Module
 
     var $_view_stack = array ();
 
-
-    function _addEdit($row, $is_add, $auto_render, $queued)
-    {
-        $form =& TIP_Module::getInstance('form');
-        $form->setForm($this, $row, $is_add);
-
-        if (!$form->make() || is_null($processed = $form->process())) {
-            return null;
-        }
-
-        if (!$processed || $auto_render) {
-            if ($queued) {
-                $GLOBALS[TIP_MAIN_MODULE]->appendCallback($form->callback('render'));
-            } else {
-                $form->render();
-            }
-        }
-
-        return $processed;
-    }
-
-    function _viewRow($row)
-    {
-        $form =& TIP_Module::getInstance('form');
-        $form->setForm($this, $row);
-
-        if (!$form->make($this, $row) || !$form->view()) {
-            return false;
-        }
-
-        $GLOBALS[TIP_MAIN_MODULE]->appendCallback($form->callback('render'));
-        return true;
-    }
-
     /**#@-*/
 
 
@@ -67,13 +33,13 @@ class TIP_Block extends TIP_Module
      *
      * Initializes a TIP_Block instance.
      *
-     * The data path is read from <code>$cfg[getId()]['data_path']</code>.
-     * If not specified, it defaults to
-     * <code>$cfg['application']['data_path'] . getId()</code>.
+     * The data path is defined by the 'data_path' option of the block.
+     * If not specified, it defaults to the 'data_path' option of the
+     * application with the getId() of this block appended.
      *
-     * The data engine is read from <code>$cfg[getId()]['data_engine']</code>.
-     * If not specified, it defaults to
-     * <code>$cfg['application']['data_engine']</code>.
+     * The data engine is defined by the 'data_engine' option of the block.
+     * If not specified, it defaults to the 'data_engine' option of the
+     * application.
      */
     function TIP_Block()
     {
@@ -163,12 +129,12 @@ class TIP_Block extends TIP_Module
      */
 
     /**
-     * Generates an add form
+     * Enable comments form
      */
-    function commandAddRow($params)
+    function commandComments($params)
     {
-        return true;
-        return !is_null($this->addRow());
+        $comments =& TIP_Module::getInstance($params . '_comments');
+        return $comments->callAction('add');
     }
 
     /**
@@ -391,25 +357,6 @@ class TIP_Block extends TIP_Module
     }
 
     /**
-     * Add a new row
-     *
-     * Generates an empty form and adds a new row with the user provided values,
-     * if the form is properly validated.
-     *
-     * You can specify automatic fields providing an associative array in $row.
-     *
-     * @param array $row         The row default values
-     * @param bool  $auto_render Whether to render or not a freezed view of
-     *                           the form if it has been processed
-     * @return bool|null true if the form has been processed, false if the form
-     *                   must be processed or null on errors
-     */
-    function addRow($row = array(), $auto_render = true, $queued = true)
-    {
-        return $this->_addEdit($row, true, $auto_render, $queued);
-    }
-
-    /**
      * Edit a row
      *
      * Generates a form, fills it with the default data specified in the $row
@@ -425,41 +372,37 @@ class TIP_Block extends TIP_Module
      * @return bool|null true if the form has been processed, false if the form
      *                   must be processed or null on errors
      */
-    function editRow($row = null, $auto_render = true, $queued = true)
+    function form($action, $id = null, $options = array())
     {
-        if (is_null($row)) {
-            if (!isset($this->view) || is_null($row =& $this->view->rowCurrent())) {
-                $id = $this->data->getId();
-                TIP::error("no current row to edit ($id)");
+        // Define the 'defaults' option
+        if (is_null($id)) {
+            if ($action != TIP_FORM_ACTION_ADD && !array_key_exists('defaults', $options)) {
+                if (!isset($this->view) || is_null($row =& $this->view->rowCurrent())) {
+                    $data_path = $this->data->getId();
+                    TIP::error("no current row to manage ($data_path)");
+                    return null;
+                }
+                $options['defaults'] = $row;
+            }
+        } else {
+            $row =& $this->data->getRow($id);
+            if (is_null($row)) {
+                $data_path = $this->data->getId();
+                TIP::warning("id not found in $data_path ($id)");
+                TIP::notifyError('notfound');
                 return null;
             }
-        }
-
-        return $this->_addEdit($row, false, $auto_render, $queued);
-    }
-
-    /**
-     * View a row
-     *
-     * Very similar to TIP_Block::editRow(), but do not allow to the user to
-     * change form nor to update the data. The goal of viewing a row is 
-     * achieved in an elegant way by freezing the HTML_QuickForm object of
-     * the block.
-     *
-     * @param array|null $row The row to edit or null to view the current row
-     * @return bool true on success or false on errors
-     */
-    function viewRow($row = null)
-    {
-        if (is_null($row)) {
-            if (!isset($this->view) || is_null($row =& $this->view->rowCurrent())) {
-                $id = $this->data->getId();
-                TIP::error("no current row to view ($id)");
-                return false;
+            if (@is_array($options['defaults'])) {
+                $options['defaults'] = array_merge($row, $options['defaults']);
+            } else {
+                $options['defaults'] = $row;
             }
         }
 
-        return $this->_viewRow($row);
+        $options['block'] =& $this;
+        $form =& TIP_Module::getInstance('form');
+        $form->setOptions($action, $options);
+        return $form->run();
     }
 
     /**#@-*/

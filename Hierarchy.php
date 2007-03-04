@@ -44,11 +44,9 @@ class TIP_Hierarchy extends TIP_Block
     /**
      * Overrides the data options
      *
-     * The data path is read from
-     * <code>$cfg[masterblockid]['hierarchy_path']</code>.
-     *
-     * If not specified, it defaults to
-     * <code>$cfg[masterblockid]['data_path'] . '_hierarchy'</code>.
+     * The data path is defined by the 'hiearchy_path' option of the master
+     * block. If not specified, it defaults to the 'data_path' of the master
+     * block with '_hierarchy' appended.
      *
      * @return array The array of data options
      */
@@ -120,28 +118,6 @@ class TIP_Hierarchy extends TIP_Block
     var $icon = 'generic.png';
     var $folder_icon = 'folder.png';
     var $folder_expanded_icon = 'folder-expanded.png';
-
-
-    /**
-     * Get a hierarchy instance
-     *
-     * Gets the singleton hierarchy instance of a block. Every block can have
-     * only one hierarchy block.
-     *
-     * @param string $block_id The master block id
-     * @return TIP_Hierarchy A reference to the TIP_Hierarchy
-     * @static
-     */
-    function& getInstance($block_id)
-    {
-        $instance =& TIP_Hierarchy::singleton($block_id);
-        if (is_null($instance)) {
-            $instance =& new TIP_Hierarchy($block_id);
-            TIP_Hierarchy::singleton($block_id, array($block_id => &$instance));
-        }
-
-        return $instance;
-    }
 
     /**
      * Render a DHTML hierarchy

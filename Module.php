@@ -436,11 +436,7 @@ class TIP_Module extends TIP_Type
      */
     function commandDhtmlHierarchy($params)
     {
-        // Dinamically load the Hierarchy type
-        TIP_Type::getInstance('Hierarchy');
-        // Create a new instance of TIP_Hierarchy
-        $hierarchy =& TIP_Hierarchy::getInstance($params);
-        // Render the tree
+        $hierarchy =& TIP_Module::getInstance($params . '_hierarchy');
         $hierarchy->toDhtml();
         return true;
     }
@@ -472,7 +468,7 @@ class TIP_Module extends TIP_Type
      * Format a date
      *
      * Formats the date (specified in $params in iso8601) in the format
-     * "date_" . $cfg['application']['locale'].
+     * "date_" . application_locale.
      * For instance, if the current locale is 'it', the format used will be
      * "date_it".
      *
@@ -489,7 +485,7 @@ class TIP_Module extends TIP_Type
      * Format a date time
      *
      * Formats the datetime date (specified in iso8601) in the format
-     * "datetime_" . $cfg['application']['locale'].
+     * "datetime_" . application_locale.
      *
      * @uses TIP::formatDate() The date formatter
      */
@@ -697,8 +693,20 @@ class TIP_Module extends TIP_Type
         $id = strtolower($module_name);
         $instance =& TIP_Module::singleton($id);
         if (is_null($instance)) {
-            $file = TIP::buildLogicPath('module', $id) . '.php';
-            $instance =& TIP_Module::singleton($id, $file, $required);
+            // Check for interface modules
+            @list($module, $interface) = explode('_', $id);
+            if (isset($interface)) {
+                // Interface module
+                $interface = ucfirst($interface);
+                TIP_Type::getInstance($interface);
+                $class = TIP_PREFIX . $interface;
+                $instance =& new $class($module);
+                TIP_Module::singleton($id, array($id => &$instance));
+            } else {
+                // Standard module
+                $file = TIP::buildLogicPath('module', $id) . '.php';
+                $instance =& TIP_Module::singleton($id, $file, $required);
+            }
             if (is_object($instance)) {
                 $instance->postConstructor();
             }

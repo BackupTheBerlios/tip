@@ -461,6 +461,7 @@ class TIP_Mysql extends TIP_Data_Engine
             }
 
             $field['info'] = $row['Comment'];
+            $field['can_be_null'] = $row['Null'] == 'YES';
         }
 
         return true;

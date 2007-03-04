@@ -210,7 +210,7 @@ class TIP_Data extends TIP_Type
     var $_fields = null;
     
     /**
-     * Has the $this->_engine->fillDetails() function been called?
+     * Has the $this->_engine->fillFields() method been called?
      * @var bool
      */
     var $_detailed = false;
@@ -343,6 +343,18 @@ class TIP_Data extends TIP_Type
             TIP_Data::singleton($id, array($id => &$instance));
         }
         return $instance;
+    }
+
+    /**
+     * Get the path
+     *
+     * Returns the datapath of this object.
+     *
+     * @return string The requested data path
+     */
+    function getPath()
+    {
+        return $this->_path;
     }
 
     /**
@@ -487,9 +499,9 @@ class TIP_Data extends TIP_Type
      * Instead, if the primary key is defined in $row, this function fails if
      * a row with the same primary key exists.
      *
-     * @param array &$row The row to insert
+     * @param array $row The row to insert
      */
-    function putRow(&$row)
+    function putRow($row)
     {
         if (!is_array($row)) {
             $type = gettype($row);
@@ -501,10 +513,10 @@ class TIP_Data extends TIP_Type
             $rows = array();
         } else {
             // Get the valid set
-            $rows = array($row);
-            if (!$this->_validate($rows[0])) {
+            if (!$this->_validate($row)) {
                 return false;
             }
+            $rows = array($row);
         }
 
         $result = $this->_engine->insert($this, $rows);
@@ -563,8 +575,8 @@ class TIP_Data extends TIP_Type
      * $row and $old_row. This is done to allow a check between the old and new
      * row content, trying to avoid the update operation.
      *
-     * @param array &$row     The new row content
-     * @param array  $old_row The old row content
+     * @param array $row     The new row content
+     * @param array $old_row The old row content
      */
     function updateRow($row, $old_row = null)
     {
@@ -576,9 +588,13 @@ class TIP_Data extends TIP_Type
 
         if (@array_key_exists($this->primary_key, $old_row)) {
             $id = $old_row[$this->primary_key];
-        } elseif (@array_key_exists($this->primary_key, $row)) {
+        } 
+        
+        if (@array_key_exists($this->primary_key, $row)) {
             $id = $row[$this->primary_key];
-        } else {
+        }
+       
+        if (!isset($id)) {
             TIP::error('undefined row to update');
             return false;
         }
@@ -588,7 +604,7 @@ class TIP_Data extends TIP_Type
             return false;
         }
 
-        if (isset($old_row)) {
+        if (@is_array($old_row)) {
             // Keep only the items that differs between $row and $old_row
             $row = array_diff_assoc($row, $old_row);
         }

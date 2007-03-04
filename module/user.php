@@ -46,6 +46,7 @@ class TIP_User extends TIP_Block
         $fake_null = null;
         $this->_activateUser($fake_null);
         setcookie('TIP_User', '', time()-3600);
+        HTTP_Session::destroy();
     }
 
     function _activateUser(&$row)
@@ -118,11 +119,22 @@ class TIP_User extends TIP_Block
     function runManagerAction ($action)
     {
         switch ($action) {
-            /*
-             * \manageraction <b>delete</b>\n
-             * Requests a delete of the specified user. You must specify in
-             * $_GET['id'] the user id.
-             */
+
+        case 'edit':
+            return !is_null($this->form(TIP_FORM_ACTION_EDIT, TIP::getGet('id', 'integer')));
+        }
+
+        return parent::runManagerAction ($action);
+    }
+
+    function runAdminAction ($action)
+    {
+        switch ($action) {
+
+        case 'browse':
+            $this->appendToContent('browse.src');
+            return true;
+
         case 'delete':
             /*
              * \manageraction <b>dodelete</b>\n
@@ -151,9 +163,9 @@ class TIP_User extends TIP_Block
                     if ($id == @$this->_new_row['id'])
                         $this->_logout ();
 
-                    TIP::notifyInfo ('I_DONE');
+                    TIP::notifyInfo('done');
                 } else {
-                    TIP::notifyError('E_DATA_DELETE');
+                    TIP::notifyError('delete');
                 }
             }
             else
@@ -162,21 +174,6 @@ class TIP_User extends TIP_Block
             }
 
             $this->EndView ();
-            return true;
-        }
-
-        return parent::runManagerAction ($action);
-    }
-
-    function runAdminAction ($action)
-    {
-        switch ($action)
-        {
-            /* \adminaction <b>browse</b>\n
-             * Shows all the registered users.
-             */
-        case 'browse':
-            $this->appendToContent('browse.src');
             return true;
         }
 
@@ -192,7 +189,7 @@ class TIP_User extends TIP_Block
             return true;
 
         case 'edit':
-            return !is_null($this->editRow());
+            return !is_null($this->form(TIP_FORM_ACTION_EDIT));
         }
 
         return parent::runTrustedAction ($action);
@@ -254,15 +251,7 @@ class TIP_User extends TIP_Block
              * Registration request.
              */
         case 'add':
-            return !is_null($this->addRow());
-
-            /* \untrustedaction <b>doadd</b>\n
-             * New user registration. The user data must be filled in the $_POST
-             * array (as for every module).
-             */
-        case 'doadd':
-            // TODO
-            return true;
+            return !is_null($this->form(TIP_FORM_ACTION_ADD));
         }
 
         return parent::runUntrustedAction ($action);
