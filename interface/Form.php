@@ -27,8 +27,8 @@ class TIP_Form extends TIP_Module
 {
     /**#@+ @access private */
 
-    var $_form = null;
     var $_block = null;
+    var $_form = null;
     var $_fields = null;
     var $_converter = array();
     var $_defaults = null;
@@ -39,40 +39,6 @@ class TIP_Form extends TIP_Module
     var $_invalid_render = TIP_FORM_RENDER_IN_CONTENT;
     var $_valid_render = TIP_FORM_RENDER_IN_CONTENT;
 
-
-    function _initialize($action)
-    {
-        $this->_action = $action;
-        $this->_form = null;
-        $this->_block = null;
-        $this->_fields = null;
-        $this->_converter = array();
-        $this->_defaults = null;
-        $this->_validation = 'client';
-        $this->_referer = @$_SERVER['HTTP_REFERER'];
-        $this->_buttons = TIP_FORM_BUTTON_CLOSE;
-        $this->_invalid_render = TIP_FORM_RENDER_IN_CONTENT;
-        $this->_valid_render = TIP_FORM_RENDER_IN_CONTENT;
-
-        switch ($action) {
-
-        case TIP_FORM_ACTION_ADD:
-            $this->_buttons = TIP_FORM_BUTTON_SUBMIT|TIP_FORM_BUTTON_CANCEL;
-            break;
-
-        case TIP_FORM_ACTION_EDIT:
-            $this->_buttons = TIP_FORM_BUTTON_SUBMIT|TIP_FORM_BUTTON_CANCEL;
-            break;
-
-        case TIP_FORM_ACTION_VIEW:
-            $this->_buttons = TIP_FORM_BUTTON_CLOSE;
-            break;
-
-        case TIP_FORM_ACTION_DELETE:
-            $this->_buttons = TIP_FORM_BUTTON_DELETE|TIP_FORM_BUTTON_CANCEL;
-            break;
-        }
-    }
 
     function _getValidTmpFile($struct)
     {
@@ -158,7 +124,7 @@ class TIP_Form extends TIP_Module
         }
 
         $path = TIP::buildDataPath($this->_block->getId());
-        $id = @$row[$this->_block->data->primary_key];
+        $id = @$row[$this->_block->data->getPrimaryKey()];
         $error = true;
 
         for (;;) {
@@ -446,7 +412,7 @@ class TIP_Form extends TIP_Module
             break;
 
         case TIP_FORM_ACTION_DELETE:
-            $id = TIP::getGet($this->_block->data->primary_key, 'int');
+            $id = TIP::getGet($this->_block->data->getPrimaryKey(), 'int');
             $this->_block->data->deleteRow($id);
             break;
         }
@@ -458,14 +424,36 @@ class TIP_Form extends TIP_Module
     /**#@+ @access protected */
 
     /**
-     * Form constructor
+     * Constructor
      *
-     * Initializes the on_process callback to the default one.
+     * Initializes an implementation of a TIP_Form interface.
+     *
+     * @param string $block_id The id of the master block
      */
-    function TIP_Form()
+    function TIP_Form($block_id)
     {
+        // There is a singleton for every master block
+        $this->_id = $block_id . '_form';
+        $this->_block =& TIP_Module::getInstance($block_id);
         $this->TIP_Module();
-        $this->on_process =& $this->callback('_onProcess');
+    }
+
+    /**
+     * Get a localized text for the TIP_Form class
+     *
+     * Overrides the default localizator method because the form messages
+     * are commons for all the instantiation of TIP_Form, so the call to
+     * TIP::getLocale() must use the 'form' constant string instead of the
+     * id of this object.
+     *
+     * @param string $id      The text identifier
+     * @param array  $context The context associative array
+     * @param bool   $cached  Whether to perform or not a cached read
+     * @return string The requested localized text
+     */
+    function getLocale($id, $context = null, $cached = true)
+    {
+        return TIP::getLocale($id, 'form', $context, $cached);
     }
 
     /**#@-*/
@@ -488,10 +476,9 @@ class TIP_Form extends TIP_Module
     var $on_process = null;
 
 
-    function setOptions($action, $options)
+    function setOptions($options)
     {
-        $this->_initialize($action);
-        foreach(array_keys($options) as $name) {
+        foreach (array_keys($options) as $name) {
             $property = '_' . $name;
             $this->$property =& $options[$name];
         }
@@ -633,7 +620,5 @@ class TIP_Form extends TIP_Module
 
     /**#@-*/
 }
-
-return 'TIP_Form';
 
 ?>

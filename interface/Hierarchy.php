@@ -75,7 +75,7 @@ class TIP_Hierarchy extends TIP_Block
     /**
      * Constructor
      *
-     * Initializes a TIP_Hierarchy pseudo-block.
+     * Initializes an implementation of a TIP_Hierarchy interface.
      *
      * @param string $block_id The id of the master block
      */

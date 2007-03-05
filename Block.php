@@ -348,20 +348,25 @@ class TIP_Block extends TIP_Module
     }
 
     /**
-     * Edit a row
+     * Form management
      *
-     * Generates a form, fills it with the default data specified in the $row
-     * associative array and updates the row with the user provided values, if
-     * the form is properly validated.
+     * Generates a form with the specified $options and executes $action on it.
      *
-     * If $row is not specified, the current row will be used as default one.
-     * On no default row, the function will fail.
+     * The default values of the form (that usually must be present in
+     * $options['defaults']) can also be specified by providing a row $id. If
+     * both are provided, the two arrays are merged, with the one in
+     * $options['defaults'] with higher priority. Before merging, if $action is
+     * TIP_FORM_ACTION_ADD, the primary key on the read row is stripped.
      *
-     * @param array|null $row         The row to edit or null for the current row
-     * @param bool       $auto_render Whether to render or not a freezed view of
-     *                                the form if it has been processed
-     * @return bool|null true if the form has been processed, false if the form
-     *                   must be processed or null on errors
+     * If $action is not TIP_FORM_ACTION_ADD and either $id or
+     * $options['defaults'] are not provided, the current row is assumed as
+     * default values. If there is not current row, an error is raised.
+     *
+     * @param  TIP_FORM_ACTION_ADD|TIP_FORM_ACTION_EDIT|TIP_FORM_ACTION_VIEW|TIP_FORM_ACTION_DELETE $action The action
+     * @param  array|null $id      A row id to use as default
+     * @param  array      $options The options to pass to the form
+     * @return bool|null           true if the form has been processed, false if
+     *                             the form must be processed or null on errors
      */
     function form($action, $id = null, $options = array())
     {
@@ -382,7 +387,10 @@ class TIP_Block extends TIP_Module
                 TIP::warning("id not found in $data_path ($id)");
                 TIP::notifyError('notfound');
                 return null;
+            } elseif ($action == TIP_FORM_ACTION_ADD) {
+                unset($row[$this->data->getPrimaryKey()]);
             }
+
             if (@is_array($options['defaults'])) {
                 $options['defaults'] = array_merge($row, $options['defaults']);
             } else {
@@ -390,9 +398,39 @@ class TIP_Block extends TIP_Module
             }
         }
 
-        $options['block'] =& $this;
-        $form =& TIP_Module::getInstance('form');
-        $form->setOptions($action, $options);
+        // Define the 'referer' option
+        if (!array_key_exists('referer', $options)) {
+            $options['referer'] = @$_SERVER['HTTP_REFERER'];
+        }
+
+        // Define the 'buttons' option
+        if (!array_key_exists('buttons', $options)) {
+            switch ($action) {
+
+            case TIP_FORM_ACTION_ADD:
+                $options['buttons'] = TIP_FORM_BUTTON_SUBMIT|TIP_FORM_BUTTON_CANCEL;
+                break;
+
+            case TIP_FORM_ACTION_EDIT:
+                $options['buttons'] = TIP_FORM_BUTTON_SUBMIT|TIP_FORM_BUTTON_CANCEL;
+                break;
+
+            case TIP_FORM_ACTION_VIEW:
+                $options['buttons'] = TIP_FORM_BUTTON_CLOSE;
+                break;
+
+            case TIP_FORM_ACTION_DELETE:
+                $options['buttons'] = TIP_FORM_BUTTON_DELETE|TIP_FORM_BUTTON_CANCEL;
+                break;
+
+            default:
+                $options['buttons'] = TIP_FORM_BUTTON_CLOSE;
+            }
+        }
+
+        $form =& TIP_Module::getInstance($this->getId() . '_form');
+        $options['action'] = $action;
+        $form->setOptions($options);
         return $form->run();
     }
 

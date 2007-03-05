@@ -24,7 +24,7 @@ class TIP_Comments extends TIP_Block
     /**
      * Constructor
      *
-     * Initialize a TIP_Comments pseudo-block.
+     * Initialize an implementation of the TIP_Comments interface.
      *
      * @param string $block_id The id of the master block
      */

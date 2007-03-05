@@ -496,7 +496,7 @@ class TIP_Mysql extends TIP_Data_Engine
         $this->_tryFillFields($data, $result);
         $rows = array();
         while ($row = mysql_fetch_assoc($result)) {
-            $rows[$row[$data->primary_key]] =& $row;
+            $rows[$row[$data->getPrimaryKey()]] =& $row;
             unset($row);
         }
 

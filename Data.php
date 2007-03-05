@@ -189,6 +189,17 @@ class TIP_Data extends TIP_Type
     var $_engine = null;
 
     /**
+     * The primary key field
+     *
+     * Defaults to 'id' but can be changed passing a different 'primary_key'
+     * option. The primary key univoquely identifies a single row of data.
+     *
+     * @var $string
+     */
+    var $_primary_key = 'id';
+
+
+    /**
      * Fields of $_path to use in queries
      *
      * An array of field ids used by this object. If left null, all the fields
@@ -229,6 +240,9 @@ class TIP_Data extends TIP_Type
 
         $this->_id = TIP_Data::_buildId($options);
         $this->_path = $options['path'];
+        if (array_key_exists('primary_key', $options)) {
+            $this->_primary_key =& $options['primary_key'];
+        }
         $this->_joins = $options['joins'];
         $this->_engine =& TIP_Data_Engine::getInstance($options['engine']);
         if (array_key_exists('fieldset', $options)) {
@@ -312,17 +326,6 @@ class TIP_Data extends TIP_Type
     /**#@+ @access public */
 
     /**
-     * The primary key field
-     *
-     * Defaults to 'id' but can be changed with setPrimaryKey(). The primary
-     * key univoquely identifies a single row of data.
-     *
-     * @var $string
-     */
-    var $primary_key = 'id';
-
-
-    /**
      * Get a TIP_Data instance
      *
      * Gets the previously defined $_path table object or instantiates
@@ -348,13 +351,25 @@ class TIP_Data extends TIP_Type
     /**
      * Get the path
      *
-     * Returns the datapath of this object.
+     * Returns the path of this data object.
      *
      * @return string The requested data path
      */
     function getPath()
     {
         return $this->_path;
+    }
+
+    /**
+     * Get the primary key
+     *
+     * Returns the primary key of this data object.
+     *
+     * @return string The primary key field
+     */
+    function getPrimaryKey()
+    {
+        return $this->_primary_key;
     }
 
     /**
@@ -413,7 +428,7 @@ class TIP_Data extends TIP_Type
      */
     function rowFilter($id)
     {
-        return $this->filter($this->primary_key, $id) . ' LIMIT 1';
+        return $this->filter($this->_primary_key, $id) . ' LIMIT 1';
     }
 
     /**
@@ -524,9 +539,9 @@ class TIP_Data extends TIP_Type
             return false;
         }
 
-        if (empty($row[$this->primary_key]) && $result) {
+        if (empty($row[$this->_primary_key]) && $result) {
             // Set the primary key to the last autoincrement value, if any
-            $row[$this->primary_key] = $result;
+            $row[$this->_primary_key] = $result;
         }
 
         return true;
@@ -586,12 +601,12 @@ class TIP_Data extends TIP_Type
             return false;
         }
 
-        if (@array_key_exists($this->primary_key, $old_row)) {
-            $id = $old_row[$this->primary_key];
+        if (@array_key_exists($this->_primary_key, $old_row)) {
+            $id = $old_row[$this->_primary_key];
         } 
         
-        if (@array_key_exists($this->primary_key, $row)) {
-            $id = $row[$this->primary_key];
+        if (@array_key_exists($this->_primary_key, $row)) {
+            $id = $row[$this->_primary_key];
         }
        
         if (!isset($id)) {
@@ -642,8 +657,8 @@ class TIP_Data extends TIP_Type
         }
 
         // Found a primary key: error
-        if (array_key_exists($this->primary_key, $row)) {
-            $key = $row[$this->primary_key];
+        if (array_key_exists($this->_primary_key, $row)) {
+            $key = $row[$this->_primary_key];
             TIP::error("updateRows() impossible with a primary key defined ($key)");
             return false;
         }

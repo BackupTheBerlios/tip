@@ -676,25 +676,35 @@ class TIP_Module extends TIP_Type
     {
         $id = strtolower($module_name);
         $instance =& TIP_Module::singleton($id);
-        if (is_null($instance)) {
-            // Check for interface modules
-            @list($module, $interface) = explode('_', $id);
-            if (isset($interface)) {
-                // Interface module
-                $interface = ucfirst($interface);
-                TIP_Type::getInstance($interface);
-                $class = TIP_PREFIX . $interface;
-                $instance =& new $class($module);
-                TIP_Module::singleton($id, array($id => &$instance));
-            } else {
-                // Standard module
-                $file = TIP::buildLogicPath('module', $id) . '.php';
-                $instance =& TIP_Module::singleton($id, $file, $required);
-            }
-            if (is_object($instance)) {
-                $instance->postConstructor();
-            }
+        if (!is_null($instance)) {
+            return $instance;
         }
+
+        if ($_pos = strrpos($id, '_')) {
+            // Interface module
+            $master_id = substr($id, 0, $_pos);
+            $interface = ucfirst(substr($id, $_pos+1));
+
+            // Register the interface
+            if (is_null(TIP_Module::singleton($interface))) {
+                $file = TIP::buildLogicPath('interface', $interface) . '.php';
+                $instance =& TIP_Module::singleton($interface, $file, $required);
+            }
+
+            // Implement the interface for the master module
+            $class = TIP_PREFIX . $interface;
+            $instance =& new $class($master_id);
+            TIP_Module::singleton($id, array($id => &$instance));
+        } else {
+            // Common module or block
+            $file = TIP::buildLogicPath('module', $id) . '.php';
+            $instance =& TIP_Module::singleton($id, $file, $required);
+        }
+
+        if (is_object($instance)) {
+            $instance->postConstructor();
+        }
+
         return $instance;
     }
 
