@@ -17,61 +17,19 @@ require_once 'HTML/TreeMenu.php';
  */
 class TIP_Hierarchy extends TIP_Block
 {
-    /**#@+ @access protected */
+    /**#@+ @access private */
 
+    var $_master_id = null;
     var $_model = null;
 
 
-    /**
-     * Constructor
-     *
-     * Initializes a TIP_Hierarchy instance. This class provides a pseudo
-     * block that manages a hierarchy of a real block, called master.
-     *
-     * The data engine is the same used by the master block.
-     *
-     * @param string $block_id The id of the master block
-     */
-    function TIP_Hierarchy($block_id)
+    function _populateModel(&$view)
     {
-        // The data engine is initialized as for $block_id but with the overriden
-        // getDataOptions() method
-        $this->_id = $block_id;
-        $this->TIP_Block();
-        $this->_model =& new HTML_TreeMenu();
-    }
-
-    /**
-     * Overrides the data options
-     *
-     * The data path is defined by the 'hiearchy_path' option of the master
-     * block. If not specified, it defaults to the 'data_path' of the master
-     * block with '_hierarchy' appended.
-     *
-     * @return array The array of data options
-     */
-    function getDataOptions()
-    {
-        if (is_null($options = parent::getDataOptions())) {
-            return null;
-        } elseif ($path = $this->getOption('hierarchy_path')) {
-            $options['path'] = $path;
-        } else {
-            $options['path'] .= '_hierarchy';
+        if (isset($this->_model)) {
+            return true;
         }
 
-        return $options;
-    }
-
-    function& startView($filter)
-    {
-        $view =& TIP_View::getInstance($filter, $this->data);
-        $view->on_view->set(array(&$this, 'onView'));
-        return $this->push($view);
-    }
-
-    function onView(&$view)
-    {
+        $this->_model =& new HTML_TreeMenu();
         $rows =& $view->rows;
         $view->summaries['TOTAL_COUNT'] = 0;
         $total_count =& $view->summaries['TOTAL_COUNT'];
@@ -112,6 +70,49 @@ class TIP_Hierarchy extends TIP_Block
     /**#@-*/
 
 
+    /**#@+ @access protected */
+
+    /**
+     * Constructor
+     *
+     * Initializes a TIP_Hierarchy pseudo-block.
+     *
+     * @param string $block_id The id of the master block
+     */
+    function TIP_Hierarchy($block_id)
+    {
+        // There is a singleton for every master block
+        $this->_id = strtolower($block_id) . '_hierarchy';
+        $this->_master_id = $block_id;
+        $this->TIP_Block();
+    }
+
+    function getOption($option)
+    {
+        return @$GLOBALS['cfg'][$this->_master_id]['hierarchy'][$option];
+    }
+
+    /**#@+
+     * @param string @params The parameter string
+     * @return bool true on success or false on errors
+     * @subpackage SourceEngine
+     */
+
+    /**
+     * Echo the hierarchy of the master block
+     *
+     * Outputs the DHTML hierarchy of the specified block.
+     */
+    function commandShow($params)
+    {
+        return $this->toDhtml();
+    }
+
+    /**#@-*/
+
+    /**#@-*/
+
+
     /**#@+ @access public */
 
     var $action = 'browse';
@@ -126,13 +127,22 @@ class TIP_Hierarchy extends TIP_Block
      */
     function toDhtml()
     {
-        $this->startView('');
+        $view =& $this->startView('');
+        if (is_null($view)) {
+            return false;
+        }
+        $result = $this->_populateModel($view);
+        $this->endView();
+
+        if (!$result) {
+            return false;
+        }
+
         $options['images'] = TIP::buildSourceURL('shared', 'icons');
         $options['defaultClass'] = 'hierarchy';
         $options['jsObjectName'] = $this->getId();
         $menu =& new HTML_TreeMenu_DHTML($this->_model, $options);
         $menu->printMenu();
-        $this->endView();
     }
 
     /**#@-*/

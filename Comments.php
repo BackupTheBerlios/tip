@@ -16,29 +16,47 @@ class TIP_Comments extends TIP_Block
 
     var $_master_id = null;
 
-
-    function TIP_Comments($block_id)
-    {
-        // There is a singleton for every master block
-        $this->_id = $this->_buildId($block_id);
-        $this->_master_id = $block_id;
-        $this->TIP_Block();
-    }
-
-    function _buildId($block_id)
-    {
-        return strtolower($block_id) . '_' . TIP_COMMENTS_POSTFIX;
-    }
-
     /**#@-*/
 
 
     /**#@+ access protected */
 
+    /**
+     * Constructor
+     *
+     * Initialize a TIP_Comments pseudo-block.
+     *
+     * @param string $block_id The id of the master block
+     */
+    function TIP_Comments($block_id)
+    {
+        // There is a singleton for every master block
+        $this->_id = strtolower($block_id) . '_comments';
+        $this->_master_id = $block_id;
+        $this->TIP_Block();
+    }
+
     function getOption($option)
     {
-        return @$GLOBALS['cfg'][$this->_master_id][TIP_COMMENTS_POSTFIX][$option];
+        return @$GLOBALS['cfg'][$this->_master_id]['comments'][$option];
     }
+
+    /**#@+
+     * @param string @params The parameter string
+     * @return bool true on success or false on errors
+     * @subpackage SourceEngine
+     */
+
+    /**
+     * Add a comments form
+     */
+    function commandAdd($params)
+    {
+        return $this->callAction('add');
+    }
+
+    /**#@-*/
+
 
     function runManagerAction($action)
     {

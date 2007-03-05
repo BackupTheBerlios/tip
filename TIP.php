@@ -24,16 +24,6 @@ define('TIP_PREFIX', 'TIP_');
  */
 define('TIP_MAIN_MODULE', '_tip_application');
 
-/**
- * TIP_Comments postfix
- */
-define('TIP_COMMENTS_POSTFIX', 'comments');
-
-/**
- * TIP_Hierarchy postfix
- */
-define('TIP_HIERARCHY_POSTFIX', 'hierarchy');
-
 /**#@+ Form related constants */
 
 /**#@+ Form action */

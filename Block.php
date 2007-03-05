@@ -129,15 +129,6 @@ class TIP_Block extends TIP_Module
      */
 
     /**
-     * Enable comments form
-     */
-    function commandComments($params)
-    {
-        $comments =& TIP_Module::getInstance($params . '_comments');
-        return $comments->callAction('add');
-    }
-
-    /**
      * Echo an uploaded URL
      *
      * Shortcut for the often used upload url. The upload URL is under the
