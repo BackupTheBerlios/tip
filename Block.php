@@ -170,57 +170,78 @@ class TIP_Block extends TIP_Module
     /**#@-*/
 
     /**
-     * Get the current rows
+     * Get a specific row
      *
-     * Gets a reference to the rows of the current view.
+     * Gets a reference to a specific row. If $id is not specified, the current
+     * row is assumed.
      *
-     * @return array|null The array of rows or null on errors
+     * This is an high level method that raises errors and notify them to the
+     * user if the row is not found: use it only when the row content is
+     * absolutely needed.
+     *
+     * The method starts (and ends) a view to find a row, so every further
+     * requests will be cached.
+     *
+     * @param  mixed      $id       The row id
+     * @param  bool       $end_view Wheter to end the view or not
+     * @return array|null           The requested row or null on errors
      */
-    function& getCurrentRows()
+    function& getRow($id = null, $end_view = true)
     {
-        if (is_object($this->view)) {
-            $rows =& $this->view->rows;
+        $row = null;
+
+        if (isset($id)) {
+            $view =& $this->startView($this->data->rowFilter($id));
+            if (!$view) {
+                TIP::notifyError('select');
+                return $row;
+            }
+
+            $row =& $view->rowReset();
+            if ($end_view || is_null($row)) {
+                $this->endView();
+            }
         } else {
-            $rows = null;
-        }
-        return $rows;
-    }
-
-    /**
-     * Get the current row
-     *
-     * Gets a reference to the row pointed by the internal cursor.
-     *
-     * @return array|null The current row or null on errors
-     */
-    function& getCurrentRow()
-    {
-        if (! isset($this->view)) {
-            $fake_null = null;
-            return $fake_null;
+            $row =& $this->view->rowCurrent();
         }
 
-        return $this->view->rowCurrent();
-    }
-
-    /**
-     * Get a specified row
-     *
-     * Gets a reference to a specific row. This function does not move the
-     * internal cursor.
-     *
-     * @param mixed $id The row id
-     * @return array|null The current row or null on errors
-     */
-    function& getRow($id)
-    {
-        if (@array_key_exists ($id, $this->view->rows)) {
-            $row =& $this->view->rows[$id];
-        } else {
-            $row = null;
+        if (is_null($row)) {
+            TIP::warning("'$id' not found in " . $this->data->getId());
+            TIP::notifyError('notfound');
         }
 
         return $row;
+    }
+
+    /**
+     * Check if the row is owned by the current user
+     *
+     * Checks if the content of $field of row identified by $id is equal to
+     * the current user id, that is if $id is owned by the current user.
+     *
+     * This is an high level method that raises errors and notify them to the
+     * user on any errors: use it only when error notify is needed.
+     *
+     * If there are no errors but the row is not owned by the current user,
+     * the 'denied' notify error is raised.
+     *
+     * @param  mixed  $id    The row id
+     * @param  string $field The name of the field containing the user id
+     * @return bool          true if $id is owned by the current user or false
+     *                       on errors
+     */
+    function rowOwner($id = null, $field = '_user')
+    {
+        if (is_null($row =& $this->getRow($id))) {
+            return false;
+        }
+
+        if ($row[$field] != TIP::getUserId()) {
+            TIP::notifyError('denied');
+            return false;
+        }
+
+        return true;
     }
 
     /**
@@ -371,60 +392,19 @@ class TIP_Block extends TIP_Module
     function form($action, $id = null, $options = array())
     {
         // Define the 'defaults' option
-        if (is_null($id)) {
-            if ($action != TIP_FORM_ACTION_ADD && !array_key_exists('defaults', $options)) {
-                if (!isset($this->view) || is_null($row =& $this->view->rowCurrent())) {
-                    $data_path = $this->data->getId();
-                    TIP::error("no current row to manage ($data_path)");
-                    return null;
-                }
-                $options['defaults'] = $row;
-            }
-        } else {
-            $row =& $this->data->getRow($id);
-            if (is_null($row)) {
-                $data_path = $this->data->getId();
-                TIP::warning("id not found in $data_path ($id)");
-                TIP::notifyError('notfound');
+        if ($action != TIP_FORM_ACTION_ADD || isset($id)) {
+            if (is_null($row = $this->getRow($id))) {
                 return null;
-            } elseif ($action == TIP_FORM_ACTION_ADD) {
+            }
+
+            if ($action == TIP_FORM_ACTION_ADD) {
                 unset($row[$this->data->getPrimaryKey()]);
             }
 
             if (@is_array($options['defaults'])) {
                 $options['defaults'] = array_merge($row, $options['defaults']);
             } else {
-                $options['defaults'] = $row;
-            }
-        }
-
-        // Define the 'referer' option
-        if (!array_key_exists('referer', $options)) {
-            $options['referer'] = @$_SERVER['HTTP_REFERER'];
-        }
-
-        // Define the 'buttons' option
-        if (!array_key_exists('buttons', $options)) {
-            switch ($action) {
-
-            case TIP_FORM_ACTION_ADD:
-                $options['buttons'] = TIP_FORM_BUTTON_SUBMIT|TIP_FORM_BUTTON_CANCEL;
-                break;
-
-            case TIP_FORM_ACTION_EDIT:
-                $options['buttons'] = TIP_FORM_BUTTON_SUBMIT|TIP_FORM_BUTTON_CANCEL;
-                break;
-
-            case TIP_FORM_ACTION_VIEW:
-                $options['buttons'] = TIP_FORM_BUTTON_CLOSE;
-                break;
-
-            case TIP_FORM_ACTION_DELETE:
-                $options['buttons'] = TIP_FORM_BUTTON_DELETE|TIP_FORM_BUTTON_CANCEL;
-                break;
-
-            default:
-                $options['buttons'] = TIP_FORM_BUTTON_CLOSE;
+                $options['defaults'] =& $row;
             }
         }
 

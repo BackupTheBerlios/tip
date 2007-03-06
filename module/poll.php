@@ -53,7 +53,7 @@ class TIP_Poll extends TIP_Block
                 return false;
             }
 
-            $row =& $this->GetCurrentRow ();
+            $row =& $this->data->rowCurrent();
             $votes = 'votes' . $answer;
             if (! array_key_exists($votes, $row)) {
                 TIP::notifyError('E_INVALID');
@@ -87,7 +87,7 @@ class TIP_Poll extends TIP_Block
                 return false;
             }
 
-            $row =& $this->GetCurrentRow ();
+            $row =& $this->data->rowCurrent();
             $old_row = $row;
             $votes = "votes$_GET[answer]";
             if (! array_key_exists ($votes, $row))

@@ -198,6 +198,12 @@ class TIP_Data extends TIP_Type
      */
     var $_primary_key = 'id';
 
+    /**
+     * The last id
+     *
+     * Contains the last id of the putRow() method, if any.
+     */
+    var $_last_id = null;
 
     /**
      * Fields of $_path to use in queries
@@ -373,6 +379,18 @@ class TIP_Data extends TIP_Type
     }
 
     /**
+     * Get the last id
+     *
+     * Returns the last id as returned by the last call to putRow().
+     *
+     * @return mixed The last id
+     */
+    function getLastId()
+    {
+        return $this->_last_id;
+    }
+
+    /**
      * Create a basic filter
      *
      * Creates a filter (in the proper engine format) to access the rows that
@@ -542,6 +560,7 @@ class TIP_Data extends TIP_Type
         if (empty($row[$this->_primary_key]) && $result) {
             // Set the primary key to the last autoincrement value, if any
             $row[$this->_primary_key] = $result;
+            $this->_last_id = $result;
         }
 
         return true;
