@@ -824,7 +824,7 @@ class TIP
     /**#@-*/
 }
 
-set_include_path(TIP::buildLogicPath('pear'));
+set_include_path(TIP::buildLogicPath('pear') . PATH_SEPARATOR . TIP::buildLogicPath('lib'));
 
 /**#@+ Backward compatibily functions */
 require_once 'PHP/Compat/Function/array_intersect_key.php';

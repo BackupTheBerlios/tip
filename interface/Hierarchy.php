@@ -28,17 +28,11 @@ class TIP_Hierarchy extends TIP_Block
     var $_opened_icon = null;
 
 
-    function _fillModel()
+    function _onView(&$view)
     {
         if (isset($this->_model)) {
             return true;
         }
-
-        $view =& $this->startView('');
-        if (is_null($view)) {
-            return false;
-        }
-        $this->endView();
 
         $view->summaries['TOTAL_COUNT'] = 0;
         $total_count =& $view->summaries['TOTAL_COUNT'];
@@ -58,13 +52,13 @@ class TIP_Hierarchy extends TIP_Block
 
             $node['url']   = $base_url . $id;
             $node['COUNT'] = $count;
-            $node['ICON']  = $this->_icon;
+            $node['CLASS'] = 'item';
 
             if ($parent_id) {
                 $parent =& $nodes[$parent_id];
                 $parent['sub'][$id] =  $node;
                 $parent['COUNT']    += $count;
-                $parent['ICON']     =  $this->_closed_icon;
+                $parent['CLASS']    =  'folder';
                 $nodes[$id]         =& $parent['sub'][$id];
             } else {
                 $tree[$id]  = $node;
@@ -102,6 +96,13 @@ class TIP_Hierarchy extends TIP_Block
         return @$GLOBALS['cfg'][$this->_master_id]['hierarchy'][$option];
     }
 
+    function& startView($filter)
+    {
+        $view =& TIP_View::getInstance($filter, $this->data);
+        $view->on_view->set(array(&$this, '_onView'));
+        return $this->push($view);
+    }
+
     /**#@+
      * @param string @params The parameter string
      * @return bool true on success or false on errors
@@ -133,16 +134,22 @@ class TIP_Hierarchy extends TIP_Block
     function show()
     {
         static $renderer = false;
-        if (!$this->_fillModel()) {
-            return false;
+
+        if (is_null($this->_model)) {
+            // Generate the model by starting a view on the whole data
+            if (!$this->startView('')) {
+                return false;
+            }
+            $this->endView();
         }
 
         // The renderer is unique for all the TIP_Hierarchy instances
         if (!$renderer) {
-            require_once 'HTML/Menu/DirectTreeRenderer.php';
-            $renderer =& new HTML_Menu_DirectTreeRenderer();
+            require_once 'HTML/Menu/TipRenderer.php';
+            $renderer =& new HTML_Menu_TipRenderer();
         }
 
+        $renderer->setId($this->getId());
         $this->_model->render($renderer, 'sitemap');
         echo $renderer->toHtml();
         return true;

@@ -262,7 +262,7 @@ class TIP_Form extends TIP_Module
 
     function& _widgetTextArea(&$field)
     {
-        HTML_QuickForm::registerElementType('wikiarea', TIP::buildLogicPath('lib', 'wikiarea.php'), 'HTML_QuickForm_wikiarea');
+        HTML_QuickForm::registerElementType('wikiarea', 'HTML/QuickForm/wikiarea.php', 'HTML_QuickForm_wikiarea');
 
         $id = $field['id'];
         $element =& $this->_addElement('wikiarea', $id);
