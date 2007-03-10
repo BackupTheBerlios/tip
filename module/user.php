@@ -77,6 +77,18 @@ class TIP_User extends TIP_Block
         $row['OA'] = $row['sex'] == 'female' ? 'a' : 'o';
     }
 
+    function _onDelete(&$form, &$row)
+    {
+        // todo
+    }
+
+    function _updateUser()
+    {
+        if (is_array($this->_old_row) && is_array($this->_new_row)) {
+            $this->data->updateRow($this->_new_row, $this->_old_row);
+        }
+    }
+
     /**#@-*/
 
 
@@ -94,29 +106,29 @@ class TIP_User extends TIP_Block
         $filter = $this->data->rowFilter($id);
         $view =& $this->startView($filter);
         if (is_null($view)) {
-            TIP::notifyError('E_DATA_SELECT');
+            TIP::notifyError('select');
             return;
         }
 
         $row =& $view->rowReset();
         if (is_null($row)) {
-            TIP::notifyError('E_NOTFOUND');
+            TIP::notifyError('notfound');
             $this->endView();
             return;
         }
 
         if (crypt($row['password'], $password) != $password) {
-            TIP::notifyError('E_DENIED');
+            TIP::notifyError('denied');
             $this->endView();
             return;
         }
 
         // No endView() call to retain this query as the default one
         $this->_activateUser($row);
-        register_shutdown_function (array (&$this, 'updateUser'));
+        register_shutdown_function(array(&$this, '_updateUser'));
     }
 
-    function runManagerAction ($action)
+    function runManagerAction($action)
     {
         switch ($action) {
 
@@ -124,10 +136,10 @@ class TIP_User extends TIP_Block
             return !is_null($this->form(TIP_FORM_ACTION_EDIT, TIP::getGet('id', 'integer')));
         }
 
-        return parent::runManagerAction ($action);
+        return parent::runManagerAction($action);
     }
 
-    function runAdminAction ($action)
+    function runAdminAction($action)
     {
         switch ($action) {
 
@@ -136,54 +148,35 @@ class TIP_User extends TIP_Block
             return true;
 
         case 'delete':
-            /*
-             * \manageraction <b>dodelete</b>\n
-             * Deletes the specified user. You must specify in $_GET['id'] the user
-             * id.
-             */
-        case 'dodelete':
-            $id = TIP::GetGet ('id', 'integer');
-    /* TODO
-    $Row =& $this->GetMyself ($id);
-    if (is_null ($Row))
-      return false;
-     */
-            return true;
-
-            if (substr ($action, 0, 2) == 'do')
-            {
-                if ($this->data->deleteRow($id)) {
-                    // Deletes the owned advertisements
-                    $advertisement =& TIP_Module::getInstance('advertisement', false);
-                    if ($advertisement) {
-                        $filter = $advertisement->data->filter('_user', $id);
-                        $advertisement->data->deleteRows($filter);
-                    }
-
-                    if ($id == @$this->_new_row['id'])
-                        $this->_logout ();
-
-                    TIP::notifyInfo('done');
-                } else {
-                    TIP::notifyError('delete');
-                }
+            if (is_null($id = TIP::getGet('id', 'integer'))) {
+                TIP::warning('no id specified');
+                TIP::notifyError('noparams');
+                return false;
             }
-            else
-            {
-                $this->AppendToContent ('delete.src');
-            }
-
-            $this->EndView ();
-            return true;
+            $processed = $this->form(TIP_FORM_ACTION_DELETE, $id, array(
+                'on_process' => array(&$this, '_onDelete'))
+            );
+            return !is_null($processed);
         }
 
-        return parent::runAdminAction ($action);
+        return parent::runAdminAction($action);
     }
 
-    function runTrustedAction ($action)
+    function runTrustedAction($action)
     {
-        switch ($action)
-        {
+        switch ($action) {
+
+        case 'delete':
+            $id = TIP::getCurrentId();
+            if (!$id) {
+                TIP::notifyError('reserved');
+                return false;
+            }
+            $processed = $this->form(TIP_FORM_ACTION_DELETE, $id, array(
+                'on_process' => array(&$this, '_onDelete'))
+            );
+            return !is_null($processed);
+
         case 'unset':
             $this->_logout();
             return true;
@@ -192,47 +185,41 @@ class TIP_User extends TIP_Block
             return !is_null($this->form(TIP_FORM_ACTION_EDIT));
         }
 
-        return parent::runTrustedAction ($action);
+        return parent::runTrustedAction($action);
     }
 
-    function runUntrustedAction ($action)
+    function runUntrustedAction($action)
     {
-        switch ($action)
-        {
-            /* \untrustedaction <b>set</b>\n
-             * Login request. You must specify the user name and its password in
-             * $_POST['user'] and $_POST['password'].
-             */
+        switch ($action) {
+
         case 'set':
             $user = TIP::getPost('user', 'string');
             if (empty($user)) {
-                $label = $this->getLocale('user_label');
-                TIP::notifyError ('E_GENERIC', " ($label)");
+                TIP::notifyError('noparams');
                 return false;
             }
 
             $password = TIP::getPost('password', 'string');
             if (empty($password)) {
-                $label = $this->getLocale('password_label');
-                TIP::notifyError('E_GENERIC', " ($label)");
+                TIP::notifyError('noparams');
                 return false;
             }
 
             $filter = $this->data->filter('user', $user);
-            if (! $this->startView($filter)) {
-                TIP::notifyError('E_DATA_SELECT');
+            if (!$this->startView($filter)) {
+                TIP::notifyError('select');
                 return false;
             }
 
-            if (! $this->view->rowReset()) {
+            if (!$this->view->rowReset()) {
                 $this->endView();
-                TIP::notifyError('E_GENERIC');
+                TIP::notifyError('wrongparams');
                 return false;
             }
 
             if ($this->getField('password') != $password) {
                 $this->endView();
-                TIP::notifyError('E_GENERIC');
+                TIP::notifyError('wrongparams');
                 return false;
             }
 
@@ -240,21 +227,12 @@ class TIP_User extends TIP_Block
             $this->_login();
             return true;
 
-            /*
-             * \untrustedaction <b>condition</b>\n
-             * Shows the conditions imposed by the registration.
-             */
-        case 'conditions':
-            return $this->AppendToContent ('conditions.src');
-
-            /* \untrustedaction <b>add</b>\n
-             * Registration request.
-             */
         case 'add':
+            // TODO: conditions acceptance
             return !is_null($this->form(TIP_FORM_ACTION_ADD));
         }
 
-        return parent::runUntrustedAction ($action);
+        return parent::runUntrustedAction($action);
     }
 
     function& startView($filter)
@@ -262,60 +240,6 @@ class TIP_User extends TIP_Block
         $view =& TIP_View::getInstance($filter, $this->data);
         $view->on_row->set(array(&$this, '_onRow'));
         return $this->push($view);
-    }
-
-    /**#@-*/
-
-
-    /**#@+ @access public */
-
-    function updateUser ()
-    {
-        if (is_array($this->_old_row) && is_array($this->_new_row)) {
-            $this->data->updateRow($this->_new_row, $this->_old_row);
-        }
-    }
-
-    function ValidateUser (&$Field, $Value)
-    {
-        $this->DATA_ENGINE->Querify ($Value, $this);
-        if (! $this->StartView ("WHERE `user`=$Value"))
-        {
-            TIP::notifyError ('E_DATA_SELECT');
-            return false;
-        }
-
-        $user_id = $this->ResetRow () ? $this->GetField ('id') : $this->keys['CID'];
-        $this->EndView ();
-
-        if (@$this->keys['CID'] != $user_id)
-        {
-            TIP::notifyError ('E_VL_GENERIC', $this->getLocale('user_validator'));
-            return false;
-        }
-
-        return true;
-    }
-
-    function ValidatePublicName (&$Field, $Value)
-    {
-        $this->DATA_ENGINE->Querify ($Value, $this);
-        if (! $this->StartView ("WHERE `publicname`=$Value"))
-        {
-            TIP::notifyError ('E_DATA_SELECT');
-            return false;
-        }
-
-        $user_id = $this->ResetRow () ? $this->GetField ('id') : $this->keys['CID'];
-        $this->EndView ();
-
-        if (@$this->keys['CID'] != $user_id)
-        {
-            TIP::notifyError ('E_VL_GENERIC', $this->getLocale ('publicname_validator'));
-            return false;
-        }
-
-        return true;
     }
 
     /**#@-*/

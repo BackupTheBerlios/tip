@@ -50,7 +50,8 @@ class TIP_News extends TIP_Block
 
         case 'delete':
             if (is_null($id = TIP::getGet('id', 'integer'))) {
-                TIP::error('no id specified');
+                TIP::warning('no id specified');
+                TIP::notifyError('noparams');
                 return false;
             }
             $processed = $this->form(TIP_FORM_ACTION_DELETE, $id, array(
@@ -104,14 +105,13 @@ class TIP_News extends TIP_Block
 
         case 'delete':
             if (is_null($id = TIP::getGet('id', 'integer'))) {
-                TIP::error('no id specified');
+                TIP::warning('no id specified');
+                TIP::notifyError('noparams');
                 return false;
             }
-
             if (!$this->rowOwner($id)) {
                 return false;
             }
-
             $processed = $this->form(TIP_FORM_ACTION_DELETE, $id, array(
                 'on_process' => array(&$this, '_onDelete'))
             );
