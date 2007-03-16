@@ -411,7 +411,7 @@ class TIP_Mysql extends TIP_Data_Engine
         $user     = $this->getOption('user');
         $password = $this->getOption('password');
 
-        $this->_connection = mysql_connect($server, $user, $password);
+        $this->_connection = mysql_pconnect($server, $user, $password);
         $this->_database = $this->getOption('database');
 
         if (! $this->_connection || ! mysql_select_db($this->_database, $this->_connection)) {

@@ -27,6 +27,7 @@ class TIP_Locale extends TIP_Block
     function _onRow(&$row)
     {
         $row['MESSAGE'] = $row[$this->_locale];
+        return true;
     }
 
     /**#@-*/

@@ -28,20 +28,9 @@ class TIP_View extends TIP_Type
 {
     /**#@+ @access private */
 
-    var $_row_index = 0;
-
-
     function _buildId(&$filter, &$data)
     {
         return (isset($data) ? $data->getId() . '/' : '') . $filter;
-    }
-
-    function _row_callback(&$row)
-    {
-        ++ $this->_row_index;
-        $row['ROW']     = $this->_row_index;
-        $row['ODDEVEN'] = ($this->_row_index & 1) > 0 ? 'odd' : 'even';
-        $this->on_row->goWithArray(array(&$row));
     }
 
     /**#@-*/
@@ -145,7 +134,7 @@ class TIP_View extends TIP_Type
      *
      * @var array
      */
-    var $summaries;
+    var $summaries = array();
 
     /**
      * Row callback
@@ -156,7 +145,7 @@ class TIP_View extends TIP_Type
      *
      * @var TIP_Callback
      */
-    var $on_row;
+    var $on_row = null;
 
     /**
      * View callback
@@ -170,7 +159,7 @@ class TIP_View extends TIP_Type
      *
      * @var TIP_Callback
      */
-    var $on_view;
+    var $on_view = null;
 
 
     /**
@@ -208,21 +197,33 @@ class TIP_View extends TIP_Type
      */
     function populate($refresh = false)
     {
-        if (! is_null($this->rows) && ! $refresh) {
+        if (!is_null($this->rows) && !$refresh) {
             $this->rowUnset();
             return true;
         }
 
         $this->rows = null;
-        if (! $this->fillRows()) {
+        if (!$this->fillRows()) {
             return false;
-        } elseif (! is_array($this->rows)) {
+        } elseif (!is_array($this->rows)) {
             return true;
         }
 
-        $this->_row_index = 0;
-        array_walk($this->rows, array(&$this, '_row_callback'));
-        $this->summaries['COUNT'] = $this->_row_index;
+        $n_row = 0;
+        foreach (array_keys($this->rows) as $id) {
+            $row =& $this->rows[$id];
+            if (!$this->on_row->goWithArray(array(&$row))) {
+                // If the user callback returns false, remove the row
+                array_splice($this->rows, $n_row, 1);
+            } else {
+                ++ $n_row;
+                $row['ROW']     = $n_row;
+                $row['ODDEVEN'] = ($n_row & 1) > 0 ? 'odd' : 'even';
+            }
+            unset($row);
+        }
+
+        $this->summaries['COUNT'] = $n_row;
         return $this->on_view->goWithArray(array(&$this)) && $this->rowUnset();
     }
 

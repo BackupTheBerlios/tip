@@ -24,6 +24,16 @@ define('TIP_PREFIX', 'TIP_');
  */
 define('TIP_MAIN_MODULE', '_tip_application');
 
+/**#@+ Privileges */
+define('TIP_PRIVILEGE_INVALID',   0);
+define('TIP_PRIVILEGE_NONE',      1);
+define('TIP_PRIVILEGE_UNTRUSTED', 2);
+define('TIP_PRIVILEGE_TRUSTED',   3);
+define('TIP_PRIVILEGE_ADMIN',     4);
+define('TIP_PRIVILEGE_MANAGER',   5);
+/**#@-*/
+
+
 /**#@+ Form related constants */
 
 /**#@+ Form action */
@@ -151,7 +161,12 @@ class TIP
      */
     function getOption($type, $option, $required = false)
     {
-        $value = @$GLOBALS['cfg'][$type][$option];
+        @list($master, $interface) = explode('_', $type, 2);
+        if (isset($interface)) {
+            $value = @$GLOBALS['cfg'][$master][$interface][$option];
+        } else {
+            $value = @$GLOBALS['cfg'][$type][$option];
+        }
         if ($required && !isset($value)) {
             TIP::fatal("Required option not defined (\$cfg['$type']['$option'])");
         }
@@ -747,11 +762,11 @@ class TIP
      * is omitted, the current user id is used. Check TIP_Privilege to see how the
      * privileges are used.
      *
-     * @param TIP_Module &$module The requesting module
-     * @param mixed      $user_id A user id
-     * @return 'manager'|'admin'|'trusted'|'untrusted'|null The requested privilege
+     * @param  string           $module_name The requesting module name
+     * @param  mixed            $user_id     A user id
+     * @return TIP_PRIVILEGE...              The requested privilege
      */
-    function getPrivilege(&$module, $user_id = null)
+    function getPrivilege($module_name, $user_id = null)
     {
         if (is_null($user_id)) {
             $user_id = TIP::getUserId();
@@ -760,16 +775,16 @@ class TIP
         $anonymous = is_null($user_id) || $user_id === false;
         if (!$anonymous) {
             $privilege =& TIP_Module::getInstance('privilege');
-            if (isset($privilege)) {
-                $stored_privilege = $privilege->getStoredPrivilege($module, $user_id);
-                if (!is_null($stored_privilege)) {
+            if (is_object($privilege)) {
+                $stored_privilege = $privilege->getStoredPrivilege($module_name, $user_id);
+                if ($stored_privilege != TIP_PRIVILEGE_INVALID) {
                     return $stored_privilege;
                 }
             }
         }
 
         $privilege_type = $anonymous ? 'anonymous_privilege' : 'default_privilege';
-        $result = $module->getOption($privilege_type);
+        $result = TIP::getOption($module_name, $privilege_type);
         if (is_null($result)) {
             $result = TIP::getOption('application', $privilege_type);
         }

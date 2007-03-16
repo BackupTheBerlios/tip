@@ -169,7 +169,7 @@ class TIP_Comments extends TIP_Block
             return !is_null($processed);
         }
 
-        return null;
+        return parent::runTrustedAction($action);
     }
 
     /**#@-*/

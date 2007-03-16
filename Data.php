@@ -532,9 +532,9 @@ class TIP_Data extends TIP_Type
      * Instead, if the primary key is defined in $row, this function fails if
      * a row with the same primary key exists.
      *
-     * @param array $row The row to insert
+     * @param array &$row The row to insert
      */
-    function putRow($row)
+    function putRow(&$row)
     {
         if (!is_array($row)) {
             $type = gettype($row);

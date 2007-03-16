@@ -60,10 +60,32 @@ class TIP_News extends TIP_Block
             return !is_null($processed);
         }
 
-        return null;
+        return parent::runManagerAction($action);
     }
 
     function runAdminAction($action)
+    {
+        switch ($action) {
+
+        case 'delete':
+            if (is_null($id = TIP::getGet('id', 'integer'))) {
+                TIP::warning('no id specified');
+                TIP::notifyError('noparams');
+                return false;
+            }
+            if (!$this->rowOwner($id)) {
+                return false;
+            }
+            $processed = $this->form(TIP_FORM_ACTION_DELETE, $id, array(
+                'on_process' => array(&$this, '_onDelete'))
+            );
+            return !is_null($processed);
+        }
+
+        return parent::runAdminAction($action);
+    }
+
+    function runTrustedAction($action)
     {
         switch ($action) {
 
@@ -103,25 +125,11 @@ class TIP_News extends TIP_Block
             $processed = $this->form(TIP_FORM_ACTION_EDIT, $id);
             return !is_null($processed);
 
-        case 'delete':
-            if (is_null($id = TIP::getGet('id', 'integer'))) {
-                TIP::warning('no id specified');
-                TIP::notifyError('noparams');
-                return false;
-            }
-            if (!$this->rowOwner($id)) {
-                return false;
-            }
-            $processed = $this->form(TIP_FORM_ACTION_DELETE, $id, array(
-                'on_process' => array(&$this, '_onDelete'))
-            );
-            return !is_null($processed);
-
         case 'browse':
             return $this->appendToContent('browse-user.src');
         }
 
-        return null;
+        return parent::runTrustedAction($action);
     }
 
     function runUntrustedAction($action)
@@ -157,7 +165,7 @@ class TIP_News extends TIP_Block
             return true;
         }
 
-        return null;
+        return parent::runUntrustedAction($action);
     }
 
     /**#@-*/

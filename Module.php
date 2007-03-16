@@ -16,14 +16,12 @@ class TIP_Module extends TIP_Type
 {
     /**#@+ @access private */
 
-    var $_locales = null;
-
     /**
      * The current privilege descriptor
      *
-     * @var 'manager'|'admin'|'trusted'|'untrusted'|null
+     * @var TIP_PRIVILEGE_...
      */
-    var $_privilege = null;
+    var $_privilege = TIP_PRIVILEGE_NONE;
 
     /**#@-*/
 
@@ -71,21 +69,25 @@ class TIP_Module extends TIP_Type
      */
     function refreshPrivilege()
     {
-        $this->_privilege = TIP::getPrivilege($this);
+        $this->_privilege = TIP::getPrivilege($this->getId());
 
-        $this->keys['IS_MANAGER'] = false;
-        $this->keys['IS_ADMIN'] = false;
-        $this->keys['IS_TRUSTED'] = false;
+        $this->keys['IS_MANAGER']   = false;
+        $this->keys['IS_ADMIN']     = false;
+        $this->keys['IS_TRUSTED']   = false;
         $this->keys['IS_UNTRUSTED'] = false;
 
         switch ($this->_privilege) {
-        case 'manager':
-            $this->keys['IS_MANAGER'] = true;
-        case 'admin':
-            $this->keys['IS_ADMIN'] = true;
-        case 'trusted':
-            $this->keys['IS_TRUSTED'] = true;
-        case 'untrusted':
+
+        case TIP_PRIVILEGE_MANAGER:
+            $this->keys['IS_MANAGER']    = true;
+
+        case TIP_PRIVILEGE_ADMIN:
+            $this->keys['IS_ADMIN']     = true;
+
+        case TIP_PRIVILEGE_TRUSTED:
+            $this->keys['IS_TRUSTED']   = true;
+
+        case TIP_PRIVILEGE_UNTRUSTED:
             $this->keys['IS_UNTRUSTED'] = true;
         }
     }
@@ -149,8 +151,9 @@ class TIP_Module extends TIP_Type
     function getItem($id)
     {
         $value = @$this->keys[$id];
-        if (! is_null($value))
+        if (!is_null($value)) {
             return $value;
+        }
 
         return @$GLOBALS[TIP_MAIN_MODULE]->keys[$id];
     }
@@ -192,12 +195,16 @@ class TIP_Module extends TIP_Type
         }
 
         switch ($type) {
+
         case 'item':
             return $this->getItem($id);
+
         case 'get':
             return TIP::getGet($id, 'string');
+
         case 'post':
             return TIP::getPost($id, 'string');
+
         case 'locale':
             return $this->getLocale($id);
         }
@@ -217,14 +224,15 @@ class TIP_Module extends TIP_Type
      */
     function getValidRequest ($requests)
     {
-        if (! is_array($requests)) {
+        if (!is_array($requests)) {
             return null;
         }
 
         foreach ($requests as $request) {
             $value = $this->getRequest($request);
-            if (! is_null($value))
+            if (!is_null($value)) {
                 return $value;
+            }
         }
 
         return null;
@@ -267,14 +275,55 @@ class TIP_Module extends TIP_Type
      */
 
     /**
-     * Htmlize the content of the first defined request
+     * Output the content of the first defined request
      *
      * $params is a string in the form "request,request,...".
      *
      * This command will perform a serie of request and will echo the first
-     * value found, converting the result with TIP::toHtml().
+     * value found.
      *
      * @uses getValidRequest() The method used to resolve the requests
+     */
+    function commandRaw($params)
+    {
+        $requests = explode(',', $params);
+        $value = $this->getValidRequest($requests);
+        if (is_null($value)) {
+            TIP::error("no valid request found ($params)");
+            return false;
+        }
+
+        echo $value;
+        return true;
+    }
+
+    /**
+     * Try to output the content of the first defined request
+     *
+     * $params is a string in the form "request,request,...".
+     *
+     * Equal to commandRaw(), but do not log any warning if the request is not
+     * found.
+     *
+     * @uses getValidRequest() The method used to resolve the requests
+     */
+    function commandTryRaw($params)
+    {
+        $requests = explode(',', $params);
+        $value = $this->getValidRequest($requests);
+        if (isset($value)) {
+            echo $value;
+        }
+        return true;
+    }
+
+    /**
+     * Htmlize the content of the first defined request
+     *
+     * $params is a string in the form "request,request,...".
+     *
+     * Equals to commandRaw(), but the result is converted throught TIP::toHtml()
+     * before the output.
      */
     function commandHtml($params)
     {
@@ -294,10 +343,8 @@ class TIP_Module extends TIP_Type
      *
      * $params is a string in the form "request,request,...".
      *
-     * Equal to commandHtml(), but do not log any warning if the request is not
-     * found.
-     *
-     * @uses getValidRequest() The method used to resolve the requests
+     * Equals to commandTryRaw(), but the result is converted throught
+     * TIP::toHtml() before the output.
      */
     function commandTryHtml($params)
     {
@@ -792,27 +839,24 @@ class TIP_Module extends TIP_Type
         }
 
         switch ($this->_privilege) {
-        case 'manager':
-            $result = $this->runManagerAction($action);
-            if (! is_null($result)) {
+
+        case TIP_PRIVILEGE_MANAGER:
+            if (!is_null($result = $this->runManagerAction($action))) {
                 break;
             }
 
-        case 'admin':
-            $result = $this->runAdminAction($action);
-            if (! is_null($result)) {
+        case TIP_PRIVILEGE_ADMIN:
+            if (!is_null($result = $this->runAdminAction($action))) {
                 break;
             }
 
-        case 'trusted':
-            $result = $this->runTrustedAction($action);
-            if (! is_null($result)) {
+        case TIP_PRIVILEGE_TRUSTED:
+            if (!is_null($result = $this->runTrustedAction($action))) {
                 break;
             }
 
-        case 'untrusted':
-            $result = $this->runUntrustedAction($action);
-            if (! is_null($result)) {
+        case TIP_PRIVILEGE_UNTRUSTED:
+            if (!is_null($result = $this->runUntrustedAction($action))) {
                 break;
             }
 

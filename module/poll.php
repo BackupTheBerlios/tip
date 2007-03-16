@@ -18,7 +18,7 @@ class TIP_Poll extends TIP_Block
 {
     /**#@+ @access private */
 
-    function onRow(&$row)
+    function _onRow(&$row)
     {
         $total = $row['votes1']+$row['votes2']+$row['votes3']+$row['votes4']+$row['votes5']+$row['votes6'];
 
@@ -97,7 +97,7 @@ class TIP_Poll extends TIP_Block
             }
 
             ++ $row[$votes];
-            $this->onRow($row);
+            $this->_onRow($row);
             $this->data->updateRow($row, $old_row);
             setcookie ('plvoted', 'true', strtotime($this->getOption('expiration')));
 
@@ -117,7 +117,7 @@ class TIP_Poll extends TIP_Block
     function& startView($filter)
     {
         $view =& TIP_View::getInstance($filter, $this->data);
-        $view->on_row->set(array(&$this, 'onRow'));
+        $view->on_row->set(array(&$this, '_onRow'));
         return $this->push($view);
     }
 

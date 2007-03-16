@@ -314,20 +314,20 @@ class TIP_Block extends TIP_Module
             end($stack);
             do {
                 prev($stack);
-                $id = key($stack);
-            } while (isset($id) && is_subclass_of($stack[$id], 'TIP_View'));
+                $view_id = key($stack);
+            } while (isset($view_id) && is_subclass_of($stack[$view_id], 'TIP_View'));
 
-            if (isset($id)) {
-                $row = @current($stack[$id]->rows);
+            if (isset($view_id)) {
+                $row = @current($stack[$view_id]->rows);
                 $value = @$row[$id];
-                if (isset($value)) {
+                if (!is_null($value)) {
                     return $value;
                 }
             }
         }
 
         $value = $this->getSummary($id);
-        if (isset($value)) {
+        if (!is_null($value)) {
             return $value;
         }
 

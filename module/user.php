@@ -75,6 +75,7 @@ class TIP_User extends TIP_Block
     function _onRow(&$row)
     {
         $row['OA'] = $row['sex'] == 'female' ? 'a' : 'o';
+        return true;
     }
 
     function _onDelete(&$form, &$row)
@@ -143,10 +144,6 @@ class TIP_User extends TIP_Block
     {
         switch ($action) {
 
-        case 'browse':
-            $this->appendToContent('browse.src');
-            return true;
-
         case 'delete':
             if (is_null($id = TIP::getGet('id', 'integer'))) {
                 TIP::warning('no id specified');
@@ -163,6 +160,18 @@ class TIP_User extends TIP_Block
     }
 
     function runTrustedAction($action)
+    {
+        switch ($action) {
+
+        case 'browse':
+            $this->appendToContent('browse.src');
+            return true;
+        }
+
+        return parent::runTrustedAction($action);
+    }
+
+    function runUntrustedAction($action)
     {
         switch ($action) {
 
@@ -185,10 +194,10 @@ class TIP_User extends TIP_Block
             return !is_null($this->form(TIP_FORM_ACTION_EDIT));
         }
 
-        return parent::runTrustedAction($action);
+        return parent::runUntrustedAction($action);
     }
 
-    function runUntrustedAction($action)
+    function runAction($action)
     {
         switch ($action) {
 
@@ -232,7 +241,7 @@ class TIP_User extends TIP_Block
             return !is_null($this->form(TIP_FORM_ACTION_ADD));
         }
 
-        return parent::runUntrustedAction($action);
+        return parent::runAction($action);
     }
 
     function& startView($filter)
