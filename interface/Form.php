@@ -602,10 +602,14 @@ class TIP_Form extends TIP_Module
         // Add buttons
         $group = array();
         if ($buttons & TIP_FORM_BUTTON_SUBMIT) {
-            $group[] = $this->_form->createElement('submit', null, $this->getLocale('submit'));
+            $element =& $this->_form->createElement('submit', null, $this->getLocale('submit'));
+            $element->setAttribute('class', 'command');
+            $group[] =& $element;
         }
         if ($buttons & TIP_FORM_BUTTON_RESET) {
-            $group[] = $this->_form->createElement('reset', null, $this->getLocale('reset'));
+            $element =& $this->_form->createElement('reset', null, $this->getLocale('reset'));
+            $element->setAttribute('class', 'command');
+            $group[] =& $element;
         }
         if ($buttons & TIP_FORM_BUTTON_DELETE) {
             $url = $_SERVER['REQUEST_URI'] . '&process=1';
