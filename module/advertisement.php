@@ -57,8 +57,7 @@ class TIP_Advertisement extends TIP_Block
             return true;
 
         case 'add':
-            // TODO
-            return false;
+            return !is_null($this->form(TIP_FORM_ACTION_ADD));
 
         case 'edit':
             // TODO

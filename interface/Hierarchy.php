@@ -21,6 +21,7 @@ class TIP_Hierarchy extends TIP_Block
 
     var $_master_id = null;
     var $_model = null;
+    var $_tree = null;
 
     var $_action = 'browse';
     var $_icon = null;
@@ -40,35 +41,58 @@ class TIP_Hierarchy extends TIP_Block
             'index.php?' .
             'module=' . $this->_master_id .
             '&amp;action=' . $this->_action .
-            '&amp;id='
+            '&amp;group='
         );
 
-        $tree  = array();
+        $this->_tree  = array();
         $nodes = array();
         foreach ($view->rows as $id => $node) {
             $parent_id     = @$node['parent'];
-            $count         = @$node['_count'];
-            $total_count  += $count;
+            if (isset($node['_count'])) {
+                $count         = @$node['_count'];
+                $total_count  += $count;
+                $node['COUNT'] = $count;
+            }
 
             $node['url']   = $base_url . $id;
-            $node['COUNT'] = $count;
             $node['CLASS'] = 'item';
 
             if ($parent_id) {
                 $parent =& $nodes[$parent_id];
                 $parent['sub'][$id] =  $node;
-                $parent['COUNT']    += $count;
+                if (isset($node['_count'])) {
+                    $parent['COUNT']    += $count;
+                }
                 $parent['CLASS']    =  'folder';
                 $nodes[$id]         =& $parent['sub'][$id];
             } else {
-                $tree[$id]  = $node;
-                $nodes[$id] =& $tree[$id];
+                $this->_tree[$id]   = $node;
+                $nodes[$id]         =& $this->_tree[$id];
             }
 
         }
 
-        $this->_model =& new HTML_Menu($tree);
+        $this->_model =& new HTML_Menu($this->_tree);
+        if (isset($this->keys['CID'])) {
+            $this->_model->forceCurrentIndex($this->keys['CID']);
+        }
+
         return true;
+    }
+
+    function _buildRows($nodes, $prefix)
+    {
+        foreach ($nodes as $id => $node) {
+            if (array_key_exists('sub', $node)) {
+                $new_prefix = $prefix;
+                $new_prefix[] = $node['title'];
+                $this->_buildRows($node['sub'], $new_prefix);
+            } else {
+                $item = $prefix;
+                $item[] = $node['title'];
+                $GLOBALS['_TIP_ARRAY'][$id] = $item;
+            }
+        }
     }
 
     /**#@-*/
@@ -126,21 +150,53 @@ class TIP_Hierarchy extends TIP_Block
 
     /**#@+ @access public */
 
+    function setCurrent($id)
+    {
+        $this->keys['CID'] = $id;
+    }
+
+    function& getModel()
+    {
+        if (is_null($this->_model)) {
+            // Generate the model by starting a view on the whole data
+            $this->startView('') && $this->endView();
+        }
+
+        return $this->_model;
+    }
+
+    function& getRows($glue = '::')
+    {
+        if (is_null($this->getModel())) {
+            $fake_rows = array();
+            return $fake_rows;
+        }
+
+        $GLOBALS['_TIP_ARRAY'] = array();
+        $this->_buildRows($this->_tree, array());
+        $rows =& $GLOBALS['_TIP_ARRAY'];
+        unset($GLOBALS['_TIP_ARRAY']);
+
+        foreach (array_keys($rows) as $id) {
+            $rows[$id] = implode($glue, $rows[$id]);
+        }
+
+        return $rows;
+    }
+
     /**
      * Render a DHTML hierarchy
      *
      * Renders this hierarchy in a DHTML form.
+     *
+     * @return true on success or false on errors
      */
     function show()
     {
         static $renderer = false;
 
-        if (is_null($this->_model)) {
-            // Generate the model by starting a view on the whole data
-            if (!$this->startView('')) {
-                return false;
-            }
-            $this->endView();
+        if (is_null($this->getModel())) {
+            return false;
         }
 
         // The renderer is unique for all the TIP_Hierarchy instances

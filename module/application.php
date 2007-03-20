@@ -79,7 +79,7 @@ class TIP_Application extends TIP_Module
     function commandContent($params)
     {
         if (empty($this->_queue)) {
-            $this->commandRunShared('welcome.src');
+            $this->commandRunShared('default.src');
         } else {
             foreach (array_keys($this->_queue) as $id) {
                 $this->_queue[$id]->go();

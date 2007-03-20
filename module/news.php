@@ -36,6 +36,12 @@ class TIP_News extends TIP_Block
 
     /**#@+ @access protected */
 
+    /**#@+
+     * @param string $action The action name
+     * @return bool|null true on action executed, false on action error or
+     *                   null on action not found
+     */
+
     function runManagerAction($action)
     {
         switch ($action) {
@@ -135,6 +141,7 @@ class TIP_News extends TIP_Block
     function runUntrustedAction($action)
     {
         switch ($action) {
+
         case 'view':
             $id = TIP::getGet('id', 'integer');
             if (is_null($id)) {
@@ -167,6 +174,8 @@ class TIP_News extends TIP_Block
 
         return parent::runUntrustedAction($action);
     }
+
+    /**#@-*/
 
     /**#@-*/
 }

@@ -213,7 +213,7 @@ class TIP_Form extends TIP_Module
         }
 
         $this->_addRule(array($reid, $id), 'compare');
-        if (!array_key_exists($reid, $this->_defaults)) {
+        if (is_array($this->_defaults) && !array_key_exists($reid, $this->_defaults)) {
             $this->_defaults[$reid] = $this->_defaults[$id];
         }
 
@@ -320,6 +320,23 @@ class TIP_Form extends TIP_Module
         return $element;
     }
 
+    function& _widgetHierarchy(&$field)
+    {
+        $id = $field['id'];
+        $label = $this->_block->getLocale($id . '_label');
+
+        $hierarchy_id = $this->_block->getId() . '_hierarchy';
+        $hierarchy =& TIP_Module::getInstance($hierarchy_id);
+        $items =& $hierarchy->getRows();
+
+        $element =& $this->_form->addElement('select', $id, $label);
+        $element->addOption('', '');
+        $element->loadArray($items);
+        $element->setAttribute('class', 'expand');
+
+        return $element;
+    }
+
     function& _addElement($type, $id)
     {
         $label = $this->_block->getLocale($id . '_label');
@@ -331,7 +348,7 @@ class TIP_Form extends TIP_Module
         if (substr($id, 0, 1) == '_' || $this->_fields[$id]['automatic']) {
             // By default, fields starting with '_' and automatic fields
             // cannot be edited, so are included as hidden (if defined)
-            if (array_key_exists($id, $this->_defaults)) {
+            if (@array_key_exists($id, $this->_defaults)) {
                 $this->_form->addElement('hidden', $id, $this->_defaults[$id]);
             }
         } else {
