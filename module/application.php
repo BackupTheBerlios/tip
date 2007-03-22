@@ -49,6 +49,7 @@ class TIP_Application extends TIP_Module
 
     function postConstructor()
     {
+        $GLOBALS[TIP_MAIN_MODULE] =& $this;
         parent::postConstructor();
 
         $this->keys['ROOT'] = TIP::buildUrl('index.php');

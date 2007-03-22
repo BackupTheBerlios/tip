@@ -60,16 +60,15 @@ class TIP_Hierarchy extends TIP_Block
             if ($parent_id) {
                 $parent =& $nodes[$parent_id];
                 $parent['sub'][$id] =  $node;
-                if (isset($node['_count'])) {
-                    $parent['COUNT']    += $count;
-                }
                 $parent['CLASS']    =  'folder';
                 $nodes[$id]         =& $parent['sub'][$id];
+                if (isset($node['_count'])) {
+                    $parent['COUNT'] += $count;
+                }
             } else {
                 $this->_tree[$id]   = $node;
                 $nodes[$id]         =& $this->_tree[$id];
             }
-
         }
 
         $this->_model =& new HTML_Menu($this->_tree);

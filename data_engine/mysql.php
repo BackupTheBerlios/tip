@@ -156,7 +156,7 @@ class TIP_Mysql extends TIP_Data_Engine
 
     function _tryFillFields(&$data, &$resource)
     {
-        if (isset($data->fields)) {
+        if (isset($data->_fields)) {
             return true;
         }
 
@@ -190,7 +190,7 @@ class TIP_Mysql extends TIP_Data_Engine
                 $field['length'] = mysql_field_len($resource, $n) / 3;
             }
 
-            $field['can_be_null'] = (bool) (strpos($flags, 'not_null') === false);
+            $field['can_be_null'] = (bool) (strpos($flags, 'NOT_NULL') === false);
         }
 
         return true;
@@ -240,8 +240,10 @@ class TIP_Mysql extends TIP_Data_Engine
             return implode(',', array_map($self, $value));
         } elseif (is_null($value)) {
             return 'NULL';
-        } elseif (is_numeric($value)) {
+        } elseif (is_int($value) || is_float($value)) {
             return $value;
+        } elseif (is_bool($value)) {
+            return $value ? 'TRUE' : 'FALSE';
         } elseif (is_string($value)) {
             return "'" . mysql_real_escape_string($value, $this->_connection) . "'";
         }

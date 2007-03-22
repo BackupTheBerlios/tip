@@ -101,8 +101,7 @@ class TIP_News extends TIP_Block
                     '_creation' => TIP::formatDate('datetime_iso8601'),
                     '_user'     => TIP::getUserId(),
                     '_hits'     => 1,
-                    '_lasthit'  => TIP::formatDate('datetime_iso8601'),
-                    '_comments' => 0
+                    '_lasthit'  => TIP::formatDate('datetime_iso8601')
                 ),
                 'valid_render'  => TIP_FORM_RENDER_NOTHING
             ));
@@ -116,7 +115,7 @@ class TIP_News extends TIP_Block
                 $this->appendToContent('view.src');
                 $this->endView();
             }
-            return is_null($processed);
+            return !is_null($processed);
 
         case 'edit':
             if (is_null($id = TIP::getGet('id', 'integer')) && is_null($id = TIP::getPost('id', 'integer'))) {

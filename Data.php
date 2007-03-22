@@ -404,8 +404,13 @@ class TIP_Data extends TIP_Type
      */
     function filter($name, $value, $condition = '=')
     {
+        return $this->addFilter('WHERE', $name, $value, $condition);
+    }
+
+    function addFilter($connector, $name, $value, $condition = '=')
+    {
         // Special condition
-        if (is_null($value) && strpos('is', strtolower($condition)) === FALSE) {
+        if (is_null($value) && strpos('is', strtolower($condition)) === false) {
             $condition = $condition == '=' ? 'IS' : 'IS NOT';
         }
 
@@ -414,7 +419,7 @@ class TIP_Data extends TIP_Type
         $name = $path . '.' . $name;
 
         $value = $this->_engine->_preparedValue($value);
-        return 'WHERE ' . $name . ' ' . $condition . ' ' . $value;
+        return ' ' . $connector . ' '. $name . ' ' . $condition . ' ' . $value;
     }
 
     /**

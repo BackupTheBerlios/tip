@@ -865,10 +865,9 @@ require_once 'Block.php';
  *
  * Every TIP based site must have a starting point (in C terms, it must have a
  * "main" function), that is an object that runs a specified source program.
- * This is what $_tip_application is.
- *
- * @var TIP_Application
+ * The following command initializes the $GLOBALS[TIP_MAIN_MODULE] reference
+ * to this entry point.
  */
-$GLOBALS[TIP_MAIN_MODULE] =& TIP_Module::getInstance('application');
+TIP_Module::getInstance('application');
 
 ?>

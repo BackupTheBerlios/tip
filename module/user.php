@@ -36,13 +36,17 @@ class TIP_User extends TIP_Block
     function _login()
     {
         $row =& $this->view->rowCurrent();
-        $this->_activateUser($row);
-        $expiration = strtotime($this->getOption('expiration'));
-        setcookie('TIP_User', $row['id'] . ',' . crypt($row['password']), $expiration);
+        if (!empty($row)) {
+            $this->_activateUser($row);
+            $expiration = strtotime($this->getOption('expiration'));
+            setcookie('TIP_User', $row['id'] . ',' . crypt($row['password']), $expiration);
+        }
     }
 
     function _logout()
     {
+        require_once 'HTTP/Session.php';
+
         $fake_null = null;
         $this->_activateUser($fake_null);
         setcookie('TIP_User', '', time()-3600);
@@ -78,11 +82,6 @@ class TIP_User extends TIP_Block
         return true;
     }
 
-    function _onDelete(&$form, &$row)
-    {
-        // todo
-    }
-
     function _updateUser()
     {
         if (is_array($this->_old_row) && is_array($this->_new_row)) {
@@ -113,7 +112,7 @@ class TIP_User extends TIP_Block
 
         $row =& $view->rowReset();
         if (is_null($row)) {
-            TIP::notifyError('notfound');
+            $this->_logout();
             $this->endView();
             return;
         }
@@ -134,7 +133,10 @@ class TIP_User extends TIP_Block
         switch ($action) {
 
         case 'edit':
-            return !is_null($this->form(TIP_FORM_ACTION_EDIT, TIP::getGet('id', 'integer')));
+            if (is_null($id = TIP::getGet('id', 'int'))) {
+                $id = TIP::getPost('id', 'int');
+            }
+            return !is_null($this->form(TIP_FORM_ACTION_EDIT, $id));
         }
 
         return parent::runManagerAction($action);
@@ -150,10 +152,7 @@ class TIP_User extends TIP_Block
                 TIP::notifyError('noparams');
                 return false;
             }
-            $processed = $this->form(TIP_FORM_ACTION_DELETE, $id, array(
-                'on_process' => array(&$this, '_onDelete'))
-            );
-            return !is_null($processed);
+            return !is_null($this->form(TIP_FORM_ACTION_DELETE, $id));
         }
 
         return parent::runAdminAction($action);
@@ -176,14 +175,13 @@ class TIP_User extends TIP_Block
         switch ($action) {
 
         case 'delete':
-            $id = TIP::getCurrentId();
-            if (!$id) {
-                TIP::notifyError('reserved');
-                return false;
+            $processed = $this->form(TIP_FORM_ACTION_DELETE, null, array(
+                'referer' => TIP::buildUrl('index.php')
+            ));
+            if ($processed) {
+                $this->_logout();
             }
-            $processed = $this->form(TIP_FORM_ACTION_DELETE, $id, array(
-                'on_process' => array(&$this, '_onDelete'))
-            );
+
             return !is_null($processed);
 
         case 'unset':
@@ -214,7 +212,7 @@ class TIP_User extends TIP_Block
                 return false;
             }
 
-            $filter = $this->data->filter('user', $user);
+            $filter = $this->data->filter('user', $user) . $this->data->addFilter('AND', 'password', $password);
             if (!$this->startView($filter)) {
                 TIP::notifyError('select');
                 return false;
@@ -226,19 +224,34 @@ class TIP_User extends TIP_Block
                 return false;
             }
 
-            if ($this->getField('password') != $password) {
-                $this->endView();
-                TIP::notifyError('wrongparams');
-                return false;
-            }
-
             // No EndView() call to retain this row as default row
             $this->_login();
             return true;
 
         case 'add':
-            // TODO: conditions acceptance
-            return !is_null($this->form(TIP_FORM_ACTION_ADD));
+            if (TIP::getGet('accept', 'int') == 1) {
+                $this->appendToContent('conditions.src');
+                return true;
+            }
+
+            $processed = $this->form(TIP_FORM_ACTION_ADD, null, array(
+                'defaults'      => array(
+                    '_creation' => TIP::formatDate('datetime_iso8601'),
+                    '_hits'     => 1,
+                    '_lasthit'  => TIP::formatDate('datetime_iso8601')
+                ),
+                'referer'       => TIP::buildUrl('index.php')
+            ));
+
+            if ($processed &&
+                !is_null($id = $this->data->getLastId()) &&
+                !is_null($filter = $this->data->rowFilter($id)) &&
+                !is_null($view =& $this->startView($filter)) &&
+                !is_null($view->rowReset())) {
+                $this->_login();
+            }
+
+            return !is_null($processed);
         }
 
         return parent::runAction($action);

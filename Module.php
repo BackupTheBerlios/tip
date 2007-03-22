@@ -733,9 +733,9 @@ class TIP_Module extends TIP_Type
             $interface = ucfirst(substr($id, $_pos+1));
 
             // Register the interface
-            if (is_null(TIP_Module::singleton($interface))) {
+            if (is_null(TIP_Type::singleton($interface))) {
                 $file = TIP::buildLogicPath('interface', $interface) . '.php';
-                $instance =& TIP_Module::singleton($interface, $file, $required);
+                TIP_Type::singleton($interface, $file, $required);
             }
 
             // Implement the interface for the master module

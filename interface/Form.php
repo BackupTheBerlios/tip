@@ -66,20 +66,38 @@ class TIP_Form extends TIP_Module
         return $tmp_name;
     }
 
+    function _ruleUnique($value, $options)
+    {
+        $form =& $GLOBALS['_TIP_FORM'];
+        $data =& $form->_block->data;
+        $filter = $data->filter($options, $value);
+        $rows =& $data->getRows($filter);
+        $valid = empty($rows);
+
+        if (!$valid && count($rows) < 2) {
+            // Check if the row edited by this form has the same primary key of
+            // the found row
+            $primary_key = $data->getPrimaryKey();
+            $valid = @array_key_exists($form->_defaults[$primary_key], $rows);
+        }
+
+        return $valid;
+    }
+
     function _ruleDate($value)
     {
         list($day, $month, $year) = array_values($value);
         return checkdate($month, $day, $year);
     }
 
-    function _ruleMinImageSize($value, $size)
+    function _ruleMinImageSize($value, $options)
     {
         if (is_null($tmp_file = TIP_Form::_getValidTmpFile($value))) {
             // Yet invalid or no uploaded file found
             return true;
         }
 
-        list($min_width, $min_height) = $size;
+        list($min_width, $min_height) = $options;
         list($width, $height) = getimagesize($tmp_file);
         if (empty($width) || empty($height)) {
             // getimagesize() failed to get the size
@@ -89,14 +107,14 @@ class TIP_Form extends TIP_Module
         return $width >= $min_width && $height >= $min_height;
     }
 
-    function _ruleMaxImageSize($value, $size)
+    function _ruleMaxImageSize($value, $options)
     {
         if (is_null($tmp_file = TIP_Form::_getValidTmpFile($value))) {
             // Yet invalid or no uploaded file found
             return true;
         }
 
-        list($max_width, $max_height) = $size;
+        list($max_width, $max_height) = $options;
         list($width, $height) = getimagesize($tmp_file);
         if (empty($width) || empty($height)) {
             // getimagesize() failed to get the size
@@ -213,7 +231,7 @@ class TIP_Form extends TIP_Module
         }
 
         $this->_addRule(array($reid, $id), 'compare');
-        if (is_array($this->_defaults) && !array_key_exists($reid, $this->_defaults)) {
+        if (@array_key_exists($id, $this->_defaults) && !array_key_exists($reid, $this->_defaults)) {
             $this->_defaults[$reid] = $this->_defaults[$id];
         }
 
@@ -496,6 +514,10 @@ class TIP_Form extends TIP_Module
         $this->_id = $block_id . '_form';
         $this->_block =& TIP_Module::getInstance($block_id);
         $this->TIP_Module();
+
+        $GLOBALS['_TIP_FORM'] =& $this;
+
+        HTML_QuickForm::registerRule('unique', 'callback', '_ruleUnique', 'TIP_Form');
     }
 
     /**
@@ -664,7 +686,7 @@ class TIP_Form extends TIP_Module
             break;
 
         case TIP_FORM_ACTION_DELETE:
-            $id = TIP::getGet($this->_block->data->getPrimaryKey(), 'int');
+            $id = $row[$this->_block->data->getPrimaryKey()];
             $this->_block->data->deleteRow($id);
             break;
         }
