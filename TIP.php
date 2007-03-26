@@ -204,17 +204,16 @@ class TIP
     {
         require_once 'HTTP/Session.php';
 
+        HTTP_Session::useTransSID(false);
+
         $user_id = TIP::getUserId();
-        if (isset($user_id) && $user_id !== false) {
+        if ($user_id) {
             // For a logged in user, the session id is its user_id
             HTTP_Session::useCookies(false);
-            HTTP_Session::useTransSID(false);
             HTTP_Session::start('TIP_Session', $user_id);
         } else {
-            // For anonymous users, try to use the TransSID feature of PHP.
-            // If not available, as last resort, use cookies.
-            HTTP_Session::useTransSID(true);
-            HTTP_Session::useTransSID() || HTTP_Session::useCookies(true);
+            // For anonymous users, an automatic session id is used
+            HTTP_Session::useCookies(true);
             HTTP_Session::start('TIP_Session');
         }
 
@@ -655,6 +654,33 @@ class TIP
         }
 
         return TIP::deepImplode(array($data_path, func_get_args()), DIRECTORY_SEPARATOR);
+    }
+
+
+    /**
+     * Get the referer
+     *
+     * Gets the referer for this page. If a double click on the same page is
+     * catched, the old referer is retained.
+     *
+     * @return string The current referer
+     */
+    function getReferer()
+    {
+        static $referer = null;
+        if (is_null($referer)) {
+            TIP::startSession();
+            $request_uri = HTTP_Session::get('request_uri');
+            if (@$_SERVER['REQUEST_URI'] == $request_uri) {
+                $referer = HTTP_Session::get('referer');
+            } else {
+                $referer = $request_uri ? $request_uri : @$_SERVER['HTTP_REFERER'];
+                HTTP_Session::set('referer', $referer);
+                HTTP_Session::set('request_uri', @$_SERVER['REQUEST_URI']);
+            }
+        }
+
+        return $referer;
     }
 
     /**

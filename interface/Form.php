@@ -31,6 +31,8 @@ class TIP_Form extends TIP_Module
     var $_fields = null;
     var $_form = null;
     var $_action = null;
+    var $_command = null;
+    var $_validator = null;
     var $_converter = array();
     var $_defaults = null;
     var $_validation = 'client';
@@ -69,6 +71,10 @@ class TIP_Form extends TIP_Module
     function _ruleUnique($value, $options)
     {
         $form =& $GLOBALS['_TIP_FORM'];
+        if ($form->_command != TIP_FORM_ACTION_ADD && $form->_command != TIP_FORM_ACTION_EDIT) {
+            return true;
+        }
+
         $data =& $form->_block->data;
         $filter = $data->filter($options, $value);
         $rows =& $data->getRows($filter);
@@ -220,19 +226,21 @@ class TIP_Form extends TIP_Module
             $this->_addRule($id, 'maxlength', $field['length']);
         }
 
-        $reid = 're' . $id;
-        $reelement =& $this->_addElement('password', $reid);
-        $reelement->setAttribute('class', 'expand');
+        if ($this->_command == TIP_FORM_ACTION_ADD || $this->_command == TIP_FORM_ACTION_EDIT) {
+            $reid = 're' . $id;
+            $reelement =& $this->_addElement('password', $reid);
+            $reelement->setAttribute('class', 'expand');
 
-        // The repetition field must have the same features of the original,
-        // so the field structure is copyed
-        if (!array_key_exists($reid, $this->_fields)) {
-            $this->_fields[$reid] = $field;
-        }
+            // The repetition field must have the same features of the original,
+            // so the field structure is copyed
+            if (!array_key_exists($reid, $this->_fields)) {
+                $this->_fields[$reid] = $field;
+            }
 
-        $this->_addRule(array($reid, $id), 'compare');
-        if (@array_key_exists($id, $this->_defaults) && !array_key_exists($reid, $this->_defaults)) {
-            $this->_defaults[$reid] = $this->_defaults[$id];
+            $this->_addRule(array($reid, $id), 'compare');
+            if (@array_key_exists($id, $this->_defaults) && !array_key_exists($reid, $this->_defaults)) {
+                $this->_defaults[$reid] = $this->_defaults[$id];
+            }
         }
 
         return $element;
@@ -451,6 +459,11 @@ class TIP_Form extends TIP_Module
                     $this->_addCustomRules($id);
                 }
             }
+
+            if (isset($this->_validator)) {
+                $this->_form->addFormRule($this->_validator);
+            }
+
             $this->_form->applyFilter('__ALL__', 'trim');
             if ($this->_form->validate()) {
                 $this->_form->freeze();
@@ -551,6 +564,13 @@ class TIP_Form extends TIP_Module
             $this->$property =& $options[$name];
         }
 
+        if (!isset($this->_command)) {
+            $this->_command = $this->_action;
+        }
+        if (!isset($this->_referer)) {
+            $this->_referer = TIP::getReferer();
+        }
+
         if (!isset($this->_buttons)) {
             switch ($this->_action) {
 
@@ -571,22 +591,20 @@ class TIP_Form extends TIP_Module
                 $this->_buttons = TIP_FORM_BUTTON_CLOSE;
             }
         }
-
-        if (!isset($this->_referer)) {
-            $this->_referer = $_SERVER['HTTP_REFERER'];
-        }
     }
 
     function run()
     {
-        $this->_fields = $this->_block->data->getFields();
+        if (is_null($this->_fields)) {
+            $this->_fields = $this->_block->data->getFields();
+        }
 
         // Create the interface
         $this->_form =& new HTML_QuickForm_DHTMLRulesTableless($this->_block->getId());
         $this->_form->removeAttribute('name'); // XHTML compliance
-        $this->_addElement('header', $this->_action . '_header');
+        $this->_addElement('header', $this->_command . '_header');
         $this->_form->addElement('hidden', 'module', $this->_block->getId());
-        $this->_form->addElement('hidden', 'action', $this->_action);
+        $this->_form->addElement('hidden', 'action', $this->_command);
         array_walk(array_keys($this->_fields), array(&$this, '_addWidget'));
 
         // Set the default content
@@ -611,7 +629,6 @@ class TIP_Form extends TIP_Module
                     $this->_onProcess($this->_defaults);
                 }
                 HTTP_Session::set('form.to_process', null);
-                TIP::notifyInfo('done');
             }
             $action  = TIP_FORM_ACTION_VIEW;
             $buttons = TIP_FORM_BUTTON_CLOSE;
@@ -679,15 +696,18 @@ class TIP_Form extends TIP_Module
 
         case TIP_FORM_ACTION_ADD:
             $this->_block->data->putRow($row);
+            TIP::notifyInfo('done');
             break;
 
         case TIP_FORM_ACTION_EDIT:
             $this->_block->data->updateRow($row);
+            TIP::notifyInfo('done');
             break;
 
         case TIP_FORM_ACTION_DELETE:
             $id = $row[$this->_block->data->getPrimaryKey()];
             $this->_block->data->deleteRow($id);
+            TIP::notifyInfo('done');
             break;
         }
     }

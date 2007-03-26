@@ -50,12 +50,13 @@ class TIP_Application extends TIP_Module
     function postConstructor()
     {
         $GLOBALS[TIP_MAIN_MODULE] =& $this;
-        parent::postConstructor();
 
-        $this->keys['ROOT'] = TIP::buildUrl('index.php');
-        $this->keys['REFERER'] = @$_SERVER['HTTP_REFERER'];
         $this->keys['TODAY'] = TIP::formatDate('date_iso8601');
         $this->keys['NOW'] = TIP::formatDate('datetime_iso8601');
+        $this->keys['ROOT'] = TIP::buildUrl('index.php');
+        $this->keys['REFERER'] = TIP::getReferer();
+
+        parent::postConstructor();
 
         if ($this->keys['IS_MANAGER']) {
             require_once 'Benchmark/Profiler.php';
@@ -98,25 +99,25 @@ class TIP_Application extends TIP_Module
      */
     function commandDebug($params)
     {
-        if (! $this->keys['IS_MANAGER']) {
-            return true;
+        if ($this->keys['IS_ADMIN']) {
+            $logger =& TIP_Module::getInstance('logger');
+            if (is_object($logger)) {
+                $logger->commandRun('browse.src');
+            }
         }
 
-        $logger =& TIP_Module::getInstance('logger');
-        if (is_object($logger)) {
-            $logger->commandRun('browse.src');
-        }
+        if ($this->keys['IS_MANAGER']) {
+            global $_tip_profiler;
+            if (is_object($_tip_profiler)) {
+                // Leave itsself, that is the commandDebug section
+                $_tip_profiler->leaveSection('debug');
 
-        global $_tip_profiler;
-        if (is_object($_tip_profiler)) {
-            // Leave itsself, that is the commandDebug section
-            $_tip_profiler->leaveSection('debug');
+                $_tip_profiler->stop();
+                $_tip_profiler->display('html');
 
-            $_tip_profiler->stop();
-            $_tip_profiler->display('html');
-
-            // This prevent further operation on $_tip_profiler
-            $_tip_profiler = null;
+                // This prevent further operation on $_tip_profiler
+                $_tip_profiler = null;
+            }
         }
 
         return true;
@@ -154,19 +155,19 @@ class TIP_Application extends TIP_Module
 
         // Locale settings
         switch (TIP::getOS()) {
+
         case 'unix':
             // Dirty hack to set the locale on unix systems
             setlocale(LC_ALL, $locale . '_' . strtoupper($locale));
             break;
+
         case 'windows':
             setlocale(LC_ALL, $locale);
             break;
+
         default:
             break;
         }
-
-        // Start the session
-        TIP::startSession();
 
         // Executes the action
         $action = TIP::getGet('action', 'string');

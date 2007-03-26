@@ -82,6 +82,27 @@ class TIP_User extends TIP_Block
         return true;
     }
 
+    function _checkLogin(&$input)
+    {
+        if (!$this->startView($this->data->filter('user', $input['user']) . ' LIMIT 1')) {
+            TIP::notifyError('select');
+            return array('user' => 'errore');
+        }
+
+        $row =& $this->view->rowReset();
+        if (!$row) {
+            $this->endView();
+            return array('user' => $this->getLocale('notfound'));
+        }
+
+        if ($row['password'] != $input['password']) {
+            $this->endView();
+            return array('password' => $this->getLocale('wrongpassword'));
+        }
+
+        return true;
+    }
+
     function _updateUser()
     {
         if (is_array($this->_old_row) && is_array($this->_new_row)) {
@@ -200,33 +221,18 @@ class TIP_User extends TIP_Block
         switch ($action) {
 
         case 'set':
-            $user = TIP::getPost('user', 'string');
-            if (empty($user)) {
-                TIP::notifyError('noparams');
-                return false;
-            }
-
-            $password = TIP::getPost('password', 'string');
-            if (empty($password)) {
-                TIP::notifyError('noparams');
-                return false;
-            }
-
-            $filter = $this->data->filter('user', $user) . $this->data->addFilter('AND', 'password', $password);
-            if (!$this->startView($filter)) {
-                TIP::notifyError('select');
-                return false;
-            }
-
-            if (!$this->view->rowReset()) {
-                $this->endView();
-                TIP::notifyError('wrongparams');
-                return false;
-            }
-
-            // No EndView() call to retain this row as default row
-            $this->_login();
-            return true;
+            $fields =& $this->data->getFields();
+            $processed = $this->form(TIP_FORM_ACTION_ADD, null, array(
+                'fields'        => array(
+                    'user'      => $fields['user'],
+                    'password'  => $fields['password']
+                ),
+                'command'       => 'set',
+                'validator'     => array(&$this, '_checkLogin'),
+                'on_process'    => array(&$this, '_login'),
+                'valid_render'  => TIP_FORM_RENDER_NOTHING
+            ));
+            return !is_null($processed);
 
         case 'add':
             if (TIP::getGet('accept', 'int') == 1) {
@@ -239,8 +245,7 @@ class TIP_User extends TIP_Block
                     '_creation' => TIP::formatDate('datetime_iso8601'),
                     '_hits'     => 1,
                     '_lasthit'  => TIP::formatDate('datetime_iso8601')
-                ),
-                'referer'       => TIP::buildUrl('index.php')
+                )
             ));
 
             if ($processed &&

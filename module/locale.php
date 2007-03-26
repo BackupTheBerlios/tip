@@ -91,7 +91,7 @@ class TIP_Locale extends TIP_Block
             $view =& $this->startView($filter);
             if (is_null($view)) {
                 TIP::warning("localized text not found ($row_id)");
-                return $id;
+                return $row_id;
             }
 
             $rows =& $this->view->rows;
@@ -113,7 +113,7 @@ class TIP_Locale extends TIP_Block
 
         if (is_null($row)) {
             TIP::warning("localized text not found ($row_id)");
-            return $id;
+            return $row_id;
         }
 
         $text = @$row[$this->_locale];
