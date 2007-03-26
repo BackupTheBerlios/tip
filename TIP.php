@@ -773,10 +773,11 @@ class TIP
         }
 
         $anonymous = is_null($user_id) || $user_id === false;
+        $module_id = strtolower($module_name);
         if (!$anonymous) {
             $privilege =& TIP_Module::getInstance('privilege');
             if (is_object($privilege)) {
-                $stored_privilege = $privilege->getStoredPrivilege($module_name, $user_id);
+                $stored_privilege = $privilege->getStoredPrivilege($module_id, $user_id);
                 if ($stored_privilege != TIP_PRIVILEGE_INVALID) {
                     return $stored_privilege;
                 }
@@ -784,7 +785,7 @@ class TIP
         }
 
         $privilege_type = $anonymous ? 'anonymous_privilege' : 'default_privilege';
-        $result = TIP::getOption($module_name, $privilege_type);
+        $result = TIP::getOption($module_id, $privilege_type);
         if (is_null($result)) {
             $result = TIP::getOption('application', $privilege_type);
         }

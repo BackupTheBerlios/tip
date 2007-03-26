@@ -124,10 +124,67 @@ class TIP_Privilege extends TIP_Block
         return true;
     }
 
-/**#@-*/
+    /**#@-*/
 
 
-/**#@+ @access protected */
+    /**#@+ @access protected */
+
+    /**#@+
+     * @param string @params The parameter string
+     * @return bool true on success or false on errors
+     * @subpackage SourceEngine
+     */
+
+    /**
+     * Check if the current user is manager
+     *
+     * Expands to true if the current logged-in user is manager in the module
+     * specified with $params, false otherwise.
+     */
+    function commandIsManager($params)
+    {
+        echo TIP::getPrivilege($params) >= TIP_PRIVILEGE_MANAGER ? 'true' : 'false';
+        return true;
+    }
+
+    /**
+     * Check if the current user is administrator
+     *
+     * Expands to true if the current logged-in user is administrator in the
+     * module specified with $params, false otherwise.
+     */
+    function commandIsAdmin($params)
+    {
+        echo TIP::getPrivilege($params) >= TIP_PRIVILEGE_ADMIN ? 'true' : 'false';
+        return true;
+    }
+
+    /**
+     * Check if the current user is a trusted user
+     *
+     * Expands to true if the current logged-in user is trusted in the
+     * module specified with $params, false otherwise.
+     */
+    function commandIsTrusted($params)
+    {
+        echo TIP::getPrivilege($params) >= TIP_PRIVILEGE_TRUSTED ? 'true' : 'false';
+        return true;
+    }
+
+    /**
+     * Check if the current user is an untrusted user
+     *
+     * Expands to true if the current logged-in user is untrusted in the
+     * module specified with $params, false otherwise.
+     */
+    function commandIsUntrusted($params)
+    {
+        echo TIP::getPrivilege($params) >= TIP_PRIVILEGE_UNTRUSTED ? 'true' : 'false';
+        return true;
+    }
+
+    /**#@-*/
+
 
     function runManagerAction($action)
     {
