@@ -235,17 +235,17 @@ class TIP_Mysql extends TIP_Data_Engine
      */
     function _preparedValue($value)
     {
-        if (is_array($value)) {
+        if (is_int($value) || is_float($value)) {
+            return $value;
+        } elseif (is_string($value)) {
+            return "'" . mysql_real_escape_string($value, $this->_connection) . "'";
+        } elseif (is_array($value)) {
             $self = array(&$this, __FUNCTION__);
             return implode(',', array_map($self, $value));
         } elseif (is_null($value)) {
             return 'NULL';
-        } elseif (is_int($value) || is_float($value)) {
-            return $value;
         } elseif (is_bool($value)) {
             return $value ? 'TRUE' : 'FALSE';
-        } elseif (is_string($value)) {
-            return "'" . mysql_real_escape_string($value, $this->_connection) . "'";
         }
 
         $type = gettype($value);

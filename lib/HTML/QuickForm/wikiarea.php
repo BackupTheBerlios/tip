@@ -50,9 +50,7 @@ class HTML_QuickForm_wikiarea extends HTML_QuickForm_textarea
      */
     function HTML_QuickForm_wikiarea($elementName=null, $elementLabel=null, $attributes=null)
     {
-        HTML_QuickForm_element::HTML_QuickForm_element($elementName, $elementLabel, $attributes);
-        $this->_persistantFreeze = true;
-        $this->_type = 'wikiarea';
+        HTML_QuickForm_textarea::HTML_QuickForm_textarea($elementName, $elementLabel, $attributes);
     } //end constructor
     
     // }}}
@@ -140,6 +138,6 @@ class HTML_QuickForm_wikiarea extends HTML_QuickForm_textarea
 
     /**#@-*/
 
-} //end class HTML_QuickForm_textarea
+} //end class HTML_QuickForm_wikiarea
 
 ?>

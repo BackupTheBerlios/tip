@@ -131,12 +131,11 @@ class TIP_Block extends TIP_Module
     /**
      * Echo an uploaded URL
      *
-     * Shortcut for the often used upload url. The upload URL is under the
-     * directory "data", relative to the site root URL.
+     * Shortcut for the often used data url.
      */
-    function commandUploadUrl($params)
+    function commandDataUrl($params)
     {
-        echo TIP::buildUrl('data', $this->getId(), $params);
+        echo TIP::buildDataUrl($this->getId(), $params);
         return true;
     }
 

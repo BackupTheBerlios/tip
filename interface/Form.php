@@ -56,18 +56,6 @@ class TIP_Form extends TIP_Module
     var $_on_process = null;
 
 
-    function _getValidTmpFile($struct)
-    {
-        if (isset($struct['error']) && $struct['error'] != UPLOAD_ERR_OK) {
-            return null;
-        }
-        $tmp_name = @$struct['tmp_name'];
-        if (empty($tmp_name) || $tmp_name == 'none') {
-            return null;
-        }
-        return $tmp_name;
-    }
-
     function _ruleUnique($value, $options)
     {
         $form =& $GLOBALS['_TIP_FORM'];
@@ -96,40 +84,6 @@ class TIP_Form extends TIP_Module
         return checkdate($month, $day, $year);
     }
 
-    function _ruleMinImageSize($value, $options)
-    {
-        if (is_null($tmp_file = TIP_Form::_getValidTmpFile($value))) {
-            // Yet invalid or no uploaded file found
-            return true;
-        }
-
-        list($min_width, $min_height) = $options;
-        list($width, $height) = getimagesize($tmp_file);
-        if (empty($width) || empty($height)) {
-            // getimagesize() failed to get the size
-            return false;
-        }
-
-        return $width >= $min_width && $height >= $min_height;
-    }
-
-    function _ruleMaxImageSize($value, $options)
-    {
-        if (is_null($tmp_file = TIP_Form::_getValidTmpFile($value))) {
-            // Yet invalid or no uploaded file found
-            return true;
-        }
-
-        list($max_width, $max_height) = $options;
-        list($width, $height) = getimagesize($tmp_file);
-        if (empty($width) || empty($height)) {
-            // getimagesize() failed to get the size
-            return false;
-        }
-
-        return $width <= $max_width && $height <= $max_height;
-    }
-
     function _converterTimestamp(&$row, $field)
     {
         list($day, $month, $year) = array_values($row[$field]);
@@ -145,60 +99,6 @@ class TIP_Form extends TIP_Module
     function _converterCancel(&$row, $field)
     {
         $row[$field] = @$this->_defaults[$field];
-    }
-
-    function _converterUpload(&$row, $field)
-    {
-        $value =& $row[$field];
-        if (is_null($tmp_file = TIP_Form::_getValidTmpFile($value))) {
-            // Yet invalid or no uploaded file found
-            $this->_converterCancel($row, $field);
-            return;
-        }
-
-        $extension = substr($value['type'], strpos($value['type'], '/')+1);
-        if (empty($extension)) {
-            $extension = 'jpeg';
-        }
-
-        $path = TIP::buildDataPath($this->_block->getId());
-        $id = @$row[$this->_block->data->getPrimaryKey()];
-        $error = true;
-
-        for (;;) {
-            if (empty($id)) {
-                // Here there is a race condition, but I want $file with the
-                // specific extension provided by the mime type to avoid user
-                // agents pitfalls
-                $file = tempnam($path, 'tmp');
-                if (empty($file) || !rename($file, $file . '.' . $extension)) {
-                    break;
-                }
-                $file .= '.' . $extension;
-                $name = basename($file);
-            } else {
-                // If this is a yet stored row, using the $id will make the
-                // job a lot safer and cleaner
-                $name = $id . '.' . $extension;
-                $file = $path . DIRECTORY_SEPARATOR . $name;
-            }
-
-            $error = !move_uploaded_file($tmp_file, $file);
-            break;
-        }
-
-        if ($error) {
-            TIP::notifyError('upload');
-            $this->_converterCancel($row, $field);
-            return;
-        }
-
-        $old_name = @$this->_defaults[$field];
-        $value = $name;
-
-        if (!empty($old_name) && $old_name != $name) {
-            unlink($path . DIRECTORY_SEPARATOR . $old_name);
-        }
     }
 
     function& _widgetText(&$field)
@@ -334,15 +234,30 @@ class TIP_Form extends TIP_Module
         return $element;
     }
 
-    function& _widgetFile(&$field)
+    function& _widgetPicture(&$field)
     {
-        HTML_QuickForm::registerRule('minimagesize', 'callback', '_ruleMinImageSize', 'TIP_Form');
-        HTML_QuickForm::registerRule('maximagesize', 'callback', '_ruleMaxImageSize', 'TIP_Form');
+        HTML_QuickForm::registerElementType('picture', 'HTML/QuickForm/picture.php', 'HTML_QuickForm_picture');
 
         $id = $field['id'];
-        $element =& $this->_addElement('file', $id);
+        $element =& $this->_addElement('picture', $id);
+        $element->setBasePath(TIP::buildDataPath($this->_block->getId()));
+        $element->setBaseUrl(TIP::buildDataUrl($this->_block->getId()));
 
-        $this->_addConverter($id, 'upload');
+        if ($id == urldecode(TIP::getGet('unload', 'string'))) {
+            $element->unloadPicture();
+        } else {
+            $unload_url = TIP::buildUrl('index.php');
+            $unload_url .= '?module=' . $this->_block->getId();
+            $unload_url .= '&action=' . $this->_command;
+            $primary_key = $this->_block->data->getPrimaryKey();
+            if (!empty($this->_defaults[$primary_key])) {
+                $unload_url .= '&' . $primary_key . '=' . $this->_defaults[$primary_key];
+            }
+            $unload_url .= '&unload=' . $id;
+            $unload =& $this->_form->createElement('link', 'delete', null, $unload_url, $this->getLocale('delete'));
+            $element->setUnloadElement($unload);
+        }
+
         return $element;
     }
 
@@ -454,7 +369,7 @@ class TIP_Form extends TIP_Module
         case TIP_FORM_ACTION_ADD:
         case TIP_FORM_ACTION_EDIT:
             foreach (array_keys($this->_fields) as $id) {
-                if ($this->_form->elementExists($id)) {
+                if ($this->_form->elementExists($id) && @$this->_fields[$id]['widget'] != 'upload') {
                     $this->_addGuessedRules($id);
                     $this->_addCustomRules($id);
                 }
@@ -617,10 +532,14 @@ class TIP_Form extends TIP_Module
 
         // Validate the form
         $valid = $this->_validate();
-        $action = $this->_action;
-        $referer = $this->_referer;
+
+        // Perform uploads (if any)
+        if (is_callable(array('HTML_QuickForm_picture', 'doUploads'))) {
+            HTML_QuickForm_picture::doUploads($this->_form);
+        }
 
         // Process the form
+        $referer = $this->_referer;
         if ($valid === true) {
             if (@HTTP_Session::get('form.to_process')) {
                 if ($this->_form->isSubmitted()) {
@@ -630,7 +549,6 @@ class TIP_Form extends TIP_Module
                 }
                 HTTP_Session::set('form.to_process', null);
             }
-            $action  = TIP_FORM_ACTION_VIEW;
             $buttons = TIP_FORM_BUTTON_CLOSE;
             $referer = HTTP_Session::get('form.referer');
             $render = $this->_valid_render;

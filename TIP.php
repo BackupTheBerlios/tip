@@ -387,6 +387,32 @@ class TIP
     }
 
     /**
+     * Get the referer
+     *
+     * Gets the referer for this page. If a double click on the same page is
+     * catched, the old referer is retained.
+     *
+     * @return string The current referer
+     */
+    function getReferer()
+    {
+        static $referer = null;
+        if (is_null($referer)) {
+            TIP::startSession();
+            $request_uri = HTTP_Session::get('request_uri');
+            if (@$_SERVER['REQUEST_URI'] == $request_uri) {
+                $referer = HTTP_Session::get('referer');
+            } else {
+                $referer = $request_uri ? $request_uri : @$_SERVER['HTTP_REFERER'];
+                HTTP_Session::set('referer', $referer);
+                HTTP_Session::set('request_uri', @$_SERVER['REQUEST_URI']);
+            }
+        }
+
+        return $referer;
+    }
+
+    /**
      * Get the timestamp from a special date
      *
      * Parses $date, specified in $format format, and return the timestamp.
@@ -656,33 +682,6 @@ class TIP
         return TIP::deepImplode(array($data_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
 
-
-    /**
-     * Get the referer
-     *
-     * Gets the referer for this page. If a double click on the same page is
-     * catched, the old referer is retained.
-     *
-     * @return string The current referer
-     */
-    function getReferer()
-    {
-        static $referer = null;
-        if (is_null($referer)) {
-            TIP::startSession();
-            $request_uri = HTTP_Session::get('request_uri');
-            if (@$_SERVER['REQUEST_URI'] == $request_uri) {
-                $referer = HTTP_Session::get('referer');
-            } else {
-                $referer = $request_uri ? $request_uri : @$_SERVER['HTTP_REFERER'];
-                HTTP_Session::set('referer', $referer);
-                HTTP_Session::set('request_uri', @$_SERVER['REQUEST_URI']);
-            }
-        }
-
-        return $referer;
-    }
-
     /**
      * Build a URL
      *
@@ -718,6 +717,25 @@ class TIP
         }
 
         return TIP::deepImplode(array($source_url, func_get_args()), '/');
+    }
+
+    /**
+     * Build a data URL
+     *
+     * Shortcut for building a URL prepending the application 'data_root'.
+     *
+     * @param string|array $suburl,... A list of partial URLs
+     * @return string The constructed URL
+     */
+    function buildDataUrl()
+    {
+        static $data_url = null;
+        if (is_null($data_url)) {
+            $data_root = TIP::getOption('application', 'data_root', true);
+            $data_url = TIP::buildUrl($data_root);
+        }
+
+        return TIP::deepImplode(array($data_url, func_get_args()), '/');
     }
 
     /**
