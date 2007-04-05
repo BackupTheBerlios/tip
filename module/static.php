@@ -38,10 +38,7 @@ class TIP_Static extends TIP_Block
                 TIP::notifyError('noparams');
                 return false;
             }
-            $processed = $this->form(TIP_FORM_ACTION_DELETE, $id, array(
-                'on_process' => array(&$this, '_onDelete'))
-            );
-            return !is_null($processed);
+            return !is_null($this->form(TIP_FORM_ACTION_DELETE, $id));
         }
 
         return parent::runManagerAction($action);

@@ -239,22 +239,16 @@ class TIP_Form extends TIP_Module
         HTML_QuickForm::registerElementType('picture', 'HTML/QuickForm/picture.php', 'HTML_QuickForm_picture');
 
         $id = $field['id'];
+        $unload_id = 'unload_' . $id;
         $element =& $this->_addElement('picture', $id);
         $element->setBasePath(TIP::buildDataPath($this->_block->getId()));
         $element->setBaseUrl(TIP::buildDataUrl($this->_block->getId()));
 
-        if ($id == urldecode(TIP::getGet('unload', 'string'))) {
+        if (!@is_null(TIP::getPost($unload_id, 'string'))) {
             $element->unloadPicture();
         } else {
-            $unload_url = TIP::buildUrl('index.php');
-            $unload_url .= '?module=' . $this->_block->getId();
-            $unload_url .= '&action=' . $this->_command;
-            $primary_key = $this->_block->data->getPrimaryKey();
-            if (!empty($this->_defaults[$primary_key])) {
-                $unload_url .= '&' . $primary_key . '=' . $this->_defaults[$primary_key];
-            }
-            $unload_url .= '&unload=' . $id;
-            $unload =& $this->_form->createElement('link', 'delete', null, $unload_url, $this->getLocale('delete'));
+            $unload_label = $this->_block->getLocale($unload_id . '_label');
+            $unload =& $this->_form->createElement('checkbox', $unload_id, $unload_label, $unload_label);
             $element->setUnloadElement($unload);
         }
 

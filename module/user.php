@@ -169,9 +169,7 @@ class TIP_User extends TIP_Block
 
         case 'delete':
             if (is_null($id = TIP::getGet('id', 'integer'))) {
-                TIP::warning('no id specified');
-                TIP::notifyError('noparams');
-                return false;
+                return null;
             }
             return !is_null($this->form(TIP_FORM_ACTION_DELETE, $id));
         }
