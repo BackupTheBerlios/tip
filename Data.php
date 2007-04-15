@@ -434,7 +434,7 @@ class TIP_Data extends TIP_Type
      */
     function order($name, $descending = false)
     {
-        $name = $this->_engine->_prepareName($name);
+        $name = $this->_engine->_preparedName($name);
         $tail = $descending ? ' DESC' : '';
         return 'ORDER BY ' . $name . $tail;
     }

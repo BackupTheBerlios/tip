@@ -47,28 +47,43 @@ class TIP_Hierarchy extends TIP_Block
         $this->_tree  = array();
         $nodes = array();
         foreach ($view->rows as $id => $node) {
-            $parent_id     = @$node['parent'];
-            if (isset($node['_count'])) {
-                $count         = @$node['_count'];
-                $total_count  += $count;
-                $node['COUNT'] = $count;
-            }
-
-            $node['url']   = $base_url . $id;
-            $node['CLASS'] = 'item';
-
-            if ($parent_id) {
-                $parent =& $nodes[$parent_id];
-                $parent['sub'][$id] =  $node;
-                $parent['CLASS']    =  'folder';
-                $nodes[$id]         =& $parent['sub'][$id];
-                if (isset($node['_count'])) {
-                    $parent['COUNT'] += $count;
+            if (array_key_exists($id, $nodes)) {
+                $node['sub'] = @$nodes[$id]['sub'];
+                $node['CLASS'] = @$nodes[$id]['CLASS'];
+                if (isset($nodes[$id]['COUNT'])) {
+                    $node['COUNT'] = $nodes[$id]['COUNT'];
                 }
             } else {
-                $this->_tree[$id]   = $node;
-                $nodes[$id]         =& $this->_tree[$id];
+                $node['CLASS'] = 'item';
             }
+
+            $nodes[$id] =& $node;
+            $node['url'] = $base_url . $id;
+            if (array_key_exists('_count', $node)) {
+                $count = $node['_count'];
+                $node['COUNT'] = @$node['COUNT'] + $count;
+                $total_count += $count;
+            }
+
+            if ($parent_id = @$node['parent']) {
+                $last_id = $id;
+                do {
+                    if (!array_key_exists($parent_id, $nodes)) {
+                        $nodes[$parent_id] = array();
+                    }
+                    $parent =& $nodes[$parent_id];
+                    $parent['sub'][$last_id] =& $nodes[$last_id];
+                    $parent['CLASS'] = 'folder';
+                    if (isset($parent['COUNT'])) {
+                        $parent['COUNT'] += $count;
+                    }
+                    $last_id = $parent_id;
+                } while ($parent_id = @$parent['parent']);
+            } else {
+                $this->_tree[$id] =& $node;
+            }
+
+            unset($node);
         }
 
         $this->_model =& new HTML_Menu($this->_tree);
@@ -157,8 +172,9 @@ class TIP_Hierarchy extends TIP_Block
     function& getModel()
     {
         if (is_null($this->_model)) {
-            // Generate the model by starting a view on the whole data
-            $this->startView('') && $this->endView();
+            // Generate the model by starting a view
+            $filter = $this->data->order('order');
+            $this->startView($filter) && $this->endView();
         }
 
         return $this->_model;
