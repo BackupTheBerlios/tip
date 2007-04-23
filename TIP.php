@@ -60,9 +60,6 @@ define('TIP_FORM_RENDER_NOTHING',     3);
 /**#@-*/
 
 
-require_once 'config.php';
-
-
 /**
  * A collection of global functions
  *
@@ -153,7 +150,7 @@ class TIP
      * Gets an option
      *
      * Gets a configuration option for a specified type. All the option values
-     * must be defined in the config.php file.
+     * are defined in the config file.
      *
      * @param string $type     Descriptor of the type
      * @param string $option   The option to retrieve

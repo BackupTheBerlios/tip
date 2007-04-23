@@ -38,10 +38,10 @@
  * module-user pair is not stored in the privilege database, the default
  * privilege descriptor will be used.
  *
- * The default privileges COULD be specified in the configure file
- * (logic/config.php) for every module in the 'default_privilege' and
- * 'anonymous_privilege' options. If not specified, the privilege defaults
- * to the one of the 'application' module.
+ * The default privileges SHOULD be specified in the config file
+ * for every module in the 'default_privilege' and 'anonymous_privilege'
+ * options. If not specified, the privilege defaults to the one of the
+ * 'application' module.
  *
  * @final
  * @package TIP
