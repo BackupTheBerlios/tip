@@ -330,32 +330,6 @@ class TIP
     }
 
     /**
-     * Get the referer
-     *
-     * Gets the referer for this page. If a double click on the same page is
-     * catched, the old referer is retained.
-     *
-     * @return string The current referer
-     */
-    function getReferer()
-    {
-        static $referer = null;
-        if (is_null($referer)) {
-            TIP::startSession();
-            $request_uri = HTTP_Session::get('request_uri');
-            if (@$_SERVER['REQUEST_URI'] == $request_uri) {
-                $referer = HTTP_Session::get('referer');
-            } else {
-                $referer = $request_uri ? $request_uri : @$_SERVER['HTTP_REFERER'];
-                HTTP_Session::set('referer', $referer);
-                HTTP_Session::set('request_uri', @$_SERVER['REQUEST_URI']);
-            }
-        }
-
-        return $referer;
-    }
-
-    /**
      * Get the timestamp from a special date
      *
      * Parses $date, specified in $format format, and return the timestamp.
@@ -560,7 +534,7 @@ class TIP
     function buildPath()
     {
         static $base_path = null;
-        if (is_null($base_path)) {
+        if (!$base_path) {
             $script = isset($_SERVER['SCRIPT_FILENAME']) ? $_SERVER['SCRIPT_FILENAME'] : __FILE__;
             $base_path = rtrim(realpath(dirname($script)), DIRECTORY_SEPARATOR);
         }
@@ -579,7 +553,7 @@ class TIP
     function buildLogicPath()
     {
         static $logic_path = null;
-        if (is_null($logic_path)) {
+        if (!$logic_path) {
             $logic_root = TIP::getOption('application', 'logic_root', true);
             $logic_path = TIP::buildPath($logic_root);
         }
@@ -598,12 +572,30 @@ class TIP
     function buildSourcePath()
     {
         static $source_path = null;
-        if (is_null($source_path)) {
+        if (!$source_path) {
             $source_root = TIP::getOption('application', 'source_root', true);
             $source_path = TIP::buildPath($source_root);
         }
 
         return TIP::deepImplode(array($source_path, func_get_args()), DIRECTORY_SEPARATOR);
+    }
+
+    /**
+     * Build a source fallback path
+     *
+     * Shortcut for building a path prepending the application 'source_fallback'.
+     *
+     * @param string|array $subpath,... A list of partial paths
+     * @return string The constructed path
+     */
+    function buildFallbackPath()
+    {
+        static $fallback_path = null;
+        if (!$fallback_path) {
+            $fallback_path = TIP::buildPath(TIP::getOption('application', 'source_fallback'));
+        }
+
+        return TIP::deepImplode(array($fallback_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
 
     /**
@@ -617,7 +609,7 @@ class TIP
     function buildDataPath()
     {
         static $data_path = null;
-        if (is_null($data_path)) {
+        if (!$data_path) {
             $data_root = TIP::getOption('application', 'data_root', true);
             $data_path = TIP::buildPath($data_root);
         }
@@ -637,7 +629,7 @@ class TIP
     function buildUrl()
     {
         static $base_url = null;
-        if (is_null($base_url)) {
+        if (!$base_url) {
             $base_url = rtrim(HTTP::absoluteURI('/'), ' /');
         }
 
@@ -655,11 +647,29 @@ class TIP
     function buildSourceUrl()
     {
         static $source_url = null;
-        if (! $source_url) {
+        if (!$source_url) {
             $source_url = TIP::buildUrl(TIP::getOption('application', 'source_root'));
         }
 
         return TIP::deepImplode(array($source_url, func_get_args()), '/');
+    }
+
+    /**
+     * Build a source fallback URL
+     *
+     * Shortcut for building a URL prepending the application 'source_fallback'.
+     *
+     * @param string|array $suburl,... A list of partial URLs
+     * @return string The constructed URL
+     */
+    function buildFallbackUrl()
+    {
+        static $fallback_url = null;
+        if (!$fallback_url) {
+            $fallback_url = TIP::buildUrl(TIP::getOption('application', 'source_fallback'));
+        }
+
+        return TIP::deepImplode(array($fallback_url, func_get_args()), '/');
     }
 
     /**
@@ -673,12 +683,54 @@ class TIP
     function buildDataUrl()
     {
         static $data_url = null;
-        if (is_null($data_url)) {
+        if (!$data_url) {
             $data_root = TIP::getOption('application', 'data_root', true);
             $data_url = TIP::buildUrl($data_root);
         }
 
         return TIP::deepImplode(array($data_url, func_get_args()), '/');
+    }
+
+    /**
+     * Get the URL of the root script
+     *
+     * @return string The root URL
+     */
+    function getRootUrl()
+    {
+        static $root_url = null;
+        if (!$root_url) {
+            $script = basename($_SERVER['SCRIPT_FILENAME']);
+            $root_url = TIP::buildUrl($script);
+        }
+
+        return $root_url;
+    }
+
+    /**
+     * Get the referer
+     *
+     * Gets the referer for this page. If a double click on the same page is
+     * catched, the old referer is retained.
+     *
+     * @return string The current referer
+     */
+    function getReferer()
+    {
+        static $referer = null;
+        if (is_null($referer)) {
+            TIP::startSession();
+            $request_uri = HTTP_Session::get('request_uri');
+            if (@$_SERVER['REQUEST_URI'] == $request_uri) {
+                $referer = HTTP_Session::get('referer');
+            } else {
+                $referer = $request_uri ? $request_uri : @$_SERVER['HTTP_REFERER'];
+                HTTP_Session::set('referer', $referer);
+                HTTP_Session::set('request_uri', @$_SERVER['REQUEST_URI']);
+            }
+        }
+
+        return $referer;
     }
 
     /**

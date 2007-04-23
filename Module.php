@@ -239,7 +239,23 @@ class TIP_Module extends TIP_Type
     }
 
     /**
-     * Build a module source path
+     * Build a source URL
+     *
+     * Shortcut for building a source URL: if the URL does not point to a
+     * readable file, the fallback URL is used.
+     *
+     * @param string|array $suburl,... A list of partial URLs
+     * @return string The constructed URL
+     */
+    function buildSourceUrl()
+    {
+        $pieces = func_get_args();
+        $url = TIP::buildSourceUrl($pieces);
+        return is_readable($url) ? $url : TIP::buildFallbackUrl($pieces);
+    }
+
+    /**
+     * Build a source path
      *
      * Shortcut for building a module source path using the name of the current
      * module as subpath of the source root.
@@ -247,25 +263,11 @@ class TIP_Module extends TIP_Type
      * @param string|array $subpath,... A list of partial paths
      * @return string The constructed path
      */
-    function buildModulePath()
+    function buildSourcePath()
     {
         $pieces = func_get_args();
-        return TIP::buildSourcePath($this->getId(), $pieces);
-    }
-
-    /**
-     * Build a module source URL
-     *
-     * Shortcut for building a URL using the source_path of the current
-     * module as base URL.
-     *
-     * @param string|array $suburl,... A list of partial URLs
-     * @return string The constructed URL
-     */
-    function buildModuleUrl()
-    {
-        $pieces = func_get_args();
-        return TIP::buildSourceUrl($this->getId(), $pieces);
+        $path = TIP::buildSourcePath($pieces);
+        return is_readable($path) ? $path : TIP::buildFallbackPath($pieces);
     }
 
     /**#@+
@@ -380,7 +382,7 @@ class TIP_Module extends TIP_Type
             array_unshift($list, 'module=' . $this->getId());
         }
         $args = implode('&amp;', TIP::urlEncodeAssignment($list));
-        echo TIP::buildUrl('index.php') . '?' . $args;
+        echo TIP::getRootUrl() . '?' . $args;
         return true;
     }
 
@@ -405,7 +407,7 @@ class TIP_Module extends TIP_Type
      */
     function commandSourceUrl($params)
     {
-        echo TIP::buildSourceUrl($params);
+        echo $this->buildSourceUrl($params);
         return true;
     }
 
@@ -417,7 +419,7 @@ class TIP_Module extends TIP_Type
      */
     function commandModuleUrl($params)
     {
-        echo $this->buildModuleUrl($params);
+        echo $this->buildSourceUrl($this->getId(), $params);
         return true;
     }
 
@@ -429,12 +431,7 @@ class TIP_Module extends TIP_Type
      */
     function commandIconUrl($params)
     {
-        static $icon_url = null;
-        if (is_null($icon_url)) {
-            $icon_url = TIP::buildSourceUrl('shared', 'icons');
-        }
-
-        echo $icon_url . '/' . $params;
+        echo $this->buildSourceUrl('shared', 'icons', $params);
         return true;
     }
 
@@ -458,7 +455,7 @@ class TIP_Module extends TIP_Type
      */
     function commandRun($params)
     {
-        return $this->run($this->buildModulePath($params));
+        return $this->run($this->buildSourcePath($this->getId(), $params));
     }
 
     /**
@@ -469,7 +466,8 @@ class TIP_Module extends TIP_Type
      */
     function commandRunShared($params)
     {
-        return $this->run(TIP::buildSourcePath('shared', $params));
+        return $this->run($this->buildSourcePath('shared', $params));
+        //return $this->run(TIP::buildSourcePath('shared', $params));
     }
 
     /**
@@ -648,7 +646,7 @@ class TIP_Module extends TIP_Type
     {
         $application =& $GLOBALS[TIP_MAIN_MODULE];
         if (strpos($file, DIRECTORY_SEPARATOR) === false) {
-            $file = $this->buildModulePath($file);
+            $file = $this->buildSourcePath($this->getId(), $file);
         }
         $application->prependCallback($this->callback('run', array($file)));
         return true;
@@ -664,7 +662,7 @@ class TIP_Module extends TIP_Type
     {
         $application =& $GLOBALS[TIP_MAIN_MODULE];
         if (strpos($file, DIRECTORY_SEPARATOR) === false) {
-            $file = $this->buildModulePath($file);
+            $file = $this->buildSourcePath($this->getId(), $file);
         }
         $application->appendCallback($this->callback('run', array($file)));
         return true;

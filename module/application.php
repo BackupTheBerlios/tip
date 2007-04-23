@@ -20,13 +20,16 @@
  * callbacks.
  *
  * The global variable $GLOBALS[TIP_MAIN_MODULE] contains a reference to the
- * TIP_Application instantiated object. Your index.php, if the TIP system is
+ * TIP_Application instantiated object. Your main script, if the TIP system is
  * properly configured, will usually be as the following one:
  *
  * <code>
  * <?php
  *
- * require_once 'logic/TIP.php';
+ * require_once './logic/Defs.php';
+ * require_once './config.php';
+ * require_once './logic/TIP.php';
+ *
  * $GLOBALS[TIP_MAIN_MODULE]->go('index.src');
  *
  * ?>
@@ -53,7 +56,7 @@ class TIP_Application extends TIP_Module
 
         $this->keys['TODAY'] = TIP::formatDate('date_iso8601');
         $this->keys['NOW'] = TIP::formatDate('datetime_iso8601');
-        $this->keys['ROOT'] = TIP::buildUrl('index.php');
+        $this->keys['ROOT'] = TIP::getRootUrl();
         $this->keys['REFERER'] = TIP::getReferer();
 
         parent::postConstructor();
@@ -145,7 +148,7 @@ class TIP_Application extends TIP_Module
      * The "main" function
      *
      * The starting point of the TIP system. This must be called somewhere from
-     * your index.php.
+     * your main script.
      *
      * @param string $main_source The main source program to run
      */

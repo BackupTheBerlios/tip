@@ -37,12 +37,10 @@ class TIP_Hierarchy extends TIP_Block
 
         $view->summaries['TOTAL_COUNT'] = 0;
         $total_count =& $view->summaries['TOTAL_COUNT'];
-        $base_url = TIP::buildUrl(
-            'index.php?' .
-            'module=' . $this->_master_id .
+        $base_url = TIP::getRootUrl() .
+            '?module=' . $this->_master_id .
             '&amp;action=' . $this->_action .
-            '&amp;group='
-        );
+            '&amp;group=';
 
         $this->_tree  = array();
         $nodes = array();

@@ -73,7 +73,7 @@ class TIP_Notify extends TIP_Module
             $view->summaries['MESSAGE'] = $message_id;
         }
 
-        $locale->insertInContent($this->buildModulePath($source));
+        $locale->insertInContent($this->buildSourcePath($this->getId(), $source));
         $locale->endView();
         $this->_no_reentrant = false;
         return true;

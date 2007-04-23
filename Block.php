@@ -340,7 +340,7 @@ class TIP_Block extends TIP_Module
         }
 
         if (strpos($file, DIRECTORY_SEPARATOR) === false) {
-            $file = $this->buildModulePath($file);
+            $file = $this->buildSourcePath($this->getId(), $file);
         }
 
         $application =& $GLOBALS[TIP_MAIN_MODULE];
@@ -357,7 +357,7 @@ class TIP_Block extends TIP_Module
         }
 
         if (strpos($file, DIRECTORY_SEPARATOR) === false) {
-            $file = $this->buildModulePath($file);
+            $file = $this->buildSourcePath($this->getId(), $file);
         }
 
         $application =& $GLOBALS[TIP_MAIN_MODULE];
