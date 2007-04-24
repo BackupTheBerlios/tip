@@ -508,10 +508,16 @@ class TIP_Form extends TIP_Module
             $this->_fields = $this->_block->data->getFields();
         }
 
+        $header_label = $this->_block->getLocale($this->_command . '_header_label');
+
         // Create the interface
         $this->_form =& new HTML_QuickForm_DHTMLRulesTableless($this->_block->getId());
-        $this->_form->removeAttribute('name'); // XHTML compliance
-        $this->_addElement('header', $this->_command . '_header');
+        // XHTML compliance
+        $this->_form->removeAttribute('name');
+        $this->_form->addElement('header', $this->_command . '_header', $header_label);
+        // The label element (default header object) is buggy at least in
+        // Firefox, so I provide a decent header object
+        $this->_form->addElement('html', '<h1>' . $header_label . '</h1>');
         $this->_form->addElement('hidden', 'module', $this->_block->getId());
         $this->_form->addElement('hidden', 'action', $this->_command);
         array_walk(array_keys($this->_fields), array(&$this, '_addWidget'));
