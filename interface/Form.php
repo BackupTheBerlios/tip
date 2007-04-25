@@ -40,6 +40,7 @@ class TIP_Form extends TIP_Module
     var $_buttons = null;
     var $_invalid_render = TIP_FORM_RENDER_IN_CONTENT;
     var $_valid_render = TIP_FORM_RENDER_IN_CONTENT;
+    var $_tabindex = 0;
 
     /**
      * Process callback
@@ -161,7 +162,8 @@ class TIP_Form extends TIP_Module
             // On few available choices, use radio button
             $group = array();
             foreach ($items as $i_value => $i_label) {
-                $item =& $this->_form->createElement('radio', $id, $label, $i_label, $i_value);
+                ++ $this->_tabindex;
+                $item =& $this->_form->createElement('radio', $id, $label, $i_label, $i_value, array('tabindex' => $this->_tabindex));
                 $group[] =& $item;
             }
             $element =& $this->_form->addElement('group', $id, $label, $group, null, false);
@@ -179,7 +181,8 @@ class TIP_Form extends TIP_Module
 
         $group = array();
         foreach ($items as $i_value => $i_label) {
-            $item =& $this->_form->createElement('advcheckbox', $id, $label, $i_label);
+            ++ $this->_tabindex;
+            $item =& $this->_form->createElement('advcheckbox', $id, $label, $i_label, array('tabindex' => $this->_tabindex));
             $group[] =& $item;
         }
 
@@ -248,7 +251,8 @@ class TIP_Form extends TIP_Module
             $element->unloadPicture();
         } else {
             $unload_label = $this->_block->getLocale($unload_id . '_label');
-            $unload =& $this->_form->createElement('checkbox', $unload_id, $unload_label, $unload_label);
+            ++ $this->_tabindex;
+            $unload =& $this->_form->createElement('checkbox', $unload_id, $unload_label, $unload_label, array('tabindex' => $this->_tabindex));
             $element->setUnloadElement($unload);
         }
 
@@ -275,7 +279,8 @@ class TIP_Form extends TIP_Module
     function& _addElement($type, $id)
     {
         $label = $this->_block->getLocale($id . '_label');
-        return $this->_form->addElement($type, $id, $label);
+        ++ $this->_tabindex;
+        return $this->_form->addElement($type, $id, $label, array('tabindex' => $this->_tabindex));
     }
 
     function _addWidget($id)
@@ -585,7 +590,7 @@ class TIP_Form extends TIP_Module
             $element->setAttribute('class', 'command');
             $group[] =& $element;
         }
-        if ($buttons & TIP_FORM_BUTTON_DELETE) {
+        if ($buttons & TIP_FORM_BUTTON_DELETE && $this->_command == TIP_FORM_ACTION_DELETE) {
             $url = $_SERVER['REQUEST_URI'] . '&process=1';
             $group[] =& $this->_form->createElement('link', 'delete', null, $url, $this->getLocale('delete'));
         }
@@ -595,7 +600,22 @@ class TIP_Form extends TIP_Module
         if ($buttons & TIP_FORM_BUTTON_CLOSE) {
             $group[] =& $this->_form->createElement('link', 'close', null, $referer, $this->getLocale('close'));
         }
-        $element =& $this->_form->addElement('group', 'buttons', null, $group);
+        if ($buttons & TIP_FORM_BUTTON_DELETE && $this->_command != TIP_FORM_ACTION_DELETE) {
+            $primary_id = $this->_block->data->getPrimaryKey();
+            $primary_value = $this->_form->getElementValue($primary_id);
+            $url = TIP::getRootUrl() . '?module=' . $this->_block->getId() . '&action=delete';
+            $url .= '&' . $primary_id . '=' . urlencode($primary_value);
+            $group[] =& $this->_form->createElement('link', 'delete', null, $url, $this->getLocale('delete'), array('class' => 'dangerous'));
+        }
+
+        // Add the tabindex property to the buttons
+        foreach (array_keys($group) as $id) {
+            ++ $this->_tabindex;
+            $group[$id]->setAttribute ('tabindex', $this->_tabindex);
+        }
+
+        // Add the group of buttons to the form
+        $element =& $this->_form->addElement('group', 'buttons', null, $group, '');
         $element->setAttribute('class', 'command');
 
         // Rendering

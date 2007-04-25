@@ -195,7 +195,7 @@ class TIP_User extends TIP_Block
 
         case 'delete':
             $processed = $this->form(TIP_FORM_ACTION_DELETE, null, array(
-                'referer' => TIP::buildUrl('index.php')
+                'referer' => TIP::getRootUrl()
             ));
             if ($processed) {
                 $this->_logout();
@@ -208,7 +208,10 @@ class TIP_User extends TIP_Block
             return true;
 
         case 'edit':
-            return !is_null($this->form(TIP_FORM_ACTION_EDIT));
+            $processed = $this->form(TIP_FORM_ACTION_EDIT, null, array(
+                'buttons' => TIP_FORM_BUTTON_SUBMIT+TIP_FORM_BUTTON_CANCEL+TIP_FORM_BUTTON_DELETE
+            ));
+            return !is_null($processed);
         }
 
         return parent::runUntrustedAction($action);
