@@ -57,7 +57,7 @@ class TIP_Callback extends TIP
     function TIP_Callback($default = true, $args = null)
     {
         if (is_callable($default)) {
-            $this->_callback =& $default;
+            $this->_callback = $default;
             if (is_array($args)) {
                 $this->_args =& $args;
             }

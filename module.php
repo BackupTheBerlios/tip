@@ -32,17 +32,19 @@ class TIP_Module extends TIP_Type
      * Constructor
      *
      * Initializes a TIP_Module instance.
+     *
+     * @param mixed $id Identifier of this module
      */
-    function TIP_Module()
+    function TIP_Module($id)
     {
-        $this->TIP_Type();
+        $this->TIP_Type($id);
 
-        if (is_null($source_engine = $this->getOption('source_engine')) &&
-            is_null($source_engine = TIP::getOption('application', 'source_engine'))) {
+        if (is_null($engine_name = $this->getOption('source_engine')) &&
+            is_null($engine_name = $GLOBALS[TIP_MAIN]->getOption('source_engine'))) {
             return;
         }
 
-        $this->engine =& TIP_Source_Engine::getInstance($source_engine);
+        $this->engine =& TIP_Type::getInstance($engine_name);
     }
 
     /**
@@ -96,7 +98,7 @@ class TIP_Module extends TIP_Type
      * Get a localized text
      *
      * Gets the localized text for the specified id. The locale used
-     * is get from the 'locale' option of the application, which must be
+     * is get from the 'locale' option of the main module, which must be
      * properly set.
      *
      * See the TIP_Locale::get() method for technical details on how the text
@@ -467,7 +469,6 @@ class TIP_Module extends TIP_Type
     function commandRunShared($params)
     {
         return $this->run($this->buildSourcePath('shared', $params));
-        //return $this->run(TIP::buildSourcePath('shared', $params));
     }
 
     /**
@@ -497,7 +498,7 @@ class TIP_Module extends TIP_Type
      * Format a date
      *
      * Formats the date (specified in $params in iso8601) in the format
-     * "date_" . application_locale.
+     * "date_" . locale.
      * For instance, if the current locale is 'it', the format used will be
      * "date_it".
      *
@@ -505,7 +506,7 @@ class TIP_Module extends TIP_Type
      */
     function commandDate($params)
     {
-        $format = 'date_' . TIP::getOption('application', 'locale');
+        $format = 'date_' . $GLOBALS[TIP_MAIN]->getOption('locale');
         echo TIP::formatDate($format, $params, 'iso8601');
         return true;
     }
@@ -514,7 +515,7 @@ class TIP_Module extends TIP_Type
      * Format a date time
      *
      * Formats the datetime date (specified in iso8601) in the format
-     * "datetime_" . application_locale.
+     * "datetime_" . locale.
      *
      * @uses TIP::formatDate() The date formatter
      */
@@ -522,7 +523,7 @@ class TIP_Module extends TIP_Type
     {
         static $format = null;
         if (is_null($format)) {
-            $format = 'datetime_' . TIP::getOption('application', 'locale');
+            $format = 'datetime_' . $GLOBALS[TIP_MAIN]->getOption('locale');
         }
         echo TIP::toHtml(TIP::formatDate($format, $params, 'iso8601'));
         return true;
@@ -644,11 +645,10 @@ class TIP_Module extends TIP_Type
      */
     function insertInContent($file)
     {
-        $application =& $GLOBALS[TIP_MAIN_MODULE];
         if (strpos($file, DIRECTORY_SEPARATOR) === false) {
             $file = $this->buildSourcePath($this->getId(), $file);
         }
-        $application->prependCallback($this->callback('run', array($file)));
+        $GLOBALS[TIP_MAIN]->prependCallback($this->callback('run', array($file)));
         return true;
     }
 
@@ -660,11 +660,10 @@ class TIP_Module extends TIP_Type
      */
     function appendToContent($file)
     {
-        $application =& $GLOBALS[TIP_MAIN_MODULE];
         if (strpos($file, DIRECTORY_SEPARATOR) === false) {
             $file = $this->buildSourcePath($this->getId(), $file);
         }
-        $application->appendCallback($this->callback('run', array($file)));
+        $GLOBALS[TIP_MAIN]->appendCallback($this->callback('run', array($file)));
         return true;
     }
 
@@ -692,66 +691,13 @@ class TIP_Module extends TIP_Type
      *
      * Contains a reference to the source engine to use when parsing a file.
      * See the TIP_Source class for details on what is a source engine.
-     * If not configured, it defaults to the one of $_tip_application
+     * If not configured, it defaults to the one of the main module
      * (that obviously MUST be configured).
      *
      * @var TIP_SourceEngine
      */
     var $engine = null;
 
-
-    /**
-     * Get a module instance
-     *
-     * Gets the singleton instance of a module using TIP_Module::singleton()
-     * calls.
-     *
-     * A module is instantiated by includind its logic file found in the
-     * 'module' directory (relative to 'logic_root').
-     *
-     * To improve consistency, the $module_name is always converted lowercase.
-     * This means also the logic file name must be lowecase.
-     *
-     * @param string $module_name The module name
-     * @param bool   $required    Are the errors fatals?
-     * @return TIP_Module A reference to a TIP_Module derived instance
-     * @static
-     */
-    function& getInstance($module_name, $required = true)
-    {
-        $id = strtolower($module_name);
-        $instance =& TIP_Module::singleton($id);
-        if (!is_null($instance)) {
-            return $instance;
-        }
-
-        if ($_pos = strrpos($id, '_')) {
-            // Interface module
-            $master_id = substr($id, 0, $_pos);
-            $interface = ucfirst(substr($id, $_pos+1));
-
-            // Register the interface
-            if (is_null(TIP_Type::singleton($interface))) {
-                $file = TIP::buildLogicPath('interface', $interface) . '.php';
-                TIP_Type::singleton($interface, $file, $required);
-            }
-
-            // Implement the interface for the master module
-            $class = TIP_PREFIX . $interface;
-            $instance =& new $class($master_id);
-            TIP_Module::singleton($id, array($id => &$instance));
-        } else {
-            // Common module or block
-            $file = TIP::buildLogicPath('module', $id) . '.php';
-            $instance =& TIP_Module::singleton($id, $file, $required);
-        }
-
-        if (is_object($instance)) {
-            $instance->postConstructor();
-        }
-
-        return $instance;
-    }
 
     /**
      * Execute a command
@@ -879,11 +825,10 @@ class TIP_Module extends TIP_Type
      */
     function run($file)
     {
-        $source =& TIP_Source::getInstance($file, $this->engine);
+        $source =& TIP_Type::singleton(array('source'), array('path' => $file, 'engine' => &$this->engine));
         return $source->run($this);
     }
 
     /**#@-*/
 }
-
 ?>

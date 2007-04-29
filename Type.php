@@ -12,7 +12,7 @@
  * Inheriting a class from TIP_Type gives the ability to instantiate this
  * class only when requested (usually throught a call to getInstance()).
  * Multiple requests to getInstance() will references the same - unique -
- * created instance.
+ * instantiated object.
  *
  * Also, the PHP file declaring the new type will be included only
  * when required, enabling a real modular environement.
@@ -39,112 +39,117 @@ class TIP_Type
      * Initializes a TIP_Type instance.
      *
      * Basically, this class set the $_type and $_id private properties.
-     * By default, these properties are equals. This is valid for singletons
-     * (such as almost all the TIP_Module derived objects), where a single
-     * class has only a single instance.
+     * The $_type property is the name of the derived class in lowercase and
+     * with TIP_PREFIX stripped, while the $_id property is the identifier of
+     * the instance.
      *
-     * If you want to have a class with more instances, you must define in the
-     * constructor the $_id property to something unique inside this class.
+     * TIP_Type does not use any constructor argument.
+     *
+     * @param string $id Instance identifier
      */
-    function TIP_Type()
+    function TIP_Type($id)
     {
         $this->_type = strtolower(TIP::stripTipPrefix(get_class($this)));
-        if (is_null($this->_id)) {
-            $this->_id = $this->_type;
-        }
+        $this->_id = $id;
+    }
+
+    /**
+     * Get the identifier for the given constructor arguments
+     *
+     * Overridable static method to build an identifier for the passed in
+     * arguments. This must be overriden by classes that want to provide
+     * complex identifiers (such as TIP_View): in any case, this method
+     * must be static, so the identifier can be built without the need to
+     * instantiate the object. This is needed by the singleton() method.
+     *
+     * @param  mixed  $args The contructor arguments
+     * @return string       The instance identifier
+     */
+    function buildId($args)
+    {
+        return $args;
     }
 
     /**
      * Singleton method
      *
-     * Manages the singletons. It keeps a static array where you can get the
-     * singleton instances with the $id key. Not providing the $id argument, a
-     * reference to the array itsself is returned. You can add more items by
-     * specifing them in $instance in the following allowed ways:
+     * Manages the singletons. Given a hierarchy of parent types and a string
+     * identifier, this method returns a singleton of the instantiated object.
+     * If the object is not found, it is dinamically defined and instantiated.
      *
-     * - string $instance The new $id singleton is created throught a
-     *                    TIP_Type::factory() call passing $instance as
-     *                    file argument
-     * - object $instance The $id singleton is created with this instance
-     * - array  $instance The associative array $instance is appended "as is"
-     *                    to the register
+     * The singletons are stored in a static tree, called register, containing
+     * all the hierarchy of the instantiated types. Not providing the $id
+     * argument, a reference to the register content of the portion specified
+     * with $hierarchy is returned. To get the whole register content, use an
+     * empty array as $hierarchy.
      *
-     * WARNING: you can't append singletons by reference using the object mode.
-     * Specify in $instance array('id' => &$instance) instead.
+     * If $args is not null, an id is built by a static call to the buildId()
+     * method of the $hierarchy type. If an instance with this id is found, it
+     * is returned, otherwise it will be dynamically defined and instantiated.
      *
-     * @param mixed|array         $id       The id of the singleton to retrieve
-     * @param string|object|array $instance The instance to store in the register
-     * @param bool                $required Are the errors fatal?
-     * @return array|mixed|null The singleton register, the singleton of $id
-     *                          or null if registered instance not found of false
-     *                          on errors
+     * $hierarchy must be an array containing the parent types of the object.
+     * These types must be lowercase strings specifying the parent classes of
+     * the instance (TIP_Type excluded) without TIP_PREFIX. Using
+     * array('module', 'block', 'content') as $hierarchy, for instance, will
+     * instantiate a TIP_Content object.
+     *
+     * @param  array              $hierarchy  The parent types of the instance
+     * @param  mixed|null         $args       The constructor arguments
+     * @return array|object|null              The register content, a reference
+     *                                        to the requested instance or null
+     *                                        on instantiation errors
      * @static
      */
-    function& singleton($id = null, $instance = null, $required = true)
+    function& singleton($hierarchy, $args = null)
     {
         static $register = array();
 
-        if (is_null($id)) {
-            return $register;
-        } elseif (is_null($instance)) {
-            if (array_key_exists($id, $register)) {
-                return $register[$id];
-            } else {
-                return $instance; // <= return null
-            }
-        }
+        $path = TIP::buildLogicPath();
+        $node =& $register;
 
-        if (is_string($instance)) {
-            $register[$id] =& TIP_Type::factory($instance);
-            if (!$register[$id]) {
-                if ($required) {
-                    TIP::fatal("unable to include logic file ($instance)");
-                    exit;
+        // Hierarchy scan
+        foreach ($hierarchy as $type) {
+            $path .= $type;
+            if (!array_key_exists($type, $node)) {
+                if (is_null($args)) {
+                    // Requested register content, but $hierarchy not defined
+                    return $args;
                 } else {
-                    $register[$id] = false;
+                    // Dynamic type definition
+                    $file = $path . '.php';
+                    if (include_once $file) {
+                        $node[$type] = array();
+                    } else {
+                        // Definition impossible: this avoid next attempts
+                        $node[$type] = null;
+                        return $node[$type];
+                    }
                 }
             }
-            return $register[$id];
-        } elseif (is_array($instance)) {
-            $register += $instance;
-            return $register[$id];
-        } elseif (is_object($instance)) {
-            return $register[$id] =& $instance;
+            $node =& $node[$type];
+            $path .= DIRECTORY_SEPARATOR;
         }
 
-        TIP::fatal('unhandled instance type (' . gettype($instance) . ')');
-    }
+        if (is_null($args)) {
+            // Return the register content
+            return $node;
+        }
+       
+        $class = TIP_PREFIX . $type;
+        $id = call_user_func(array($class, 'buildId'), $args);
 
-    /**
-     * Define a type dinamically
-     *
-     * The base of the TIP plug-in system: include dinamically a definition
-     * file (called logic), allowing to build a real modular environement.
-     *
-     * For instantiable types, the return type of include_once must return the
-     * class name to instantiate: at the end of every logic file you must
-     * return a string with the class name to instantiate.
-     * For example, at the end of the TIP_Application logic you must have
-     *
-     * <code>return 'TIP_Application';</code>
-     *
-     * For non-instantiable types you must omit the return statement: the
-     * default return value for include_once will be used instead.
-     *
-     * @param array $file The logic file
-     * @return TIP_Type|bool A reference to the instance or true if $file
-     *                       contains a not instantiable class but the logic
-     *                       is properly included, false on errors
-     * @static
-     */
-    function& factory($file)
-    {
-        $result = is_readable($file);
-        if ($result && is_string($result = include_once $file)) {
-            $result =& new $result;
+        if (!array_key_exists($id, $node)) {
+            // Object instantiation
+            $node[$id] =& new $class($id, $args);
+
+            // postConstructor() call: must be done after the registration to avoid
+            // circular dependency
+            if (is_callable(array(&$node[$id], 'postConstructor'))) {
+                $node[$id]->postConstructor();
+            }
         }
 
-        return $result;
+        return $node[$id];
     }
 
     /**
@@ -158,7 +163,7 @@ class TIP_Type
      */
     function getOption($option)
     {
-        return TIP::getOption($this->_type, $option);
+        return TIP::getOption($this->_id, $option);
     }
 
     /**
@@ -182,21 +187,24 @@ class TIP_Type
     /**#@+ @access public */
 
     /**
-     * Overridable type instantiation
+     * Type instantiation
      *
-     * Defines a type dinamically. If the $class type is not defined, the logic
-     * file found in the 'logic_root' path is included by TIP_Type::factory().
+     * Gets the singleton of a configured object. $id could be any identifier
+     * defined in config.php.
      *
-     * @param string $class The type name without the 'TIP_' prefix
-     * @return bool Always returns true because errors are fatals
+     * @param  mixed    $id       Instance identifier
+     * @param  bool     $required true if errors must be fatals
+     * @return TIP_Type           The reference to the requested instance or
+     *                            false on errors
      * @static
      */
-    function& getInstance($class)
+    function& getInstance($id, $required = true)
     {
-        $instance =& TIP_Type::singleton($class);
-        if (is_null($instance)) {
-            $file = TIP::buildLogicPath($class) . '.php';
-            $instance =& TIP_Type::singleton($class, $file);
+        $id = strtolower($id);
+        $instance =& TIP_Type::singleton($GLOBALS['cfg'][$id]['type'], $id);
+        if (!is_object($instance) && $required) {
+            TIP::fatal("unable to instantiate the configured object ($id)");
+            exit;
         }
         return $instance;
     }
@@ -234,5 +242,4 @@ class TIP_Type
 
     /**#@-*/
 }
-
 ?>

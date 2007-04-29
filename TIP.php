@@ -6,6 +6,19 @@
  * @package TIP
  */
 
+require_once TIP::buildLogicPath('Type.php');
+require_once TIP::buildLogicPath('Callback.php');
+
+set_include_path(TIP::buildLogicPath('pear') . PATH_SEPARATOR . TIP::buildLogicPath('lib'));
+
+/**#@+ Backward compatibily functions */
+require_once 'PHP/Compat/Function/array_intersect_key.php';
+require_once 'PHP/Compat/Function/array_combine.php';
+/**#@-*/
+
+require_once 'PEAR.php';
+require_once 'HTTP.php';
+
 /**
  * A collection of global functions
  *
@@ -104,12 +117,7 @@ class TIP
      */
     function getOption($type, $option, $required = false)
     {
-        @list($master, $interface) = explode('_', $type, 2);
-        if (isset($interface)) {
-            $value = @$GLOBALS['cfg'][$master][$interface][$option];
-        } else {
-            $value = @$GLOBALS['cfg'][$type][$option];
-        }
+        $value = @$GLOBALS['cfg'][$type][$option];
         if ($required && !isset($value)) {
             TIP::fatal("Required option not defined (\$cfg['$type']['$option'])");
         }
@@ -133,8 +141,8 @@ class TIP
      */
     function getLocale($id, $module, $context = null, $cached = true)
     {
-        $locale =& TIP_Module::getInstance('locale', false);
-        if (isset($locale)) {
+        $locale =& $GLOBALS[TIP_MAIN]->getSharedModule('locale');
+        if (is_object($locale)) {
             return $locale->get($id, $module, $context, $cached);
         }
         return $id;
@@ -211,7 +219,7 @@ class TIP
     function deepImplode($pieces, $glue = null)
     {
         static $the_glue = null;
-        if (! is_null ($glue)) {
+        if (isset($glue)) {
             $the_glue = $glue;
         }
         return is_array($pieces) ? implode($the_glue, array_map(array('TIP', 'deepImplode'), $pieces)) : $pieces;
@@ -400,8 +408,8 @@ class TIP
      */
     function log($severity, $message, &$backtrace)
     {
-        $logger =& TIP_Module::getInstance('logger', false);
-        if (isset($logger)) {
+        $logger =& $GLOBALS[TIP_MAIN]->getSharedModule('logger');
+        if (is_object($logger)) {
             $logger->log($severity, $message, $backtrace);
         }
     }
@@ -479,8 +487,8 @@ class TIP
      */
     function notifyError()
     {
-        $notify =& TIP_Module::getInstance('notify', false);
-        if (isset($notify)) {
+        $notify =& $GLOBALS[TIP_MAIN]->getSharedModule('notify');
+        if (is_object($notify)) {
             $args = func_get_args();
             return call_user_func_array(array(&$notify, 'notifyError'), $args);
         }
@@ -495,8 +503,8 @@ class TIP
      */
     function notifyWarning()
     {
-        $notify =& TIP_Module::getInstance('notify', false);
-        if (isset($notify)) {
+        $notify =& $GLOBALS[TIP_MAIN]->getSharedModule('notify');
+        if (is_object($notify)) {
             $args = func_get_args();
             return call_user_func_array(array(&$notify, 'notifyWarning'), $args);
         }
@@ -511,8 +519,8 @@ class TIP
      */
     function notifyInfo()
     {
-        $notify =& TIP_Module::getInstance('notify', false);
-        if (isset($notify)) {
+        $notify =& $GLOBALS[TIP_MAIN]->getSharedModule('notify');
+        if (is_object($notify)) {
             $args = func_get_args();
             return call_user_func_array(array(&$notify, 'notifyInfo'), $args);
         }
@@ -552,13 +560,7 @@ class TIP
      */
     function buildLogicPath()
     {
-        static $logic_path = null;
-        if (!$logic_path) {
-            $logic_root = TIP::getOption('application', 'logic_root', true);
-            $logic_path = TIP::buildPath($logic_root);
-        }
-
-        return TIP::deepImplode(array($logic_path, func_get_args()), DIRECTORY_SEPARATOR);
+        return TIP::buildPath(array(TIP_ROOT, func_get_args()));
     }
 
     /**
@@ -573,8 +575,7 @@ class TIP
     {
         static $source_path = null;
         if (!$source_path) {
-            $source_root = TIP::getOption('application', 'source_root', true);
-            $source_path = TIP::buildPath($source_root);
+            $source_path = TIP::buildPath($GLOBALS[TIP_MAIN]->getOption('source_root'));
         }
 
         return TIP::deepImplode(array($source_path, func_get_args()), DIRECTORY_SEPARATOR);
@@ -592,7 +593,7 @@ class TIP
     {
         static $fallback_path = null;
         if (!$fallback_path) {
-            $fallback_path = TIP::buildPath(TIP::getOption('application', 'source_fallback'));
+            $fallback_path = TIP::buildPath($GLOBALS[TIP_MAIN]->getOption('source_fallback'));
         }
 
         return TIP::deepImplode(array($fallback_path, func_get_args()), DIRECTORY_SEPARATOR);
@@ -610,8 +611,7 @@ class TIP
     {
         static $data_path = null;
         if (!$data_path) {
-            $data_root = TIP::getOption('application', 'data_root', true);
-            $data_path = TIP::buildPath($data_root);
+            $data_path = TIP::buildPath($GLOBALS[TIP_MAIN]->getOption('data_root'));
         }
 
         return TIP::deepImplode(array($data_path, func_get_args()), DIRECTORY_SEPARATOR);
@@ -785,9 +785,9 @@ class TIP
         static $initialized = false;
         static $user_id;
 
-        if (! $initialized || $refresh) {
-            $user =& TIP_Module::getInstance('user');
-            $user_id = isset($user) ? @$user->keys['CID'] : false;
+        if (!$initialized || $refresh) {
+            $user =& $GLOBALS[TIP_MAIN]->getSharedModule('user');
+            $user_id = is_object($user) ? @$user->keys['CID'] : false;
             $initialized = true;
         }
 
@@ -814,7 +814,7 @@ class TIP
         $anonymous = is_null($user_id) || $user_id === false;
         $module_id = strtolower($module_name);
         if (!$anonymous) {
-            $privilege =& TIP_Module::getInstance('privilege');
+            $privilege =& $GLOBALS[TIP_MAIN]->getSharedModule('privilege');
             if (is_object($privilege)) {
                 $stored_privilege = $privilege->getStoredPrivilege($module_id, $user_id);
                 if ($stored_privilege != TIP_PRIVILEGE_INVALID) {
@@ -878,36 +878,4 @@ class TIP
 
     /**#@-*/
 }
-
-set_include_path(TIP::buildLogicPath('pear') . PATH_SEPARATOR . TIP::buildLogicPath('lib'));
-
-/**#@+ Backward compatibily functions */
-require_once 'PHP/Compat/Function/array_intersect_key.php';
-require_once 'PHP/Compat/Function/array_combine.php';
-/**#@-*/
-
-require_once 'PEAR.php';
-require_once 'HTTP.php';
-
-require_once 'Type.php';
-require_once 'Callback.php';
-require_once 'SourceEngine.php';
-require_once 'Source.php';
-require_once 'Module.php';
-require_once 'DataEngine.php';
-require_once 'Data.php';
-require_once 'View.php';
-require_once 'Block.php';
-
-
-/**
- * Application entry point
- *
- * Every TIP based site must have a starting point (in C terms, it must have a
- * "main" function), that is an object that runs a specified source program.
- * The following command initializes the $GLOBALS[TIP_MAIN_MODULE] reference
- * to this entry point.
- */
-TIP_Module::getInstance('application');
-
 ?>

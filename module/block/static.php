@@ -20,6 +20,11 @@ class TIP_Static extends TIP_Block
 {
     /**#@+ @access protected */
 
+    function TIP_Static($id)
+    {
+        $this->TIP_Block($id);
+    }
+
     /**#@+
      * @param string $action The action name
      * @return bool|null true on action executed, false on action error or
@@ -114,7 +119,4 @@ class TIP_Static extends TIP_Block
 
     /**#@-*/
 }
-
-return 'TIP_Static';
-
 ?>

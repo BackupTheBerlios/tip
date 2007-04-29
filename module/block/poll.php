@@ -42,6 +42,11 @@ class TIP_Poll extends TIP_Block
 
     /**#@+ @access protected */
 
+    function TIP_Poll($id)
+    {
+        $this->TIP_Block($id);
+    }
+
     function postConstructor()
     {
         parent::postConstructor();
@@ -196,14 +201,9 @@ class TIP_Poll extends TIP_Block
 
     function& startView($filter)
     {
-        $view =& TIP_View::getInstance($filter, $this->data);
-        $view->on_row->set(array(&$this, '_onRow'));
-        return $this->push($view);
+        return TIP_Block::startView($filter, array('on_row' => array(&$this, '_onRow')));
     }
 
     /**#@-*/
 }
-
-return 'TIP_Poll';
-
 ?>

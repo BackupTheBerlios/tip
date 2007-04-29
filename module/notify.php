@@ -36,6 +36,11 @@ class TIP_Notify extends TIP_Module
 
     /**#@+ @access protected */
 
+    function TIP_Notify($id)
+    {
+        $this->TIP_Module($id);
+    }
+
     /**
      * Generic message notification
      *
@@ -55,7 +60,7 @@ class TIP_Notify extends TIP_Module
         }
 
         $this->_no_reentrant = true;
-        $locale =& TIP_Module::getInstance('locale', false);
+        $locale =& TIP_Type::getInstance('locale');
         if (!is_object($locale)) {
             // TIP_Notify without TIP_Locale is not implemented 
             return false;
@@ -154,7 +159,4 @@ class TIP_Notify extends TIP_Module
 
     /**#@-*/
 }
-
-return 'TIP_Notify';
-
 ?>

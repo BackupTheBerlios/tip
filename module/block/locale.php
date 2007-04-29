@@ -35,19 +35,22 @@ class TIP_Locale extends TIP_Block
 
     /**#@+ @access protected */
 
+    function TIP_Locale($id)
+    {
+        $this->TIP_Block($id);
+    }
+
     function getDataOptions()
     {
         $this->_locale = TIP::getOption('application', 'locale');
-        $options = parent::getDataOptions();
+        $options = TIP_Block::getDataOptions();
         $options['fieldset'] = array('id', $this->_locale);
         return $options;
     }
 
     function& startView($filter)
     {
-        $view =& TIP_View::getInstance($filter, $this->data);
-        $view->on_row->set(array(&$this, '_onRow'));
-        return $this->push($view);
+        return TIP_Block::startView($filter, array('on_row' => array(&$this, '_onRow')));
     }
 
     /**#@-*/
@@ -134,7 +137,4 @@ class TIP_Locale extends TIP_Block
 
     /**#@-*/
 }
-
-return 'TIP_Locale';
-
 ?>

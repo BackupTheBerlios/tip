@@ -265,7 +265,7 @@ class TIP_Form extends TIP_Module
         $label = $this->_block->getLocale($id . '_label');
 
         $hierarchy_id = $this->_block->getId() . '_hierarchy';
-        $hierarchy =& TIP_Module::getInstance($hierarchy_id);
+        $hierarchy =& TIP_Type::getInstance($hierarchy_id);
         $items =& $hierarchy->getRows();
 
         $element =& $this->_form->addElement('select', $id, $label);
@@ -431,51 +431,21 @@ class TIP_Form extends TIP_Module
     /**
      * Constructor
      *
-     * Initializes an implementation of a TIP_Form interface.
+     * Initializes a TIP_Form instance.
      *
-     * @param string $block_id The id of the master block
+     * @param string $id   The instance identifier
+     * @param array  $args The constructor arguments, as described in buildId()
      */
-    function TIP_Form($block_id)
+    function TIP_Form($id, $args)
     {
-        // There is a singleton for every master block
-        $this->_id = $block_id . '_form';
-        $this->_block =& TIP_Module::getInstance($block_id);
-        $this->TIP_Module();
+        $this->TIP_Module($id);
 
+        // TODO: scan instead the form register
         $GLOBALS['_TIP_FORM'] =& $this;
 
-        HTML_QuickForm::registerRule('unique', 'callback', '_ruleUnique', 'TIP_Form');
-    }
-
-    /**
-     * Get a localized text for the TIP_Form class
-     *
-     * Overrides the default localizator method because the form messages
-     * are commons for all the instantiation of TIP_Form, so the call to
-     * TIP::getLocale() must use the 'form' constant string instead of the
-     * id of this object.
-     *
-     * @param string $id      The text identifier
-     * @param array  $context The context associative array
-     * @param bool   $cached  Whether to perform or not a cached read
-     * @return string The requested localized text
-     */
-    function getLocale($id, $context = null, $cached = true)
-    {
-        return TIP::getLocale($id, 'form', $context, $cached);
-    }
-
-    /**#@-*/
-
-
-    /**#@+ @access public */
-
-
-    function setOptions($options)
-    {
-        foreach (array_keys($options) as $name) {
+        foreach (array_keys($args) as $name) {
             $property = '_' . $name;
-            $this->$property =& $options[$name];
+            $this->$property =& $args[$name];
         }
 
         if (!isset($this->_command)) {
@@ -505,7 +475,56 @@ class TIP_Form extends TIP_Module
                 $this->_buttons = TIP_FORM_BUTTON_CLOSE;
             }
         }
+
+        HTML_QuickForm::registerRule('unique', 'callback', '_ruleUnique', 'TIP_Form');
     }
+
+    /**
+     * Build a TIP_Form identifier
+     *
+     * $args can have all the items specified in TIP_View::buildId(), but the
+     * 'filter' and 'data' arguments are not used.
+     *
+     * $args must be an array with the following items:
+     * - $args['data']: a reference to a TIP_Data object
+     * - $args['filter']: the filter to apply
+     * - $args['on_row']: callback to run for every row
+     * - $args['on_view']: callback to run when populated
+     *
+     * @param  array  $args The constructor arguments
+     * @return string       The data identifier
+     * The returned identifier is constant because the modules view is only one.
+     *
+     * @return '__MODULES__' The data identifier
+     */
+    function buildId($args)
+    {
+        return $args['block']->getId();
+    }
+
+    /**
+     * Get a localized text for the TIP_Form class
+     *
+     * Overrides the default localizator method because the form messages
+     * are commons for all the instantiation of TIP_Form, so the call to
+     * TIP::getLocale() must use the 'form' constant string instead of the
+     * id of this object.
+     *
+     * @param string $id      The text identifier
+     * @param array  $context The context associative array
+     * @param bool   $cached  Whether to perform or not a cached read
+     * @return string The requested localized text
+     */
+    function getLocale($id, $context = null, $cached = true)
+    {
+        return TIP::getLocale($id, 'form', $context, $cached);
+    }
+
+    /**#@-*/
+
+
+    /**#@+ @access public */
+
 
     function run()
     {
@@ -622,7 +641,7 @@ class TIP_Form extends TIP_Module
         if ($render == TIP_FORM_RENDER_HERE) {
             $this->_render();
         } elseif ($render == TIP_FORM_RENDER_IN_CONTENT) {
-            $GLOBALS[TIP_MAIN_MODULE]->appendCallback($this->callback('_render'));
+            $GLOBALS[TIP_MAIN]->appendCallback($this->callback('_render'));
         }
 
         return $valid;
@@ -652,5 +671,4 @@ class TIP_Form extends TIP_Module
 
     /**#@-*/
 }
-
 ?>

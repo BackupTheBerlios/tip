@@ -405,9 +405,9 @@ class TIP_Mysql extends TIP_Data_Engine
 
     /**#@+ @access protected */
 
-    function TIP_Mysql()
+    function TIP_Mysql($id)
     {
-        $this->TIP_Data_Engine();
+        $this->TIP_Data_Engine($id);
 
         $server   = $this->getOption('server');
         $user     = $this->getOption('user');
@@ -416,7 +416,7 @@ class TIP_Mysql extends TIP_Data_Engine
         $this->_connection = mysql_pconnect($server, $user, $password);
         $this->_database = $this->getOption('database');
 
-        if (! $this->_connection || ! mysql_select_db($this->_database, $this->_connection)) {
+        if (!$this->_connection || !mysql_select_db($this->_database, $this->_connection)) {
             TIP::error(mysql_error($this->_connection));
         } else {
             $this->_query('SET CHARACTER SET utf8');

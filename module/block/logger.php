@@ -32,15 +32,18 @@ class TIP_Logger extends TIP_Block
 
     /**#@+ @access protected */
 
-    function& startSpecialView($name)
+    function TIP_Logger($id)
     {
-        if (strcasecmp($name, 'LOGS') != 0) {
-            return parent::startSpecialView($name);
+        $this->TIP_Block($id);
+    }
+
+    function& startSpecialView($type)
+    {
+        if (strcasecmp($type, 'LOGS') != 0) {
+            return TIP_Block::startSpecialView($type);
         }
 
-        //$view =& TIP_Array_View::getInstance($this->_rows);
-        return $this->push(new TIP_Array_View($this->_rows));
-        //return $this->push($view);
+        return TIP_Block::startSpecialView('array', array('id' => '__LOGS__', 'rows' => &$this->_rows));
     }
 
     /**#@-*/
@@ -103,8 +106,8 @@ class TIP_Logger extends TIP_Block
                     if (is_object($last['args'][0])) {
                         $source =& $last['args'][0];
                         $id     =  $source->getId();
-                        $line   =  $source->getLine();
-                        $context['source'] = "$id on line $line";
+                        $method =  $last['function'];
+                        $context['source'] = "$id on method $method";
                     }
                 }
                 continue;
@@ -144,7 +147,4 @@ class TIP_Logger extends TIP_Block
 
     /**#@-*/
 }
-
-return 'TIP_Logger';
-
 ?>

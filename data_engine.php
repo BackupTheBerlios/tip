@@ -17,34 +17,17 @@
  */
 class TIP_Data_Engine extends TIP_Type
 {
-    /**#@+ @access public */
+    /**#@+ @access protected */
 
-    /**
-     * Get a data engine
-     *
-     * Gets the singleton instance of a data engine using subsequential
-     * TIP_Data_Engine::singleton() calls.
-     *
-     * A data engine is instantiated by includind its logic file found in the
-     * 'data_engine' directory (relative to 'logic_root').
-     *
-     * To improve consistency, the data engine name is always converted
-     * lowercase. This means also the logic file name must be lowecase.
-     *
-     * @param string $data_engine The data engine name
-     * @return TIP_Data_Engine A reference to a TIP_Data_Engine implementation
-     * @static
-     */
-    function& getInstance($data_engine)
+    function TIP_Data_Engine($id)
     {
-        $id = strtolower($data_engine);
-        $instance =& TIP_Data_Engine::singleton($id);
-        if (is_null($instance)) {
-            $file = TIP::buildLogicPath('data_engine', $id) . '.php';
-            $instance =& TIP_Data_Engine::singleton($id, $file);
-        }
-        return $instance;
+        $this->TIP_Type($id);
     }
+
+    /**#@-*/
+
+
+    /**#@+ @access public */
 
     /**
      * Fill the fields structure

@@ -23,10 +23,9 @@ define('TIP_PREFIX', 'TIP_');
  * The name of the main module
  *
  * The name of the global variable holding the reference to the main module.
- * It defaults to '_tip_application' and can be accessed throught
- * <code>$GLOBALS[TIP_MAIN_MODULE]</code>.
+ * It be accessed throught <code>$GLOBALS[TIP_MAIN]</code>.
  */
-define('TIP_MAIN_MODULE', '_tip_application');
+define('TIP_MAIN', '_tip_main_');
 
 /**#@+ Privileges */
 define('TIP_PRIVILEGE_INVALID',   0);

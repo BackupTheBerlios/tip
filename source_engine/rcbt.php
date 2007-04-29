@@ -95,6 +95,27 @@ class TIP_Rcbt_Parser
     var $_context_stack = array();
     var $_tp_stack = array();
 
+
+    function _getLine()
+    {
+        return substr_count(substr($this->source->_buffer, 0, $this->pos), "\n") + 1;
+    }
+
+    /**#@-*/
+
+
+    /**#@+ @access protected */
+
+    function warning($text)
+    {
+        TIP::warning($text . ' on line ' . $this->_getLine());
+    }
+
+    function error($text)
+    {
+        TIP::error($text . ' on line ' . $this->_getLine());
+    }
+
     /**#@-*/
 
 
@@ -142,7 +163,7 @@ class TIP_Rcbt_Parser
     {
         if (count($this->_context_stack) > 0) {
             $this->pos = $this->context->start_pos;
-            TIP::error('unclosed context');
+            $this->error('unclosed context');
             return false;
         }
 
@@ -277,7 +298,7 @@ class TIP_Rcbt_Tag
                     return true;
                 }
 
-                TIP::error('unclosed tag');
+                $parser->error('unclosed tag');
                 return false;
             }
 
@@ -330,7 +351,7 @@ class TIP_Rcbt_Tag
             $params_pos = $open_brace+1;
             $close_brace = strrpos($text, ')');
             if ($close_brace === false) {
-                TIP::error('unclosed parameter');
+                $parser->error('unclosed parameter');
                 return false;
             }
 
@@ -362,7 +383,7 @@ class TIP_Rcbt_Tag
         default:
             if (strlen($text) > 20)
                 $text = substr($text, 0, 17) . '...';
-            TIP::error("malformed tag ($text)");
+            $parser->error("malformed tag ($text)");
             return false;
         }
 
@@ -372,14 +393,14 @@ class TIP_Rcbt_Tag
     function runTag(&$parser)
     {
         if ($this->module_name) {
-            $module =& TIP_Module::getInstance($this->module_name);
+            $module =& TIP_Type::getInstance($this->module_name, false);
         } else {
             $module =& $parser->context->module;
         }
 
         if (!$this->command) {
             if (!$parser->pop()) {
-                TIP::warning('too much {} tags');
+                $parser->warning('too much {} tags');
             }
             return true;
         }
@@ -391,7 +412,7 @@ class TIP_Rcbt_Tag
                 if ($condition) {
                     $context->skipIf(! $condition());
                 } else {
-                    TIP::warning("invalid condition ($this->params)");
+                    $parser->warning("invalid condition ($this->params)");
                     $context->skipIf(true);
                 }
                 $parser->push($context);
@@ -451,7 +472,7 @@ class TIP_Rcbt_Tag
                         $context->on_start->set(array(&$view, 'rowReset'));
                         $context->on_loop->set(array(&$view, 'rowNext'));
                     } else {
-                        TIP::warning('no current view');
+                        $parser->warning('no current view');
                         $context->skipIf(true);
                     }
                 } elseif ($this->params > 0) {
@@ -495,19 +516,21 @@ class TIP_Rcbt_Tag
  */
 class TIP_Rcbt extends TIP_Source_Engine
 {
-    /**#@+ @access private */
+    /**#@+ @access protected */
 
-    function& _getParser(&$source)
+    function TIP_Rcbt($id)
     {
-        return $source->_implementation;
+        $this->TIP_Source_Engine($id);
     }
 
     /**#@-*/
 
 
+    /**#@+ @access public */
+
     function run(&$source, &$module)
     {
-        $parser =& $this->_getParser($source);
+        $parser =& $source->_implementation;
         if (is_null($parser)) {
             $parser =& new TIP_Rcbt_Parser($source);
             $source->_implementation =& $parser;
@@ -517,17 +540,6 @@ class TIP_Rcbt extends TIP_Source_Engine
         return $parser->run($module);
     }
 
-    function getLine(&$source)
-    {
-        $parser =& $this->_getParser($source);
-        if (is_null($parser)) {
-            return null;
-        }
-
-        return substr_count(substr($source->_buffer, 0, $parser->pos), "\n") + 1;
-    }
+    /**#@-*/
 }
-
-return 'TIP_Rcbt';
-
 ?>

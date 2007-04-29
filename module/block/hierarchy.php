@@ -7,7 +7,7 @@
  * @package TIP
  */
 
-/** HTML_TreeMenu PEAR package */
+/** HTML_Menu PEAR package */
 require_once 'HTML/Menu.php';
 
 /**
@@ -22,11 +22,7 @@ class TIP_Hierarchy extends TIP_Block
     var $_master_id = null;
     var $_model = null;
     var $_tree = null;
-
-    var $_action = 'browse';
-    var $_icon = null;
-    var $_closed_icon = null;
-    var $_opened_icon = null;
+    var $_base_url = null;
 
 
     function _onView(&$view)
@@ -37,13 +33,9 @@ class TIP_Hierarchy extends TIP_Block
 
         $view->summaries['TOTAL_COUNT'] = 0;
         $total_count =& $view->summaries['TOTAL_COUNT'];
-        $base_url = TIP::getRootUrl() .
-            '?module=' . $this->_master_id .
-            '&amp;action=' . $this->_action .
-            '&amp;group=';
-
         $this->_tree  = array();
         $nodes = array();
+
         foreach ($view->rows as $id => $node) {
             if (array_key_exists($id, $nodes)) {
                 $node['sub'] = @$nodes[$id]['sub'];
@@ -56,7 +48,7 @@ class TIP_Hierarchy extends TIP_Block
             }
 
             $nodes[$id] =& $node;
-            $node['url'] = $base_url . $id;
+            $node['url'] = $this->_base_url . $id;
             if (array_key_exists('_count', $node)) {
                 $count = $node['_count'];
                 $node['COUNT'] = @$node['COUNT'] + $count;
@@ -112,31 +104,14 @@ class TIP_Hierarchy extends TIP_Block
 
     /**#@+ @access protected */
 
-    /**
-     * Constructor
-     *
-     * Initializes an implementation of a TIP_Hierarchy interface.
-     *
-     * @param string $block_id The id of the master block
-     */
-    function TIP_Hierarchy($block_id)
+    function TIP_Hierarchy($id)
     {
-        // There is a singleton for every master block
-        $this->_id = strtolower($block_id) . '_hierarchy';
-        $this->_master_id = $block_id;
-        $this->TIP_Block();
-    }
-
-    function getOption($option)
-    {
-        return @$GLOBALS['cfg'][$this->_master_id]['hierarchy'][$option];
+        $this->TIP_Block($id);
     }
 
     function& startView($filter)
     {
-        $view =& TIP_View::getInstance($filter, $this->data);
-        $view->on_view->set(array(&$this, '_onView'));
-        return $this->push($view);
+        return TIP_Block::startView($filter, array('on_view' => array(&$this, '_onView')));
     }
 
     /**#@+
@@ -148,10 +123,21 @@ class TIP_Hierarchy extends TIP_Block
     /**
      * Echo the hierarchy of the master block
      *
+     * $params is the base URL of the action to execute when selecting an item:
+     * TIP_Hierarchy will append the id of the item to this URL. Leave it empty
+     * to provide the default 'browse' action on the guessed master module.
+     *
      * Outputs the DHTML hierarchy of the specified block.
      */
     function commandShow($params)
     {
+        if (empty($params)) {
+            $this->_base_url = TIP::getRootUrl() .
+                '?module=' . substr($this->_id, 0, strpos($this->_master_id, '_')) .
+                '&amp;action=browse&amp;group=';
+        } else {
+            $this->_base_url = $params;
+        }
         return $this->show();
     }
 
@@ -226,5 +212,4 @@ class TIP_Hierarchy extends TIP_Block
 
     /**#@-*/
 }
-
 ?>

@@ -108,7 +108,7 @@ class TIP_Privilege extends TIP_Block
         return TIP_PRIVILEGE_INVALID;
     }
 
-    function _onModuleRow(&$row)
+    function _onModulesRow(&$row)
     {
         $module_name = $row['id'];
         $up_to_level = $this->_maxSettableLevel($module_name);
@@ -128,6 +128,18 @@ class TIP_Privilege extends TIP_Block
 
 
     /**#@+ @access protected */
+
+    /**
+     * Constructor
+     *
+     * Initializes a TIP_Privilege instance.
+     *
+     * @param string $id The instance identifier
+     */
+    function TIP_Privilege($id)
+    {
+        $this->TIP_Block($id);
+    }
 
     /**#@+
      * @param string @params The parameter string
@@ -293,12 +305,12 @@ class TIP_Privilege extends TIP_Block
     function& startSpecialView($name)
     {
         if (strcasecmp($name, 'MODULES') != 0) {
-            return parent::startSpecialView($name);
+            return TIP_Block::startSpecialView($name);
         }
 
-        $view =& TIP_Modules_View::getInstance($this->data);
-        $view->on_row->set(array(&$this, '_onModuleRow'));
-        return $this->push($view);
+        $view =& TIP_Block::startSpecialView('modules', '__MODULES__');
+        $view->on_row->set(array(&$this, '_onModulesRow'));
+        return $view;
     }
 
     /**
@@ -342,7 +354,4 @@ class TIP_Privilege extends TIP_Block
 
     /**#@-*/
 }
-
-return 'TIP_Privilege';
-
 ?>

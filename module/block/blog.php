@@ -2,18 +2,18 @@
 /* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
 
 /**
- * TIP_News definition file
+ * TIP_Blog definition file
  * @package TIP
  * @subpackage Module
  */
 
 /**
- * News and blog management
+ * Blog management
  *
  * @package TIP
  * @subpackage Module
  */
-class TIP_News extends TIP_Block
+class TIP_Blog extends TIP_Block
 {
     /**#@+ @access private */
 
@@ -178,7 +178,4 @@ class TIP_News extends TIP_Block
 
     /**#@-*/
 }
-
-return 'TIP_News';
-
 ?>

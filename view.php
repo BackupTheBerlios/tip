@@ -26,16 +26,6 @@
  */
 class TIP_View extends TIP_Type
 {
-    /**#@+ @access private */
-
-    function _buildId(&$filter, &$data)
-    {
-        return (isset($data) ? $data->getId() . '/' : '') . $filter;
-    }
-
-    /**#@-*/
-
-
     /**#@+ @access protected */
 
     /**
@@ -64,19 +54,38 @@ class TIP_View extends TIP_Type
      *
      * Initializes a TIP_View instance.
      *
-     * @param TIP_Data &$data   A data object
-     * @param string    $filter The filter conditions
+     * @param string $id   The instance identifier
+     * @param array  $args The constructor arguments, as described in buildId()
      */
-    function TIP_View($filter, &$data)
+    function TIP_View($id, $args)
     {
-        $this->TIP_Type();
+        $this->TIP_Type($id);
 
-        $this->_id     =  TIP_View::_buildId($filter, $data);
-        $this->data    =& $data;
-        $this->filter  =  $filter;
-        $this->on_row  =& new TIP_Callback;
-        $this->on_view =& new TIP_Callback;
+        if (array_key_exists('data', $args)) {
+            $this->data =& $args['data'];
+        }
+
+        $this->filter = @$args['filter'];
+        $this->on_row =& new TIP_Callback(array_key_exists('on_row', $args) ? $args['on_row'] : true);
+        $this->on_view =& new TIP_Callback(array_key_exists('on_view', $args) ? $args['on_view'] : true);
         $this->summaries['COUNT'] = 0;
+    }
+
+    /**
+     * Build a TIP_View identifier
+     *
+     * $args must be an array with the following items (all are optionals):
+     * - $args['data']: a reference to a TIP_Data object
+     * - $args['filter']: the filter to apply
+     * - $args['on_row']: callback to run for every row
+     * - $args['on_view']: callback to run when populated
+     *
+     * @param  array  $args The constructor arguments
+     * @return string       The data identifier
+     */
+    function buildId($args)
+    {
+        return $args['data']->getId() . ':' . $args['filter'];
     }
 
     /**
@@ -160,30 +169,6 @@ class TIP_View extends TIP_Type
      * @var TIP_Callback
      */
     var $on_view = null;
-
-
-    /**
-     * Get a TIP_View instance
-     *
-     * Gets the previously defined $filter view or instantiates a new one and
-     * returns it.
-     *
-     * @param string    $filter The filter to apply
-     * @param TIP_Data &$data   A data object
-     * @return TIP_View A reference to the view instance
-     * @static
-     */
-    function& getInstance($filter, &$data)
-    {
-        $id = TIP_View::_buildId($filter, $data);
-        $instance =& TIP_View::singleton($id);
-        if (is_null($instance)) {
-            $instance =& new TIP_View($filter, $data);
-            TIP_View::singleton($id, array($id => &$instance));
-        }
-        return $instance;
-    }
-
 
 
     /**
@@ -335,197 +320,4 @@ class TIP_View extends TIP_Type
 
     /**#@-*/
 }
-
-
-/**
- * A fields view
- *
- * A special view to traverse the field structure.
- *
- * @package TIP
- */
-class TIP_Fields_View extends TIP_View
-{
-    /**#@+ @access protected */
-
-    /**
-     * Get the field list
-     *
-     * Fills the $rows property with the field structure as specified by
-     * TIP_Data::getFields().
-     *
-     * @return bool true on success or false on errors
-     */
-    function fillRows()
-    {
-        $this->rows =& $this->data->getFields(true);
-        if (is_null($this->rows)) {
-            $this->rows = false;
-            return false;
-        }
-        return true;
-    }
-
-    /**
-     * Constructor
-     *
-     * Initializes a TIP_Fields_View instance.
-     *
-     * @param TIP_Data &$data A data object
-     */
-    function TIP_Fields_View(&$data)
-    {
-        $this->TIP_View('__FIELDS__', $data);
-    }
-
-    /**#@-*/
-
-
-    /**#@+ @access public */
-
-    /**
-     * Get a TIP_Fields_View instance
-     *
-     * Gets the previously defined fields view of $data or instantiates a new
-     * one and returns it.
-     *
-     * @param TIP_Data &$data A data object
-     * @return TIP_Fields_View A reference to the fields view instance
-     * @static
-     */
-    function& getInstance(&$data)
-    {
-        $id = $data->getId();
-        $instance =& TIP_Fields_View::singleton($id);
-        if (is_null($instance)) {
-            $instance =& new TIP_Fields_View($data);
-            TIP_Fields_View::singleton($id, array($id => &$instance));
-        }
-        return $instance;
-    }
-
-    /**#@-*/
-}
-
-
-/**
- * A modules view
- *
- * A special view to traverse the configured modules.
- *
- * @package TIP
- */
-class TIP_Modules_View extends TIP_View
-{
-    /**#@+ @access protected */
-
-    /**
-     * Get the installed modules
-     *
-     * Fills the $rows property with all the installed modules.
-     *
-     * @return bool true on success or false on errors
-     */
-    function fillRows()
-    {
-        $register =& TIP_Module::singleton();
-
-        if ($handle = opendir(TIP::buildLogicPath('module'))) {
-            while (($file = readdir($handle)) !== false) {
-                if (strcasecmp(substr($file, -4), '.php') == 0) {
-                    $module = strtolower(substr($file, 0, -4));
-                    $this->rows[$module] = array(
-                        'id'     => $module,
-                        'in_use' => array_key_exists($module, $register)
-                    );
-                }
-            }
-            closedir($handle);
-        }
-
-        return true;
-    }
-
-    /**
-     * Constructor
-     *
-     * Initializes a TIP_Modules_View instance.
-     */
-    function TIP_Modules_View()
-    {
-        $fake_null = null;
-        $this->TIP_View('__MODULES__', $fake_null);
-    }
-
-    /**#@-*/
-
-
-    /**#@+ @access public */
-
-    /**
-     * Get a TIP_Modules_View instance
-     *
-     * Gets the previously defined modules view instance or instantiates a new
-     * one and returns it.
-     *
-     * @param TIP_Data &$data A data object (not used)
-     * @return TIP_Modules_View A reference to the modules view instance
-     * @static
-     */
-    function& getInstance(&$data)
-    {
-        static $instance = null;
-        if (is_null($instance)) {
-            $instance =& new TIP_Modules_View;
-        }
-        return $instance;
-    }
-
-    /**#@-*/
-}
-
-/**
- * An array view
- *
- * A special view to traverse a defined array or rows.
- *
- * @package TIP
- */
-class TIP_Array_View extends TIP_View
-{
-    /**#@+ @access private */
-
-    var $_stored_rows = null;
-
-    /**#@-*/
-
-    
-    /**#@+ @access protected */
-
-    function fillRows()
-    {
-        $this->rows = $this->_stored_rows;
-        return true;
-    }
-
-    /**#@-*/
-
-
-    /**#@+ @access public */
-
-    /**
-     * Constructor
-     *
-     * Initializes a TIP_Array_View instance.
-     */
-    function TIP_Array_View(&$rows)
-    {
-        $fake_null = null;
-        $this->TIP_View('__ARRAY__', $fake_null);
-        $this->_stored_rows =& $rows;
-    }
-
-    /**#@-*/
-}
-
 ?>

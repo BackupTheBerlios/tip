@@ -19,19 +19,19 @@
  * the queue in sequential order. The page content is the output of these
  * callbacks.
  *
- * The global variable $GLOBALS[TIP_MAIN_MODULE] contains a reference to the
- * TIP_Application instantiated object. Your main script, if the TIP system is
- * properly configured, will usually be as the following one:
+ * After a TIP_Application instantiation, the global variable $GLOBALS[TIP_MAIN]
+ * will contain a reference to this TIP_Application instantiated object.
+ * Your main script, if the TIP system is properly configured, will usually be
+ * as the following one:
  *
  * <code>
  * <?php
- *
  * require_once './logic/Defs.php';
  * require_once './config.php';
  * require_once './logic/TIP.php';
  *
- * $GLOBALS[TIP_MAIN_MODULE]->go('index.src');
- *
+ * TIP_Type::getInstance('main');
+ * $GLOBALS[TIP_MAIN]->go('index.src');
  * ?>
  * </code>
  *
@@ -50,16 +50,20 @@ class TIP_Application extends TIP_Module
 
     /**#@+ @access protected */
 
+    function TIP_Application($id)
+    {
+        $this->TIP_Module($id);
+        $GLOBALS[TIP_MAIN] =& $this;
+    }
+
     function postConstructor()
     {
-        $GLOBALS[TIP_MAIN_MODULE] =& $this;
+        TIP_Module::postConstructor();
 
         $this->keys['TODAY'] = TIP::formatDate('date_iso8601');
         $this->keys['NOW'] = TIP::formatDate('datetime_iso8601');
         $this->keys['ROOT'] = TIP::getRootUrl();
         $this->keys['REFERER'] = TIP::getReferer();
-
-        parent::postConstructor();
 
         if ($this->keys['IS_MANAGER']) {
             require_once 'Benchmark/Profiler.php';
@@ -103,7 +107,7 @@ class TIP_Application extends TIP_Module
     function commandDebug($params)
     {
         if ($this->keys['IS_ADMIN']) {
-            $logger =& TIP_Module::getInstance('logger');
+            $logger =& $this->getSharedModule('logger');
             if (is_object($logger)) {
                 $logger->commandRun('browse.src');
             }
@@ -186,7 +190,7 @@ class TIP_Application extends TIP_Module
         } elseif (! $module_name && $action) {
             TIP::notifyError('nomodule');
         } elseif ($module_name) {
-            $module =& TIP_Module::getInstance($module_name, false);
+            $module =& TIP_Type::getInstance($module_name);
             if (is_object($module)) {
                 $this->keys['ACTION'] = $action;
                 if (is_null($module->callAction($action))) {
@@ -200,6 +204,36 @@ class TIP_Application extends TIP_Module
 
         // Generates the page
         $this->commandRun($main_source);
+    }
+
+    /**
+     * Get a shared module
+     *
+     * Some special modules are shared between the application. A common example
+     * is the logger or the notify modules.
+     * To provide maximum flexibility, this method will get a reference to these
+     * kind of modules accessing them by $job, not by id. $job is an arbitrary
+     * string identifying the type of work the module must do: maybe in the
+     * future, when TIP will be more stable, the jobs will be standardized with
+     * a bounch of constant values.
+     *
+     * @param  string        $job The job identifier
+     * @return TIP_Type|null      The requested shared module or null if not found
+     */
+    function& getSharedModule($job)
+    {
+        static $cache = array();
+
+        if (!array_key_exists($job, $cache)) {
+            $shared_modules = $this->getOption('shared_modules');
+            if (array_key_exists($job, $shared_modules)) {
+                $cache[$job] =& TIP_Type::getInstance($shared_modules[$job]);
+            } else {
+                $cache[$job] = null;
+            }
+        }
+
+        return $cache[$job];
     }
 
     /**
@@ -231,8 +265,4 @@ class TIP_Application extends TIP_Module
 
     /**#@-*/
 }
-
-
-return 'TIP_Application';
-
 ?>

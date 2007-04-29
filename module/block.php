@@ -35,40 +35,49 @@ class TIP_Block extends TIP_Module
      *
      * The data path is defined by the 'data_path' option of the block.
      * If not specified, it defaults to the 'data_path' option of the
-     * application with the getId() of this block appended.
+     * main module with the getId() of this block appended.
      *
      * The data engine is defined by the 'data_engine' option of the block.
      * If not specified, it defaults to the 'data_engine' option of the
-     * application.
+     * main module.
+     *
+     * @param mixed $id  Identifier of this instance
      */
-    function TIP_Block()
+    function TIP_Block($id)
     {
-        $this->TIP_Module();
+        $this->TIP_Module($id);
         if (is_null($options = $this->getDataOptions())) {
             return;
         }
 
-        $this->data =& TIP_Data::getInstance($options);
+        $this->data =& TIP_Type::singleton(array('data'), $options);
     }
 
     function getDataOptions()
     {
         if (is_null($path = $this->getOption('data_path'))) {
-            if (is_null($path = TIP::getOption('application', 'data_path'))) {
+            if (is_null($path = $GLOBALS[TIP_MAIN]->getOption('data_path'))) {
                 return null;
             }
             $path .= $this->getId();
         }
 
-        if (is_null($engine = $this->getOption('data_engine'))) {
-            if (is_null($engine = TIP::getOption('application', 'data_engine'))) {
+        if (is_null($engine_name = $this->getOption('data_engine'))) {
+            if (is_null($engine_name = $GLOBALS[TIP_MAIN]->getOption('data_engine'))) {
                 return null;
             }
+        } 
+
+        if (is_null($engine =& TIP_Type::getInstance($engine_name))) {
+            return null;
         }
 
-        $joins = $this->getOption('data_joins');
-        $fieldset = @$this->getOption('data_fieldset');
-        return compact('path', 'engine', 'joins', 'fieldset');
+        return array(
+            'engine'    => &$engine,
+            'path'      =>  $path,
+            'joins'     => @$this->getOption('data_joins'),
+            'fieldset'  => @$this->getOption('data_fieldset')
+        );
     }
 
     /**
@@ -343,10 +352,10 @@ class TIP_Block extends TIP_Module
             $file = $this->buildSourcePath($this->getId(), $file);
         }
 
-        $application =& $GLOBALS[TIP_MAIN_MODULE];
-        $application->prependCallback($this->callback('pop'));
-        $application->prependCallback($this->callback('run', array($file)));
-        $application->prependCallback($this->callback('push', array(&$this->view, false)));
+        $main =& $GLOBALS[TIP_MAIN];
+        $main->prependCallback($this->callback('pop'));
+        $main->prependCallback($this->callback('run', array($file)));
+        $main->prependCallback($this->callback('push', array(&$this->view, false)));
         return true;
     }
 
@@ -360,10 +369,10 @@ class TIP_Block extends TIP_Module
             $file = $this->buildSourcePath($this->getId(), $file);
         }
 
-        $application =& $GLOBALS[TIP_MAIN_MODULE];
-        $application->appendCallback($this->callback('push', array(&$this->view, false)));
-        $application->appendCallback($this->callback('run', array($file)));
-        $application->appendCallback($this->callback('pop'));
+        $main =& $GLOBALS[TIP_MAIN];
+        $main->appendCallback($this->callback('push', array(&$this->view, false)));
+        $main->appendCallback($this->callback('run', array($file)));
+        $main->appendCallback($this->callback('pop'));
         return true;
     }
 
@@ -407,9 +416,9 @@ class TIP_Block extends TIP_Module
             }
         }
 
-        $form =& TIP_Module::getInstance($this->getId() . '_form');
+        $options['block'] =& $this;
         $options['action'] = $action;
-        $form->setOptions($options);
+        $form =& TIP_Type::singleton(array('module', 'form'), $options);
         return $form->run();
     }
 
@@ -445,35 +454,39 @@ class TIP_Block extends TIP_Module
      * stack and makes it the current view, accessible throught the
      * TIP_Block::$view property.
      *
-     * @param string $filter The filter conditions
-     * @return TIP_View|null The view instance or null on errors
+     * @param  string        $filter The filter conditions
+     * @return TIP_View|null         The view instance or null on errors
      */
-    function& startView($filter)
+    function& startView($filter, $options = array())
     {
-        return $this->push(TIP_View::getInstance($filter, $this->data));
+        $options['data'] =& $this->data;
+        $options['filter'] = $filter;
+        return $this->push(TIP_Type::singleton(array('view'), $options));
     }
 
     /**
      * Start a special view
      *
-     * Starts a view trying to instantiate the class named TIP_{$name}_View.
+     * Starts a view trying to instantiate the class named TIP_{$type}_View.
      * All the startView() advices also applies to startSpecialView().
+     * If $id is not specified, it defaults to the id of the data binded to
+     * this block.
      *
-     * @param string $name The name of the special view
-     * @return TIP_View|null The view instance or null on errors
+     * @param  string        $type The special view type
+     * @param  string        $id   The instance identifier
+     * @return TIP_View|null       The view instance or null on errors
      */
-    function& startSpecialView($name)
+    function& startSpecialView($type, $options = array())
     {
-        $class_name = TIP_PREFIX . $name . '_View';
-        if (! class_exists($class_name)) {
-            $fake_null = null;
-            TIP::error("special view does not exist ($class_name)");
-            return $fake_null;
+        $options['data'] =& $this->data;
+        $view =& TIP_Type::singleton(array('view', $type . '_view'), $options);
+        if (is_null($view)) {
+            TIP::error("special view does not exist ($type)");
+        } else {
+            $this->push($view);
         }
 
-        $getInstance = $class_name . '::getInstance';
-        $instance =& $getInstance($this->data);
-        return $this->push($instance);
+        return $view;
     }
 
     /**

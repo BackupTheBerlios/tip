@@ -70,9 +70,15 @@ class TIP_User extends TIP_Block
         TIP::getUserId(true);
 
         // Refresh the privileges of the yet loaded modules
-        $modules =& TIP_Module::singleton();
-        foreach (array_keys($modules) as $id) {
-            $modules[$id]->refreshPrivilege();
+        $this->_refreshModule(TIP_Module::singleton(array('module')));
+    }
+
+    function _refreshModule(&$module)
+    {
+        if (is_array($module)) {
+            array_walk($module, array('TIP_User', '_refreshModule'));
+        } else {
+            $module->refreshPrivilege();
         }
     }
 
@@ -115,6 +121,11 @@ class TIP_User extends TIP_Block
 
     /**#@+ @access protected */
 
+    function TIP_User($id)
+    {
+        $this->TIP_Block($id);
+    }
+
     function postConstructor()
     {
         parent::postConstructor();
@@ -124,6 +135,7 @@ class TIP_User extends TIP_Block
             return;
         }
 
+        $id = (int) $id;
         $filter = $this->data->rowFilter($id);
         $view =& $this->startView($filter);
         if (is_null($view)) {
@@ -265,14 +277,9 @@ class TIP_User extends TIP_Block
 
     function& startView($filter)
     {
-        $view =& TIP_View::getInstance($filter, $this->data);
-        $view->on_row->set(array(&$this, '_onRow'));
-        return $this->push($view);
+        return TIP_Block::startView($filter, array('on_row' => array(&$this, '_onRow')));
     }
 
     /**#@-*/
 }
-
-return 'TIP_User';
-
 ?>

@@ -2,6 +2,7 @@
 /* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
 
 /**
+ * TIP_Data definition file
  * @package TIP
  */
 
@@ -16,150 +17,6 @@ define('TIP_ASCENDING', false);
  */
 define('TIP_DESCENDING', true);
 
-/**
- * The expression class
- *
- * A class representing a generic expression, used by the TIP_Query to build
- * conditional expressions.
- *
- * @todo Implementation using MDB2
- * @final
- * @package  TIP
- */
-class TIP_Expr
-{
-    var $_lvalue = null;
-    var $_operator = null;
-    var $_rvalue = null;
-
-    function TIP_Expr($lvalue, $operator, $rvalue)
-    {
-        $this->_name = $lvalue;
-        $this->_operator = $operator;
-        $this->_value = $rvalue;
-    }
-}
-
-/**
- * A generic query interface
- *
- * @final
- * @package  TIP
- *
- * @todo Join to TIP_View
- */
-class TIP_Query
-{
-    /**#@+
-     * This variable must be accessed only by the data engine implementation.
-     * @access public
-     * @internal
-     */
-
-    var $_raw = null;
-    var $_where = null;
-    var $_order = null;
-
-    /**
-     * Limits a select query to this rows count.
-     * @var int
-     */
-    var $_limit = null;
-
-    /**#@-*/
-
-
-    /**
-     * Set a row query
-     *
-     * Sets a query in raw format, by-passing all the other methods. A raw
-     * query is sent to the data engine "as is", without any transformations.
-     *
-     * @param mixed $query The raw query content
-     */
-    function setRaw($query)
-    {
-        $this->_raw = $query;
-    }
-
-    /**
-     * Set the where clause
-     *
-     * Sets the where conditions for this query, discarding the previous ones.
-     * You should specify the conditions in a specific way: take a look to the
-     * following examples to get an idea.
-     *
-     * A simple condition:
-     * <code>
-     * setWhere(new TIP_Expr('id', '=', 5));
-     * </code>
-     * 
-     * A serie of conditions:
-     * <code>
-     * setWhere(new TIP_Expr('name', '<>', 'Emmanuele'),
-     *   'and', new TIP_Expr('city', '<>', 'Rome'),
-     *    'or', new TIP_Expr('date',  '>', '19430908));
-     * </code>
-     *
-     * Sample of nested conditions:
-     * <code>
-     * setWhere(new TIP_Expr('age', '>', 18), 'and', array(new TIP_Expr('name', '<>', null),
-     *                                               'or', new TIP_Expr('lastname', '<>', null)));
-     * </code>
-     */
-    function setWhere()
-    {
-        $this->_where = func_get_args();
-    }
-
-    /**
-     * Set the query order
-     *
-     * Defines the order the rows must be returned, discarding the old order.
-     * You can specify more than one order: simply follows to feed setOrder()
-     * with $field and $order pairs.
-     *
-     * Simple example:
-     * <code>
-     * setOrder('name', TIP_ASCENDING);
-     * </code>
-     *
-     * Using more fields:
-     * <code>
-     * setOrder('lastname', TIP_ASCENDING, 'name', TIP_ASCENDING);
-     * </code>
-     *
-     * Mixed order:
-     * <code>
-     * setOrder('title', TIP_ASCENDING, 'date', TIP_DESCENDING);
-     * </code>
-     *
-     * @param string                       $field The field id
-     * @param TIP_ASCENDING|TIP_DESCENDING $order The order to use
-     */
-    function setOrder($field, $order)
-    {
-        $args = func_get_args();
-        if (count($args) % 2) {
-            TIP::error('invalid setOrder call');
-        } else {
-            $this->_order = array_chunk($args, 2);
-        }
-    }
-
-    /**
-     * Set the limit clause
-     *
-     * Limits the result to the first $limit rows, discarding the previous
-     * limit value.
-     *
-     * @param int $limit Number of rows
-     */
-    function setLimit($limit)
-    {
-        $this->_limit = $limit;
-    }
-}
 
 /**
  * A generic data provider
@@ -233,38 +90,6 @@ class TIP_Data extends TIP_Type
     var $_detailed = false;
 
 
-    /**
-     * TIP_Data constructor
-     *
-     * Must not be called directly: use getInstace() instead.
-     *
-     * @param array $options An array of options
-     */
-    function TIP_Data($options)
-    {
-        $this->TIP_Type();
-
-        $this->_id = TIP_Data::_buildId($options);
-        $this->_path = $options['path'];
-        if (array_key_exists('primary_key', $options)) {
-            $this->_primary_key =& $options['primary_key'];
-        }
-        $this->_joins = $options['joins'];
-        $this->_engine =& TIP_Data_Engine::getInstance($options['engine']);
-        if (array_key_exists('fieldset', $options)) {
-            $this->_fieldset =& $options['fieldset'];
-        }
-    }
-
-    function _buildId($options)
-    {
-        $id = $options['engine'] . ':/' . $options['path'];
-        if (isset($options['fieldset'])) {
-            $id .= ' ' . implode(',', $options['fieldset']);
-        }
-        return $id;
-    }
-
     function _castField(&$value, $key)
     {
         if (array_key_exists($key, $this->_fields)) {
@@ -327,30 +152,62 @@ class TIP_Data extends TIP_Type
     /**#@-*/
 
 
-    /**#@+ @access public */
+    /**#@+ @access protected */
 
     /**
-     * Get a TIP_Data instance
+     * Constructor
      *
-     * Gets the previously defined $_path table object or instantiates
-     * a new one and returns it. In fieldset you can specify the list of
-     * fields used by this object. If '*' is contained in this array,
-     * all the fields of $path are included.
+     * Initializes a TIP_Data instance.
      *
-     * @param array $options An array of options
-     * @return TIP_Data A reference to the data instance
-     * @static
+     * @param string $id   The instance identifier
+     * @param array  $args The constructor arguments, as described in buildId()
      */
-    function& getInstance($options)
+    function TIP_Data($id, $args)
     {
-        $id = TIP_Data::_buildId($options);
-        $instance =& TIP_Data::singleton($id);
-        if (is_null($instance)) {
-            $instance =& new TIP_Data($options);
-            TIP_Data::singleton($id, array($id => &$instance));
+        $this->TIP_Type($id);
+
+        $this->_path = $args['path'];
+        $this->_joins = $args['joins'];
+        $this->_engine =& $args['engine'];
+
+        if (isset($args['primary_key'])) {
+            $this->_primary_key =& $args['primary_key'];
         }
-        return $instance;
+
+        if (isset($args['fieldset'])) {
+            $this->_fieldset =& $args['fieldset'];
+        }
     }
+
+    /**
+     * Build a TIP_Data identifier
+     *
+     * $args must be an array with at least the following items:
+     * - $args['path']: the path/table to use
+     * - $args['engine']: a reference to the data engine
+     *
+     * The following items are optionals:
+     * - $args['fieldset']: an array of fields to select
+     * - $args['joins']: an associative array of joins to other data
+     * - $args['primary_key']: the field to use as primary key instead of the
+     *                         default one (that is 'id')
+     *
+     * @param  array  $args The constructor arguments
+     * @return string       The data identifier
+     */
+    function buildId($args)
+    {
+        $id = $args['engine']->getId() . ':' . $args['path'];
+        if (isset($args['fieldset'])) {
+            $id .= '(' . implode(',', $args['fieldset']) . ')';
+        }
+        return $id;
+    }
+
+    /**#@-*/
+
+
+    /**#@+ @access public */
 
     /**
      * Get the path
