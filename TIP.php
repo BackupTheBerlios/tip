@@ -141,11 +141,12 @@ class TIP
      */
     function getLocale($id, $module, $context = null, $cached = true)
     {
-        $locale =& $GLOBALS[TIP_MAIN]->getSharedModule('locale');
-        if (is_object($locale)) {
-            return $locale->get($id, $module, $context, $cached);
+        static $locale = false;
+        if ($locale === false) {
+            $locale =& $GLOBALS[TIP_MAIN]->getSharedModule('locale');
         }
-        return $id;
+
+        return $locale ? $locale->get($id, $module, $context, $cached) : $id;
     }
 
     /**
@@ -461,7 +462,7 @@ class TIP
     {
         $backtrace = debug_backtrace();
         TIP::log('FATAL', $message, $backtrace);
-        $fatal_uri = HTTP::absoluteURI(TIP::getOption('application', 'fatal_url'));
+        $fatal_uri = HTTP::absoluteURI($GLOBALS[TIP_MAIN]->getOption('fatal_url'));
         if ($fatal_uri == @$_SERVER['REQUEST_URI']) {
             // This is a recursive redirection
             HTTP::redirect('/fatal.html');
@@ -543,7 +544,7 @@ class TIP
     {
         static $base_path = null;
         if (!$base_path) {
-            $script = isset($_SERVER['SCRIPT_FILENAME']) ? $_SERVER['SCRIPT_FILENAME'] : __FILE__;
+            ($script = @$_SERVER['SCRIPT_FILENAME']) || ($script = __FILE__);
             $base_path = rtrim(realpath(dirname($script)), DIRECTORY_SEPARATOR);
         }
 
@@ -626,14 +627,15 @@ class TIP
      * @param string|array $suburl,... A list of partial URLs
      * @return string The constructed URL
      */
-    function buildUrl()
+    function buildURL()
     {
-        static $base_url = null;
-        if (!$base_url) {
-            $base_url = rtrim(HTTP::absoluteURI('/'), ' /');
+        static $root_url = null;
+        if (is_null($root_url)) {
+            $script_uri = TIP::getScriptURI();
+            $root_url = substr($script_uri, 0, strrpos($script_uri, '/'));
         }
 
-        return TIP::deepImplode(array($base_url, func_get_args()), '/');
+        return TIP::deepImplode(array($root_url, func_get_args()), '/');
     }
 
     /**
@@ -644,11 +646,11 @@ class TIP
      * @param string|array $suburl,... A list of partial URLs
      * @return string The constructed URL
      */
-    function buildSourceUrl()
+    function buildSourceURL()
     {
         static $source_url = null;
         if (!$source_url) {
-            $source_url = TIP::buildUrl(TIP::getOption('application', 'source_root'));
+            $source_url = TIP::buildURL($GLOBALS[TIP_MAIN]->getOption('source_root'));
         }
 
         return TIP::deepImplode(array($source_url, func_get_args()), '/');
@@ -662,11 +664,11 @@ class TIP
      * @param string|array $suburl,... A list of partial URLs
      * @return string The constructed URL
      */
-    function buildFallbackUrl()
+    function buildFallbackURL()
     {
         static $fallback_url = null;
         if (!$fallback_url) {
-            $fallback_url = TIP::buildUrl(TIP::getOption('application', 'source_fallback'));
+            $fallback_url = TIP::buildURL($GLOBALS[TIP_MAIN]->getOption('source_fallback'));
         }
 
         return TIP::deepImplode(array($fallback_url, func_get_args()), '/');
@@ -680,57 +682,87 @@ class TIP
      * @param string|array $suburl,... A list of partial URLs
      * @return string The constructed URL
      */
-    function buildDataUrl()
+    function buildDataURL()
     {
         static $data_url = null;
         if (!$data_url) {
-            $data_root = TIP::getOption('application', 'data_root', true);
-            $data_url = TIP::buildUrl($data_root);
+            $data_url = TIP::buildURL($GLOBALS[TIP_MAIN]->getOption('data_root'));
         }
 
         return TIP::deepImplode(array($data_url, func_get_args()), '/');
     }
 
     /**
-     * Get the URL of the root script
+     * Get the base URL
      *
-     * @return string The root URL
+     * Returns the absoute base URL of this application.
+     *
+     * @return string The base URL
      */
-    function getRootUrl()
+    function getBaseURL()
     {
-        static $root_url = null;
-        if (!$root_url) {
-            $script = basename($_SERVER['SCRIPT_FILENAME']);
-            $root_url = TIP::buildUrl($script);
+        static $base_url = null;
+        if (!$base_url) {
+            $base_url = HTTP::absoluteURI(TIP::buildURL());
         }
-
-        return $root_url;
+        return $base_url;
     }
 
     /**
-     * Get the referer
+     * Get the URI of the current script
      *
-     * Gets the referer for this page. If a double click on the same page is
-     * catched, the old referer is retained.
-     *
-     * @return string The current referer
+     * @return string The requested URI
      */
-    function getReferer()
+    function getScriptURI()
+    {
+        static $script = null;
+        if (!$script) {
+            ($script = @$_SERVER['SCRIPT_NAME']) || ($script = @$_SERVER['PHP_SELF']);
+        }
+        return $script;
+    }
+
+    /**
+     * Get the referer URI
+     *
+     * If a double click on the same page is catched, the old referer is retained.
+     *
+     * @return string The referer URI
+     */
+    function getRefererURI()
     {
         static $referer = null;
         if (is_null($referer)) {
             TIP::startSession();
-            $request_uri = HTTP_Session::get('request_uri');
-            if (@$_SERVER['REQUEST_URI'] == $request_uri) {
+            $old_request_uri = HTTP_Session::get('request_uri');
+            $request_uri = TIP::getRequestURI();
+
+            if ($request_uri == $old_request_uri) {
+                // Page not changed: leave the old referer
                 $referer = HTTP_Session::get('referer');
             } else {
-                $referer = $request_uri ? $request_uri : @$_SERVER['HTTP_REFERER'];
+                // Page changed: save the new state
+                $referer = $old_request_uri ? $old_request_uri : @$_SERVER['HTTP_REFERER'];
                 HTTP_Session::set('referer', $referer);
-                HTTP_Session::set('request_uri', @$_SERVER['REQUEST_URI']);
+                HTTP_Session::set('request_uri', $request_uri);
+            }
+
+            if (empty($referer)) {
+                $referer = TIP::getScriptURI();
             }
         }
 
         return $referer;
+    }
+
+    /**
+     * Get the request URI
+     *
+     * @return string The request URI
+     */
+    function getRequestURI()
+    {
+        return @$_SERVER['REQUEST_URI'];
     }
 
     /**
@@ -747,8 +779,6 @@ class TIP
             return $value ? 'true' : 'false';
         } elseif (is_numeric($value)) {
             return (string) $value;
-        } elseif (empty($value)) {
-            return '';
         } elseif (is_string($value)) {
             return htmlentities($value, ENT_QUOTES, 'UTF-8');
         }
@@ -797,36 +827,43 @@ class TIP
     /**
      * Get the privilege for the specified module
      *
-     * Returns the privilege for a module of the specified user.  If $user_id
+     * Returns the privilege for a module and the specified user.  If $user_id
      * is omitted, the current user id is used. Check TIP_Privilege to see how the
      * privileges are used.
      *
-     * @param  string           $module_name The requesting module name
-     * @param  mixed            $user_id     A user id
-     * @return TIP_PRIVILEGE...              The requested privilege
+     * @param  string           $module_id The requesting module identifier
+     * @param  mixed            $user_id   A user id
+     * @return TIP_PRIVILEGE...            The requested privilege
      */
-    function getPrivilege($module_name, $user_id = null)
+    function getPrivilege($module_id, $user_id = null)
     {
-        if (is_null($user_id)) {
-            $user_id = TIP::getUserId();
-        }
-
-        $anonymous = is_null($user_id) || $user_id === false;
-        $module_id = strtolower($module_name);
-        if (!$anonymous) {
+        static $privilege = false;
+        if ($privilege === false) {
             $privilege =& $GLOBALS[TIP_MAIN]->getSharedModule('privilege');
-            if (is_object($privilege)) {
-                $stored_privilege = $privilege->getStoredPrivilege($module_id, $user_id);
-                if ($stored_privilege != TIP_PRIVILEGE_INVALID) {
-                    return $stored_privilege;
-                }
-            }
         }
 
-        $privilege_type = $anonymous ? 'anonymous_privilege' : 'default_privilege';
+        if ($privilege) {
+            return $privilege->getPrivilege($module_id, $user_id);
+        }
+
+        return TIP::getDefaultPrivilege($module_id, $user_id);
+    }
+
+    /**
+     * Get the default fallback privilege for the specified module
+     *
+     * Returns the default privilege for a module and a specified user.
+     *
+     * @param  string           $module_id The requesting module identifier
+     * @param  mixed            $user_id   A user id
+     * @return TIP_PRIVILEGE...            The requested privilege
+     */
+    function getDefaultPrivilege($module_id, $user_id)
+    {
+        $privilege_type = $user_id ? 'default_privilege' : 'anonymous_privilege';
         $result = TIP::getOption($module_id, $privilege_type);
         if (is_null($result)) {
-            $result = TIP::getOption('application', $privilege_type);
+            $result = $GLOBALS[TIP_MAIN]->getOption('privilege_type');
         }
 
         return $result;

@@ -14,29 +14,29 @@ class TIP_Comments extends TIP_Block
 {
     /**#@+ access private */
 
+    var $_master = null;
+    var $_slave_field = null;
     var $_master_id = null;
-    var $_parent_id = null;
 
 
     function _updateCounter($offset)
     {
-        $master =& TIP_Module::getInstance($this->_master_id);
-        $id = $this->_parent_id;
-        $view =& $master->startView($master->data->rowFilter($id));
+        $id = $this->_master_id;
+        $view =& $this->_master->startView($this->_master->data->rowFilter($id));
         if (is_null($view)) {
-            TIP::error("unable to get row $id on data " . $master->data->getId());
+            TIP::error("unable to get row $id on data " . $this->_master->data->getId());
             return false;
         }
         $row =& $view->rowReset();
-        $master->endView();
+        $this->_master->endView();
         if (is_null($row)) {
-            TIP::error("row $id not found on data " . $master->data->getId());
+            TIP::error("row $id not found in " . $this->_master->data->getId());
             return false;
         }
         $old_row = $row;
         $row['_comments'] += $offset;
-        if (!$master->data->updateRow($row, $old_row)) {
-            TIP::error("no way to update comments counter on row $id for data " . $master->data->getId());
+        if (!$this->_master->data->updateRow($row, $old_row)) {
+            TIP::error("no way to update comments counter on row $id in " . $this->_master->data->getId());
             return false;
         }
 
@@ -52,7 +52,7 @@ class TIP_Comments extends TIP_Block
 
     function _onDelete(&$form, &$row)
     {
-        $this->_parent_id = $row['_parent'];
+        $this->_master_id = $row[$this->_slave_field];
         if ($this->_updateCounter(-1)) {
             $form->process($row);
         }
@@ -68,19 +68,14 @@ class TIP_Comments extends TIP_Block
      *
      * Initialize an implementation of the TIP_Comments interface.
      *
-     * @param string $block_id The id of the master block
+     * @param string $id The instance identifier
      */
-    function TIP_Comments($block_id)
+    function TIP_Comments($id)
     {
-        // There is a singleton for every master block
-        $this->_id = strtolower($block_id) . '_comments';
-        $this->_master_id = $block_id;
-        $this->TIP_Block();
-    }
+        $this->TIP_Block($id);
 
-    function getOption($option)
-    {
-        return @$GLOBALS['cfg'][$this->_master_id]['comments'][$option];
+        $this->_master =& TIP_Type::getInstance($this->getOption('master_block'));
+        $this->_slave_field = $this->getOption('slave_field');
     }
 
     /**#@+
@@ -94,7 +89,7 @@ class TIP_Comments extends TIP_Block
      */
     function commandAdd($params)
     {
-        $this->_parent_id = (int) $params;
+        $this->_master_id = (int) $params;
         return $this->callAction('add');
     }
 
@@ -140,30 +135,30 @@ class TIP_Comments extends TIP_Block
     {
         switch ($action) {
         case 'add':
-            if (is_null($this->_parent_id)) {
-                $this->_parent_id = TIP::getPost('_parent', 'int');
+            if (is_null($this->_master_id)) {
+                $this->_master_id = TIP::getPost($this->_slave_field, 'int');
             }
 
-            if (is_null($this->_parent_id)) {
-                $this->_parent_id = TIP::getGet('id', 'int');
+            if (is_null($this->_master_id)) {
+                $this->_master_id = TIP::getGet($this->_slave_field, 'int');
             }
 
-            if (is_null($this->_parent_id)) {
+            if (is_null($this->_master_id)) {
                 TIP::error('no parent id specified');
                 return null;
             }
 
             $processed = $this->form(TIP_FORM_ACTION_ADD, null, array(
-                'referer'        => $_SERVER['REQUEST_URI'],
-                'buttons'        => TIP_FORM_BUTTON_SUBMIT,
-                'invalid_render' => TIP_FORM_RENDER_HERE,
-                'valid_render'   => TIP_FORM_RENDER_IN_CONTENT,
-                'defaults'       => array(
-                    '_creation'  => TIP::formatDate('datetime_iso8601'),
-                    '_user'      => TIP::getUserId(),
-                    '_parent'    => $this->_parent_id
+                'referer'               => $_SERVER['REQUEST_URI'],
+                'buttons'               => TIP_FORM_BUTTON_SUBMIT,
+                'invalid_render'        => TIP_FORM_RENDER_HERE,
+                'valid_render'          => TIP_FORM_RENDER_IN_CONTENT,
+                'defaults'              => array(
+                    '_creation'         => TIP::formatDate('datetime_iso8601'),
+                    '_user'             => TIP::getUserId(),
+                    $this->_slave_field => $this->_master_id
                 ),
-                'on_process' => array(&$this, '_onAdd')
+                'on_process'            => array(&$this, '_onAdd')
             ));
 
             return !is_null($processed);
@@ -179,11 +174,10 @@ class TIP_Comments extends TIP_Block
 
     function parentRemoved($id)
     {
-        $filter = $this->data->filter('_parent', $id);
+        $filter = $this->data->filter($this->_slave_field, $id);
         return $this->data->deleteRows($filter);
     }
 
     /**#@-*/
 }
-
 ?>

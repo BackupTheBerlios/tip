@@ -42,7 +42,7 @@ class TIP_Locale extends TIP_Block
 
     function getDataOptions()
     {
-        $this->_locale = TIP::getOption('application', 'locale');
+        $this->_locale = $GLOBALS[TIP_MAIN]->getOption('locale');
         $options = TIP_Block::getDataOptions();
         $options['fieldset'] = array('id', $this->_locale);
         return $options;
@@ -115,8 +115,7 @@ class TIP_Locale extends TIP_Block
         }
 
         if (is_null($row)) {
-            TIP::warning("localized text not found ($row_id)");
-            return $row_id;
+            return null;
         }
 
         $text = @$row[$this->_locale];

@@ -102,13 +102,7 @@ class TIP_Content extends TIP_Block
 
         case 'add':
             $processed = $this->form(TIP_FORM_ACTION_ADD, null, array(
-                'defaults' => array(
-                    '_creation' => TIP::formatDate('datetime_iso8601'),
-                    '_user'     => TIP::getUserId(),
-                    '_hits'     => 1,
-                    '_lasthit'  => TIP::formatDate('datetime_iso8601')
-                ),
-                'valid_render'  => TIP_FORM_RENDER_NOTHING
+                'valid_render' => TIP_FORM_RENDER_NOTHING
             ));
 
             if ($processed) {
@@ -166,10 +160,12 @@ class TIP_Content extends TIP_Block
             }
 
             $row =& $this->view->rowCurrent();
-            $old_row = $row;
-            $row['_hits'] += 1;
-            $row['_lasthit'] = TIP::formatDate('datetime_iso8601');
-            $this->data->updateRow($row, $old_row);
+            if (array_key_exists('_hits', $row)) {
+                $old_row = $row;
+                $row['_hits'] += 1;
+                $row['_lasthit'] = TIP::formatDate('datetime_iso8601');
+                $this->data->updateRow($row, $old_row);
+            }
 
             $this->appendToContent('view.src');
             $this->endView();

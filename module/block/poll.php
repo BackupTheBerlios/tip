@@ -37,6 +37,11 @@ class TIP_Poll extends TIP_Block
         return true;
     }
 
+    function _stripVotes($field)
+    {
+        return substr($field['id'], 0, 4) != 'vote';
+    }
+
     /**#@-*/
 
 
@@ -45,26 +50,6 @@ class TIP_Poll extends TIP_Block
     function TIP_Poll($id)
     {
         $this->TIP_Block($id);
-    }
-
-    function postConstructor()
-    {
-        parent::postConstructor();
-
-        $filter = $this->data->order('date', true) . ' LIMIT 1';
-        $view =& $this->startView($filter);
-        if (is_null($view)) {
-            TIP::notifyError('select');
-            return;
-        }
-
-        if (!$view->rowReset()) {
-            TIP::notifyError('notfound');
-            $this->endView();
-            return;
-        }
-
-        // No endView() call to retain this query as the default one
     }
 
     function runManagerAction($action)
@@ -104,21 +89,8 @@ class TIP_Poll extends TIP_Block
         switch ($action) {
 
         case 'add':
-            $fields =& $this->data->getFields();
-            $processed = $this->form(TIP_FORM_ACTION_ADD, null, array(
-                'fields'        => array(
-                    'date'      => $fields['date'],
-                    'question'  => $fields['question'],
-                    'question'  => $fields['question'],
-                    'answer1'   => $fields['answer1'],
-                    'answer2'   => $fields['answer2'],
-                    'answer3'   => $fields['answer3'],
-                    'answer4'   => $fields['answer4'],
-                    'answer5'   => $fields['answer5'],
-                    'answer6'   => $fields['answer6']
-                )
-            ));
-            return !is_null($processed);
+            $fields = array_filter($this->data->getFields(), array(&$this, '_stripVotes'));
+            return !is_null($this->form(TIP_FORM_ACTION_ADD, null, array('fields' => $fields)));
         }
 
         return parent::runTrustedAction($action);
@@ -129,15 +101,9 @@ class TIP_Poll extends TIP_Block
         switch ($action) {
 
         case 'set':
-            $answer_id = TIP::getGet('answer', 'int');
-            if (is_null($answer_id)) {
+            if (is_null($id = TIP::getGet('id', 'int')) && is_null($id = TIP::getPost('id', 'integer')) ||
+                is_null($answer_id = TIP::getGet('answer', 'int'))) {
                 TIP::notifyError('noparams');
-                return false;
-            }
-
-            $answer_label = $this->getField('answer' . $answer_id);
-            if (empty($answer_label)) {
-                TIP::notifyError('wrongparams');
                 return false;
             }
 
@@ -148,9 +114,27 @@ class TIP_Poll extends TIP_Block
                 return false;
             }
 
+            $view =& $this->startView($this->data->rowFilter($id));
+            if (is_null($view)) {
+                TIP::notifyError('select');
+                return false;
+            } elseif (!$view->rowReset()) {
+                TIP::notifyError('notfound');
+                $this->endView();
+                return false;
+            }
+
+            $answer_label = $this->getField('answer' . $answer_id);
+            if (empty($answer_label)) {
+                TIP::notifyError('wrongparams');
+                $this->endView();
+                return false;
+            }
+
             if (@TIP::getGet('process', 'int') == 1) {
                 if (!$voting) {
                     TIP::notifyError('nocookies');
+                    $this->endView();
                     return false;
                 }
                 $row =& $this->view->rowCurrent();
@@ -167,19 +151,24 @@ class TIP_Poll extends TIP_Block
                 $this->appendToContent('vote.src');
             }
 
+            $this->endView();
             return true;
 
         case 'view':
-            if ($id = @TIP::getGet('id', 'int')) {
-                $view =& $this->startView($this->data->rowFilter($id));
-                if (is_null($view)) {
-                    TIP::notifyError('select');
-                    return false;
-                } elseif (!$view->rowReset()) {
-                    TIP::notifyError('notfound');
-                    $this->endView();
-                    return false;
-                }
+            $id = @TIP::getGet('id', 'int');
+            if (!$id) {
+                TIP::notifyError('noparams');
+                return false;
+            }
+
+            $view =& $this->startView($this->data->rowFilter($id));
+            if (is_null($view)) {
+                TIP::notifyError('select');
+                return false;
+            } elseif (!$view->rowReset()) {
+                TIP::notifyError('notfound');
+                $this->endView();
+                return false;
             }
 
             $this->appendToContent('view.src');

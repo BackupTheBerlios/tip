@@ -29,6 +29,7 @@ class TIP_User extends TIP_Block
 {
     /**#@+ @access private */
 
+    var $_constructor_error = null;
     var $_old_row = null;
     var $_new_row = null;
 
@@ -36,10 +37,13 @@ class TIP_User extends TIP_Block
     function _login()
     {
         $row =& $this->view->rowCurrent();
-        if (!empty($row)) {
+        if ($row) {
             $this->_activateUser($row);
             $expiration = strtotime($this->getOption('expiration'));
             setcookie('TIP_User', $row['id'] . ',' . crypt($row['password']), $expiration);
+            $this->_refreshUser();
+        } else {
+            $this->_logout();
         }
     }
 
@@ -51,6 +55,7 @@ class TIP_User extends TIP_Block
         $this->_activateUser($fake_null);
         setcookie('TIP_User', '', time()-3600);
         HTTP_Session::destroy();
+        $this->_refreshUser();
     }
 
     function _activateUser(&$row)
@@ -62,23 +67,34 @@ class TIP_User extends TIP_Block
             $this->keys['CID'] = null;
         } else {
             $this->keys['CID'] = $row['id'];
-            $row['_hits'] ++;
-            $row['_lasthit'] = TIP::formatDate('datetime_iso8601');
-        }
+            register_shutdown_function(array(&$this, '_updateUser'));
 
+            if (array_key_exists('_hits', $row)) {
+                $row['_hits'] ++;
+            }
+
+            if (array_key_exists('_lasthit', $row)) {
+                $row['_lasthit'] = TIP::formatDate('datetime_iso8601');
+            }
+        }
+    }
+
+    function _refreshUser()
+    {
         // Refresh the new user id cache
         TIP::getUserId(true);
 
         // Refresh the privileges of the yet loaded modules
-        $this->_refreshModule(TIP_Module::singleton(array('module')));
+        $this->_refreshModule(TIP_Type::singleton(array('module')));
     }
 
     function _refreshModule(&$module)
     {
         if (is_array($module)) {
-            array_walk($module, array('TIP_User', '_refreshModule'));
+            array_walk($module, array(&$this, '_refreshModule'));
         } else {
-            $module->refreshPrivilege();
+            $module->_privilege = TIP::getPrivilege($module->getId(), $this->keys['CID']);
+            $module->refreshPrivileges();
         }
     }
 
@@ -121,44 +137,72 @@ class TIP_User extends TIP_Block
 
     /**#@+ @access protected */
 
+    /**
+     * Constructor
+     *
+     * Initializes a TIP_User instance.
+     *
+     * Performs the same initializations of TIP_Block, adding the user
+     * authentication feature.
+     *
+     * Notice in this constructor no external modules can be called, because
+     * many of them (if not all) depend on TIP_User. So the eventual errors
+     * are stored in the $_constructor_error private property and processed
+     * in the postConstructor() method.
+     *
+     * @param mixed $id Identifier of this instance
+     */
     function TIP_User($id)
     {
         $this->TIP_Block($id);
-    }
 
-    function postConstructor()
-    {
-        parent::postConstructor();
+        $this->keys['CID'] = null;
 
+        // Get user id and password from the TIP_User cookie
         @list($id, $password) = explode(',', TIP::getCookie('TIP_User', 'string'), 2);
         if (is_null($id) || is_null($password)) {
             return;
         }
 
-        $id = (int) $id;
-        $filter = $this->data->rowFilter($id);
-        $view =& $this->startView($filter);
+        // Get user id and password from the data source
+        $view =& $this->startView($this->data->rowFilter((int) $id));
         if (is_null($view)) {
-            TIP::notifyError('select');
+            $this->_constructor_error = 'select';
             return;
         }
 
+        // Check for user id presence in the data source
         $row =& $view->rowReset();
         if (is_null($row)) {
-            $this->_logout();
             $this->endView();
+            $this->_constructor_error = 'notfound';
             return;
         }
 
+        // Check for password validity
         if (crypt($row['password'], $password) != $password) {
-            TIP::notifyError('denied');
             $this->endView();
+            $this->_constructor_error = 'denied';
             return;
         }
 
         // No endView() call to retain this query as the default one
         $this->_activateUser($row);
-        register_shutdown_function(array(&$this, '_updateUser'));
+    }
+
+    /**
+     * Custom post construction method
+     *
+     * Overrides the default post-constructor method providing the constructor
+     * error processing, as described in TIP_User().
+     */
+    function postConstructor()
+    {
+        TIP_Block::postConstructor();
+        if (isset($this->_constructor_error)) {
+            TIP::notifyError($this->_constructor_error);
+            $this->_constructor_error = null;
+        }
     }
 
     function runManagerAction($action)
@@ -206,9 +250,7 @@ class TIP_User extends TIP_Block
         switch ($action) {
 
         case 'delete':
-            $processed = $this->form(TIP_FORM_ACTION_DELETE, null, array(
-                'referer' => TIP::getRootUrl()
-            ));
+            $processed = $this->form(TIP_FORM_ACTION_DELETE);
             if ($processed) {
                 $this->_logout();
             }
@@ -253,14 +295,7 @@ class TIP_User extends TIP_Block
                 return true;
             }
 
-            $processed = $this->form(TIP_FORM_ACTION_ADD, null, array(
-                'defaults'      => array(
-                    '_creation' => TIP::formatDate('datetime_iso8601'),
-                    '_hits'     => 1,
-                    '_lasthit'  => TIP::formatDate('datetime_iso8601')
-                )
-            ));
-
+            $processed = $this->form(TIP_FORM_ACTION_ADD);
             if ($processed &&
                 !is_null($id = $this->data->getLastId()) &&
                 !is_null($filter = $this->data->rowFilter($id)) &&

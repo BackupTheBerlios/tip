@@ -61,7 +61,8 @@ class TIP_Module extends TIP_Type
      */
     function postConstructor()
     {
-        $this->refreshPrivilege();
+        $this->_privilege = TIP::getPrivilege($this->getId());
+        $this->refreshPrivileges();
     }
 
     /**
@@ -69,10 +70,8 @@ class TIP_Module extends TIP_Type
      *
      * Refreshes the privileges of the current module.
      */
-    function refreshPrivilege()
+    function refreshPrivileges()
     {
-        $this->_privilege = TIP::getPrivilege($this->getId());
-
         $this->keys['IS_MANAGER']   = false;
         $this->keys['IS_ADMIN']     = false;
         $this->keys['IS_TRUSTED']   = false;
@@ -111,7 +110,13 @@ class TIP_Module extends TIP_Type
      */
     function getLocale($id, $context = null, $cached = true)
     {
-        return TIP::getLocale($id, $this->getId(), $context, $cached);
+        if (is_null($text = TIP::getLocale($id, $this->getId(), $context, $cached)) &&
+            is_null($text = TIP::getLocale($id, $this->getType(), $context, $cached))) {
+            $text = $this->getId() . '_' . $id;
+            TIP::warning("localized text not found ($text)");
+        }
+
+        return $text;
     }
 
     /**
@@ -157,7 +162,7 @@ class TIP_Module extends TIP_Type
             return $value;
         }
 
-        return @$GLOBALS[TIP_MAIN_MODULE]->keys[$id];
+        return @$GLOBALS[TIP_MAIN]->keys[$id];
     }
 
     /**
@@ -384,7 +389,7 @@ class TIP_Module extends TIP_Type
             array_unshift($list, 'module=' . $this->getId());
         }
         $args = implode('&amp;', TIP::urlEncodeAssignment($list));
-        echo TIP::getRootUrl() . '?' . $args;
+        echo TIP::getScriptURI() . '?' . $args;
         return true;
     }
 
@@ -433,7 +438,11 @@ class TIP_Module extends TIP_Type
      */
     function commandIconUrl($params)
     {
-        echo $this->buildSourceUrl('shared', 'icons', $params);
+        static $icon_url = null;
+        if (!$icon_url) {
+            $icon_url = $this->buildSourceUrl('shared', 'icons');
+        }
+        echo $icon_url . '/' . $params;
         return true;
     }
 

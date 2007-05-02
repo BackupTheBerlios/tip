@@ -41,7 +41,7 @@
  * The default privileges SHOULD be specified in the config file
  * for every module in the 'default_privilege' and 'anonymous_privilege'
  * options. If not specified, the privilege defaults to the one of the
- * 'application' module.
+ * main module.
  *
  * @final
  * @package TIP
@@ -76,10 +76,10 @@ class TIP_Privilege extends TIP_Block
         return $this->keys['UID'];
     }
 
-    function _maxSettableLevel($module_name)
+    function _maxSettableLevel($module_id)
     {
-        $user_level = TIP::getPrivilege($module_name);
-        $subject_level = TIP::getPrivilege($module_name, $this->keys['UID']);
+        $user_level = $this->getPrivilege($module_id);
+        $subject_level = $this->getPrivilege($module_id, $this->keys['UID']);
 
         switch ($this->_privilege) {
 
@@ -110,18 +110,49 @@ class TIP_Privilege extends TIP_Block
 
     function _onModulesRow(&$row)
     {
-        $module_name = $row['id'];
-        $up_to_level = $this->_maxSettableLevel($module_name);
+        $module_id = $row['id'];
+        $up_to_level = $this->_maxSettableLevel($module_id);
         if ($up_to_level <= TIP_PRIVILEGE_NONE) {
             return false;
         }
 
-        $row['ACTIVE'] = TIP::getPrivilege($module_name, $this->keys['UID']);
+        $row['ACTIVE'] = $this->getPrivilege($module_id, $this->keys['UID']);
         foreach ($this->_privileges as $id => $privilege) {
             $row['CAN_' . strtoupper($privilege)] = $id <= $up_to_level;
         }
 
         return true;
+    }
+
+    /**
+     * Get a stored privilege
+     *
+     * Returns the privilege stored for the $module and $user_id pair. If
+     * $user_id is omitted, the current user is processed.
+     *
+     * This method returns the privilege descriptor only if it is explicitily
+     * stored in the data, does not provide any fallback or default value.
+     *
+     * @param  string           $module_id  The requesting module identifier
+     * @param  int              $user_id    The user id
+     * @return TIP_PRIVILEGE...             The stored privilege
+     */
+    function _getStoredPrivilege($module_id, $user_id)
+    {
+        /* The internal query is based only on the user id. The query could be
+         * filtered on both $module_id and $user_id, but filtering only by
+         * user id allows the next requests, with the same user id but different
+         * module (which are expected to be done), to be cached. */
+        $view =& $this->startView($this->data->filter('_user', $user_id));
+        if (is_null($view)) {
+            return TIP_PRIVILEGE_INVALID;
+        }
+
+        $filter = create_function('$r', "return \$r['_module']=='$module_id';");
+        $row = @end(array_filter($view->rows, $filter));
+        $this->endView();
+
+        return (int) array_search(@$row['privilege'], $this->_privileges);
     }
 
     /**#@-*/
@@ -141,6 +172,19 @@ class TIP_Privilege extends TIP_Block
         $this->TIP_Block($id);
     }
 
+    /**
+     * Custom post construction method
+     *
+     * Overrides the default post-constructor method to avoid the
+     * TIP::getPrivilege() call, that uses the TIP_Privilege module itsself
+     * and causes a circulary dependancy.
+     */
+    function postConstructor()
+    {
+        $this->_privilege = $this->getPrivilege($this->getId());
+        $this->refreshPrivileges();
+    }
+
     /**#@+
      * @param string @params The parameter string
      * @return bool true on success or false on errors
@@ -155,7 +199,7 @@ class TIP_Privilege extends TIP_Block
      */
     function commandIsManager($params)
     {
-        echo TIP::getPrivilege($params) >= TIP_PRIVILEGE_MANAGER ? 'true' : 'false';
+        echo $this->getPrivilege(strtolower($params)) >= TIP_PRIVILEGE_MANAGER ? 'true' : 'false';
         return true;
     }
 
@@ -167,7 +211,7 @@ class TIP_Privilege extends TIP_Block
      */
     function commandIsAdmin($params)
     {
-        echo TIP::getPrivilege($params) >= TIP_PRIVILEGE_ADMIN ? 'true' : 'false';
+        echo $this->getPrivilege(strtolower($params)) >= TIP_PRIVILEGE_ADMIN ? 'true' : 'false';
         return true;
     }
 
@@ -179,7 +223,7 @@ class TIP_Privilege extends TIP_Block
      */
     function commandIsTrusted($params)
     {
-        echo TIP::getPrivilege($params) >= TIP_PRIVILEGE_TRUSTED ? 'true' : 'false';
+        echo $this->getPrivilege(strtolower($params)) >= TIP_PRIVILEGE_TRUSTED ? 'true' : 'false';
         return true;
     }
 
@@ -191,7 +235,7 @@ class TIP_Privilege extends TIP_Block
      */
     function commandIsUntrusted($params)
     {
-        echo TIP::getPrivilege($params) >= TIP_PRIVILEGE_UNTRUSTED ? 'true' : 'false';
+        echo $this->getPrivilege(strtolower($params)) >= TIP_PRIVILEGE_UNTRUSTED ? 'true' : 'false';
         return true;
     }
 
@@ -238,7 +282,7 @@ class TIP_Privilege extends TIP_Block
         case 'change':
             if (is_null($subject_id = $this->_getSubjectId())) {
                 return false;
-            } elseif (is_null($module_name = TIP::getGet('where', 'string'))) {
+            } elseif (is_null($module_id = TIP::getGet('where', 'string'))) {
                 TIP::warning('no subject module specified');
                 TIP::notifyError('noparams');
                 return false;
@@ -248,7 +292,7 @@ class TIP_Privilege extends TIP_Block
                 return false;
             }
 
-            if ($level > $this->_maxSettableLevel($module_name)) {
+            if ($level > $this->_maxSettableLevel($module_id)) {
                 TIP::notifyError('denied');
                 $done = false;
             } else {
@@ -256,7 +300,7 @@ class TIP_Privilege extends TIP_Block
                 $view =& $this->startView($this->data->filter('_user', $subject_id));
                 if ($view) {
                     while ($row =& $view->rowNext()) {
-                        if ($module_name == @$row['_module']) {
+                        if ($module_id == @$row['_module']) {
                             $old_row =& $row;
                             break;
                         }
@@ -265,7 +309,7 @@ class TIP_Privilege extends TIP_Block
 
                 $new_row['privilege'] = $privilege;
                 $new_row['_user']     = $subject_id;
-                $new_row['_module']   = $module_name;
+                $new_row['_module']   = $module_id;
 
                 if ($old_row) {
                     if ($done = $this->data->updateRow($new_row, $old_row)) {
@@ -308,48 +352,23 @@ class TIP_Privilege extends TIP_Block
             return TIP_Block::startSpecialView($name);
         }
 
-        $view =& TIP_Block::startSpecialView('modules', '__MODULES__');
-        $view->on_row->set(array(&$this, '_onModulesRow'));
-        return $view;
+        return TIP_Block::startSpecialView('modules', array('on_row' => array(&$this, '_onModulesRow')));
     }
 
-    /**
-     * Get a stored privilege
-     *
-     * Returns the privilege stored for the $module and $user_id pair. If
-     * $user_id is omitted, the current user is processed.
-     *
-     * This method returns the privilege descriptor only if it is explicitily
-     * stored in the data, does not provide any fallback or default value.
-     *
-     * @param  string           $module_name  The requesting module name
-     * @param  int              $user_id      The user id
-     * @return TIP_PRIVILEGE...               The stored privilege
-     */
-    function getStoredPrivilege($module_name, $user_id = null)
+    function getPrivilege($module_id, $user_id = null)
     {
         if (is_null($user_id)) {
             $user_id = TIP::getUserId();
         }
 
-        if (is_null($user_id) || $user_id === false) {
-            return TIP_PRIVILEGE_INVALID;
+        if ($user_id) {
+            $privilege = $this->_getStoredPrivilege($module_id, $user_id);
+            if ($privilege != TIP_PRIVILEGE_INVALID) {
+                return $privilege;
+            }
         }
 
-        /* The internal query is based only on the user id. The query could be
-         * filtered on both $module_name and $user_id, but filtering only by
-         * user id allows the next requests, with the same user id but different
-         * module (which are expected to be done), to be cached. */
-        $view =& $this->startView($this->data->filter('_user', $user_id));
-        if (is_null($view)) {
-            return TIP_PRIVILEGE_INVALID;
-        }
-
-        $filter = create_function('$r', "return \$r['_module']=='$module_name';");
-        $row = @end(array_filter($view->rows, $filter));
-        $this->endView();
-
-        return (int) array_search(@$row['privilege'], $this->_privileges);
+        return TIP::getDefaultPrivilege($module_id, $user_id);
     }
 
     /**#@-*/

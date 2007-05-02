@@ -1,11 +1,19 @@
 <?php
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
 
+/**
+ * @package    TIP
+ * @subpackage PEAR
+ */
+
+/** Html_Menu_Renderer PEAR package */
 require_once 'HTML/Menu/Renderer.php';
 
 /**
  * TIP specific menu renderer
  *
- * @package TIP
+ * @package    TIP
+ * @subpackage PEAR
  */
 class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
 {
@@ -18,22 +26,24 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
      */
     var $_html = '';
 
-    function _newSubmenuId($level)
+    function _pushId($level)
     {
-        ++ $level;
-        isset($this->_submenu[$level]) || $this->_submenu[$level] = 0;
-        ++ $this->_submenu[$level];
-        return $this->_id . '_' . $level . '_' . $this->_submenu[$level];
-    }
-
-    function _getSubmenuId($level)
-    {
-        if (empty($this->_submenu[$level])) {
-            return false;
+        if (isset($this->_submenu[$level])) {
+            ++ $this->_submenu[$level];
+        } else {
+            $this->_submenu[$level] = 0;
         }
         return $this->_id . '_' . $level . '_' . $this->_submenu[$level];
     }
 
+    function _popId($level)
+    {
+        if (!isset($this->_submenu[$level])) {
+            return false;
+        }
+        unset($this->_submenu[$level+1]);
+        return $this->_id . '_' . $level . '_' . $this->_submenu[$level];
+    }
 
     function setId($id)
     {
@@ -51,56 +61,51 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         }
     }
 
-
     function renderEntry($node, $level, $type)
     {
-        $content = isset($node['COUNT']) ? "<var>$node[COUNT]</var>" : '';
-        $content .= $node['title'];
+        $is_active = $type != HTML_MENU_ENTRY_INACTIVE;
+        $is_container = array_key_exists('sub', $node);
 
-        switch ($type) {
-
-        case HTML_MENU_ENTRY_INACTIVE:
-            if (array_key_exists('sub', $node)) {
-                $id = $this->_newSubmenuId($level);
-                @$this->_html[$level] .= "\n";
-                $attributes = "class=\"folder\" href=\"javascript:switchHierarchy('$id')\"";
-            } else {
-                $attributes = "href=\"$node[url]\"";
-            }
-            $entry = "<a $attributes>$content</a>";
-            break;
-
-        case HTML_MENU_ENTRY_ACTIVEPATH:
-            $entry = "<p class=\"folder_open\">$content</p>";
-            break;
-
-        case HTML_MENU_ENTRY_ACTIVE:
-            $entry = "<p>$content</p>";
-            break;
+        if ($is_container) {
+            $class = $is_active ? 'folder_active_open' : 'folder';
+            $href = 'javascript:switchHierarchy(\'' . $this->_pushId($level) . '\')';
+        } else {
+            $class = $is_active ? 'active' : null;
+            $href = $node['url'];
         }
 
-        @$this->_html[$level] .= $entry;
+        $content = "\n" . str_repeat('  ', $level) . '<a ';
+        if (isset($class)) {
+            $content .= 'class="' . $class .'" ';
+        }
+        $content .= 'href="' . $href .'">';
+        if (isset($node['COUNT'])) {
+            $content .= '<var>' . $node['COUNT'] . '</var>';
+        }
+        $content .= $node['title'] . '</a>';
+
+        $this->_html[$level]['active'] = @$this->_html[$level]['active'] || $is_active;
+        @$this->_html[$level]['content'] .= $content;
     }
 
     function finishLevel($level)
     {
-        $content = @$this->_html[$level];
+        $is_active = @$this->_html[$level]['active'];
+        $content = @$this->_html[$level]['content'];
         unset($this->_html[$level]);
 
         if ($level > 0) {
-            $id = $this->_getSubmenuId($level);
-            if (!$id) {
-                $attributes = 'class="active"';
-            } else {
-                $attributes = "id=\"$id\"";
+            $attributes = 'id="' . $this->_popId($level-1) . '"';
+            if ($is_active) {
+                $attributes .= ' class="active"';
             }
-            $this->_html[$level-1] .= "<div $attributes>\n$content</div>\n\n";
+            $this->_html[$level-1]['content'] .= "<div $attributes>$content\n</div>";
         } else {
             $attributes = 'class="hierarchy"';
             if (isset($this->_id)) {
-                $attributes .= " id=\"$this->_id\"'";
+                $attributes .= ' id="' . $this->_id . '"';
             }
-            $this->_html = "\n<div $attributes>\n$content</div>\n\n";
+            $this->_html = "<div $attributes>$content\n</div>";
         }
     }
 
@@ -115,5 +120,4 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         return $this->_html;
     }
 }
-
 ?>

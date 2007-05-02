@@ -45,6 +45,17 @@ class TIP_Application extends TIP_Module
 
     var $_queue = array();
 
+
+    function _dumpRegister(&$register, $indent)
+    {
+        foreach ($register as $id => $value) {
+            echo "$indent$id\n";
+            if (is_array($value)) {
+                $this->_dumpRegister($register[$id], $indent . '    ');
+            }
+        }
+    }
+
     /**#@-*/
 
 
@@ -53,6 +64,7 @@ class TIP_Application extends TIP_Module
     function TIP_Application($id)
     {
         $this->TIP_Module($id);
+
         $GLOBALS[TIP_MAIN] =& $this;
     }
 
@@ -62,10 +74,12 @@ class TIP_Application extends TIP_Module
 
         $this->keys['TODAY'] = TIP::formatDate('date_iso8601');
         $this->keys['NOW'] = TIP::formatDate('datetime_iso8601');
-        $this->keys['ROOT'] = TIP::getRootUrl();
-        $this->keys['REFERER'] = TIP::getReferer();
+        $this->keys['BASE_URL'] = TIP::getBaseURL();
+        $this->keys['SCRIPT'] = TIP::getScriptURI();
+        $this->keys['REFERER'] = TIP::getRefererURI();
+        $this->keys['REQUEST'] = TIP::getRequestURI();
 
-        if ($this->keys['IS_MANAGER']) {
+        if ($this->keys['IS_ADMIN']) {
             require_once 'Benchmark/Profiler.php';
             $GLOBALS['_tip_profiler'] =& new Benchmark_Profiler;
             $GLOBALS['_tip_profiler']->start();
@@ -106,14 +120,14 @@ class TIP_Application extends TIP_Module
      */
     function commandDebug($params)
     {
-        if ($this->keys['IS_ADMIN']) {
+        if ($this->keys['IS_TRUSTED']) {
             $logger =& $this->getSharedModule('logger');
             if (is_object($logger)) {
                 $logger->commandRun('browse.src');
             }
         }
 
-        if ($this->keys['IS_MANAGER']) {
+        if ($this->keys['IS_ADMIN']) {
             global $_tip_profiler;
             if (is_object($_tip_profiler)) {
                 // Leave itsself, that is the commandDebug section
@@ -125,6 +139,13 @@ class TIP_Application extends TIP_Module
                 // This prevent further operation on $_tip_profiler
                 $_tip_profiler = null;
             }
+        }
+
+        if ($this->keys['IS_MANAGER']) {
+            echo '<pre style="font-family: monospace">';
+            $register =& TIP_Type::singleton(array());
+            $this->_dumpRegister($register, '');
+            echo "</pre>";
         }
 
         return true;

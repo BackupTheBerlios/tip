@@ -56,10 +56,7 @@ class TIP_Block extends TIP_Module
     function getDataOptions()
     {
         if (is_null($path = $this->getOption('data_path'))) {
-            if (is_null($path = $GLOBALS[TIP_MAIN]->getOption('data_path'))) {
-                return null;
-            }
-            $path .= $this->getId();
+            $path = @$GLOBALS[TIP_MAIN]->getOption('data_path') . $this->getId();
         }
 
         if (is_null($engine_name = $this->getOption('data_engine'))) {
@@ -209,7 +206,7 @@ class TIP_Block extends TIP_Module
             if ($end_view || is_null($row)) {
                 $this->endView();
             }
-        } else {
+        } elseif (isset($this->view)) {
             $row =& $this->view->rowCurrent();
         }
 
@@ -454,8 +451,10 @@ class TIP_Block extends TIP_Module
      * stack and makes it the current view, accessible throught the
      * TIP_Block::$view property.
      *
-     * @param  string        $filter The filter conditions
-     * @return TIP_View|null         The view instance or null on errors
+     * @param  string        $filter  The filter conditions
+     * @param  array         $options The constructor arguments to pass to the
+     *                                TIP_View instance
+     * @return TIP_View|null          The view instance or null on errors
      */
     function& startView($filter, $options = array())
     {
@@ -472,9 +471,10 @@ class TIP_Block extends TIP_Module
      * If $id is not specified, it defaults to the id of the data binded to
      * this block.
      *
-     * @param  string        $type The special view type
-     * @param  string        $id   The instance identifier
-     * @return TIP_View|null       The view instance or null on errors
+     * @param  string        $type    The special view type
+     * @param  array         $options The constructor arguments to pass to the
+     *                                TIP_View derived instance
+     * @return TIP_View|null          The view instance or null on errors
      */
     function& startSpecialView($type, $options = array())
     {

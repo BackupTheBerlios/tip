@@ -6,10 +6,10 @@
  * @subpackage Module
  */
 
-/**
- * Html_QuickForm includes
- */
+/** Html_QuickForm PEAR package */
 require_once 'HTML/QuickForm.php';
+
+/** Html_QuickForm table-less renderer package */
 require_once 'HTML/QuickForm/DHTMLRulesTableless.php';
 
 /**
@@ -56,6 +56,24 @@ class TIP_Form extends TIP_Module
      */
     var $_on_process = null;
 
+
+    function _addAutomaticDefaults()
+    {
+        if (array_key_exists('_creation', $this->_fields) &&
+            @empty($this->_defaults['_creation'])) {
+            $this->_defaults['_creation'] = TIP::formatDate('datetime_iso8601');
+        }
+
+        if (array_key_exists('_lasthit', $this->_fields) &&
+            @empty($this->_defaults['_lasthit'])) {
+            $this->_defaults['_lasthit'] = TIP::formatDate('datetime_iso8601');
+        }
+
+        if (array_key_exists('_user', $this->_fields) &&
+            @empty($this->_defaults['_user'])) {
+            $this->_defaults['_user'] = TIP::getUserId();
+        }
+    }
 
     function _ruleUnique($value, $options)
     {
@@ -225,7 +243,7 @@ class TIP_Form extends TIP_Module
 
         // $min_year > $max_year so the year list is properly sorted in reversed order
         $options = array(
-            'language' => TIP::getOption('application', 'locale'),
+            'language' => $GLOBALS[TIP_MAIN]->getOption('locale'),
             'format'   => 'dFY',
             'minYear'  => $this_year+1,
             'maxYear'  => $field_year < $this_year-5 ? $field_year : $this_year-5
@@ -452,7 +470,7 @@ class TIP_Form extends TIP_Module
             $this->_command = $this->_action;
         }
         if (!isset($this->_referer)) {
-            $this->_referer = TIP::getReferer();
+            $this->_referer = TIP::getRefererURI();
         }
 
         if (!isset($this->_buttons)) {
@@ -525,11 +543,14 @@ class TIP_Form extends TIP_Module
 
     /**#@+ @access public */
 
-
     function run()
     {
         if (is_null($this->_fields)) {
             $this->_fields = $this->_block->data->getFields();
+        }
+
+        if ($this->_action == TIP_FORM_ACTION_ADD) {
+            $this->_addAutomaticDefaults();
         }
 
         $header_label = $this->_block->getLocale($this->_command . '_header_label');
@@ -540,7 +561,7 @@ class TIP_Form extends TIP_Module
         $this->_form->removeAttribute('name');
         $this->_form->addElement('header', $this->_command . '_header', $header_label);
         // The label element (default header object) is buggy at least in
-        // Firefox, so I provide a decent header object
+        // Firefox, so I provide a decent alternative
         $this->_form->addElement('html', '<h1>' . $header_label . '</h1>');
         $this->_form->addElement('hidden', 'module', $this->_block->getId());
         $this->_form->addElement('hidden', 'action', $this->_command);
@@ -622,7 +643,7 @@ class TIP_Form extends TIP_Module
         if ($buttons & TIP_FORM_BUTTON_DELETE && $this->_command != TIP_FORM_ACTION_DELETE) {
             $primary_id = $this->_block->data->getPrimaryKey();
             $primary_value = $this->_form->getElementValue($primary_id);
-            $url = TIP::getRootUrl() . '?module=' . $this->_block->getId() . '&action=delete';
+            $url = TIP::getScriptURI() . '?module=' . $this->_block->getId() . '&action=delete';
             $url .= '&' . $primary_id . '=' . urlencode($primary_value);
             $group[] =& $this->_form->createElement('link', 'delete', null, $url, $this->getLocale('delete'), array('class' => 'dangerous'));
         }
