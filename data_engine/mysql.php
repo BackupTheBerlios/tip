@@ -437,12 +437,11 @@ class TIP_Mysql extends TIP_Data_Engine
 
         while ($row = mysql_fetch_assoc($result)) {
             $name = $row['Field'];
-            $data->_fields[$name] = array('id' => $name);
-            $field =& $data->_fields[$name];
-
+            $field = array('id' => $name);
             $type = $row['Type'];
+
             $open_brace = strpos($type, '(');
-            if ($open_brace) {
+            if ($open_brace !== false) {
                 $flags = substr($type, $open_brace+1, -1);
                 $type = substr($type, 0, $open_brace);
             }
@@ -457,13 +456,14 @@ class TIP_Mysql extends TIP_Data_Engine
 
             $field['automatic'] = strpos($row['Extra'], 'auto_increment') !== false;
 
-            if ($field['widget'] == 'set' || $field['widget'] == 'enum') {
-                $callback = create_function('$v', 'return trim($v, \'\\\'\');');
-                $field['choices'] = array_map($callback, explode(',', $flags));
+            if (($field['widget'] == 'set' || $field['widget'] == 'enum') &&
+                is_array($field['choices'] = @explode(',', $flags))) {
+                array_walk($field['choices'], create_function('&$v', '$v=trim($v,"\'");'));
             }
 
             $field['info'] = $row['Comment'];
             $field['can_be_null'] = $row['Null'] == 'YES';
+            $data->_fields[$name] = $field;
         }
 
         return true;

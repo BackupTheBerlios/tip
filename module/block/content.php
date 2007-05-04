@@ -128,9 +128,6 @@ class TIP_Content extends TIP_Block
 
             $processed = $this->form(TIP_FORM_ACTION_EDIT, $id);
             return !is_null($processed);
-
-        case 'browse':
-            return $this->appendToContent('browse-user.src');
         }
 
         return parent::runTrustedAction($action);
@@ -153,13 +150,22 @@ class TIP_Content extends TIP_Block
                 return false;
             }
 
-            if (!$this->view->rowReset()) {
+            $row =& $this->view->rowReset();
+            if (!$row) {
                 TIP::notifyError('notfound');
                 $this->endView();
                 return false;
             }
 
-            $row =& $this->view->rowCurrent();
+            if (array_key_exists('_public', $row) && !$row['_public']) {
+                TIP::notifyError('denied');
+                $this->endView();
+                return false;
+            }
+
+            $this->appendToContent('view.src');
+            $this->endView();
+
             if (array_key_exists('_hits', $row)) {
                 $old_row = $row;
                 $row['_hits'] += 1;
@@ -167,7 +173,25 @@ class TIP_Content extends TIP_Block
                 $this->data->updateRow($row, $old_row);
             }
 
-            $this->appendToContent('view.src');
+            return true;
+
+        case 'browse':
+            $user = TIP::getGet('user', 'integer');
+            if ($user) {
+                $filter[] = $this->data->filter('_user', $user);
+            }
+
+            $group = TIP::getGet('group', 'integer');
+            if ($group) {
+                $filter[] = $this->data->filter('group', $group);
+            }
+
+            if (!$this->startView(implode(' AND ', $filter))) {
+                TIP::notifyError('select');
+                return false;
+            }
+
+            $this->appendToContent('browse.src');
             $this->endView();
             return true;
         }

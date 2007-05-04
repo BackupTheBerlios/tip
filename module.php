@@ -112,7 +112,7 @@ class TIP_Module extends TIP_Type
     {
         if (is_null($text = TIP::getLocale($id, $this->getId(), $context, $cached)) &&
             is_null($text = TIP::getLocale($id, $this->getType(), $context, $cached))) {
-            $text = $this->getId() . '_' . $id;
+            $text = $this->getId() . '.' . $id;
             TIP::warning("localized text not found ($text)");
         }
 
@@ -486,8 +486,8 @@ class TIP_Module extends TIP_Type
      * $params is a string in the form "needle,value1,value2,...".
      *
      * Outputs true if needle is present in the comma separated list of values.
-     * Useful to check if a value is contained (that is, if it is on) in a
-     * "set" or "enum" field.
+     * Useful to check if a value is contained (that is, if it is selected) in
+     * a "set" or "enum" field.
      */
     function commandInList($params)
     {

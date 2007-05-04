@@ -252,30 +252,27 @@ class TIP
      * Given an item separator and a pair separator, performs the explode()
      * operation twice and return the result as an associative array.
      *
-     * The $string must have the following format:
+     * The $buffer must have the following format:
      * <code>key1{$pair_separator}value1{$item_separator}key2{$pair_separator}value2{$item_separator}...</code>
      * If, for instance, $item_separator is ',' and $pair_separator is '=',
      * this function will properly parse the following string:
      * <code>key1=value1,key2=value2,key_n=value_n</code>
      *
-     * The spaces are no stripped, so be aware to keep $string compact.
+     * The spaces are no stripped, so be aware to keep $buffer compact.
      *
-     * @param string $item_separator The item separator character
-     * @param string $pair_separator The key-value separator character
-     * @param string $string         The string to parse
-     * @return array|null The resulting associative array or null on errors
+     * @param  string     $item_separator The item separator character
+     * @param  string     $pair_separator The key-value separator character
+     * @param  string     $buffer         The buffer to parse
+     * @return array|null                 The resulting associative array or null on errors
      */
-    function doubleExplode($item_separator, $pair_separator, $string)
+    function doubleExplode($item_separator, $pair_separator, $buffer)
     {
-        $GLOBALS['_TIP_ARRAY'] = null;
-        $callback = create_function(
-            '$v, $k',
-            '@list($k, $v) = explode(\'' . $pair_separator . '\', $v, 2);' .
-            '$GLOBALS[\'_TIP_ARRAY\'][$k] = $v;');
-        $items = explode($item_separator, $string);
-        array_walk($items, $callback);
-        $result =& $GLOBALS['_TIP_ARRAY'];
-        unset($GLOBALS['_TIP_ARRAY']);
+        $items = explode($item_separator, $buffer);
+        $result = null;
+        foreach ($items as $item) {
+            @list($k, $v) = explode($pair_separator, $item, 2);
+            $result[$k] = $v;
+        }
         return $result;
     }
 
@@ -876,8 +873,8 @@ class TIP
      * TIP system. You can specify an array of rules to use in the $rules
      * array, or leave it undefined to use all the available rules.
      *
-     * @param array|null $enabled The array of rules to enable
-     * @return Text_Wiki The requested instance
+     * @param  array|null $enabled The array of rules to enable
+     * @return Text_Wiki           The requested instance
      */
     function& getWiki($enabled = null)
     {
@@ -905,7 +902,8 @@ class TIP
             // Get the real rules to apply
             $real_rules = array_intersect($rules, $enabled);
         } else {
-            $real_rules =& $rules;
+            //$real_rules =& $rules;
+            $real_rules = $forced_rules;
         }
 
         $wiki =& Text_Wiki::singleton('Default', $real_rules);

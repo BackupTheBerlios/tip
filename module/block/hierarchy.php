@@ -37,7 +37,7 @@ class TIP_Hierarchy extends TIP_Block
             // Provide a default action
             $id = $this->getId();
             $master = substr($id, 0, strrpos($id, '_'));
-            $action = TIP::getScriptURI() . '?module=' . $master . '&action=browse&group=';
+            $action = TIP::getScriptURI() . '?module=' . $master . '&amp;action=browse&amp;group=';
         }
 
         foreach ($view->rows as $id => $node) {

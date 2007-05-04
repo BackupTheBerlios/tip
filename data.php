@@ -120,7 +120,7 @@ class TIP_Data extends TIP_Type
 
     function _mergeFieldInfo(&$field)
     {
-        if (!empty($field['info'])) {
+        if (isset($field['info'])) {
             $info = TIP::doubleExplode('|', '=', $field['info']);
             $field = array_merge($field, $info);
         }
@@ -322,10 +322,14 @@ class TIP_Data extends TIP_Type
     {
         if (is_null($this->_fields) || $detailed && !$this->_detailed) {
             $this->_detailed = true;
-            if (!$this->_engine->fillFields($this)) {
-                TIP::error("no way to get the table structure ($data->_path)");
+            if ($this->_engine->fillFields($this)) {
+                if (is_array($this->_fields)) {
+                    array_walk($this->_fields, array(&$this, '_mergeFieldInfo'));
+                } else {
+                    TIP::error('Populated fields are not an array (' . gettype($this->_fields) . ')');
+                }
             } else {
-                array_walk($this->_fields, array(&$this, '_mergeFieldInfo'));
+                TIP::error("no way to get the table structure ($data->_path)");
             }
         }
 

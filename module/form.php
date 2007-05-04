@@ -115,6 +115,11 @@ class TIP_Form extends TIP_Module
         $row[$field] = sprintf('%04d%02d%02d', $year, $month, $day);
     }
 
+    function _converterSet(&$row, $field)
+    {
+        $row[$field] = implode(',', array_keys($row[$field]));
+    }
+
     function _converterCancel(&$row, $field)
     {
         $row[$field] = @$this->_defaults[$field];
@@ -195,15 +200,19 @@ class TIP_Form extends TIP_Module
         $id = $field['id'];
         $label = $this->_block->getLocale($id . '_label');
         $items = array_flip($field['choices']);
+        $default = @explode(',', $this->_defaults[$id]);
+        unset($this->_defaults[$id]);
         array_walk($items, array(&$this->_block, 'localize'), $id . '_label');
 
         $group = array();
         foreach ($items as $i_value => $i_label) {
+            $this->_defaults[$id][$i_value] = in_array($i_value, $default);
             ++ $this->_tabindex;
-            $item =& $this->_form->createElement('advcheckbox', $id, $label, $i_label, array('tabindex' => $this->_tabindex));
+            $item =& $this->_form->createElement('checkbox', $i_value, $label, $i_label, array('tabindex' => $this->_tabindex));
             $group[] =& $item;
         }
 
+        $this->_addConverter($id, 'set');
         return $this->_form->addElement('group', $id, $label, $group);
     }
 
