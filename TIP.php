@@ -9,7 +9,7 @@
 require_once TIP::buildLogicPath('Type.php');
 require_once TIP::buildLogicPath('Callback.php');
 
-set_include_path(TIP::buildLogicPath('pear') . PATH_SEPARATOR . TIP::buildLogicPath('lib'));
+set_include_path(TIP::buildLogicPath('pear'));
 
 /**#@+ Backward compatibily functions */
 require_once 'PHP/Compat/Function/array_intersect_key.php';
