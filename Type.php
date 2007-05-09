@@ -192,6 +192,9 @@ class TIP_Type
      * Gets the singleton of a configured object. $id could be any identifier
      * defined in config.php.
      *
+     * An internal register is mantained to avoid next calls to the
+     * singleton() method.
+     *
      * @param  mixed    $id       Instance identifier
      * @param  bool     $required true if errors must be fatals
      * @return TIP_Type           The reference to the requested instance or
@@ -200,12 +203,20 @@ class TIP_Type
      */
     function& getInstance($id, $required = true)
     {
+        static $register = array();
+
         $id = strtolower($id);
+        if (array_key_exists($id, $register)) {
+            return $register[$id];
+        }
+
         $instance =& TIP_Type::singleton($GLOBALS['cfg'][$id]['type'], $id);
         if (!is_object($instance) && $required) {
             TIP::fatal("unable to instantiate the configured object ($id)");
             exit;
         }
+
+        $register[$id] =& $instance;
         return $instance;
     }
 

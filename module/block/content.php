@@ -25,7 +25,7 @@ class TIP_Content extends TIP_Block
             return;
         }
 
-        $comments =& TIP_Module::getInstance($this->getId() . '_comments');
+        $comments =& TIP_Type::getInstance($this->getId() . '_comments');
         if ($comments->parentRemoved($id)) {
             $form->process($row);
         }

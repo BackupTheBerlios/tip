@@ -15,7 +15,7 @@
  *
  * This is the prefix used by the TIP objects. It is used in various place,
  * such as to get the type name from the class by stripping this prefix
- * (avoiding tedious prefix repetitions) and to manage the view names.
+ * (avoiding tedious prefix repetitions).
  */
 define('TIP_PREFIX', 'TIP_');
 
