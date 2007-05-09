@@ -14,7 +14,7 @@
  *
  * @package TIP
  */
-class TIP_Callback extends TIP
+class TIP_Callback
 {
     /**#@+ @access private */
 

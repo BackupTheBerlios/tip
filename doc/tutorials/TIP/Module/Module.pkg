@@ -1,0 +1,97 @@
+<refentry id="{@id}">
+ <refnamediv>
+  <refname>Modules</refname>
+ </refnamediv>
+ <refsynopsisdiv>
+  <author>
+   Nicola Fontana
+   <authorblurb>{@link mailto:ntd@users.sourceforge.net ntd@users.sourceforge.net}</authorblurb>
+  </author>
+ </refsynopsisdiv>
+ <refsect1 id="{@id introduction}">
+  <title>Introduction</title>
+  <para>In the TIP system, there are two kind of modules: the TIP_Module class is the abstraction layer of a module without data access, while TIP_Block is the abstraction of a module with data access.</para>
+  <para>The modules are loaded dynamically. This means if the source file does not require a module, the logic of the module is not loaded.</para>
+ </refsect1>
+ <refsect1 id="{@id TIP_Type}">
+  <title>The module instantiation</title>
+  <para>The dynamic instantiation of the modules is provided by the TIP_Type class.</para>
+  <para>Suppose your application need to instantiate the 'test' module (both TIP_Module and TIP_Block share the same instantiation interface): this is simply done by getting the instance from TIP_Module::getInstance.</para>
+  <para>
+   <programlisting role="php">
+   <![CDATA[
+    $test_instance =&amp; TIP_Module::getInstance('test');
+   ]]>
+   </programlisting>
+  </para>
+  <para>The TIP_Module::getInstance() method is defined as:</para>
+  <para>
+   <programlisting role="php">
+   <![CDATA[
+    function& getInstance($module_name, $required = true)
+    {
+        $id = strtolower($module_name);
+        $instance =& TIP_Module::singleton($id);
+        if (is_null($instance)) {
+            $path = TIP::getOption('application', 'logic_module_root');
+            $instance =& TIP_Module::singleton($id, TIP_Type::factory($id, $path, $required));
+            if (is_object($instance)) {
+                $instance->postConstructor();
+            } elseif ($required) {
+                TIP::logFatal("Module logic not valid (id: $id; path: $path)");
+            }
+        }
+
+        return $instance;
+    }
+   ]]>
+   </programlisting>
+  </para>
+  <para>The getInstance method performs the following steps to get the requested instance:</para>
+  <orderedlist>
+   <listitem>
+    <para>The module name is converted to lowercase.</para>
+    <para>To leave the maximum freedom in the source engines, the TIP system use a case insensitive approach to access the modules. The lowercased module name is stored in $id.</para>
+   </listitem>
+   <listitem>
+    <para>Try to get the reference throught a singleton call.</para>
+    <para>The singleton method (defined in TIP_Type) keeps internally an array, so called <emphasis>register</emphasis>, of all yet instantiated modules.</para>
+    <para>If $id is found in the register (that is it was previously instantiated), its reference is returned with no further manipulation.</para>
+   </listitem>
+   <listitem>
+    <para>The module is instantiated.</para>
+    <para>The module instantiation is dynamically done by the TIP_Type::factory() method. This function tries to include the logic file, that is a file called $id.php found in the path specified by the 'logic_module_root' option.</para>
+    <para>Every instantiable modules must return an instance of themselfs in the logic file. For example, the application module has 'return new TIP_Application;' at the end of 'application.php'.</para>
+   </listitem>
+   <listitem>
+    <para>The newly created instance is stored in the register.</para>
+    <para>The TIP_Module::singleton($id,...) call makes the job registering the return value of factory and returning the reference of the stored instance.</para>
+   </listitem>
+   <listitem>
+    <para>The method postConstructor of the new instance is called.</para>
+    <para>The default postConstructor() method of TIP_Module initializes the privilege stuff. This cannot be done in the constructor itsself, because the privilege management needs the TIP_User and TIP_Privilege modules to be yet instantiated. So, to avoid a mutual recursion between module dependencies, this operation is done in the postConstructor method.</para>
+    <para>More general speaking, any initialization that requires another module to be instantiated must be done in postConstructor, not in the constructor. If you need such operation in your own module, override this method but remember to chain up the parent one.</para>
+   </listitem>
+   <listitem>
+    <para>Final checking.</para>
+    <para>The $required flag is used to control the behaviour in case the module cannot be instantiated. If set to true (the default), an error in the instantiation will be fatal.</para>
+   </listitem>
+  </orderedlist>
+  <para>The TIP_Type::singleton() and TIP_Type::factory() approach to the dynamic allocation is quite flexible and is not used only by TIP_Module. Also TIP_View, TIP_Data, TIP_DataEngine and TIP_SourceEngine uses the interface provided by TIP_Type.</para>
+ </refsect1>
+ <refsect1 id="{@id TIP_Module}">
+  <title>TIP_Module based modules</title>
+  <para>This class provides the base of a module without data access. The TIP_Application module, for instance, is a typical example of this kind of module because does not have any specific data.</para>
+  <para>Also, this black box must react to some external requests (usually because of a user click): this is done using the callAction() method.</para>
+  <para>A module provides more data than the informations found in $data_path. getItem() is the way used by the source engine to retrieve informations: see the documentation to know how this method works.</para>
+
+ </refsect1>
+ <refsect1 id="{@id TIP_Block}">
+  <title>TIP_Block based modules</title>
+  <para>The TIP_Block is an extension of the TIP_Module class, that is all the features provided by TIP_Module are available in a TIP_Block module. Furthermore, TIP_Block basically adds the data management feature to TIP_Module.</para>
+  <para>A block module can be thought as a black box that parses a generic source file as described in the TIP_Module section and get the data requested by the source file from a TIP_Data object (the $data property).</para>
+  <para>The data get by a module is managed by views: a module can have more views on the same data source. See the TIP_View class to get an idea on how the view works.</para>
+  <para>The views can also be thought as different queries applied on $data. A view can be started by calling startView() or startSpecialView() and must be closed by a endView() call. Also, the views are internally stacked, so ending a view reactivates the previous one.</para>
+  <para>The result of a view can be browsed using its cursor movement methods: rowReset(), rowEnd(), rowUnset(), rowPrevious() and rowNext(). The content of the current row can be get by rowCurrent().</para>
+ </refsect1>
+</refentry>

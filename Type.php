@@ -104,12 +104,12 @@ class TIP_Type
     {
         static $register = array();
 
-        $path = TIP::buildLogicPath();
+        $path = TIP::buildLogicPath('Type');
         $node =& $register;
 
         // Hierarchy scan
         foreach ($hierarchy as $type) {
-            $path .= $type;
+            $path .= DIRECTORY_SEPARATOR . $type;
             if (!array_key_exists($type, $node)) {
                 if (is_null($args)) {
                     // Requested register content, but $hierarchy not defined
@@ -127,7 +127,6 @@ class TIP_Type
                 }
             }
             $node =& $node[$type];
-            $path .= DIRECTORY_SEPARATOR;
         }
 
         if (is_null($args)) {
