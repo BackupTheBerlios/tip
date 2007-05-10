@@ -127,26 +127,26 @@ class TIP
     /**
      * Get a localized text
      *
-     * Gets the localized text for the specified id and module.
+     * Gets the localized text for the specified id and prefix.
      * The parameters are passed throught: this is merely a shortcut.
      *
      * See the TIP_Locale::get() method for technical details on how the text
      * is localized.
      *
-     * @param string $id      The text identifier
-     * @param string $module  The name of the caller module
-     * @param array  $context The context associative array
-     * @param bool   $cached  Whether to perform or not a cached read
-     * @return string The requested localized text or $id if the text is not found
+     * @param  string      $id      The identifier
+     * @param  string      $prefix  The prefix
+     * @param  array       $context A context associative array
+     * @param  bool        $cached  Whether to perform or not a cached read
+     * @return string|null          The localized text or null if not found
      */
-    function getLocale($id, $module, $context = null, $cached = true)
+    function getLocale($id, $prefix, $context = null, $cached = true)
     {
         static $locale = false;
         if ($locale === false) {
             $locale =& $GLOBALS[TIP_MAIN]->getSharedModule('locale');
         }
 
-        return $locale ? $locale->get($id, $module, $context, $cached) : $id;
+        return @$locale->get($id, $prefix, $context, $cached);
     }
 
     /**

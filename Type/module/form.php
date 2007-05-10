@@ -330,8 +330,8 @@ class TIP_Form extends TIP_Module
 
     function _addRule($id, $type, $format = '')
     {
-        // Add the format as context to getLocale (in case the message will
-        // embed them)
+        // Add the format as context to getLocale (in case the localized message
+        // will embed any format field)
         if (is_array($format)) {
             $context = $format;
         } elseif (!empty($format)) {
@@ -528,24 +528,6 @@ class TIP_Form extends TIP_Module
     function buildId($args)
     {
         return $args['block']->getId();
-    }
-
-    /**
-     * Get a localized text for the TIP_Form class
-     *
-     * Overrides the default localizator method because the form messages
-     * are commons for all the instantiation of TIP_Form, so the call to
-     * TIP::getLocale() must use the 'form' constant string instead of the
-     * id of this object.
-     *
-     * @param string $id      The text identifier
-     * @param array  $context The context associative array
-     * @param bool   $cached  Whether to perform or not a cached read
-     * @return string The requested localized text
-     */
-    function getLocale($id, $context = null, $cached = true)
-    {
-        return TIP::getLocale($id, 'form', $context, $cached);
     }
 
     /**#@-*/

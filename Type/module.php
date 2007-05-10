@@ -96,23 +96,31 @@ class TIP_Module extends TIP_Type
     /**
      * Get a localized text
      *
-     * Gets the localized text for the specified id. The locale used
-     * is get from the 'locale' option of the main module, which must be
-     * properly set.
+     * Gets the localized text for a specified module. The prefix to build the
+     * row id is get from the 'locale_prefix' option of the caller module. If
+     * not specified, it defaults to getType().
+     *
+     * This method always returns a valid string: if the localized text
+     * can't be retrieved, a string containing prefix.$id is returned and a
+     * warning message is logged.
      *
      * See the TIP_Locale::get() method for technical details on how the text
      * is localized.
      *
-     * @param string $id      The text identifier
-     * @param array  $context The context associative array
-     * @param bool   $cached  Whether to perform or not a cached read
-     * @return string The requested localized text
+     * @param  string $id      The identifier
+     * @param  array  $context A context associative array
+     * @param  bool   $cached  Whether to perform or not a cached read
+     * @return string          The requested localized text
      */
     function getLocale($id, $context = null, $cached = true)
     {
-        if (is_null($text = TIP::getLocale($id, $this->getId(), $context, $cached)) &&
-            is_null($text = TIP::getLocale($id, $this->getType(), $context, $cached))) {
-            $text = $this->getId() . '.' . $id;
+        if (is_null($prefix = $this->getOption('locale_prefix'))) {
+            $prefix = $this->getType();
+        }
+
+        $text = TIP::getLocale($id, $prefix, $context, $cached);
+        if (empty($text)) {
+            $text = $prefix . '.' . $id;
             TIP::warning("localized text not found ($text)");
         }
 

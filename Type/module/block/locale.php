@@ -61,16 +61,16 @@ class TIP_Locale extends TIP_Block
     /**
      * Get a localized text
      *
-     * Given an $id and a $module, retrieves the localized text (in the current
-     * locale) binded to "$module.$id". This means the data object of
-     * TIP_Locale must have a series of rows with module.id values as the
-     * primary key.
+     * Given an $id and a $prefix, retrieves the localized text (in the locale
+     * specified by the 'locale' option of the main TIP_Application) binded to
+     * "$prefix.$id". This means the data object of TIP_Locale must have a
+     * series of rows with prefix.id values as the primary key.
      *
-     * Usually the locale query is cached, that is, to avoid multiple queries,
-     * a single request from a module gets all the localized text of this
-     * module. If you are sure the other localized strings are not used (such
-     * as for the TIP_Notify module) you can disable the cache by passig false
-     * to the $cached argument.
+     * The choice of splitting the key in $prefix and $id allows to perform
+     * a sort of cached read, that is, to avoid multiple queries, a single
+     * request for a specified prefix gets all the id of this prefix.
+     * If you are sure the other id are not used (such as for the TIP_Notify
+     * module) you can disable the cache by passig false to $cached.
      *
      * The $context associative array contains a series of key=>value pairs
      * that can be substituted in the localized text. The get() method will
@@ -79,43 +79,42 @@ class TIP_Locale extends TIP_Block
      * the $context array, the text 'Max allowed size is |size|...' will
      * expand to 'Max allowed size is 200...'.
      *
-     * @param string $id      The text identifier
-     * @param string $module  The name of the caller module
-     * @param array  $context The context associative array
-     * @param bool   $cached  Whether to perform or not a cached read
-     * @return string The requested localized text or $id on errors
+     * @param  string      $id      The identifier
+     * @param  string      $prefix  The prefix
+     * @param  array       $context A context associative array
+     * @param  bool        $cached  Whether to perform or not a cached read
+     * @return string|null          The localized text or null if not found
      */
-    function get($id, $module, $context, $cached)
+    function get($id, $prefix, $context, $cached)
     {
-        $row_id = $module . '.' . $id;
-
-        if ($cached) {
-            $filter = $this->data->filter('id', $module . '.%', 'LIKE');
+        $row_id = $prefix . '.' . $id;
+        if (array_key_exists($row_id, $this->_cache)) {
+            // Localized text found in the TIP_Locale cache
+            $row =& $this->_cache[$row_id];
+        } elseif ($cached) {
+            $filter = $this->data->filter('id', $prefix . '.%', 'LIKE');
             $view =& $this->startView($filter);
             if (is_null($view)) {
-                TIP::warning("localized text not found ($row_id)");
-                return $row_id;
+                TIP::error("no way to get localized text ($row_id)");
+                return null;
             }
 
-            $rows =& $this->view->rows;
-            if (array_key_exists($row_id, $rows)) {
-                $row =& $rows[$row_id];
-            } else {
-                $row = null;
-            }
-
+            $this->_cache += $this->view->rows;
             $this->endView();
-        } else {
+
             if (array_key_exists($row_id, $this->_cache)) {
                 $row =& $this->_cache[$row_id];
             } else {
-                $row =& $this->data->getRow($row_id);
-                $this->_cache[$row_id] = $row;
+                // $row_id not found
+                $this->_cache[$row_id] = null;
+                return null;
             }
-        }
-
-        if (is_null($row)) {
-            return null;
+        } else {
+            $row =& $this->data->getRow($row_id);
+            if (is_null($this->_cache[$row_id] = $row)) {
+                // $row_id not found
+                return null;
+            }
         }
 
         $text = @$row[$this->_locale];
