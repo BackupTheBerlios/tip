@@ -250,7 +250,8 @@ class TIP_Form extends TIP_Module
         $field_year = date('Y', $this->_defaults[$id]);
         $this_year = date('Y');
 
-        // $min_year > $max_year so the year list is properly sorted in reversed order
+        // $min_year > $max_year, so the year list is properly sorted in reversed
+        // order
         $options = array(
             'language' => $GLOBALS[TIP_MAIN]->getOption('locale'),
             'format'   => 'dFY',
@@ -258,7 +259,8 @@ class TIP_Form extends TIP_Module
             'maxYear'  => $field_year < $this_year-5 ? $field_year : $this_year-5
         );
 
-        $element =& $this->_form->addElement('date', $id, $label, $options);
+        ++ $this->_tabindex;
+        $element =& $this->_form->addElement('date', $id, $label, $options, array('tabindex' => $this->_tabindex));
         $this->_addRule($id, 'date');
         $this->_addConverter($id, 'ISO8601');
         return $element;
@@ -295,12 +297,11 @@ class TIP_Form extends TIP_Module
         $hierarchy =& TIP_Type::getInstance($hierarchy_id);
         $items =& $hierarchy->getRows();
 
-        $element =& $this->_form->addElement('select', $id, $label);
-        $element->addOption('', '');
-        $element->loadArray($items);
-        $element->setAttribute('class', 'expand');
+        // Prepend an empty (default) option to the row list
+        $items = array('', '&nbsp;') + $items;
 
-        return $element;
+        ++ $this->_tabindex;
+        return $this->_form->addElement('select', $id, $label, $items, array('tabindex' => $this->_tabindex, 'class' => 'expand'));
     }
 
     function& _addElement($type, $id)
