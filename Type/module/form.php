@@ -77,7 +77,12 @@ class TIP_Form extends TIP_Module
 
     function _ruleUnique($value, $options)
     {
-        $form =& $GLOBALS['_TIP_FORM'];
+        $form_register =& TIP_Type::singleton(array('module', 'form'));
+        $var = array_keys($form_register);
+
+        // The active form is the last registered form
+        $form_id = end(array_keys($form_register));
+        $form =& $form_register[$form_id];
         if ($form->_command != TIP_FORM_ACTION_ADD && $form->_command != TIP_FORM_ACTION_EDIT) {
             return true;
         }
@@ -472,9 +477,6 @@ class TIP_Form extends TIP_Module
     {
         $this->TIP_Module($id);
 
-        // TODO: scan instead the form register
-        $GLOBALS['_TIP_FORM'] =& $this;
-
         foreach (array_keys($args) as $name) {
             $property = '_' . $name;
             $this->$property =& $args[$name];
@@ -514,24 +516,38 @@ class TIP_Form extends TIP_Module
     /**
      * Build a TIP_Form identifier
      *
-     * $args can have all the items specified in TIP_View::buildId(), but the
-     * 'filter' and 'data' arguments are not used.
-     *
      * $args must be an array with the following items:
-     * - $args['data']: a reference to a TIP_Data object
-     * - $args['filter']: the filter to apply
-     * - $args['on_row']: callback to run for every row
-     * - $args['on_view']: callback to run when populated
+     * - $args['block']: the id of the master TIP_Block instance
+     *
+     * A form identifier is equal to the master block identifier.
      *
      * @param  array  $args The constructor arguments
-     * @return string       The data identifier
-     * The returned identifier is constant because the modules view is only one.
-     *
-     * @return '__MODULES__' The data identifier
+     * @return string       The form identifier
      */
     function buildId($args)
     {
         return $args['block']->getId();
+    }
+
+    /**
+     * Get a localized text
+     *
+     * Overrides the default method, always using 'form' as prefix.
+     *
+     * @param  string $id      The identifier
+     * @param  array  $context A context associative array
+     * @param  bool   $cached  Whether to perform or not a cached read
+     * @return string          The requested localized text
+     */
+    function getLocale($id, $context = null, $cached = true)
+    {
+        $text = TIP::getLocale($id, 'form', $context, $cached);
+        if (empty($text)) {
+            $text = 'form.' . $id;
+            TIP::warning("localized text not found ($text)");
+        }
+
+        return $text;
     }
 
     /**#@-*/
