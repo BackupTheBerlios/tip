@@ -173,9 +173,9 @@ class TIP_Form extends TIP_Module
     function& _widgetEnum(&$field)
     {
         $id = $field['id'];
-        $label = $this->_block->getLocale($id . '_label');
+        $label = $this->getLocale('label.' . $id);
         $items = array_flip($field['choices']);
-        array_walk($items, array(&$this->_block, 'localize'), array($id . '_', '_label'));
+        array_walk($items, array(&$this, 'localize'), array('label.' . $id . '_', ''));
 
         if (count($field['choices']) > 3) {
             // On lot of available choices, use a select menu
@@ -198,11 +198,15 @@ class TIP_Form extends TIP_Module
     function& _widgetSet(&$field)
     {
         $id = $field['id'];
-        $label = $this->_block->getLocale($id . '_label');
+        $label = $this->getLocale('label.' . $id);
         $items = array_flip($field['choices']);
         $default = @explode(',', $this->_defaults[$id]);
+        array_walk($items, array(&$this, 'localize'), array('label.' . $id . '_', ''));
+
+        // Reset the defaults (a comma separated list of flags that are set):
+        // the $this->_defaults[$id] variable will be defined in the foreach
+        // cycle in the proper HTML_QuickForm format
         unset($this->_defaults[$id]);
-        array_walk($items, array(&$this->_block, 'localize'), $id . '_label');
 
         $group = array();
         foreach ($items as $i_value => $i_label) {
@@ -240,7 +244,7 @@ class TIP_Form extends TIP_Module
         HTML_QuickForm::registerRule('date', 'callback', '_ruleDate', 'TIP_Form');
 
         $id = $field['id'];
-        $label = $this->_block->getLocale($id . '_label');
+        $label = $this->getLocale('label.' . $id);
 
         // Set the date in a format suitable for HTML_QuickForm_date
         $iso8601 = @$this->_defaults[$id];
@@ -279,7 +283,7 @@ class TIP_Form extends TIP_Module
         if (!@is_null(TIP::getPost($unload_id, 'string'))) {
             $element->unloadPicture();
         } else {
-            $unload_label = $this->_block->getLocale($unload_id . '_label');
+            $unload_label = $this->getLocale('label.' . $unload_id);
             ++ $this->_tabindex;
             $unload =& $this->_form->createElement('checkbox', $unload_id, $unload_label, $unload_label, array('tabindex' => $this->_tabindex));
             $element->setUnloadElement($unload);
@@ -291,7 +295,7 @@ class TIP_Form extends TIP_Module
     function& _widgetHierarchy(&$field)
     {
         $id = $field['id'];
-        $label = $this->_block->getLocale($id . '_label');
+        $label = $this->getLocale('label.' . $id);
 
         $hierarchy_id = $this->_block->getId() . '_hierarchy';
         $hierarchy =& TIP_Type::getInstance($hierarchy_id);
@@ -306,7 +310,7 @@ class TIP_Form extends TIP_Module
 
     function& _addElement($type, $id)
     {
-        $label = $this->_block->getLocale($id . '_label');
+        $label = $this->getLocale('label.' . $id);
         ++ $this->_tabindex;
         return $this->_form->addElement($type, $id, $label, array('tabindex' => $this->_tabindex));
     }
@@ -340,7 +344,7 @@ class TIP_Form extends TIP_Module
             $context = null;
         }
             
-        $message = $this->getLocale($type, $context);
+        $message = $this->getLocale('rule.' . $type, $context);
         $this->_form->addRule($id, $message, $type, $format, $this->_validation);
     }
 
@@ -545,13 +549,14 @@ class TIP_Form extends TIP_Module
             $this->_addAutomaticDefaults();
         }
 
-        $header_label = $this->_block->getLocale($this->_command . '_header_label');
+        // The localized header text is defined by the block
+        $header_label = $this->_block->getLocale('header.' . $this->_command);
 
         // Create the interface
         $this->_form =& new HTML_QuickForm_DHTMLRulesTableless($this->_block->getId());
         // XHTML compliance
         $this->_form->removeAttribute('name');
-        $this->_form->addElement('header', $this->_command . '_header', $header_label);
+        $this->_form->addElement('header', 'header.' . $this->_command, $header_label);
         // The label element (default header object) is buggy at least in
         // Firefox, so I provide a decent alternative
         $this->_form->addElement('html', '<h1>' . $header_label . '</h1>');
@@ -613,31 +618,26 @@ class TIP_Form extends TIP_Module
         // Add buttons
         $group = array();
         if ($buttons & TIP_FORM_BUTTON_SUBMIT) {
-            $element =& $this->_form->createElement('submit', null, $this->getLocale('submit'));
-            $element->setAttribute('class', 'command');
-            $group[] =& $element;
+            $group[] =& $this->_form->createElement('submit', null, $this->getLocale('button.submit'), array('class' => 'command'));
         }
         if ($buttons & TIP_FORM_BUTTON_RESET) {
-            $element =& $this->_form->createElement('reset', null, $this->getLocale('reset'));
-            $element->setAttribute('class', 'command');
-            $group[] =& $element;
+            $group[] =& $this->_form->createElement('reset', null, $this->getLocale('button.reset'), array('class' => 'command'));
         }
         if ($buttons & TIP_FORM_BUTTON_DELETE && $this->_command == TIP_FORM_ACTION_DELETE) {
-            $url = $_SERVER['REQUEST_URI'] . '&process=1';
-            $group[] =& $this->_form->createElement('link', 'delete', null, $url, $this->getLocale('delete'));
+            $group[] =& $this->_form->createElement('link', 'delete', null, $_SERVER['REQUEST_URI'] . '&process=1', $this->getLocale('button.delete'));
         }
         if ($buttons & TIP_FORM_BUTTON_CANCEL) {
-            $group[] =& $this->_form->createElement('link', 'cancel', null, $referer, $this->getLocale('cancel'));
+            $group[] =& $this->_form->createElement('link', 'cancel', null, $referer, $this->getLocale('button.cancel'));
         }
         if ($buttons & TIP_FORM_BUTTON_CLOSE) {
-            $group[] =& $this->_form->createElement('link', 'close', null, $referer, $this->getLocale('close'));
+            $group[] =& $this->_form->createElement('link', 'close', null, $referer, $this->getLocale('button.close'));
         }
         if ($buttons & TIP_FORM_BUTTON_DELETE && $this->_command != TIP_FORM_ACTION_DELETE) {
             $primary_id = $this->_block->data->getPrimaryKey();
             $primary_value = $this->_form->getElementValue($primary_id);
             $url = TIP::getScriptURI() . '?module=' . $this->_block->getId() . '&action=delete';
             $url .= '&' . $primary_id . '=' . urlencode($primary_value);
-            $group[] =& $this->_form->createElement('link', 'delete', null, $url, $this->getLocale('delete'), array('class' => 'dangerous'));
+            $group[] =& $this->_form->createElement('link', 'delete', null, $url, $this->getLocale('button.delete'), array('class' => 'dangerous'));
         }
 
         // Add the tabindex property to the buttons
