@@ -6,6 +6,15 @@
  * @package TIP
  */
 
+/**
+ * This avoid E_STRICT errors generation. It will be removed when TIP will be
+ * fully PHP-5 compliant.
+ *
+ * Now I have too many PHP-4 dependencies that cannot be updated (PEAR overall,
+ * but also Text_Wiki and HTML_Menu).
+ */
+error_reporting(E_ALL);
+
 require_once TIP::buildLogicPath('Type.php');
 require_once TIP::buildLogicPath('Callback.php');
 

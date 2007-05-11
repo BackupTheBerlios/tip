@@ -41,7 +41,9 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         if (!isset($this->_submenu[$level])) {
             return false;
         }
-        unset($this->_submenu[$level+1]);
+        if (isset($this->_submenu[$level+1])) {
+            unset($this->_submenu[$level+1]);
+        }
         return $this->_id . '_' . $level . '_' . $this->_submenu[$level];
     }
 
@@ -84,14 +86,21 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         }
         $content .= $node['title'] . '</a>';
 
-        $this->_html[$level]['active'] = @$this->_html[$level]['active'] || $is_active;
-        @$this->_html[$level]['content'] .= $content;
+        if (isset($this->_html[$level])) {
+            $this->_html[$level]['active'] = $this->_html[$level]['active'] || $is_active;
+            $this->_html[$level]['content'] .= $content;
+        } else {
+            $this->_html[$level] = array(
+                'active'  => $is_active,
+                'content' => $content
+            );
+        }
     }
 
     function finishLevel($level)
     {
-        $is_active = @$this->_html[$level]['active'];
-        $content = @$this->_html[$level]['content'];
+        $is_active = $this->_html[$level]['active'];
+        $content = $this->_html[$level]['content'];
         unset($this->_html[$level]);
 
         if ($level > 0) {
