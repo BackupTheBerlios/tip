@@ -3,24 +3,93 @@
 
 require_once 'HTML/QuickForm/input.php';
 
+define('QF_PICTURE_EMPTY', 0);
+define('QF_PICTURE_UPLOADED', 1);
+define('QF_PICTURE_TO_UPLOAD', 2);
+define('QF_PICTURE_TO_UNLOAD', 3);
+
 // Register picture-related rules
 HTML_QuickForm::registerRule('uploadedpicture', 'callback', '_ruleUploadedPicture', 'HTML_QuickForm_picture');
 HTML_QuickForm::registerRule('minpicturesize', 'callback', '_ruleMinPictureSize', 'HTML_QuickForm_picture');
 HTML_QuickForm::registerRule('maxpicturesize', 'callback', '_ruleMaxPictureSize', 'HTML_QuickForm_picture');
 
+if (!function_exists('image_type_to_extension')) {
+    /**
+     * Get file extension for image type
+     *
+     * Returns the extension for the given IMAGETYPE_... constant.
+     *
+     * @param  int     $imagetype   One of the IMAGETYPE_... constant
+     * @param  boolean $include_dot Must the result prepended with a dot?
+     * @return string               The guessed extension
+     */
+    function image_type_to_extension($imagetype, $include_dot = true)
+    {
+        switch ($imagetype) {
+        case IMAGETYPE_PNG:
+            $ext = 'png';
+            break;
+        case IMAGETYPE_JPEG:
+            $ext = 'jpg';
+            break;
+        case IMAGETYPE_GIF:
+            $ext = 'gif';
+            break;
+        case IMAGETYPE_BMP:
+        case IMAGETYPE_WBMP:
+            $ext = 'bmp';
+            break;
+        case IMAGETYPE_TIFF_II:
+        case IMAGETYPE_TIFF_MM:
+            $ext = 'tif';
+            break;
+        case IMAGETYPE_SWF:
+            $ext = 'swf';
+            break;
+        case IMAGETYPE_PSD:
+            $ext = 'psd';
+            break;
+        case IMAGETYPE_JPC:
+            $ext = 'jpc';
+            break;
+        case IMAGETYPE_JP2:
+            $ext = 'jp2';
+            break;
+        case IMAGETYPE_JPX:
+            $ext = 'jpx';
+            break;
+        case IMAGETYPE_JB2:
+            $ext = 'jb2';
+            break;
+        case IMAGETYPE_SWC:
+            $ext = 'swc';
+            break;
+        case IMAGETYPE_IFF:
+            $ext = 'iff';
+            break;
+        case IMAGETYPE_XBM:
+            $ext = 'xbm';
+            break;
+        default:
+            // No dot prepending for unknown types
+            return '';
+        }
+
+        return $include_dot ? '.' . $ext : $ext;
+    }
+}
 
 /**
  * HTML class for a generic picture based field
  * 
- * @author       Nicola Fontana <ntd@users.sourceforge.net>
- * @version      1.0
- * @since        PHP4.3.0
- * @access       public
+ * @author  Nicola Fontana <ntd@users.sourceforge.net>
+ * @access  public
  */
 class HTML_QuickForm_picture extends HTML_QuickForm_input
 {
     // {{{ properties
  
+
     /**
      * Uploaded data, from $_FILES
      * @var array 
@@ -28,48 +97,38 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     var $_value = null;
  
     /**
+     * Running operation
+     * @var array 
+     */
+    var $_state = QF_PICTURE_EMPTY;
+ 
+    /**
      * Base picture path
      * @var string
      */
-    var $_base_path = null;
+    var $_base_path = '';
 
     /**
      * Base picture url
      * @var string
      */
-    var $_base_url = null;
+    var $_base_url = '';
 
     /**
-     * The name of the picture (without extension)
+     * The file name of the picture
      * @var string
      */
-    var $_picture_name = null;
-
-    /**
-     * The file extension of the picture (with a prepended dot)
-     *
-     * The extension is used also to check if the picture if uploaded: if
-     * is a string (also empty, but a string) means that the picture is
-     * uploaded, because the uploadPicture() method has defined the extension.
-     *
-     * @var string
-     */
-    var $_picture_extension = null;
+    var $_file = null;
 
     /**
      * The info array of the uploading picture, as returned by getimagesize()
      * @var array
      */
-    var $_picture_info = null;
+    var $_info = null;
 
     /**
-     * If true, prevent the initialization of the picture
-     * @var array
-     */
-    var $_is_unloaded = false;
-
-    /**
-     * Additional HTML_QuickForm_element to manage picture unloading
+     * Additional widget to manage picture unloading
+     * @var HTML_QuickForm_element
      */
     var $_unload_element = null;
 
@@ -80,11 +139,10 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     /**
      * Class constructor
      * 
-     * @param    string $elementName   Input field name attribute
-     * @param    mixed  $elementLabel  Label(s) for a field
-     * @param    mixed  $attributes    Either a typical HTML attribute string or an associative array
-     * @access   public
-     * @since    1.0
+     * @param  string $elementName   Input field name attribute
+     * @param  mixed  $elementLabel  Label(s) for a field
+     * @param  mixed  $attributes    Either a typical HTML attribute string or an associative array
+     * @access public
      */
     function HTML_QuickForm_picture($elementName=null, $elementLabel=null, $attributes=null)
     {
@@ -100,17 +158,12 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     /**
      * Get the file name of the picture
      *
-     * @return   string|null  The picture file name
-     * @access   public
-     * @since    1.0
+     * @return string  The picture file name
+     * @access public
      */
     function getValue()
     {
-        if (!$this->isUploaded()) {
-            return null;
-        }
-
-        return $this->_picture_name . $this->_picture_extension;
+        return $this->_file;
     } //end func getValue
     
     // }}}
@@ -123,29 +176,22 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
      * $value can be a string specifing the picture file, for yet uploaded
      * pictures, or an array from $_FILES for uploading pictures.
      *
-     * @param    string|array $value  The picture data
-     * @access   public
-     * @since    1.0
+     * @param  string|array $value  The picture data
+     * @access public
      */
     function setValue($value)
     {
-        $this->_picture_extension = null;
-
-        if (is_string($value)) {
-            if (!empty($value)) {
-                if (($dotpos = strrpos($value, '.')) !== false) {
-                    $this->_picture_name = substr($value, 0, $dotpos);
-                    $this->_picture_extension = substr($value, $dotpos);
-                } else {
-                    $this->_picture_name = $value;
-                    $this->_picture_extension = '';
-                }
+        if (is_string($value) && !empty($value)) {
+            $this->_file = $value;
+            if ($this->_state == QF_PICTURE_EMPTY) {
+                $this->_state = QF_PICTURE_UPLOADED;
             }
-        } elseif (is_array($value)) {
+        } elseif (is_array($value) && $this->_state != QF_PICTURE_TO_UNLOAD) {
             // Check the validity of $value
             if ((!isset($value['error']) || $value['error'] == 0) &&
                 !empty($value['tmp_name']) && $value['tmp_name'] != 'none' &&
                 is_uploaded_file($value['tmp_name'])) {
+                $this->_state = QF_PICTURE_TO_UPLOAD;
                 $this->_value = $value;
             }
         }
@@ -158,13 +204,12 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     /**
      * Get the base upload path
      * 
-     * @return   string  The base upload path
-     * @access   public
-     * @since    1.0
+     * @return string  The base upload path
+     * @access public
      */
     function getBasePath()
     {
-        return empty($this->_base_path) ? '' : $this->_base_path;
+        return $this->_base_path;
     } //end func getBasePath
     
     // }}}
@@ -174,9 +219,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     /**
      * Set the base path where uploaded pictures are stored
      * 
-     * @param    string $path  The base path
-     * @access   public
-     * @since    1.0
+     * @param  string $path  The base path
+     * @access public
      */
     function setBasePath($path)
     {
@@ -195,13 +239,12 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     /**
      * Get the base upload url
      * 
-     * @return   string|null  The base upload url
-     * @access   public
-     * @since    1.0
+     * @return string|null  The base upload url
+     * @access public
      */
     function getBaseUrl()
     {
-        return empty($this->_base_url) ? '' : $this->_base_url;
+        return $this->_base_url;
     } //end func getBaseUrl
     
     // }}}
@@ -211,9 +254,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     /**
      * Set the base url where pictures are uploaded
      * 
-     * @param    mixed  $url  The base url
-     * @access   public
-     * @since    1.0
+     * @param  mixed  $url  The base url
+     * @access public
      */
     function setBaseUrl($url)
     {
@@ -226,97 +268,39 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     } //end func setBaseUrl
     
     // }}}
-    // {{{ getPictureName()
+    // {{{ setFile()
  
     
     /**
-     * Get the name of the picture
+     * Set the file name of the picture
      *
-     * The name can be explicily set by the application if you want a specific
-     * name to be assigned to the picture or automatically by the
-     * uploadPicture() method. In any case, the returned string is the
-     * file name WITHOUT extension.
+     * Here you can set explicily the file name of the uploaded picture.
+     * Leave it null to have an automatic file name.
      * 
-     * @return   string|null  The picture name
-     * @access   public
-     * @since    1.0
+     * @param  string|null  The picture file name
+     * @access public
      */
-    function getPictureName()
+    function setFile($file)
     {
-        return $this->_picture_name;
-    } //end func getPictureName
+        $this->_file = $file;
+    } //end func setFile
     
     // }}}
-    // {{{ setPictureName()
+    // {{{ getUnloadElement()
  
     
     /**
-     * Set the name of the picture
-     * 
-     * @param    mixed  $name   The picture name
-     * @access   public
-     * @since    1.0
-     */
-    function setPictureName($name)
-    {
-        $this->_picture_name = empty($name) ? null : $name;
-    } //end func setPictureName
-    
-    // }}}
-    // {{{ getPictureExtension()
- 
-    
-    /**
-     * Get the extension of the picture (with a prepended dot)
+     * Get the unload element
      *
-     * @return   string|null  The picture extension
-     * @access   public
-     * @since    1.0
-     */
-    function getPictureExtension()
-    {
-        return is_string($this->_picture_extension) ? $this->_picture_extension : null;
-    } //end func getPictureExtension
-    
-    // }}}
-    // {{{ getPicturePath()
- 
-    
-    /**
-     * Get the complete path of the picture
+     * Returns a reference to the unload element set by setUnloadElement().
      *
-     * @return   string|null  The path of the picture
-     * @access   public
-     * @since    1.0
+     * @return HTML_QuickForm_element  A quick form element
+     * @access public
      */
-    function getPicturePath()
+    function& getUnloadElement()
     {
-        if (is_null($value = $this->getValue())) {
-            return null;
-        }
-
-        return $this->getBasePath() . $value;
-    } //end func getPicturePath
-    
-    // }}}
-    // {{{ getPictureUrl()
- 
-    
-    /**
-     * Get the complete url of the picture
-     *
-     * @return   string|null  The url of the picture
-     * @access   public
-     * @since    1.0
-     */
-    function getPictureUrl()
-    {
-        if (is_null($value = $this->getValue())) {
-            return null;
-        }
-
-        return $this->_base_url . $value;
-    } //end func getPictureUrl
+        return $this->_unload_element;
+    } //end func getUnloadElement
     
     // }}}
     // {{{ setUnloadElement()
@@ -328,140 +312,85 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
      * The unload element is rendered after this element if the picture is
      * in uploaded state.
      *
-     * @param    HTML_QuickForm_element &$element  A quick form element
-     * @access   public
-     * @since    1.0
+     * @param  HTML_QuickForm_element &$element  A quick form element
+     * @access public
      */
     function setUnloadElement(&$element)
     {
         $this->_unload_element =& $element;
+        // Unload element value must not be persistant
+        $this->_unload_element->setPersistantFreeze(false);
     } //end func setUnloadElement
     
     // }}}
-    // {{{ uploadPicture()
-
-
+    // {{{ getState()
+ 
+    
     /**
-     * Upload the picture
-     * 
-     * @return   bool    Whether the picture was uploaded successfully
-     * @access   public
-     * @since    1.0
+     * Get the current state
+     *
+     * Returns the current state of this picture widget.
+     *
+     * @return int    A STATE_... constant
+     * @access public
      */
-    function uploadPicture()
+    function& getState()
     {
-        if ($this->isUploaded() || !$this->_updatePictureExtension()) {
-            return false;
-        }
-
-        if (empty($this->_picture_name)) {
-            // Try 5 times to create a unique file in $_base_path
-            $attempts = 5;
-
-            do {
-                if (--$attempts < 0) {
-                    $this->_picture_extension = false;
-                    return false;
-                }
-                $this->_picture_name = uniqid('tip');
-            } while (!($handle = fopen($this->getPicturePath(), 'xb')));
-
-            fclose($handle);
-        }
-
-        // File upload
-        if (!move_uploaded_file($this->_value['tmp_name'], $this->getPicturePath())) {
-            $this->_picture_extension = false;
-            return false;
-        }
-
-        return true;
-    } // end func uploadPicture
+        return $this->_state;
+    } //end func getState
     
     // }}}
-    // {{{ unloadPicture()
-
-
-    /**
-     * Unload the picture
-     *
-     * This is the reverse operation of uploadPicture().
-     * 
-     * @access   public
-     * @since    1.0
-     */
-    function unloadPicture()
-    {
-        if (!is_null($path = $this->getPicturePath())) {
-            unlink($path);
-        }
-
-        $this->_is_unloaded = true;
-    } // end func unloadPicture
+    // {{{ setState()
+ 
     
-    // }}}
-    // {{{ toUpload()
-
-
     /**
-     * Check if the picture needs to be uploaded
+     * Set a new state
      *
-     * @return   bool     true if the picture must be uploaded, false otherwise
-     * @access   public
-     * @since    1.0
-     */
-    function toUpload()
-    {
-        return is_array($this->_value);
-    } // end func toUpload
-
-    // }}}
-    // {{{ isUploaded()
-
-
-    /**
-     * Check if the picture was uploaded
+     * Forces the state of this picture widget to $state.
      *
-     * @return   bool     true if the picture was uploaded, false otherwise
-     * @access   public
-     * @since    1.0
+     * @param  int    A STATE_... constant
+     * @access public
      */
-    function isUploaded()
+    function setState($state)
     {
-        return is_string($this->_picture_extension);
-    } // end func isUploaded
-
+        $this->_state = $state;
+    } //end func setState
+    
     // }}}
     // {{{ doUploads()
 
 
     /**
-     * Perform the needed uploads
+     * Perform the needed uploads/unloads
      *
      * MUST be called after the validation, so invalid pictures are not
-     * uploaded, but before the rendering process, so the html output is
-     * properly generated.
+     * uploaded, but before the processing, so the uploads/unloads are
+     * effectively performed.
      *
-     * @param    HTML_QuickForm &$form  The form to check for uploads
-     * @access   public
-     * @since    1.0
+     * @param  HTML_QuickForm &$form  The form to check for uploads
+     * @access public
      * @static
      */
     function doUploads(&$form)
     {
         foreach (array_keys($form->_elements) as $key) {
             $element =& $form->_elements[$key];
-            if (is_a($element, 'HTML_QuickForm_picture')) {
+            if ($element instanceof HTML_QuickForm_picture) {
                 $name = $element->getName();
-                // An element is considered valid if does not have an error message:
-                // not ever right but it is a good starting point ...
-                $error_message = $form->getElementError($name);
-                if (empty($error_message)) {
-                    $element->uploadPicture();
-                    // This is a really dirty hack to force the value to be the
-                    // picture file name
-                    $form->_submitFiles[$name] = $element->getValue();
+                if ($element->getState() == QF_PICTURE_TO_UPLOAD) {
+                    // An element is considered valid if does not have an error message:
+                    // not ever right but it is a good starting point ...
+                    $error_message = $form->getElementError($name);
+                    empty($error_message) && $element->_upload();
+                } elseif ($element->getState() == QF_PICTURE_TO_UNLOAD) {
+                    $element->_unload();
+                    $form->updateAttributes(array('enctype' => 'multipart/form-data'));
+                    $form->setMaxFileSize();
                 }
+
+                // This is a really dirty hack to force the value to be the
+                // picture file name
+                $form->_submitFiles[$name] = $element->getValue();
             }
         }
     } //end func doUploads
@@ -473,11 +402,10 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     /**
      * Called by HTML_QuickForm whenever form event is made on this element
      *
-     * @param    string $event   Name of event
-     * @param    mixed  $arg     Event arguments
-     * @param    object $caller  Calling object
-     * @access   public
-     * @since    1.0
+     * @param  string $event   Name of event
+     * @param  mixed  $arg     Event arguments
+     * @param  object $caller  Calling object
+     * @access public
      */
     function onQuickFormEvent($event, $arg, &$caller)
     {
@@ -494,18 +422,15 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
                 break;
 
             case 'updateValue':
-                if ($this->_is_unloaded) {
-                } elseif (!is_null($value = $this->_findValue($caller->_constantValues)) ||
-                          !is_null($value = $this->_findUploadedValue()) ||
-                          !is_null($value = $this->_findValue($caller->_submitValues)) ||
-                          !is_null($value = $this->_findValue($caller->_defaultValues))) {
-                    $this->setValue($value);
-                    // No need to set enctype and maxfilesize
-                    //break;
+                is_null($value = $this->_findValue($caller->_constantValues)) &&
+                is_null($value = $this->_findUploadedValue()) &&
+                is_null($value = $this->_findValue($caller->_submitValues)) &&
+                is_null($value = $this->_findValue($caller->_defaultValues));
+                $this->setValue($value);
+                if ($this->_state == QF_PICTURE_EMPTY) {
+                    $caller->updateAttributes(array('enctype' => 'multipart/form-data'));
+                    $caller->setMaxFileSize();
                 }
-
-                $caller->updateAttributes(array('enctype' => 'multipart/form-data'));
-                $caller->setMaxFileSize();
                 break;
         }
 
@@ -519,15 +444,14 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     /**
      * Returns the picture element in HTML
      *
-     * @return   string  The html text
-     * @access   public
-     * @since    1.0
+     * @return string  The html text
+     * @access public
      */
     function toHtml()
     {
         if ($this->_flagFrozen) {
             return $this->getFrozenHtml();
-        } elseif ($this->isUploaded()) {
+        } elseif ($this->_state == QF_PICTURE_UPLOADED) {
             // Return the frozen html ...
             $html = $this->getFrozenHtml();
             // ... and append the html of the unload element (if any)
@@ -547,18 +471,12 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     /**
      * Returns the inline object
      *
-     * @return   string  The frozen html text
-     * @access   public
-     * @since    1.0
+     * @return string  The frozen html text
+     * @access public
      */
     function getFrozenHtml()
     {
-        if (is_null($src = $this->getPictureUrl())) {
-            // No uploaded picture to view
-            return '';
-        }
-
-        return $this->_getTabs() . '<img src="' . $src . '" />' . $this->_getPersistantData();
+        return $this->_getTabs() . '<img src="' . $this->_base_url . $this->_file . '" alt="' . $this->getName() . '" />' . $this->_getPersistantData();
     } //end func getFrozenHtml
 
     // }}}
@@ -570,9 +488,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
      *
      * Directly stolen from HTML_QuickForm_file.
      * 
-     * @return   array|null  An array as in $_FILES or null if not found 
-     * @access   private
-     * @since    1.0
+     * @return array|null  An array as in $_FILES or null if not found 
+     * @access private
      */
     function _findUploadedValue()
     {
@@ -611,45 +528,112 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
 
     
     /**
-     * Update _picture_info with the uploading picture array
+     * Update _info with the uploading picture array
      * 
-     * @return   bool    Whether the picture info was populated successfully
-     * @access   private
-     * @since    1.0
+     * @return bool    Whether the picture info was populated successfully
+     * @access private
      */
     function _updatePictureInfo()
     {
-        if (is_null($this->_picture_info)) {
-            $this->_picture_info = $this->toUpload() ? getimagesize($this->_value['tmp_name']) : false;
+        if (isset($this->_info)) {
+            return true;
         }
-
-        return is_array($this->_picture_info);
-    } //end func _updatePictureInfo
-    
-    // }}}
-    // {{{ _updatePictureExtension()
- 
-    
-    /**
-     * Update _picture_extension using the _picture_info array
-     *
-     * @return   bool    Whether the picture extension was updated successfully
-     * @access   public
-     * @since    1.0
-     */
-    function _updatePictureExtension()
-    {
-        require_once 'PHP/Compat/Function/image_type_to_extension.php';
-
-        if (!$this->_updatePictureInfo()) {
-            $this->_picture_extension = false;
+        if (!@array_key_exists('tmp_name', $this->_value)) {
             return false;
         }
 
-        $extension = image_type_to_extension($this->_picture_info[2], true);
-        $this->_picture_extension = isset($extension) ? $extension : false;
-        return is_string($this->_picture_extension);
-    } //end func _updatePictureExtension
+        $this->_info = getimagesize($this->_value['tmp_name']);
+        return is_array($this->_info);
+    } //end func _updatePictureInfo
+    
+    // }}}
+    // {{{ _reset()
+
+
+    /**
+     * Reset the picture
+     * 
+     * Called after an unrecoverable error.
+     *
+     * @access private
+     */
+    function _reset()
+    {
+        $this->_state = QF_PICTURE_EMPTY;
+        $this->_file = null;
+        $this->_value = '';
+    } // end func _reset
+    
+    // }}}
+    // {{{ _upload()
+
+
+    /**
+     * Upload the picture
+     * 
+     * @return bool    Whether the picture was uploaded successfully
+     * @access private
+     */
+    function _upload()
+    {
+        if (!$this->_updatePictureInfo()) {
+            $this->_reset();
+            return false;
+        }
+
+        if ($this->_file) {
+            // Explicit file name
+            $file = $this->_file;
+        } else {
+            // Automatic file name
+            if (!is_string($ext = image_type_to_extension($this->_info[2]))) {
+                $this->_reset();
+                return false;
+            }
+
+            // Try 5 times to create a unique file in the base path
+            $attempts = 5;
+            do {
+                -- $attempts;
+                if ($attempts < 0) {
+                    $this->_reset();
+                    return false;
+                }
+                $file = uniqid('tip') . $ext;
+            } while (!($handle = fopen($this->_base_path . $file, 'xb')));
+
+            fclose($handle);
+        }
+
+        // File upload
+        if (!move_uploaded_file($this->_value['tmp_name'], $this->_base_path . $file)) {
+            $this->_reset();
+            return false;
+        }
+
+        $this->_state = QF_PICTURE_UPLOADED;
+        $this->_file = $file;
+        return true;
+    } // end func _upload
+    
+    // }}}
+    // {{{ _unload()
+
+
+    /**
+     * Unload the picture
+     *
+     * This is the reverse operation of _upload().
+     * 
+     * @return bool    Whether the picture was unloaded successfully
+     * @access private
+     */
+    function _unload()
+    {
+        unlink($this->_base_path . $this->_file);
+        $this->_reset();
+        return true;
+    } // end func _unload
     
     // }}}
     // {{{ _ruleIsUploadedPicture()
@@ -658,10 +642,9 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     /**
      * Check if the given value is an uploaded picture
      *
-     * @param    array   $value  Value as returned by HTML_QuickForm_picture::getValue()
-     * @return   bool            true if file has been uploaded, false otherwise
-     * @access   private
-     * @since    1.0
+     * @param  array   $value  Value as returned by HTML_QuickForm_picture::getValue()
+     * @return bool            true if file has been uploaded, false otherwise
+     * @access private
      */
     function _ruleUploadedPicture($value)
     {
@@ -671,7 +654,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         }
 
         $element =& $value['_qf_element'];
-        return $element->toUpload() || $element->isUploaded();
+        return $element->isToUpload() || $element->isUploaded();
     } //end func _ruleIsUploadedPicture
     
     // }}}
@@ -681,11 +664,10 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     /**
      * Check if the specified bounding box is contained by the picture
      *
-     * @param    array   $value  Value as returned by HTML_QuickForm_picture::getValue()
-     * @param    array   $box    Bounding box specified with array(width,height)
-     * @return   bool            true if the box is contained by the picture, false otherwise
-     * @access   private
-     * @since    1.0
+     * @param  array   $value  Value as returned by HTML_QuickForm_picture::getValue()
+     * @param  array   $box    Bounding box specified with array(width,height)
+     * @return bool            true if the box is contained by the picture, false otherwise
+     * @access private
      */
     function _ruleMinPictureSize($value, $box)
     {
@@ -701,7 +683,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         }
 
         list($min_width, $min_height) = $box;
-        return $element->_picture_info[0] >= $min_width && $element->_picture_info[1] >= $min_height;
+        return $element->_info[0] >= $min_width && $element->_info[1] >= $min_height;
     } //end func _ruleMinPictureSize
 
     // }}}
@@ -711,11 +693,10 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     /**
      * Check if the picture is contained by the specified bounding box
      *
-     * @param    array   $value  Value as returned by HTML_QuickForm_picture::getValue()
-     * @param    array   $box    Bounding box specified with array(width,height)
-     * @return   bool            true if picture is contained by the box, false otherwise
-     * @access   private
-     * @since    1.0
+     * @param  array   $value  Value as returned by HTML_QuickForm_picture::getValue()
+     * @param  array   $box    Bounding box specified with array(width,height)
+     * @return bool            true if picture is contained by the box, false otherwise
+     * @access private
      */
     function _ruleMaxPictureSize($value, $box)
     {
@@ -731,7 +712,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         }
 
         list($max_width, $max_height) = $box;
-        return $element->_picture_info[0] <= $max_width && $element->_picture_info[1] <= $max_height;
+        return $element->_info[0] <= $max_width && $element->_info[1] <= $max_height;
     } //end func _ruleMaxPictureSize
 
     // }}}

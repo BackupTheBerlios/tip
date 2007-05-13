@@ -15,18 +15,13 @@
  */
 error_reporting(E_ALL);
 
+
+set_include_path(TIP::buildLogicPath('pear'));
+require_once 'PEAR.php';
+require_once 'HTTP.php';
 require_once TIP::buildLogicPath('Type.php');
 require_once TIP::buildLogicPath('Callback.php');
 
-set_include_path(TIP::buildLogicPath('pear'));
-
-/**#@+ Backward compatibily functions */
-require_once 'PHP/Compat/Function/array_intersect_key.php';
-require_once 'PHP/Compat/Function/array_combine.php';
-/**#@-*/
-
-require_once 'PEAR.php';
-require_once 'HTTP.php';
 
 /**
  * A collection of global functions

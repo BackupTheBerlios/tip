@@ -133,8 +133,7 @@ class TIP_Form extends TIP_Module
     function& _widgetText(&$field)
     {
         $id = $field['id'];
-        $element =& $this->_addElement('text', $id);
-        $element->setAttribute('class', 'expand');
+        $element =& $this->_addElement('text', $id, 'expand');
 
         if (@$field['length'] > 0) {
             $element->setMaxLength($field['length']);
@@ -147,8 +146,7 @@ class TIP_Form extends TIP_Module
     function& _widgetPassword(&$field)
     {
         $id = $field['id'];
-        $element =& $this->_addElement('password', $id);
-        $element->setAttribute('class', 'expand');
+        $element =& $this->_addElement('password', $id, 'expand');
 
         if (@$field['length'] > 0) {
             $element->setMaxLength($field['length']);
@@ -157,8 +155,7 @@ class TIP_Form extends TIP_Module
 
         if ($this->_command == TIP_FORM_ACTION_ADD || $this->_command == TIP_FORM_ACTION_EDIT) {
             $reid = 're' . $id;
-            $reelement =& $this->_addElement('password', $reid);
-            $reelement->setAttribute('class', 'expand');
+            $reelement =& $this->_addElement('password', $reid, 'expand');
 
             // The repetition field must have the same features of the original,
             // so the field structure is copyed
@@ -180,7 +177,7 @@ class TIP_Form extends TIP_Module
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
         $items = array_flip($field['choices']);
-        array_walk($items, array(&$this, 'localize'), array('label.' . $id . '_', ''));
+        array_walk($items, array(&$this, 'localize'), array('label.', ''));
 
         if (count($field['choices']) > 3) {
             // On lot of available choices, use a select menu
@@ -206,7 +203,7 @@ class TIP_Form extends TIP_Module
         $label = $this->getLocale('label.' . $id);
         $items = array_flip($field['choices']);
         $default = @explode(',', $this->_defaults[$id]);
-        array_walk($items, array(&$this, 'localize'), array('label.' . $id . '_', ''));
+        array_walk($items, array(&$this, 'localize'), array('label.', ''));
 
         // Reset the defaults (a comma separated list of flags that are set):
         // the $this->_defaults[$id] variable will be defined in the foreach
@@ -230,8 +227,7 @@ class TIP_Form extends TIP_Module
         HTML_QuickForm::registerElementType('wikiarea', 'HTML/QuickForm/wikiarea.php', 'HTML_QuickForm_wikiarea');
 
         $id = $field['id'];
-        $element =& $this->_addElement('wikiarea', $id);
-        $element->setAttribute('class', 'expand');
+        $element =& $this->_addElement('wikiarea', $id, 'expand');
 
         if (array_key_exists('wiki_rules', $field)) {
             $wiki_rules = explode(',', $field['wiki_rules']);
@@ -280,18 +276,19 @@ class TIP_Form extends TIP_Module
         HTML_QuickForm::registerElementType('picture', 'HTML/QuickForm/picture.php', 'HTML_QuickForm_picture');
 
         $id = $field['id'];
-        $unload_id = 'unload_' . $id;
+
         $element =& $this->_addElement('picture', $id);
         $element->setBasePath(TIP::buildDataPath($this->_block->getId()));
         $element->setBaseUrl(TIP::buildDataUrl($this->_block->getId()));
 
-        if (!@is_null(TIP::getPost($unload_id, 'string'))) {
-            $element->unloadPicture();
+        // Unload the picture, if requested
+        $unload_id = 'unload_' . $id;
+        if (array_key_exists($unload_id, $_POST)) {
+            $element->setState(QF_PICTURE_TO_UNLOAD);
         } else {
             $unload_label = $this->getLocale('label.' . $unload_id);
-            ++ $this->_tabindex;
-            $unload =& $this->_form->createElement('checkbox', $unload_id, $unload_label, $unload_label, array('tabindex' => $this->_tabindex));
-            $element->setUnloadElement($unload);
+            $unload_element = $this->_form->createElement('checkbox', $unload_id, $unload_label, $unload_label, array('tabindex' => $this->_tabindex));
+            $element->setUnloadElement($unload_element);
         }
 
         return $element;
@@ -301,23 +298,25 @@ class TIP_Form extends TIP_Module
     {
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
-
         $hierarchy_id = $this->_block->getId() . '_hierarchy';
         $hierarchy =& TIP_Type::getInstance($hierarchy_id);
-        $items =& $hierarchy->getRows();
 
-        // Prepend an empty (default) option to the row list
-        $items = array('', '&nbsp;') + $items;
+        // Populate the option list, prepending an empty option
+        $items = array_merge(array('' => '&nbsp;'), $hierarchy->getRows());
 
         ++ $this->_tabindex;
         return $this->_form->addElement('select', $id, $label, $items, array('tabindex' => $this->_tabindex, 'class' => 'expand'));
     }
 
-    function& _addElement($type, $id)
+    function& _addElement($type, $id, $class = false)
     {
         $label = $this->getLocale('label.' . $id);
         ++ $this->_tabindex;
-        return $this->_form->addElement($type, $id, $label, array('tabindex' => $this->_tabindex));
+        $attributes['tabindex'] = $this->_tabindex;
+        if ($class) {
+            $attributes['class'] = $class;
+        }
+        return $this->_form->addElement($type, $id, $label, $attributes);
     }
 
     function _addWidget($id)
