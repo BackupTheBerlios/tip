@@ -25,69 +25,57 @@ class TIP_Hierarchy extends TIP_Block
 
     function _onView(&$view)
     {
-        $total_count =& $view->summaries['TOTAL_COUNT'];
-        $this->_tree  = array();
-        $nodes = array();
-        $total_count = 0;
-        $action = $this->getOption('action');
-        if ($action) {
-            // Prepend the root URL
-            $action = TIP::buildUrl($action);
-        } else {
-            // Provide a default action
-            $id = $this->getId();
-            $master = substr($id, 0, strrpos($id, '_'));
-            $action = TIP::getScriptURI() . '?module=' . $master . '&amp;action=browse&amp;group=';
+        $rows = $view->rows;
+        if (!is_array($rows)) {
+            // No rows
+            return true;
         }
 
-        foreach ($view->rows as $id => $node) {
-            if (array_key_exists($id, $nodes)) {
-                $node['sub'] = @$nodes[$id]['sub'];
-                $node['CLASS'] = @$nodes[$id]['CLASS'];
-                if (isset($nodes[$id]['COUNT'])) {
-                    $node['COUNT'] = $nodes[$id]['COUNT'];
-                }
-            } else {
-                $node['CLASS'] = 'item';
-            }
+        // By default, counting is enable if the '_count' field is present
+        $count_on = array_key_exists('_count', reset($rows));
+        if ($count_on) {
+            $total_count =& $view->summaries['TOTAL_COUNT'];
+            $total_count = 0;
+        }
 
-            $nodes[$id] =& $node;
+        $base_action = TIP::getScriptURI() . '?';
+        $action = $this->getOption('action');
+        if ($action) {
+            // Action specified: prepend the root URL
+            $action = TIP::buildUrl($action);
+        } else {
+            // No action specified: construct the default action (browse)
+            $id = $this->getId();
+            $action = $base_action . 'module=' . substr($id, 0, strrpos($id, '_')) . '&amp;action=browse&amp;group=';
+        }
 
-            if (@empty($node['url'])) {
-                if (@empty($node['action'])) {
-                    // No action defined: build a default URL
-                    $node['url'] = $action . $id;
-                } else {
-                    // Action specified: define the URL accordling
-                    $node['url'] = TIP::getScriptURI() . '?' . $node['action'];
-                }
-            }
-
-            if (array_key_exists('_count', $node)) {
-                $count = $node['_count'];
-                $node['COUNT'] = @$node['COUNT'] + $count;
+        $primary_key = $this->data->getPrimaryKey();
+        $this->_tree  = array();
+        foreach (array_keys($rows) as $id) {
+            $row =& $rows[$id];
+            isset($row['CLASS']) || $row['CLASS'] = 'item';
+            isset($row['url']) || $row['url'] = @$row['action'] ? $base_action . $row['action'] : $action . $id;
+            if ($count_on) {
+                isset($row['COUNT']) || $row['COUNT'] = 0;
+                $count = $row['_count'];
+                $row['COUNT'] += $count;
                 $total_count += $count;
             }
 
-            if ($parent_id = @$node['parent']) {
-                $last_id = $id;
-                do {
-                    if (!array_key_exists($parent_id, $nodes)) {
-                        $nodes[$parent_id] = array();
-                    }
-                    $parent =& $nodes[$parent_id];
-                    $parent['sub'][$last_id] =& $nodes[$last_id];
+            if ($row['parent']) {
+                while ($parent_id = $row['parent']) {
+                    $parent =& $rows[$parent_id];
                     $parent['CLASS'] = 'folder';
-                    if (isset($parent['COUNT'])) {
+                    $parent['sub'][$row[$primary_key]] =& $row;
+                    if ($count_on) {
+                        isset($parent['COUNT']) || $parent['COUNT'] = 0;
                         $parent['COUNT'] += $count;
                     }
-                    $last_id = $parent_id;
-                } while ($parent_id = @$parent['parent']);
+                    $row =& $parent;
+                }
             } else {
-                $this->_tree[$id] =& $node;
+                $this->_tree[$id] =& $row;
             }
-
-            unset($node);
         }
 
         $this->_model =& new HTML_Menu($this->_tree);
@@ -95,17 +83,15 @@ class TIP_Hierarchy extends TIP_Block
         return true;
     }
 
-    function _buildRows($nodes, $prefix)
+    function _buildRows($nodes, $parents = array())
     {
         foreach ($nodes as $id => $node) {
-            if (array_key_exists('sub', $node)) {
-                $new_prefix = $prefix;
-                $new_prefix[] = $node['title'];
-                $this->_buildRows($node['sub'], $new_prefix);
+            $hierarchy = $parents;
+            $hierarchy[] = $node['title'];
+            if (@is_array($node['sub'])) {
+                $this->_buildRows($node['sub'], $hierarchy);
             } else {
-                $item = $prefix;
-                $item[] = $node['title'];
-                $GLOBALS['_TIP_ARRAY'][$id] = $item;
+                $GLOBALS['_TIP_ARRAY'][$id] = $hierarchy;
             }
         }
     }
@@ -182,7 +168,7 @@ class TIP_Hierarchy extends TIP_Block
         }
 
         $GLOBALS['_TIP_ARRAY'] = array();
-        $this->_buildRows($this->_tree, array());
+        $this->_buildRows($this->_tree);
         $rows =& $GLOBALS['_TIP_ARRAY'];
         unset($GLOBALS['_TIP_ARRAY']);
 
@@ -191,6 +177,29 @@ class TIP_Hierarchy extends TIP_Block
         }
 
         return $rows;
+    }
+
+    function updateCount($id, $offset)
+    {
+        $view =& $this->startView($this->data->rowFilter($id));
+        if (is_null($view)) {
+            TIP::error("unable to get row $id on data " . $this->data->getId());
+            return false;
+        }
+        $row =& $view->rowReset();
+        $this->endView();
+        if (is_null($row)) {
+            TIP::error("row $id not found in " . $this->data->getId());
+            return false;
+        }
+        $old_row = $row;
+        $row['_count'] += $offset;
+        if (!$this->data->updateRow($row, $old_row)) {
+            TIP::error("no way to update comments counter on row $id in " . $this->data->getId());
+            return false;
+        }
+
+        return true;
     }
 
     /**

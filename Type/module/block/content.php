@@ -17,6 +17,18 @@ class TIP_Content extends TIP_Block
 {
     /**#@+ @access private */
 
+    function _onAdd(&$form, &$row)
+    {
+        // Update the counters, if the hierarchy module exists
+        $hierarchy_id = $this->getId() . '_hierarchy';
+        if (array_key_exists($hierarchy_id, $GLOBALS['cfg'])) {
+            $hierarchy =& TIP_Type::getInstance($hierarchy_id);
+            $hierarchy->updateCount($row['group'], +1);
+        }
+
+        $form->process($row);
+    }
+
     function _onDelete(&$form, &$row)
     {
         $id = $row[$this->data->getPrimaryKey()];
@@ -25,10 +37,23 @@ class TIP_Content extends TIP_Block
             return;
         }
 
-        $comments =& TIP_Type::getInstance($this->getId() . '_comments');
-        if ($comments->parentRemoved($id)) {
-            $form->process($row);
+        // Remove the comments, if the comment module exists
+        $comments_id = $this->getId() . '_comments';
+        if (array_key_exists($comments_id, $GLOBALS['cfg'])) {
+            $comments =& TIP_Type::getInstance($comments_id);
+            if (!$comments->parentRemoved($id)) {
+                return;
+            }
         }
+
+        // Update the counters, if the hierarchy module exists
+        $hierarchy_id = $this->getId() . '_hierarchy';
+        if (array_key_exists($hierarchy_id, $GLOBALS['cfg'])) {
+            $hierarchy =& TIP_Type::getInstance($hierarchy_id);
+            $hierarchy->updateCount($row['group'], -1);
+        }
+
+        $form->process($row);
     }
 
     /**#@-*/
@@ -102,6 +127,7 @@ class TIP_Content extends TIP_Block
 
         case 'add':
             $processed = $this->form(TIP_FORM_ACTION_ADD, null, array(
+                'on_process'   => array(&$this, '_onAdd'),
                 'valid_render' => TIP_FORM_RENDER_NOTHING
             ));
 
@@ -176,6 +202,8 @@ class TIP_Content extends TIP_Block
             return true;
 
         case 'browse':
+            $filter = array();
+
             $user = TIP::getGet('user', 'integer');
             if ($user) {
                 $filter[] = $this->data->filter('_user', $user);
