@@ -14,7 +14,7 @@
  * @package TIP
  * @subpackage Module
  */
-class TIP_Poll extends TIP_Block
+class TIP_Poll extends TIP_Content
 {
     /**#@+ @access private */
 
@@ -47,9 +47,9 @@ class TIP_Poll extends TIP_Block
 
     /**#@+ @access protected */
 
-    function TIP_Poll($id)
+    function __construct($id)
     {
-        $this->TIP_Block($id);
+        parent::__construct($id);
     }
 
     function runManagerAction($action)
@@ -145,10 +145,10 @@ class TIP_Poll extends TIP_Block
                 $this->data->updateRow($row, $old_row);
                 HTTP_Session::setLocal('voting', false);
                 HTTP_Session::setLocal('expiration', strtotime($this->getOption('expiration')));
-                $this->appendToContent('view.src');
+                $this->appendToPage('view.src');
             } else {
                 HTTP_Session::setLocal('voting', true);
-                $this->appendToContent('vote.src');
+                $this->appendToPage('vote.src');
             }
 
             $this->endView();
@@ -171,12 +171,12 @@ class TIP_Poll extends TIP_Block
                 return false;
             }
 
-            $this->appendToContent('view.src');
+            $this->appendToPage('view.src');
             $id && $this->endView();
             return true;
 
         case 'browse':
-            $this->appendToContent('browse.src');
+            $this->appendToPage('browse.src');
             return true;
         }
 
@@ -190,7 +190,7 @@ class TIP_Poll extends TIP_Block
 
     function& startView($filter)
     {
-        return TIP_Block::startView($filter, array('on_row' => array(&$this, '_onRow')));
+        return parent::startView($filter, array('on_row' => array(&$this, '_onRow')));
     }
 
     /**#@-*/

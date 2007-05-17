@@ -8,7 +8,6 @@
  * @subpackage DataEngine
  */
 
-
 /**
  * Bucket data engine
  *
@@ -16,7 +15,6 @@
  * Anyway, all the requested functions return succesful results and log a
  * warning message for debugging purpose.
  *
- * @final
  * @package TIP
  * @subpackage DataEngine
  *
@@ -25,14 +23,9 @@
  */
 class TIP_Bucket extends TIP_Data_Engine
 {
-    function prepareName($name)
+    function __construct($id)
     {
-        return "prepareName($name)";
-    }
-
-    function prepareValue($value)
-    {
-        return "prepareValue($value)";
+        parent::__construct($id);
     }
 
     function fillFields(&$data)
@@ -41,38 +34,29 @@ class TIP_Bucket extends TIP_Data_Engine
         return true;
     }
 
-    function fillDetails(&$data)
-    {
-        TIP::warning("fillDetails($data->_path)");
-        return true;
-    }
-
-    function& get($filter, &$data)
+    function& select(&$data, $filter)
     {
         TIP::warning("get($filter, $data->_path)");
         $fake_result = array();
         return $fake_result;
     }
 
-    function insert(&$row, &$data)
+    function insert(&$data, &$row)
     {
         TIP::warning("insert(row, $data->_path)");
         return true;
     }
 
-    function update($filter, &$row, &$data)
+    function update(&$data, $filter, &$row)
     {
         TIP::warning("update($filter, row, $data->_path)");
         return true;
     }
 
-    function delete($filter, &$data)
+    function delete(&$data, $filter)
     {
         TIP::warning("delete($filter, $data->_path)");
         return true;
     }
 }
-
-return 'TIP_Bucket';
-
 ?>

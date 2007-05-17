@@ -17,11 +17,10 @@
  * Also, the PHP file declaring the new type will be included only
  * when required, enabling a real modular environement.
  *
- * @abstract
  * @package  TIP
  * @tutorial TIP/Module.pkg#TIP_Type
  */
-class TIP_Type
+abstract class TIP_Type
 {
     /**#@+ @access private */
 
@@ -43,11 +42,9 @@ class TIP_Type
      * with TIP_PREFIX stripped, while the $_id property is the identifier of
      * the instance.
      *
-     * TIP_Type does not use any constructor argument.
-     *
      * @param string $id Instance identifier
      */
-    function TIP_Type($id)
+    protected function __construct($id)
     {
         $this->_type = strtolower(TIP::stripTipPrefix(get_class($this)));
         $this->_id = $id;
@@ -90,7 +87,7 @@ class TIP_Type
      * $hierarchy must be an array containing the parent types of the object.
      * These types must be lowercase strings specifying the parent classes of
      * the instance (TIP_Type excluded) without TIP_PREFIX. Using
-     * array('module', 'block', 'content') as $hierarchy, for instance, will
+     * array('module', 'content') as $hierarchy, for instance, will
      * instantiate a TIP_Content object.
      *
      * @param  array              $hierarchy  The parent types of the instance

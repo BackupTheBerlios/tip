@@ -46,9 +46,9 @@ class TIP_Fields_View extends TIP_View
      * @param string $id   The instance identifier
      * @param array  $args The constructor arguments, as described in buildId()
      */
-    function TIP_Fields_View($id, $args)
+    function __construct($id, $args)
     {
-        $this->TIP_View($id, $args);
+        parent::__construct($id, $args);
     }
 
     /**

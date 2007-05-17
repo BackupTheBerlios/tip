@@ -11,23 +11,23 @@
  *
  * Provides a common interface to access any data requested by TIP.
  *
- * @abstract
  * @package  TIP
  * @tutorial TIP/DataEngine/DataEngine.pkg
  */
-class TIP_Data_Engine extends TIP_Type
+abstract class TIP_Data_Engine extends TIP_Type
 {
-    /**#@+ @access protected */
-
-    function TIP_Data_Engine($id)
+    /**
+     * Data engine constructor
+     *
+     * Chains up the parent constructor.
+     * You must redefine the constructor as public to be able to use it.
+     *
+     * @param string $id The derived instance identifier
+     */
+    function __construct($id)
     {
-        $this->TIP_Type($id);
+        parent::__construct($id);
     }
-
-    /**#@-*/
-
-
-    /**#@+ @access public */
 
     /**
      * Fill the fields structure
@@ -35,15 +35,10 @@ class TIP_Data_Engine extends TIP_Type
      * Fills the $_fields property of the TIP_Data object: read the TIP_Data
      * documentation for further details.
      *
-     * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
-     *
-     * @param TIP_Data $data The data context
-     * @return bool true on success or false on errors
+     * @param  TIP_Data $data The data context
+     * @return bool           true on success or false on errors
      */
-    function fillFields(&$data)
-    {
-        $this->logFatal('method TIP_Data_Engine::fillFields() not implemented');
-    }
+    abstract public function fillFields(&$data);
 
     /**
      * Read data
@@ -56,17 +51,12 @@ class TIP_Data_Engine extends TIP_Type
      * The type of the field values is not important: the resulting array will
      * be casted to the proper type in the TIP_Data object.
      *
-     * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
-     *
-     * @param TIP_Data &$data   The data context
-     * @param string    $filter The filter conditions
-     * @return array|null A reference to an array of rows matching the
-     *                    specified conditions or null on errors
+     * @param TIP_Data   &$data   The data context
+     * @param string      $filter The filter conditions
+     * @return array|null         A reference to an array of rows matching the
+     *                            specified conditions or null on errors
      */
-    function& select(&$data, $filter)
-    {
-        $this->logFatal('method TIP_Data_Engine::select() not implemented');
-    }
+    abstract public function& select(&$data, $filter);
 
     /**
      * Insert new rows
@@ -83,16 +73,11 @@ class TIP_Data_Engine extends TIP_Type
      * be added without errors. In this case, the row must be filled with
      * its default values.
      *
-     * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
-     *
-     * @param TIP_Data &$data The data context
-     * @param array    &$rows An array of rows
-     * @return int|null The last autoincrement value or null on errors
+     * @param  TIP_Data &$data The data context
+     * @param  array    &$rows An array of rows
+     * @return int|null        The last autoincrement value or null on errors
      */
-    function insert(&$data, &$rows)
-    {
-        $this->logFatal('method TIP_Data_Engine::insert() not implemented');
-    }
+    abstract public function insert(&$data, &$rows);
 
     /**
      * Update data
@@ -101,35 +86,22 @@ class TIP_Data_Engine extends TIP_Type
      * contents. To leave the fields untouched, simply do not specify these
      * fields in $row.
      *
-     * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
-     *
-     * @param TIP_Data &$data   The data context
-     * @param string    $filter The filter conditions
-     * @param array    &$row    The field=>value pairs to update
-     * @return bool true on success or false on errors
+     * @param  TIP_Data &$data   The data context
+     * @param  string    $filter The filter conditions
+     * @param  array    &$row    The field=>value pairs to update
+     * @return bool              true on success or false on errors
      */
-    function update(&$data, $filter, &$row)
-    {
-        $this->logFatal('method TIP_Data_Engine::update() not implemented');
-    }
+    abstract public function update(&$data, $filter, &$row);
 
     /**
      * Delete data
      *
      * Removes the rows that match the $filter conditions.
      *
-     * This method MUST be overriden by all the types that inherits TIP_Data_Engine.
-     *
-     * @param TIP_Data &$data   The data context
-     * @param string    $filter The filter conditions
-     * @return bool true on success or false on errors
+     * @param  TIP_Data &$data   The data context
+     * @param  string    $filter The filter conditions
+     * @return bool              true on success or false on errors
      */
-    function delete (&$data, $filter)
-    {
-        $this->logFatal('method TIP_Data_Engine::delete() not implemented');
-    }
-
-    /**#@-*/
+    abstract public function delete (&$data, $filter);
 }
-
 ?>

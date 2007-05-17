@@ -27,7 +27,7 @@ class TIP_Form extends TIP_Module
 {
     /**#@+ @access private */
 
-    var $_block = null;
+    var $_content = null;
     var $_fields = null;
     var $_form = null;
     var $_action = null;
@@ -50,7 +50,7 @@ class TIP_Form extends TIP_Module
      *
      * By default, if the value with the primary field key is not found in the
      * array this callback will add a new row to the $data object of the binded
-     * block or will update an existing row if the primary key field is found.
+     * module or will update an existing row if the primary key field is found.
      *
      * @var TIP_Callback
      */
@@ -87,7 +87,7 @@ class TIP_Form extends TIP_Module
             return true;
         }
 
-        $data =& $form->_block->data;
+        $data =& $form->_content->data;
         $filter = $data->filter($options, $value);
         $rows =& $data->getRows($filter);
         $valid = empty($rows);
@@ -278,8 +278,8 @@ class TIP_Form extends TIP_Module
         $id = $field['id'];
 
         $element =& $this->_addElement('picture', $id);
-        $element->setBasePath(TIP::buildDataPath($this->_block->getId()));
-        $element->setBaseUrl(TIP::buildDataUrl($this->_block->getId()));
+        $element->setBasePath(TIP::buildDataPath($this->_content->getId()));
+        $element->setBaseUrl(TIP::buildDataUrl($this->_content->getId()));
 
         // Unload the picture, if requested
         $unload_id = 'unload_' . $id;
@@ -298,7 +298,7 @@ class TIP_Form extends TIP_Module
     {
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
-        $hierarchy_id = $this->_block->getId() . '_hierarchy';
+        $hierarchy_id = $this->_content->getId() . '_hierarchy';
         $hierarchy =& TIP_Type::getInstance($hierarchy_id);
 
         // Populate the option list, prepending an empty option
@@ -472,9 +472,9 @@ class TIP_Form extends TIP_Module
      * @param string $id   The instance identifier
      * @param array  $args The constructor arguments, as described in buildId()
      */
-    function TIP_Form($id, $args)
+    function __construct($id, $args)
     {
-        $this->TIP_Module($id);
+        parent::__construct($id);
 
         foreach (array_keys($args) as $name) {
             $property = '_' . $name;
@@ -516,16 +516,16 @@ class TIP_Form extends TIP_Module
      * Build a TIP_Form identifier
      *
      * $args must be an array with the following items:
-     * - $args['block']: the id of the master TIP_Block instance
+     * - $args['content']: the id of the content instance
      *
-     * A form identifier is equal to the master block identifier.
+     * A form identifier is equal to the content identifier.
      *
      * @param  array  $args The constructor arguments
      * @return string       The form identifier
      */
     function buildId($args)
     {
-        return $args['block']->getId();
+        return $args['content']->getId();
     }
 
     /**
@@ -557,25 +557,25 @@ class TIP_Form extends TIP_Module
     function run()
     {
         if (is_null($this->_fields)) {
-            $this->_fields = $this->_block->data->getFields();
+            $this->_fields = $this->_content->data->getFields();
         }
 
         if ($this->_action == TIP_FORM_ACTION_ADD) {
             $this->_addAutomaticDefaults();
         }
 
-        // The localized header text is defined by the block
-        $header_label = $this->_block->getLocale('header.' . $this->_command);
+        // The localized header text is defined by the content
+        $header_label = $this->_content->getLocale('header.' . $this->_command);
 
         // Create the interface
-        $this->_form =& new HTML_QuickForm_DHTMLRulesTableless($this->_block->getId());
+        $this->_form =& new HTML_QuickForm_DHTMLRulesTableless($this->_content->getId());
         // XHTML compliance
         $this->_form->removeAttribute('name');
         $this->_form->addElement('header', 'header.' . $this->_command, $header_label);
         // The label element (default header object) is buggy at least in
         // Firefox, so I provide a decent alternative
         $this->_form->addElement('html', '<h1>' . $header_label . '</h1>');
-        $this->_form->addElement('hidden', 'module', $this->_block->getId());
+        $this->_form->addElement('hidden', 'module', $this->_content->getId());
         $this->_form->addElement('hidden', 'action', $this->_command);
         array_walk(array_keys($this->_fields), array(&$this, '_addWidget'));
 
@@ -648,9 +648,9 @@ class TIP_Form extends TIP_Module
             $group[] =& $this->_form->createElement('link', 'close', null, $referer, $this->getLocale('button.close'));
         }
         if ($buttons & TIP_FORM_BUTTON_DELETE && $this->_command != TIP_FORM_ACTION_DELETE) {
-            $primary_id = $this->_block->data->getPrimaryKey();
+            $primary_id = $this->_content->data->getPrimaryKey();
             $primary_value = $this->_form->getElementValue($primary_id);
-            $url = TIP::getScriptURI() . '?module=' . $this->_block->getId() . '&action=delete';
+            $url = TIP::getScriptURI() . '?module=' . $this->_content->getId() . '&action=delete';
             $url .= '&' . $primary_id . '=' . urlencode($primary_value);
             $group[] =& $this->_form->createElement('link', 'delete', null, $url, $this->getLocale('button.delete'), array('class' => 'dangerous'));
         }
@@ -680,18 +680,18 @@ class TIP_Form extends TIP_Module
         switch ($this->_action) {
 
         case TIP_FORM_ACTION_ADD:
-            $this->_block->data->putRow($row);
+            $this->_content->data->putRow($row);
             TIP::notifyInfo('done');
             break;
 
         case TIP_FORM_ACTION_EDIT:
-            $this->_block->data->updateRow($row);
+            $this->_content->data->updateRow($row);
             TIP::notifyInfo('done');
             break;
 
         case TIP_FORM_ACTION_DELETE:
-            $id = $row[$this->_block->data->getPrimaryKey()];
-            $this->_block->data->deleteRow($id);
+            $id = $row[$this->_content->data->getPrimaryKey()];
+            $this->_content->data->deleteRow($id);
             TIP::notifyInfo('done');
             break;
         }

@@ -11,11 +11,11 @@
 require_once 'HTML/Menu.php';
 
 /**
- * A TIP_Block with a hierarchy as data model
+ * A content module with a hierarchy as data model
  *
  * @package TIP
  */
-class TIP_Hierarchy extends TIP_Block
+class TIP_Hierarchy extends TIP_Content
 {
     /**#@+ @access private */
 
@@ -101,9 +101,9 @@ class TIP_Hierarchy extends TIP_Block
 
     /**#@+ @access protected */
 
-    function TIP_Hierarchy($id)
+    function __construct($id)
     {
-        $this->TIP_Block($id);
+        parent::__construct($id);
     }
 
     /**#@+
@@ -113,13 +113,13 @@ class TIP_Hierarchy extends TIP_Block
      */
 
     /**
-     * Echo the hierarchy of the master block
+     * Echo the hierarchy of the master module
      *
      * $params is the base URL of the action to execute when selecting an item:
      * TIP_Hierarchy will append the id of the item to this URL. Leave it empty
      * to provide the default 'browse' action on the guessed master module.
      *
-     * Outputs the DHTML hierarchy of the specified block.
+     * Outputs the DHTML hierarchy of the specified module.
      */
     function commandShow($params)
     {
@@ -143,10 +143,10 @@ class TIP_Hierarchy extends TIP_Block
             $filter = $model_filter;
         } elseif ($filter != $model_filter) {
             // No way to use this query to build the model
-            return TIP_Block::startView($filter);
+            return parent::startView($filter);
         }
 
-        return TIP_Block::startView($filter, array('on_view' => array(&$this, '_onView')));
+        return parent::startView($filter, array('on_view' => array(&$this, '_onView')));
     }
 
     /**

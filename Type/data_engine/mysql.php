@@ -15,7 +15,6 @@
  * non-static to avoid confusion (for instance, _preparedName() could be
  * static but _preparedValue not, because the connection property is needed).
  *
- * @final
  * @package    TIP
  * @subpackage DataEngine
  * @tutorial   TIP/DataEngine/TIP_Mysql.cls
@@ -402,12 +401,9 @@ class TIP_Mysql extends TIP_Data_Engine
 
     /**#@-*/
 
-
-    /**#@+ @access protected */
-
-    function TIP_Mysql($id)
+    function __construct($id)
     {
-        $this->TIP_Data_Engine($id);
+        parent::__construct($id);
 
         $server   = $this->getOption('server');
         $user     = $this->getOption('user');
@@ -422,9 +418,6 @@ class TIP_Mysql extends TIP_Data_Engine
             $this->_query('SET CHARACTER SET utf8');
         }
     }
-
-    /**#@-*/
-
 
     /**#@+ @access public */
 

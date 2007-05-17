@@ -6,11 +6,11 @@
  */
 
 /**
- * Pseudo-block to add comments
+ * Pseudo-module to add comments
  *
  * @package TIP
  */
-class TIP_Comments extends TIP_Block
+class TIP_Comments extends TIP_Content
 {
     /**#@+ access private */
 
@@ -70,11 +70,11 @@ class TIP_Comments extends TIP_Block
      *
      * @param string $id The instance identifier
      */
-    function TIP_Comments($id)
+    function __construct($id)
     {
-        $this->TIP_Block($id);
+        parent::__construct($id);
 
-        $this->_master =& TIP_Type::getInstance($this->getOption('master_block'));
+        $this->_master =& TIP_Type::getInstance($this->getOption('master_module'));
         $this->_slave_field = $this->getOption('slave_field');
     }
 

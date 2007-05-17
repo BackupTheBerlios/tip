@@ -27,7 +27,7 @@ class TIP_Rcbt_Context
     var $on_stop = null;
     var $on_loop = null;
 
-    function TIP_Rcbt_Context(&$module)
+    function __construct(&$module)
     {
         $this->module =& $module;
         $this->on_create =& new TIP_Callback;
@@ -128,7 +128,7 @@ class TIP_Rcbt_Parser
     var $tp = 0;
 
 
-    function TIP_Rcbt_Parser(&$source)
+    function __construct(&$source)
     {
         $this->source =& $source;
     }
@@ -512,21 +512,13 @@ class TIP_Rcbt_Tag
  * @package    TIP
  * @subpackage SourceEngine
  * @tutorial   TIP/SourceEngine/TIP_Rcbt.cls
- * @final
  */
 class TIP_Rcbt extends TIP_Source_Engine
 {
-    /**#@+ @access protected */
-
-    function TIP_Rcbt($id)
+    function __construct($id)
     {
-        $this->TIP_Source_Engine($id);
+        parent::__construct($id);
     }
-
-    /**#@-*/
-
-
-    /**#@+ @access public */
 
     function run(&$source, &$module)
     {
@@ -539,7 +531,5 @@ class TIP_Rcbt extends TIP_Source_Engine
 
         return $parser->run($module);
     }
-
-    /**#@-*/
 }
 ?>

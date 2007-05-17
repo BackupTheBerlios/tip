@@ -25,7 +25,7 @@
  * @package TIP
  * @subpackage Module
  */
-class TIP_User extends TIP_Block
+class TIP_User extends TIP_Content
 {
     /**#@+ @access private */
 
@@ -142,8 +142,7 @@ class TIP_User extends TIP_Block
      *
      * Initializes a TIP_User instance.
      *
-     * Performs the same initializations of TIP_Block, adding the user
-     * authentication feature.
+     * Performs the user authentication feature.
      *
      * Notice in this constructor no external modules can be called, because
      * many of them (if not all) depend on TIP_User. So the eventual errors
@@ -152,9 +151,9 @@ class TIP_User extends TIP_Block
      *
      * @param mixed $id Identifier of this instance
      */
-    function TIP_User($id)
+    function __construct($id)
     {
-        $this->TIP_Block($id);
+        parent::__construct($id);
 
         $this->keys['CID'] = null;
 
@@ -198,7 +197,7 @@ class TIP_User extends TIP_Block
      */
     function postConstructor()
     {
-        TIP_Block::postConstructor();
+        parent::postConstructor();
         if (isset($this->_constructor_error)) {
             TIP::notifyError($this->_constructor_error);
             $this->_constructor_error = null;
@@ -238,7 +237,7 @@ class TIP_User extends TIP_Block
         switch ($action) {
 
         case 'browse':
-            $this->appendToContent('browse.src');
+            $this->appendToPage('browse.src');
             return true;
         }
 
@@ -291,7 +290,7 @@ class TIP_User extends TIP_Block
 
         case 'add':
             if (TIP::getGet('accept', 'int') == 1) {
-                $this->appendToContent('conditions.src');
+                $this->appendToPage('conditions.src');
                 return true;
             }
 
@@ -312,7 +311,7 @@ class TIP_User extends TIP_Block
 
     function& startView($filter)
     {
-        return TIP_Block::startView($filter, array('on_row' => array(&$this, '_onRow')));
+        return parent::startView($filter, array('on_row' => array(&$this, '_onRow')));
     }
 
     /**#@-*/

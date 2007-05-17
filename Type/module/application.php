@@ -9,15 +9,13 @@
 /**
  * The main module
  *
- * This module manages the generation of the page content (the most dynamic
- * part of a TIP site). This is done by using a callback queue, stored in the
- * private $_queue property, where the modules will prepend or append there
- * callbacks.
+ * This module manages the generation of the "page" (the most dynamic part of
+ * a TIP site). This is done by using a callback queue, stored in the private
+ * $_queue property, where the modules will prepend or append there callbacks.
  *
- * When the commandContent() is called, usually throught a tag in the main
- * source file, the TIP_Application module will call the callbacks stored in
- * the queue in sequential order. The page content is the output of these
- * callbacks.
+ * When the commandPage() is called, usually throught a tag in the main source
+ * file, the TIP_Application module will call the callbacks stored in the queue
+ * in sequential order. The page is the output of these callbacks.
  *
  * After a TIP_Application instantiation, the global variable $GLOBALS[TIP_MAIN]
  * will contain a reference to this TIP_Application instantiated object.
@@ -61,9 +59,9 @@ class TIP_Application extends TIP_Module
 
     /**#@+ @access protected */
 
-    function TIP_Application($id)
+    function __construct($id)
     {
-        $this->TIP_Module($id);
+        parent::__construct($id);
 
         $GLOBALS[TIP_MAIN] =& $this;
     }
@@ -94,12 +92,12 @@ class TIP_Application extends TIP_Module
      */
 
     /**
-     * Output the page content
+     * Output the page
      *
-     * The output of every action is deferred to the page content, that can be
+     * The output of every action is deferred to the page, that can be
      * placed anywhere in the main source.
      */
-    function commandContent($params)
+    function commandPage($params)
     {
         if (empty($this->_queue)) {
             $this->commandRunShared('default.src');
@@ -258,10 +256,10 @@ class TIP_Application extends TIP_Module
     }
 
     /**
-     * Prepend a page content callback
+     * Prepend a page callback
      *
      * Inserts at the beginning of $_queue the specified callback, that will
-     * be called while generating the page content.
+     * be called while generating the page.
      *
      * @param TIP_Callback &$callback The callback
      */
@@ -272,10 +270,10 @@ class TIP_Application extends TIP_Module
     }
 
     /**
-     * Append a page content callback
+     * Append a page callback
      *
      * Appends at the end of $_queue the specified callback, that will
-     * be called while generating the page content.
+     * be called while generating the page.
      *
      * @param TIP_Callback &$callback The callback
      */

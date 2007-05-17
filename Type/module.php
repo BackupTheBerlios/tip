@@ -8,11 +8,10 @@
 /**
  * Base class for modules
  *
- * @abstract
  * @package  TIP
  * @tutorial TIP/Module.pkg#TIP_Module
  */
-class TIP_Module extends TIP_Type
+abstract class TIP_Module extends TIP_Type
 {
     /**#@+ @access private */
 
@@ -32,12 +31,13 @@ class TIP_Module extends TIP_Type
      * Constructor
      *
      * Initializes a TIP_Module instance.
+     * You must redefine the constructor as public to be able to use it.
      *
      * @param mixed $id Identifier of this module
      */
-    function TIP_Module($id)
+    function __construct($id)
     {
-        $this->TIP_Type($id);
+        parent::__construct($id);
 
         if (is_null($engine_name = $this->getOption('source_engine')) &&
             is_null($engine_name = $GLOBALS[TIP_MAIN]->getOption('source_engine'))) {
@@ -150,18 +150,18 @@ class TIP_Module extends TIP_Type
     }
 
     /**
-     * Return the content of a generic item
+     * Return the value of a generic item
      *
-     * Gets the content of a generic item. The item is the basic form of
+     * Gets the value of a generic item. The item is the basic form of
      * dynamic data in TIP: it is a generic pair of key => value data with a
-     * dynamic value content. Examples of items are keys fields.
+     * dynamic value. Examples of items are keys fields.
      *
      * This method can be overriden by the children to provide a more
      * sophisticated interface, such as the fields management in the
      * TIP_DataModule class.
      *
-     * @param string $id The item id
-     * @return mixed|null The content of the requested item or null if not found
+     * @param  string     $id The item id
+     * @return mixed|null     The item value or null if not found
      */
     function getItem($id)
     {
@@ -292,7 +292,7 @@ class TIP_Module extends TIP_Type
      */
 
     /**
-     * Output the content of the first defined request
+     * Output the first defined request
      *
      * $params is a string in the form "request,request,...".
      *
@@ -315,7 +315,7 @@ class TIP_Module extends TIP_Type
     }
 
     /**
-     * Try to output the content of the first defined request
+     * Try to output the first defined request
      *
      * $params is a string in the form "request,request,...".
      *
@@ -335,7 +335,7 @@ class TIP_Module extends TIP_Type
     }
 
     /**
-     * Htmlize the content of the first defined request
+     * Htmlize the first defined request
      *
      * $params is a string in the form "request,request,...".
      *
@@ -356,7 +356,7 @@ class TIP_Module extends TIP_Type
     }
 
     /**
-     * Try to htmlize the content of the first defined request
+     * Try to htmlize the first defined request
      *
      * $params is a string in the form "request,request,...".
      *
@@ -649,18 +649,16 @@ class TIP_Module extends TIP_Type
     /**#@-*/
 
 
-    /**#@+
-     * @param string $file The source file
-     * @return bool true on success or false on errors
-     */
-
     /**
-     * Prepend a source file to the page content
+     * Prepend a source file to the page
      *
      * Runs $file using the current source engine and puts the result at the
-     * beginning of the page content.
+     * beginning of the page.
+     *
+     * @param  string $file The source file
+     * @return bool         true on success or false on errors
      */
-    function insertInContent($file)
+    function insertInPage($file)
     {
         if (strpos($file, DIRECTORY_SEPARATOR) === false) {
             $file = $this->buildSourcePath($this->getId(), $file);
@@ -670,12 +668,15 @@ class TIP_Module extends TIP_Type
     }
 
     /**
-     * Append a source file to the page content
+     * Append a source file to the page
      *
      * Runs $file using the current source engine and puts the result at the
-     * end of the page content.
+     * end of the page.
+     *
+     * @param  string $file The source file
+     * @return bool         true on success or false on errors
      */
-    function appendToContent($file)
+    function appendToPage($file)
     {
         if (strpos($file, DIRECTORY_SEPARATOR) === false) {
             $file = $this->buildSourcePath($this->getId(), $file);
@@ -683,8 +684,6 @@ class TIP_Module extends TIP_Type
         $GLOBALS[TIP_MAIN]->appendCallback($this->callback('run', array($file)));
         return true;
     }
-
-    /**#@-*/
 
     /**#@-*/
 

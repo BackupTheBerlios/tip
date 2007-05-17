@@ -16,7 +16,7 @@
  * @package TIP
  * @subpackage Module
  */
-class TIP_Locale extends TIP_Block
+class TIP_Locale extends TIP_Content
 {
     /**#@+ @access private */
 
@@ -35,22 +35,22 @@ class TIP_Locale extends TIP_Block
 
     /**#@+ @access protected */
 
-    function TIP_Locale($id)
+    function __construct($id)
     {
-        $this->TIP_Block($id);
+        parent::__construct($id);
     }
 
     function getDataOptions()
     {
         $this->_locale = $GLOBALS[TIP_MAIN]->getOption('locale');
-        $options = TIP_Block::getDataOptions();
+        $options = parent::getDataOptions();
         $options['fieldset'] = array('id', $this->_locale);
         return $options;
     }
 
     function& startView($filter)
     {
-        return TIP_Block::startView($filter, array('on_row' => array(&$this, '_onRow')));
+        return parent::startView($filter, array('on_row' => array(&$this, '_onRow')));
     }
 
     /**#@-*/

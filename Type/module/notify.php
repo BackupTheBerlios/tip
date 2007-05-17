@@ -36,9 +36,9 @@ class TIP_Notify extends TIP_Module
 
     /**#@+ @access protected */
 
-    function TIP_Notify($id)
+    function __construct($id)
     {
-        $this->TIP_Module($id);
+        parent::__construct($id);
     }
 
     /**
@@ -78,7 +78,7 @@ class TIP_Notify extends TIP_Module
             $view->summaries['MESSAGE'] = $message_id;
         }
 
-        $locale->insertInContent($this->buildSourcePath($this->getId(), $source));
+        $locale->insertInPage($this->buildSourcePath($this->getId(), $source));
         $locale->endView();
         $this->_no_reentrant = false;
         return true;
@@ -89,9 +89,9 @@ class TIP_Notify extends TIP_Module
 
     /**#@+
      * @access public
-     * @param string $id      The locale id of the message
-     * @param array  $context The message context
-     * @return bool true on success or false on errors
+     * @param  string $id      The locale id of the message
+     * @param  array  $context The message context
+     * @return bool            true on success or false on errors
      */
 
     /**

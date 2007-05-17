@@ -57,9 +57,9 @@ class TIP_View extends TIP_Type
      * @param string $id   The instance identifier
      * @param array  $args The constructor arguments, as described in buildId()
      */
-    function TIP_View($id, $args)
+    function __construct($id, $args)
     {
-        $this->TIP_Type($id);
+        parent::__construct($id);
 
         if (array_key_exists('data', $args)) {
             $this->data =& $args['data'];
@@ -177,8 +177,8 @@ class TIP_View extends TIP_Type
      * Performs all the needed steps to fill $rows, call the callbacks, add
      * the standard summary values and so on.
      *
-     * @param bool $refresh Forces the fillRows() call
-     * @return bool true on success or false on errors
+     * @param  bool $refresh Forces the fillRows() call
+     * @return bool          true on success or false on errors
      */
     function populate($refresh = false)
     {

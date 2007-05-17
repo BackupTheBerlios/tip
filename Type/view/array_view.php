@@ -35,12 +35,12 @@ class TIP_Array_View extends TIP_View
      * @param string $id   The instance identifier
      * @param array  $args The constructor arguments, as described in buildId()
      */
-    function TIP_Array_View($id, $args)
+    function __construct($id, $args)
     {
-        // Remove the 'data' item (if present): data initialization not needed
+        // Remove the 'data' item: initialization of data source unneeded
         unset($args['data']);
 
-        $this->TIP_View($id, $args);
+        parent::__construct($id, $args);
 
         $this->_stored_rows =& $args['rows'];
     }

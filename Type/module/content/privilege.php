@@ -47,7 +47,7 @@
  * @package TIP
  * @subpackage Module
  */
-class TIP_Privilege extends TIP_Block
+class TIP_Privilege extends TIP_Content
 {
     /**#@+ @access private */
 
@@ -167,9 +167,9 @@ class TIP_Privilege extends TIP_Block
      *
      * @param string $id The instance identifier
      */
-    function TIP_Privilege($id)
+    function __parent($id)
     {
-        $this->TIP_Block($id);
+        parent::__parent($id);
     }
 
     /**
@@ -254,12 +254,12 @@ class TIP_Privilege extends TIP_Block
             $filter = $this->data->filter('_user', $subject_id);
             if (!$this->data->deleteRows($filter)) {
                 TIP::notifyError('delete');
-                $this->appendToContent('edit.src');
+                $this->appendToPage('edit.src');
                 return false;
             }
 
             TIP::notifyInfo('done');
-            $this->appendToContent('edit.src');
+            $this->appendToPage('edit.src');
             return true;
 
         }
@@ -276,7 +276,7 @@ class TIP_Privilege extends TIP_Block
                 return false;
             }
 
-            $this->appendToContent('edit.src');
+            $this->appendToPage('edit.src');
             return true;
 
         case 'change':
@@ -334,7 +334,7 @@ class TIP_Privilege extends TIP_Block
                 }
             }
 
-            $this->appendToContent('edit.src');
+            $this->appendToPage('edit.src');
             return $done;
         }
 
@@ -349,10 +349,10 @@ class TIP_Privilege extends TIP_Block
     function& startSpecialView($name)
     {
         if (strcasecmp($name, 'MODULES') != 0) {
-            return TIP_Block::startSpecialView($name);
+            return parent::startSpecialView($name);
         }
 
-        return TIP_Block::startSpecialView('modules', array('on_row' => array(&$this, '_onModulesRow')));
+        return parent::startSpecialView('modules', array('on_row' => array(&$this, '_onModulesRow')));
     }
 
     function getPrivilege($module_id, $user_id = null)

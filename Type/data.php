@@ -21,7 +21,6 @@ define('TIP_DESCENDING', true);
 /**
  * A generic data provider
  *
- * @final
  * @package  TIP
  * @tutorial TIP/DataEngine/DataEngine.pkg#TIP_Data
  */
@@ -162,9 +161,9 @@ class TIP_Data extends TIP_Type
      * @param string $id   The instance identifier
      * @param array  $args The constructor arguments, as described in buildId()
      */
-    function TIP_Data($id, $args)
+    function __construct($id, $args)
     {
-        $this->TIP_Type($id);
+        parent::__construct($id);
 
         $this->_path = $args['path'];
         $this->_joins = $args['joins'];
@@ -252,10 +251,10 @@ class TIP_Data extends TIP_Type
      * match the specified filter. If $condition is not specified, it defaults
      * to '=' (equal).
      *
-     * @param string $name      A field id
-     * @param mixed  $value     The reference value
-     * @param string $condition The condition to apply
-     * @return string The requested filter in the proper engine format
+     * @param  string $name      A field id
+     * @param  mixed  $value     The reference value
+     * @param  string $condition The condition to apply
+     * @return string            The filter in the proper engine format
      */
     function filter($name, $value, $condition = '=')
     {
@@ -283,9 +282,9 @@ class TIP_Data extends TIP_Type
      * Builds the order clause (in the proper engine format) to sort the rows
      * using the specified field.
      *
-     * @param string $name       A field id
-     * @param bool   $descending true for descending order
-     * @return string The requested order clause in the proper engine format
+     * @param  string $name       A field id
+     * @param  bool   $descending true for descending order
+     * @return string             The order clause in the proper engine format
      */
     function order($name, $descending = false)
     {
@@ -301,8 +300,8 @@ class TIP_Data extends TIP_Type
      * the first row with the primary key matching $value. Useful when the
      * primary key is unique to access records by id.
      *
-     * @param mixed $id The primary key value
-     * @return string The requested filter in the proper engine format
+     * @param  mixed  $id The primary key value
+     * @return string     The requested filter in the proper engine format
      */
     function rowFilter($id)
     {
@@ -314,8 +313,8 @@ class TIP_Data extends TIP_Type
      *
      * Gets the field structure of this data context.
      *
-     * @param bool $detailed Force a TIP_Data_Engine::fillDetails() call
-     * @return array|null The field structure or null on errors
+     * @param    bool       $detailed Force a TIP_Data_Engine::fillDetails() call
+     * @return   array|null           The field structure or null on errors
      * @tutorial TIP/DataEngine/DataEngine.pkg#fields
      */
     function& getFields($detailed = true)
@@ -341,8 +340,8 @@ class TIP_Data extends TIP_Type
      *
      * Retrieves the content of the row with the specified $id.
      *
-     * @param mixed $id The row id
-     * @return array|null The row matching the specified id or null on errors
+     * @param  mixed      $id The row id
+     * @return array|null     The row matching the specified id or null on errors
      */
     function& getRow($id)
     {
@@ -364,9 +363,9 @@ class TIP_Data extends TIP_Type
      * class. Whenever possible, use the filter() and rowFilter() to build a
      * proper filter.
      *
-     * @param string $filter The filter conditions
-     * @return array|null The array of rows matching the specified filter or
-     *                    null on errors
+     * @param    string     $filter The filter conditions
+     * @return   array|null         The array of rows matching $filter
+     *                              or null on errors
      * @tutorial TIP/DataEngine/DataEngine.pkg#rows
      */
     function& getRows($filter)
@@ -377,9 +376,6 @@ class TIP_Data extends TIP_Type
         }
         return $rows;
     }
-
-
-    /**#@+ @return bool true on success or false on errors */
 
     /**
      * Insert a new row
@@ -396,7 +392,8 @@ class TIP_Data extends TIP_Type
      * Instead, if the primary key is defined in $row, this function fails if
      * a row with the same primary key exists.
      *
-     * @param array &$row The row to insert
+     * @param  array &$row The row to insert
+     * @return bool        true on success or false on errors
      */
     function putRow(&$row)
     {
@@ -441,7 +438,8 @@ class TIP_Data extends TIP_Type
      * The primary keys can be defined, but if someone of them is yet present
      * in the data source, this function will fail.
      *
-     * @param array $rows An array of rows to insert
+     * @param  array $rows An array of rows to insert
+     * @return bool        true on success or false on errors
      */
     function putRows($rows)
     {
@@ -473,8 +471,9 @@ class TIP_Data extends TIP_Type
      * $row and $old_row. This is done to allow a check between the old and new
      * row content, trying to avoid the update operation.
      *
-     * @param array $row     The new row content
-     * @param array $old_row The old row content
+     * @param  array $row     The new row content
+     * @param  array $old_row The old row content
+     * @return bool           true on success or false on errors
      */
     function updateRow($row, $old_row = null)
     {
@@ -528,8 +527,9 @@ class TIP_Data extends TIP_Type
      * $row must not have the primary key defined (a primary key is unique).
      * To update only one row, use updateRow() instead.
      *
-     * @param string $filter The filter conditions
-     * @param array  $row    A row with the field => value pairs to update
+     * @param  string $filter The filter conditions
+     * @param  array  $row    A row with the field => value pairs to update
+     * @return bool           true on success or false on errors
      */
     function updateRows($filter, $row)
     {
@@ -559,7 +559,8 @@ class TIP_Data extends TIP_Type
      *
      * Deletes the row with the specified $id.
      *
-     * @param mixed $id The row id
+     * @param  mixed $id The row id
+     * @return bool      true on success or false on errors
      */
     function deleteRow($id)
     {
@@ -577,7 +578,8 @@ class TIP_Data extends TIP_Type
      * Notice empty filter are rejected by the engine to avoid dropping the
      * whole content of a table.
      *
-     * @param string $filter The row filter
+     * @param  string $filter The row filter
+     * @return bool           true on success or false on errors
      */
     function deleteRows($filter)
     {
@@ -590,8 +592,5 @@ class TIP_Data extends TIP_Type
     }
 
     /**#@-*/
-
-    /**#@-*/
 }
-
 ?>

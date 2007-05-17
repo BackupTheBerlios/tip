@@ -54,7 +54,7 @@ class TIP_Callback
      * @param array|null     $args    If $default is a callback, the arguments
      *                                to pass to the callback
      */
-    function TIP_Callback($default = true, $args = null)
+    function __construct($default = true, $args = null)
     {
         if (is_callable($default)) {
             $this->_callback = $default;

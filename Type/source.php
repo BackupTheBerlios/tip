@@ -8,7 +8,6 @@
 /**
  * A generic source template
  *
- * @final
  * @package  TIP
  * @tutorial TIP/SourceEngine/SourceEngine.pkg#TIP_Source
  */
@@ -47,9 +46,9 @@ class TIP_Source extends TIP_Type
      * @param string $id   The instance identifier
      * @param array  $args The constructor arguments, as described in buildId()
      */
-    function TIP_Source($id, $args)
+    function __construct($id, $args)
     {
-        $this->TIP_Type($id);
+        parent::__construct($id);
 
         $this->_path = $args['path'];
         $this->_engine =& $args['engine'];

@@ -15,7 +15,7 @@
  * @package TIP
  * @subpackage Module
  */
-class TIP_Logger extends TIP_Block
+class TIP_Logger extends TIP_Content
 {
     /**#@+ @access private */
 
@@ -32,18 +32,18 @@ class TIP_Logger extends TIP_Block
 
     /**#@+ @access protected */
 
-    function TIP_Logger($id)
+    function __construct($id)
     {
-        $this->TIP_Block($id);
+        parent::__construct($id);
     }
 
     function& startSpecialView($type)
     {
         if (strcasecmp($type, 'LOGS') != 0) {
-            return TIP_Block::startSpecialView($type);
+            return parent::startSpecialView($type);
         }
 
-        return TIP_Block::startSpecialView('array', array('id' => '__LOGS__', 'rows' => &$this->_rows));
+        return parent::startSpecialView('array', array('id' => '__LOGS__', 'rows' => &$this->_rows));
     }
 
     /**#@-*/

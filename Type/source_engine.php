@@ -11,41 +11,33 @@
  *
  * Provides a common interface to run source files.
  *
- * @abstract
  * @package  TIP
  * @tutorial TIP/SourceEngine/SourceEngine.pkg
  */
-class TIP_Source_Engine extends TIP_Type
+abstract class TIP_Source_Engine extends TIP_Type
 {
-    /**#@+ @access protected */
-
-    function TIP_Source_Engine($id)
+    /**
+     * Source engine constructor
+     *
+     * Chains up the parent constructor.
+     * You must redefine the constructor as public to be able to use it.
+     *
+     * @param string $id The derived instance identifier
+     */
+    function __construct($id)
     {
-        $this->TIP_Type($id);
+        parent::__construct($id);
     }
-
-    /**#@-*/
-
-
-    /**#@+ @access public */
 
     /**
      * Execute a source/template file
      *
-     * Parses and executes the source.
+     * Parses and executes the specified source.
      *
-     * This method MUST be overriden by all the types that inherits
-     * TIP_Source_Engine.
-     *
-     * @param TIP_Source &$source The source instance
-     * @param TIP_Module &$module The caller module
-     * @return bool TRUE on success or FALSE on errors
+     * @param  TIP_Source &$source The source instance
+     * @param  TIP_Module &$module The caller module
+     * @return bool                true on success or false on errors
      */
-    function run(&$source, &$module)
-    {
-        $this->logFatal('method TIP_Source_Engine::run() not implemented');
-    }
-
-    /**#@-*/
+    abstract public function run(&$source, &$module);
 }
 ?>
