@@ -781,7 +781,7 @@ class TIP
         } elseif (is_numeric($value)) {
             return (string) $value;
         } elseif (is_string($value)) {
-            return htmlentities($value, ENT_QUOTES, 'UTF-8');
+            return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
         }
 
         return '';
@@ -912,6 +912,7 @@ class TIP
 
         $wiki =& Text_Wiki::singleton('Default', $real_rules);
         $wiki->setFormatConf('Xhtml', 'charset', 'UTF-8');
+        $wiki->setFormatConf('Xhtml', 'translate', HTML_SPECIALCHARS);
         return $wiki;
     }
 

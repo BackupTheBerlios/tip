@@ -79,7 +79,7 @@ class TIP_Hierarchy extends TIP_Content
         }
 
         $this->_model =& new HTML_Menu($this->_tree);
-        $this->_model->forceCurrentUrl(htmlentities(TIP::getRequestURI()));
+        $this->_model->forceCurrentUrl(htmlspecialchars(TIP::getRequestURI()));
         return true;
     }
 
