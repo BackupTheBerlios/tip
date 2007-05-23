@@ -66,8 +66,8 @@ class TIP_View extends TIP_Type
         }
 
         $this->filter = @$args['filter'];
-        $this->on_row =& new TIP_Callback(array_key_exists('on_row', $args) ? $args['on_row'] : true);
-        $this->on_view =& new TIP_Callback(array_key_exists('on_view', $args) ? $args['on_view'] : true);
+        $this->on_row = @$args['on_row'];
+        $this->on_view = @$args['on_view'];
         $this->summaries['COUNT'] = 0;
     }
 
@@ -197,7 +197,7 @@ class TIP_View extends TIP_Type
         $n_row = 0;
         foreach (array_keys($this->rows) as $id) {
             $row =& $this->rows[$id];
-            if (!$this->on_row->goWithArray(array(&$row))) {
+            if ($this->on_row && !call_user_func_array($this->on_row, array(&$row))) {
                 // If the user callback returns false, remove the row
                 array_splice($this->rows, $n_row, 1);
             } else {
@@ -209,7 +209,7 @@ class TIP_View extends TIP_Type
         }
 
         $this->summaries['COUNT'] = $n_row;
-        return $this->on_view->goWithArray(array(&$this)) && $this->rowUnset();
+        return !$this->on_view || call_user_func_array($this->on_view, array(&$this));
     }
 
     /**
