@@ -25,16 +25,14 @@ class TIP_Hierarchy extends TIP_Content
 
     function _onView(&$view)
     {
-        $rows = $view->rows;
-        if (!is_array($rows)) {
-            // No rows
+        $rows = $view->getRows();
+        if (empty($rows)) {
             return true;
         }
 
         // By default, counting is enable if the '_count' field is present
         $count_on = array_key_exists('_count', reset($rows));
         if ($count_on) {
-            $total_count =& $view->summaries['TOTAL_COUNT'];
             $total_count = 0;
         }
 
@@ -76,6 +74,10 @@ class TIP_Hierarchy extends TIP_Content
             } else {
                 $this->_tree[$id] =& $row;
             }
+        }
+
+        if ($count_on) {
+            $view->setSummary('TOTAL_COUNT', $total_count);
         }
 
         $this->_model =& new HTML_Menu($this->_tree);

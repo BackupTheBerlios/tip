@@ -27,17 +27,18 @@
  */
 class TIP_User extends TIP_Content
 {
-    /**#@+ @access private */
-
-    var $_constructor_error = null;
-    var $_old_row = null;
-    var $_new_row = null;
-
+    private $_constructor_error = null;
+    private $_row = null;
+    private $_old_row = null;
 
     function _login()
     {
-        $row =& $this->view->rowCurrent();
-        if ($row) {
+        if ($this->view) {
+            $row =& $this->view->rowCurrent();
+            $this->endView();
+        }
+
+        if (isset($row)) {
             $this->_activateUser($row);
             $expiration = strtotime($this->getOption('expiration'));
             setcookie('TIP_User', $row['id'] . ',' . crypt($row['password']), $expiration);
@@ -60,23 +61,9 @@ class TIP_User extends TIP_Content
 
     function _activateUser(&$row)
     {
-        $this->_new_row =& $row;
-        $this->_old_row = $this->_new_row;
-
-        if (is_null($row)) {
-            $this->keys['CID'] = null;
-        } else {
-            $this->keys['CID'] = $row['id'];
-            register_shutdown_function(array(&$this, '_updateUser'));
-
-            if (array_key_exists('_hits', $row)) {
-                $row['_hits'] ++;
-            }
-
-            if (array_key_exists('_lasthit', $row)) {
-                $row['_lasthit'] = TIP::formatDate('datetime_iso8601');
-            }
-        }
+        $this->_row =& $row;
+        $this->_old_row = $this->_row;
+        $this->keys['CID'] = is_null($row) ? null : $row['id'];
     }
 
     function _refreshUser()
@@ -108,7 +95,7 @@ class TIP_User extends TIP_Content
     {
         if (!$this->startView($this->data->filter('user', $input['user']) . ' LIMIT 1')) {
             TIP::notifyError('select');
-            return array('user' => 'errore');
+            return array('user' => TIP::getLocale('error.select', 'notify', null, false));
         }
 
         $row =& $this->view->rowReset();
@@ -125,13 +112,6 @@ class TIP_User extends TIP_Content
         return true;
     }
 
-    function _updateUser()
-    {
-        if (is_array($this->_old_row) && is_array($this->_new_row)) {
-            $this->data->updateRow($this->_new_row, $this->_old_row);
-        }
-    }
-
     /**#@-*/
 
 
@@ -140,9 +120,7 @@ class TIP_User extends TIP_Content
     /**
      * Constructor
      *
-     * Initializes a TIP_User instance.
-     *
-     * Performs the user authentication feature.
+     * Initializes a TIP_User instance and performs the user authentication.
      *
      * Notice in this constructor no external modules can be called, because
      * many of them (if not all) depend on TIP_User. So the eventual errors
@@ -160,6 +138,7 @@ class TIP_User extends TIP_Content
         // Get user id and password from the TIP_User cookie
         @list($id, $password) = explode(',', TIP::getCookie('TIP_User', 'string'), 2);
         if (is_null($id) || is_null($password)) {
+            // Anonymous access
             return;
         }
 
@@ -170,30 +149,25 @@ class TIP_User extends TIP_Content
             return;
         }
 
-        // Check for user id presence in the data source
         $row =& $view->rowReset();
+        $this->endView();
+
         if (is_null($row)) {
-            $this->endView();
+            // User id not found in the data source
             $this->_constructor_error = 'notfound';
-            return;
-        }
-
-        // Check for password validity
-        if (crypt($row['password'], $password) != $password) {
-            $this->endView();
+        } elseif (crypt($row['password'], $password) != $password) {
+            // Invalid password
             $this->_constructor_error = 'denied';
-            return;
+        } else {
+            $this->_activateUser($row);
         }
-
-        // No endView() call to retain this query as the default one
-        $this->_activateUser($row);
     }
 
     /**
      * Custom post construction method
      *
-     * Overrides the default post-constructor method providing the constructor
-     * error processing, as described in TIP_User().
+     * Overrides the default post-constructor method appending the constructor
+     * error processing.
      */
     function postConstructor()
     {
@@ -202,6 +176,28 @@ class TIP_User extends TIP_Content
             TIP::notifyError($this->_constructor_error);
             $this->_constructor_error = null;
         }
+    }
+
+    /**
+     * Destructor
+     *
+     * Updates the record of the current logged-in user, if any.
+     */
+    function __destruct()
+    {
+        if (!is_array($this->_old_row) || !is_array($this->_row)) {
+            return;
+        }
+
+        // Update statistic fields
+        if (array_key_exists('_hits', $this->_row)) {
+            $this->_row['_hits'] ++;
+        }
+        if (array_key_exists('_lasthit', $this->_row)) {
+            $this->_row['_lasthit'] = TIP::formatDate('datetime_iso8601');
+        }
+
+        $this->data->updateRow($this->_row, $this->_old_row);
     }
 
     function runManagerAction($action)
@@ -315,5 +311,57 @@ class TIP_User extends TIP_Content
     }
 
     /**#@-*/
+
+    /**
+     * Get a field value
+     *
+     * Overrides the default method accessing the _row private property
+     * if there is no current view.
+     *
+     * @param  string     $id The field id
+     * @return mixed|null     The field value or null on errors
+     */
+    public function getField($id)
+    {
+        if (is_null($result = parent::getField($id))) {
+            $result = $this->getLoggedField($id);
+        }
+
+        return $result;
+    }
+
+    /**
+     * Get a field value of the logged user
+     *
+     * Retrieves a field value for the current logged-in user. If no user is
+     * logged or the field is not found, it returns null.
+     *
+     * @param  string     $id The field id
+     * @return mixed|null     The field value or null on errors
+     */
+    public function getLoggedField($id)
+    {
+        return @$this->_row[$id];
+    }
+
+    /**
+     * Set a field value of the logged user
+     *
+     * Changes a field value for the current logged-in user. If no user is
+     * logged or the field is not found, it returns false.
+     *
+     * @param  string $id    The field id
+     * @param  mixed  $value The new field value
+     * @return bool          true on success or false otherwise
+     */
+    public function setLoggedField($id, $value)
+    {
+        if (!@array_key_exists($id, $this->_row)) {
+            return false;
+        }
+
+        $this->_row[$id] = $value;
+        return true;
+    }
 }
 ?>

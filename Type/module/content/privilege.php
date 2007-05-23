@@ -149,7 +149,7 @@ class TIP_Privilege extends TIP_Content
         }
 
         $filter = create_function('$r', "return \$r['_module']=='$module_id';");
-        $row = @end(array_filter($view->rows, $filter));
+        $row = @end(array_filter($view->getRows(), $filter));
         $this->endView();
 
         return (int) array_search(@$row['privilege'], $this->_privileges);
@@ -322,7 +322,8 @@ class TIP_Privilege extends TIP_Content
                     if ($done = $this->data->putRow($new_row)) {
                         TIP::notifyInfo('done');
                         if ($view) {
-                            $view->rows[$new_row['id']] = $new_row;
+                            $rows =& $view->getRows();
+                            $rows[$new_row['id']] = $new_row;
                         }
                     } else {
                         TIP::notifyError('insert');

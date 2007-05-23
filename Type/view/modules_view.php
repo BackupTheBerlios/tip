@@ -17,8 +17,6 @@
  */
 class TIP_Modules_View extends TIP_View
 {
-    /**#@+ @access protected */
-
     /**
      * Constructor
      *
@@ -27,12 +25,18 @@ class TIP_Modules_View extends TIP_View
      * @param string $id   The instance identifier
      * @param array  $args The constructor arguments, as described in buildId()
      */
-    function __construct($id, $args)
+    protected function __construct($id, $args)
     {
         // Remove the 'data' item: initialization of data source not needed
         unset($args['data']);
 
         parent::__construct($id, $args);
+    }
+
+    protected function postConstructor()
+    {
+        $this->_rows = $GLOBALS['cfg'];
+        $this->onPopulated();
     }
 
     /**
@@ -45,38 +49,9 @@ class TIP_Modules_View extends TIP_View
      *
      * @return '__MODULES__' The data identifier
      */
-    function buildId()
+    protected function buildId()
     {
         return '__MODULES__';
     }
-
-    /**
-     * Get the installed modules
-     *
-     * Fills the $rows property with all the installed modules.
-     *
-     * @return bool true on success or false on errors
-     */
-    function fillRows()
-    {
-        $register =& TIP_Module::singleton();
-
-        if ($handle = opendir(TIP::buildLogicPath('module'))) {
-            while (($file = readdir($handle)) !== false) {
-                if (strcasecmp(substr($file, -4), '.php') == 0) {
-                    $module = strtolower(substr($file, 0, -4));
-                    $this->rows[$module] = array(
-                        'id'     => $module,
-                        'in_use' => array_key_exists($module, $register)
-                    );
-                }
-            }
-            closedir($handle);
-        }
-
-        return true;
-    }
-
-    /**#@-*/
 }
 ?>

@@ -17,15 +17,6 @@
  */
 class TIP_Array_View extends TIP_View
 {
-    /**#@+ @access private */
-
-    var $_stored_rows = null;
-
-    /**#@-*/
-
-    
-    /**#@+ @access protected */
-
     /**
      * Constructor
      *
@@ -35,14 +26,17 @@ class TIP_Array_View extends TIP_View
      * @param string $id   The instance identifier
      * @param array  $args The constructor arguments, as described in buildId()
      */
-    function __construct($id, $args)
+    protected function __construct($id, $args)
     {
-        // Remove the 'data' item: initialization of data source unneeded
-        unset($args['data']);
-
+        // Remove 'id', yet passed as $id, and the 'data', unused
+        unset($args['id'], $args['data']);
         parent::__construct($id, $args);
+    }
 
-        $this->_stored_rows =& $args['rows'];
+    protected function postConstructor()
+    {
+        // Rows yet defined in the constructor as 'rows' argument
+        $this->onPopulated();
     }
 
     /**
@@ -62,13 +56,5 @@ class TIP_Array_View extends TIP_View
     {
         return $args['id'];
     }
-
-    function fillRows()
-    {
-        $this->rows =& $this->_stored_rows;
-        return true;
-    }
-
-    /**#@-*/
 }
 ?>

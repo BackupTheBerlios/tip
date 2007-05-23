@@ -17,54 +17,23 @@
  */
 class TIP_Fields_View extends TIP_View
 {
-    /**#@+ @access protected */
-
-    /**
-     * Get the field list
-     *
-     * Fills the $rows property with the field structure as specified by
-     * TIP_Data::getFields().
-     *
-     * @return bool true on success or false on errors
-     */
-    function fillRows()
-    {
-        $this->rows =& $this->data->getFields(true);
-        if (is_null($this->rows)) {
-            $this->rows = false;
-            return false;
-        }
-        return true;
-    }
-
     /**
      * Constructor
      *
-     * Initializes a TIP_Fields_View instance. $id must contain the identifier
-     * of a TIP_Data instance.
+     * Initializes a TIP_Fields_View instance.
      *
      * @param string $id   The instance identifier
      * @param array  $args The constructor arguments, as described in buildId()
      */
-    function __construct($id, $args)
+    protected function __construct($id, $args)
     {
         parent::__construct($id, $args);
     }
 
-    /**
-     * Build a TIP_Fields_View identifier
-     *
-     * $args are the same as specified in TIP_View::buildId().
-     * The 'filter' argument is not used.
-     *
-     * @param  array  $args The constructor arguments
-     * @return string       The data identifier
-     */
-    function buildId($args)
+    protected function postConstructor()
     {
-        return $args['data']->getId();
+        $this->_rows =& $this->_data->getFields(true);
+        $this->onPopulated();
     }
-
-    /**#@-*/
 }
 ?>

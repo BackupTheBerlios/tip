@@ -62,7 +62,7 @@ abstract class TIP_Type
      * @param  mixed  $args The contructor arguments
      * @return string       The instance identifier
      */
-    function buildId($args)
+    protected function buildId($args)
     {
         return $args;
     }

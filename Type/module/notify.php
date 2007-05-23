@@ -72,10 +72,10 @@ class TIP_Notify extends TIP_Module
             return false;
         }
 
-        $view->summaries['TITLE'] = $locale->get($title_id, $this->getId(), null, false);
+        $view->setSummary('TITLE', $locale->get($title_id, $this->getId(), null, false));
         if (!$view->rowReset()) {
             TIP::warning("message id not found ($message_id)");
-            $view->summaries['MESSAGE'] = $message_id;
+            $view->setSummary('MESSAGE', $message_id);
         }
 
         $locale->insertInPage($this->buildSourcePath($this->getId(), $source));

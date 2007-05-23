@@ -32,6 +32,12 @@ class TIP_Content extends TIP_Module
             $hierarchy->updateCount($row['group'], +1);
         }
 
+        // Update _submits, if the user module exists
+        $user =& $GLOBALS[TIP_MAIN]->getSharedModule('user');
+        if (is_object($user) && !is_null($counts = $user->getLoggedField('_submits'))) {
+            $user->setLoggedField('_submits', $counts+1);
+        }
+
         $form->process($row);
     }
 
@@ -43,6 +49,13 @@ class TIP_Content extends TIP_Module
             return;
         }
 
+        // Update the counters, if the hierarchy module exists
+        $hierarchy_id = $this->getId() . '_hierarchy';
+        if (array_key_exists($hierarchy_id, $GLOBALS['cfg'])) {
+            $hierarchy =& TIP_Type::getInstance($hierarchy_id);
+            $hierarchy->updateCount($row['group'], -1);
+        }
+
         // Remove the comments, if the comment module exists
         $comments_id = $this->getId() . '_comments';
         if (array_key_exists($comments_id, $GLOBALS['cfg'])) {
@@ -52,12 +65,12 @@ class TIP_Content extends TIP_Module
             }
         }
 
-        // Update the counters, if the hierarchy module exists
-        $hierarchy_id = $this->getId() . '_hierarchy';
-        if (array_key_exists($hierarchy_id, $GLOBALS['cfg'])) {
-            $hierarchy =& TIP_Type::getInstance($hierarchy_id);
-            $hierarchy->updateCount($row['group'], -1);
+        // Update _deleted_submits, if the user module exists
+        $user =& $GLOBALS[TIP_MAIN]->getSharedModule('user');
+        if (is_object($user) && !is_null($count = $user->getLoggedField('_deleted_submits'))) {
+            $user->setLoggedField('_deleted_submits', $count+1);
         }
+
 
         $form->process($row);
     }
@@ -288,13 +301,12 @@ class TIP_Content extends TIP_Module
      * Pushes a view object in the stack of this module. You can restore the
      * previous view calling pop().
      *
-     * @param  TIP_View     &$view     The view to push
-     * @param  bool          $populate Whether to populate or not the view
-     * @return TIP_View|null           The pushed view on success or null on errors
+     * @param  TIP_View     &$view The view to push
+     * @return TIP_View|null       The pushed view on success or null on errors
      */
-    function &push(&$view, $populate = true)
+    function &push(&$view)
     {
-        if (!$populate || $view->populate()) {
+        if ($view->isValid()) {
             $this->_view_stack[count($this->_view_stack)] =& $view;
             $this->view =& $view;
             $result =& $view;
@@ -463,12 +475,7 @@ class TIP_Content extends TIP_Module
      */
     function getField($id)
     {
-        if (!isset($this->view)) {
-            return null;
-        }
-
-        $row =& $this->view->rowCurrent();
-        return @$row[$id];
+        return isset($this->view) ? $this->view->getField($id) : null;
     }
 
     /**
@@ -481,7 +488,7 @@ class TIP_Content extends TIP_Module
      */
     function getSummary($id)
     {
-        return @$this->view->summaries[$id];
+        return isset($this->view) ? $this->view->getSummary($id) : null;
     }
 
     /**
@@ -526,12 +533,8 @@ class TIP_Content extends TIP_Module
                 $view_id = key($stack);
             } while (isset($view_id) && is_subclass_of($stack[$view_id], 'TIP_View'));
 
-            if (isset($view_id)) {
-                $row = @current($stack[$view_id]->rows);
-                $value = @$row[$id];
-                if (!is_null($value)) {
-                    return $value;
-                }
+            if (isset($stack[$view_id]) && !is_null($value = $stack[$view_id]->getField($id))) {
+                return $value;
             }
         }
 

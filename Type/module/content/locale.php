@@ -99,7 +99,7 @@ class TIP_Locale extends TIP_Content
                 return null;
             }
 
-            $this->_cache += $this->view->rows;
+            $this->_cache += $this->view->getRows();
             $this->endView();
 
             if (array_key_exists($row_id, $this->_cache)) {

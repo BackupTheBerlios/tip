@@ -6,7 +6,7 @@
  */
 
 /**
- * Pseudo-module to add comments
+ * Comment module
  *
  * @package TIP
  */
@@ -24,15 +24,21 @@ class TIP_Comments extends TIP_Content
         $id = $this->_master_id;
         $view =& $this->_master->startView($this->_master->data->rowFilter($id));
         if (is_null($view)) {
-            TIP::error("unable to get row $id on data " . $this->_master->data->getId());
+            TIP::warning("unable to get row $id on data " . $this->_master->data->getId());
+            TIP::notifyError('select');
             return false;
         }
+
         $row =& $view->rowReset();
         $this->_master->endView();
+
         if (is_null($row)) {
             TIP::error("row $id not found in " . $this->_master->data->getId());
+            TIP::notifyError('notfound');
             return false;
         }
+        $row =& $this->_master->getRow($this->_master_id);
+
         $old_row = $row;
         $row['_comments'] += $offset;
         if (!$this->_master->data->updateRow($row, $old_row)) {
@@ -48,6 +54,12 @@ class TIP_Comments extends TIP_Content
         if ($this->_updateCounter(+1)) {
             $form->process($row);
         }
+
+        // Update _comments, if the user module exists
+        $user =& $GLOBALS[TIP_MAIN]->getSharedModule('user');
+        if (is_object($user) && !is_null($count = $user->getLoggedField('_comments'))) {
+            $user->setLoggedField('_comments', $count+1);
+        }
     }
 
     function _onDelete(&$form, &$row)
@@ -55,6 +67,12 @@ class TIP_Comments extends TIP_Content
         $this->_master_id = $row[$this->_slave_field];
         if ($this->_updateCounter(-1)) {
             $form->process($row);
+        }
+
+        // Update _deleted_comments, if the user module exists
+        $user =& $GLOBALS[TIP_MAIN]->getSharedModule('user');
+        if (is_object($user) && !is_null($count = $user->getLoggedField('_deleted_comments'))) {
+            $user->setLoggedField('_deleted_comments', $count+1);
         }
     }
 
@@ -66,7 +84,7 @@ class TIP_Comments extends TIP_Content
     /**
      * Constructor
      *
-     * Initialize an implementation of the TIP_Comments interface.
+     * Initializes a TIP_Comments instance.
      *
      * @param string $id The instance identifier
      */

@@ -15,7 +15,7 @@
  * totals or subtotals) and some callbacks to customize the view.
  * Specifically, the $on_row callback is used to add some custom fields
  * (also called calculated fields) to every row while the $on_view callback
- * can be used to fill the $summaries values with every kind of aggregate
+ * can be used to fill the $_summary values with every kind of aggregate
  * function you desire.
  *
  * Notice after starting a view there is no current row, so trying to retrieve
@@ -26,7 +26,30 @@
  */
 class TIP_View extends TIP_Type
 {
-    /**#@+ @access protected */
+    /**
+     * Row callback
+     *
+     * Called for every row added to $rows. The only argument passed to the
+     * callback is a reference to the added row. Useful to add calculated
+     * fields to every row.
+     *
+     * @var TIP_Callback
+     */
+    private $_on_row = null;
+
+    /**
+     * View callback
+     *
+     * Called at the end of the population of $rows. A reference to the current
+     * view is passed as argument to the callback. Useful to add summary values
+     * or perform general operations on the whole data of the view.
+     *
+     * The custom callback must return true to validate the view or false to
+     * invalidate it.
+     *
+     * @var TIP_Callback
+     */
+    private $_on_view = null;
 
     /**
      * The data object
@@ -35,7 +58,7 @@ class TIP_View extends TIP_Type
      *
      * @var TIP_Data
      */
-    var $data = null;
+    protected $_data = null;
 
     /**
      * The filter conditions
@@ -46,73 +69,7 @@ class TIP_View extends TIP_Type
      *
      * @var string
      */
-    var $filter = null;
-
-
-    /**
-     * Constructor
-     *
-     * Initializes a TIP_View instance.
-     *
-     * @param string $id   The instance identifier
-     * @param array  $args The constructor arguments, as described in buildId()
-     */
-    function __construct($id, $args)
-    {
-        parent::__construct($id);
-
-        if (array_key_exists('data', $args)) {
-            $this->data =& $args['data'];
-        }
-
-        $this->filter = @$args['filter'];
-        $this->on_row = @$args['on_row'];
-        $this->on_view = @$args['on_view'];
-        $this->summaries['COUNT'] = 0;
-    }
-
-    /**
-     * Build a TIP_View identifier
-     *
-     * $args must be an array with the following items (all are optionals):
-     * - $args['data']: a reference to a TIP_Data object
-     * - $args['filter']: the filter to apply
-     * - $args['on_row']: callback to run for every row
-     * - $args['on_view']: callback to run when populated
-     *
-     * @param  array  $args The constructor arguments
-     * @return string       The data identifier
-     */
-    function buildId($args)
-    {
-        return $args['data']->getId() . ':' . $args['filter'];
-    }
-
-    /**
-     * Execute the query
-     *
-     * Fills the $rows by executing a read query with the specified filter
-     * conditions.
-     *
-     * This method is usually overriden by the special views to perform
-     * different operations.
-     *
-     * @return bool true on success or false on errors
-     */
-    function fillRows()
-    {
-        $this->rows =& $this->data->getRows($this->filter);
-        if (is_null($this->rows)) {
-            $this->rows = false;
-            return false;
-        }
-        return true;
-    }
-
-    /**#@-*/
-
-
-    /**#@+ @access public */
+    protected $_filter = null;
 
     /**
      * The list of rows
@@ -129,7 +86,7 @@ class TIP_View extends TIP_Type
      *
      * @var array|null
      */
-    var $rows = null;
+    private $_rows = null;
 
     /**
      * A list of summary values
@@ -137,79 +94,107 @@ class TIP_View extends TIP_Type
      * Here must be present the values of summary operations done on the
      * $rows array, such as totals and counts.
      *
-     * The following values are always present in $summaries:
+     * The following values are always present in $_summary:
      *
      * - 'COUNT', the number of rows in the $rows property
      *
      * @var array
      */
-    var $summaries = array();
-
-    /**
-     * Row callback
-     *
-     * Called for every row added to $rows. The only argument passed to the
-     * callback is a reference to the added row. Useful to add calculated
-     * fields to every row.
-     *
-     * @var TIP_Callback
-     */
-    var $on_row = null;
-
-    /**
-     * View callback
-     *
-     * Called at the end of the population of $rows. A reference to the current
-     * view is passed as argument to the callback. Useful to add summary values
-     * or perform general operations on the whole data of the view.
-     *
-     * The custom callback must return true to validate the view or false to
-     * invalidate it.
-     *
-     * @var TIP_Callback
-     */
-    var $on_view = null;
+    private $_summary = null;
 
 
     /**
-     * Populate the view
+     * Constructor
      *
-     * Performs all the needed steps to fill $rows, call the callbacks, add
-     * the standard summary values and so on.
+     * Initializes a TIP_View instance.
      *
-     * @param  bool $refresh Forces the fillRows() call
-     * @return bool          true on success or false on errors
+     * @param string $id   The instance identifier
+     * @param array  $args The constructor arguments, as described in buildId()
      */
-    function populate($refresh = false)
+    protected function __construct($id, $args)
     {
-        if (!is_null($this->rows) && !$refresh) {
-            $this->rowUnset();
-            return true;
-        }
+        parent::__construct($id);
 
-        $this->rows = null;
-        if (!$this->fillRows()) {
+        foreach ($args as $key => &$value) {
+            $property = '_' . $key;
+            $this->$property =& $value;
+        }
+    }
+
+    protected function postConstructor()
+    {
+        $this->_rows =& $this->_data->getRows($this->_filter);
+        $this->onPopulated();
+    }
+
+    /**
+     * Build a TIP_View identifier
+     *
+     * $args must be an array with the following items (all are optionals):
+     * - $args['data']: a reference to a TIP_Data object
+     * - $args['filter']: the filter to apply
+     * - $args['on_row']: callback to run for every row
+     * - $args['on_view']: callback to run when populated
+     *
+     * @param  array  $args The constructor arguments
+     * @return string       The data identifier
+     */
+    protected function buildId($args)
+    {
+        $id = $args['data']->getId();
+        if (array_key_exists('filter', $args)) {
+            $id .= ':' . $args['filter'];
+        }
+        return $id;
+    }
+
+    protected function onPopulated()
+    {
+        $this->_summary = null;
+        if (!is_array($this->_rows)) {
             return false;
-        } elseif (!is_array($this->rows)) {
-            return true;
         }
 
+        $filtered_rows = array();
         $n_row = 0;
-        foreach (array_keys($this->rows) as $id) {
-            $row =& $this->rows[$id];
-            if ($this->on_row && !call_user_func_array($this->on_row, array(&$row))) {
-                // If the user callback returns false, remove the row
-                array_splice($this->rows, $n_row, 1);
-            } else {
+        foreach ($this->_rows as $id => &$row) {
+            if (!$this->_on_row || call_user_func_array($this->_on_row, array(&$row))) {
                 ++ $n_row;
                 $row['ROW']     = $n_row;
                 $row['ODDEVEN'] = ($n_row & 1) > 0 ? 'odd' : 'even';
+                $filtered_rows[$id] =& $row;
             }
-            unset($row);
         }
 
-        $this->summaries['COUNT'] = $n_row;
-        return !$this->on_view || call_user_func_array($this->on_view, array(&$this));
+        $this->_rows =& $filtered_rows;
+        $this->_summary['COUNT'] = $n_row;
+        return !$this->_on_view || call_user_func_array($this->_on_view, array(&$this));
+    }
+
+    public function isValid()
+    {
+        return is_array($this->_rows);
+    }
+
+    public function &getRows()
+    {
+        return $this->_rows;
+    }
+
+    public function getField($id)
+    {
+        $row =& $this->rowCurrent();
+        return @$row[$id];
+    }
+
+    public function getSummary($id)
+    {
+        return @$this->_summary[$id];
+    }
+
+    public function setSummary($id, $value)
+    {
+        $this->_summary[$id] = $value;
     }
 
     /**
@@ -219,10 +204,14 @@ class TIP_View extends TIP_Type
      *
      * @return bool true
      */
-    function rowUnset()
+    public function rowUnset()
     {
-        @end($this->rows);
-        @next($this->rows);
+        if (!is_array($this->_rows)) {
+            return false;
+        }
+
+        @end($this->_rows);
+        @next($this->_rows);
         return true;
     }
 
@@ -235,15 +224,15 @@ class TIP_View extends TIP_Type
      * Returns a reference to the current row. This function hangs if there
      * is no current row.
      */
-    function& rowCurrent()
+    public function& rowCurrent()
     {
-        $key = @key($this->rows);
+        $key = @key($this->_rows);
         if (is_null($key)) {
             // Hoping the undefined key will be null for every php versions
             return $key;
         }
 
-        return $this->rows[$key];
+        return $this->_rows[$key];
     }
 
     /**
@@ -252,9 +241,9 @@ class TIP_View extends TIP_Type
      * Resets (set to the first row) the internal cursor. This function hangs
      * if there are no rows.
      */
-    function& rowReset()
+    public function& rowReset()
     {
-        @reset($this->rows);
+        @reset($this->_rows);
         return $this->rowCurrent();
     }
 
@@ -264,9 +253,9 @@ class TIP_View extends TIP_Type
      * Moves the internal cursor to the last row. This function hangs if there
      * are no rows.
      */
-    function& rowEnd()
+    public function& rowEnd()
     {
-        @end($this->rows);
+        @end($this->_rows);
         return $this->rowCurrent();
     }
 
@@ -280,14 +269,14 @@ class TIP_View extends TIP_Type
      *
      * @param bool $rewind If the cursor must go to the last row when unset
      */
-    function& rowPrevious($rewind = true)
+    public function& rowPrevious($rewind = true)
     {
-        if (is_null(@key($this->rows))) {
+        if (is_null(@key($this->_rows))) {
             if ($rewind) {
-                @end($this->rows);
+                @end($this->_rows);
             }
         } else {
-            @prev($this->rows);
+            @prev($this->_rows);
         }
 
         return $this->rowCurrent();
@@ -303,21 +292,17 @@ class TIP_View extends TIP_Type
      *
      * @param bool $rewind If the cursor must go to the first row when unset
      */
-    function& rowNext($rewind = true)
+    public function& rowNext($rewind = true)
     {
-        if (is_null(@key($this->rows))) {
+        if (is_null(@key($this->_rows))) {
             if ($rewind) {
-                @reset($this->rows);
+                @reset($this->_rows);
             }
         } else {
-            @next($this->rows);
+            @next($this->_rows);
         }
 
         return $this->rowCurrent();
     }
-
-    /**#@-*/
-
-    /**#@-*/
 }
 ?>

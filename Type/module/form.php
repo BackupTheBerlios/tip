@@ -476,18 +476,18 @@ class TIP_Form extends TIP_Module
     {
         parent::__construct($id);
 
-        foreach (array_keys($args) as $name) {
-            $property = '_' . $name;
-            $this->$property =& $args[$name];
+        foreach ($args as $key => &$value) {
+            $property = '_' . $key;
+            $this->$property =& $value;
         }
 
+        // Define some needed properties
         if (!isset($this->_command)) {
             $this->_command = $this->_action;
         }
         if (!isset($this->_referer)) {
             $this->_referer = TIP::getRefererURI();
         }
-
         if (!isset($this->_buttons)) {
             switch ($this->_action) {
 
