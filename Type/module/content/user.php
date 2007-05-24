@@ -205,8 +205,9 @@ class TIP_User extends TIP_Content
         switch ($action) {
 
         case 'edit':
-            if (is_null($id = TIP::getGet('id', 'int'))) {
-                $id = TIP::getPost('id', 'int');
+            if (is_null($id = TIP::getGet('id', 'int')) &&
+                is_null($id = TIP::getPost('id', 'int'))) {
+                return null;
             }
             return !is_null($this->form(TIP_FORM_ACTION_EDIT, $id));
         }
@@ -245,11 +246,10 @@ class TIP_User extends TIP_Content
         switch ($action) {
 
         case 'delete':
-            $processed = $this->form(TIP_FORM_ACTION_DELETE);
+            $processed = $this->form(TIP_FORM_ACTION_DELETE, TIP::getUserId());
             if ($processed) {
                 $this->_logout();
             }
-
             return !is_null($processed);
 
         case 'unset':
@@ -257,7 +257,7 @@ class TIP_User extends TIP_Content
             return true;
 
         case 'edit':
-            $processed = $this->form(TIP_FORM_ACTION_EDIT, null, array(
+            $processed = $this->form(TIP_FORM_ACTION_EDIT, TIP::getUserId(), array(
                 'buttons' => TIP_FORM_BUTTON_SUBMIT+TIP_FORM_BUTTON_CANCEL+TIP_FORM_BUTTON_DELETE
             ));
             return !is_null($processed);
