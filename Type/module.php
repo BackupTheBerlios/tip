@@ -35,7 +35,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * @param mixed $id Identifier of this module
      */
-    function __construct($id)
+    protected function __construct($id)
     {
         parent::__construct($id);
 
@@ -59,7 +59,7 @@ abstract class TIP_Module extends TIP_Type
      * instantiated, so it will lead to a mutual recursion if this operation
      * is done directly in TIP_Module().
      */
-    function postConstructor()
+    protected function postConstructor()
     {
         $this->_privilege = TIP::getPrivilege($this->getId());
         $this->refreshPrivileges();
@@ -301,7 +301,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * @uses getValidRequest() The method used to resolve the requests
      */
-    function commandRaw($params)
+    protected function commandRaw($params)
     {
         $requests = explode(',', $params);
         $value = $this->getValidRequest($requests);
@@ -324,7 +324,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * @uses getValidRequest() The method used to resolve the requests
      */
-    function commandTryRaw($params)
+    protected function commandTryRaw($params)
     {
         $requests = explode(',', $params);
         $value = $this->getValidRequest($requests);
@@ -342,7 +342,7 @@ abstract class TIP_Module extends TIP_Type
      * Equals to commandRaw(), but the result is converted throught TIP::toHtml()
      * before the output.
      */
-    function commandHtml($params)
+    protected function commandHtml($params)
     {
         $requests = explode(',', $params);
         $value = $this->getValidRequest($requests);
@@ -363,7 +363,7 @@ abstract class TIP_Module extends TIP_Type
      * Equals to commandTryRaw(), but the result is converted throught
      * TIP::toHtml() before the output.
      */
-    function commandTryHtml($params)
+    protected function commandTryHtml($params)
     {
         $requests = explode(',', $params);
         $value = $this->getValidRequest($requests);
@@ -379,7 +379,7 @@ abstract class TIP_Module extends TIP_Type
      * Output a proper link to the specified action. The values are urlencoded
      * to avoid collateral effects.
      */
-    function commandAction($params)
+    protected function commandAction($params)
     {
         $pos = strpos ($params, ',');
         if ($pos === false) {
@@ -406,7 +406,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * Prepends the root URL to $params and outputs the result.
      */
-    function commandUrl($params)
+    protected function commandUrl($params)
     {
         echo TIP::buildUrl($params);
         return true;
@@ -420,7 +420,7 @@ abstract class TIP_Module extends TIP_Type
      * reference if you want a theme-aware site, because enabling themes will
      * make the prepending path a dynamic variable.
      */
-    function commandSourceUrl($params)
+    protected function commandSourceUrl($params)
     {
         echo $this->buildSourceUrl($params);
         return true;
@@ -432,7 +432,7 @@ abstract class TIP_Module extends TIP_Type
      * Prepends the source URL of the current module to $params and
      * outputs the result.
      */
-    function commandModuleUrl($params)
+    protected function commandModuleUrl($params)
     {
         echo $this->buildSourceUrl($this->getId(), $params);
         return true;
@@ -444,7 +444,7 @@ abstract class TIP_Module extends TIP_Type
      * Shortcut for the often used icon url. The icon URL is in the source
      * root URL, under the "shared/icons" path.
      */
-    function commandIconUrl($params)
+    protected function commandIconUrl($params)
     {
         static $icon_url = null;
         if (!$icon_url) {
@@ -460,7 +460,7 @@ abstract class TIP_Module extends TIP_Type
      * Expands to true if the current logged-in user id equals to $params or
      * false otherwise.
      */
-    function commandIs($params)
+    protected function commandIs($params)
     {
         echo ((int) $params) === TIP::getUserId() ? 'true' : 'false';
         return true;
@@ -472,7 +472,7 @@ abstract class TIP_Module extends TIP_Type
      * Executes the source file $params found in the current module source path,
      * using the current source engine.
      */
-    function commandRun($params)
+    protected function commandRun($params)
     {
         return $this->run($this->buildSourcePath($this->getId(), $params));
     }
@@ -483,7 +483,7 @@ abstract class TIP_Module extends TIP_Type
      * Executes the source file $params found in the shared source path, using
      * the current source engine.
      */
-    function commandRunShared($params)
+    protected function commandRunShared($params)
     {
         return $this->run($this->buildSourcePath('shared', $params));
     }
@@ -497,7 +497,7 @@ abstract class TIP_Module extends TIP_Type
      * Useful to check if a value is contained (that is, if it is selected) in
      * a "set" or "enum" field.
      */
-    function commandInList($params)
+    protected function commandInList($params)
     {
         $pos = strpos($params, ',');
         if ($pos === false) {
@@ -521,7 +521,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * @uses TIP::formatDate() The date formatter
      */
-    function commandDate($params)
+    protected function commandDate($params)
     {
         $format = 'date_' . $GLOBALS[TIP_MAIN]->getOption('locale');
         echo TIP::formatDate($format, $params, 'iso8601');
@@ -536,7 +536,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * @uses TIP::formatDate() The date formatter
      */
-    function commandDateTime($params)
+    protected function commandDateTime($params)
     {
         static $format = null;
         if (is_null($format)) {
@@ -554,7 +554,7 @@ abstract class TIP_Module extends TIP_Type
      * Replaces all the occurrences of a newline in text with the
      * replacer string.
      */
-    function commandNlReplace($params)
+    protected function commandNlReplace($params)
     {
         $pos = strpos ($params, ',');
         if ($pos === false) {
@@ -580,7 +580,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * Useful to provide conditional links between different modules.
      */
-    function commandModuleExists($params)
+    protected function commandModuleExists($params)
     {
         $file = TIP::buildLogicPath('module', $params) . '.php';
         echo is_readable($file) ? 'true' : 'false';
@@ -601,7 +601,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * Executes an action that requires the 'manager' privilege.
      */
-    function runManagerAction($action)
+    protected function runManagerAction($action)
     {
         return null;
     }
@@ -611,7 +611,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * Executes an action that requires at least the 'admin' privilege.
      */
-    function runAdminAction($action)
+    protected function runAdminAction($action)
     {
         return null;
     }
@@ -621,7 +621,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * Executes an action that requires at least the 'trusted' privilege.
      */
-    function runTrustedAction($action)
+    protected function runTrustedAction($action)
     {
         return null;
     }
@@ -631,7 +631,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * Executes an action that requires at least the 'untrusted' privilege.
      */
-    function runUntrustedAction($action)
+    protected function runUntrustedAction($action)
     {
         return null;
     }
@@ -641,7 +641,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * Executes an action that does not require any privileges.
      */
-    function runAction($action)
+    protected function runAction($action)
     {
         return null;
     }
@@ -663,7 +663,7 @@ abstract class TIP_Module extends TIP_Type
         if (strpos($file, DIRECTORY_SEPARATOR) === false) {
             $file = $this->buildSourcePath($this->getId(), $file);
         }
-        $GLOBALS[TIP_MAIN]->prependCallback($this->callback('run', array($file)));
+        $GLOBALS[TIP_MAIN]->prependCallback(array(&$this, 'run'), array($file));
         return true;
     }
 
@@ -681,7 +681,7 @@ abstract class TIP_Module extends TIP_Type
         if (strpos($file, DIRECTORY_SEPARATOR) === false) {
             $file = $this->buildSourcePath($this->getId(), $file);
         }
-        $GLOBALS[TIP_MAIN]->appendCallback($this->callback('run', array($file)));
+        $GLOBALS[TIP_MAIN]->appendCallback(array(&$this, 'run'), array($file));
         return true;
     }
 

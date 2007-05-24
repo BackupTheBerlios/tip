@@ -33,18 +33,17 @@
  * ?>
  * </code>
  *
- * @final
  * @package  TIP
  * @tutorial TIP/TIP.pkg
  */
 class TIP_Application extends TIP_Module
 {
-    /**#@+ @access private */
+    const CALLBACK = 0;
+    const ARGS = 1;
+    private $_queue = array();
 
-    var $_queue = array();
 
-
-    function _dumpRegister(&$register, $indent)
+    private function _dumpRegister(&$register, $indent)
     {
         foreach ($register as $id => $value) {
             echo "$indent$id\n";
@@ -54,21 +53,15 @@ class TIP_Application extends TIP_Module
         }
     }
 
-    /**#@-*/
-
-
-    /**#@+ @access protected */
-
-    function __construct($id)
+    protected function __construct($id)
     {
         parent::__construct($id);
-
         $GLOBALS[TIP_MAIN] =& $this;
     }
 
-    function postConstructor()
+    protected function postConstructor()
     {
-        TIP_Module::postConstructor();
+        parent::postConstructor();
 
         $this->keys['TODAY'] = TIP::formatDate('date_iso8601');
         $this->keys['NOW'] = TIP::formatDate('datetime_iso8601');
@@ -84,26 +77,22 @@ class TIP_Application extends TIP_Module
         }
     }
 
-
-    /**#@+
-     * @param string @params The parameter string
-     * @return bool true on success or false on errors
-     * @subpackage SourceEngine
-     */
-
     /**
      * Output the page
      *
      * The output of every action is deferred to the page, that can be
      * placed anywhere in the main source.
+     *
+     * @param  string $params The parameter string
+     * @return bool           true on success or false on errors
      */
-    function commandPage($params)
+    protected function commandPage($params)
     {
         if (empty($this->_queue)) {
             $this->commandRunShared('default.src');
         } else {
-            foreach (array_keys($this->_queue) as $id) {
-                $this->_queue[$id]->go();
+            foreach ($this->_queue as $item) {
+                call_user_func_array($item[self::CALLBACK], $item[self::ARGS]);
             }
         }
         return true;
@@ -115,8 +104,11 @@ class TIP_Application extends TIP_Module
      * This echoes some output and profiler information, useful in the
      * developement process. This works only if the current user has manager
      * privileges on the application module.
+     *
+     * @param  string $params The parameter string
+     * @return bool           true on success or false on errors
      */
-    function commandDebug($params)
+    protected function commandDebug($params)
     {
         if ($this->keys['IS_TRUSTED']) {
             $logger =& $this->getSharedModule('logger');
@@ -149,23 +141,28 @@ class TIP_Application extends TIP_Module
         return true;
     }
 
-    /**#@-*/
-
-
-    function runAction($action)
+    protected function runManagerAction($action)
     {
         switch($action) {
+
+        case 'phpinfo':
+            $GLOBALS[TIP_MAIN]->appendCallback('phpinfo');
+            return true;
+        }
+
+        return null;
+    }
+
+    protected function runAction($action)
+    {
+        switch($action) {
+
         case 'fatal':
             return TIP::notifyError('fatal');
         }
 
         return null;
     }
-
-    /**#@-*/
-
-
-    /**#@+ @access public */
 
     /**
      * The "main" function
@@ -175,7 +172,7 @@ class TIP_Application extends TIP_Module
      *
      * @param string $main_source The main source program to run
      */
-    function go($main_source)
+    public function go($main_source)
     {
         $locale = $this->getOption('locale');
 
@@ -239,7 +236,7 @@ class TIP_Application extends TIP_Module
      * @param  string        $job The job identifier
      * @return TIP_Type|null      The requested shared module or null if not found
      */
-    function& getSharedModule($job)
+    public function &getSharedModule($job)
     {
         static $cache = array();
 
@@ -261,12 +258,16 @@ class TIP_Application extends TIP_Module
      * Inserts at the beginning of $_queue the specified callback, that will
      * be called while generating the page.
      *
-     * @param TIP_Callback &$callback The callback
+     * The callback can be expressed in any format accettable by
+     * the call_user_func() function.
+     *
+     * @param mixed $callback The callback
+     * @param array $args     Arguments of the callback
      */
-    function prependCallback(&$callback)
+    public function prependCallback($callback, $args = array())
     {
         array_unshift($this->_queue, null);
-        $this->_queue[0] =& $callback;
+        $this->_queue[0] = array(self::CALLBACK => $callback, self::ARGS => $args);
     }
 
     /**
@@ -275,13 +276,15 @@ class TIP_Application extends TIP_Module
      * Appends at the end of $_queue the specified callback, that will
      * be called while generating the page.
      *
-     * @param TIP_Callback &$callback The callback
+     * The callback can be expressed in any format accettable by
+     * the call_user_func() function.
+     *
+     * @param mixed $callback The callback
+     * @param array $args     Arguments of the callback
      */
-    function appendCallback(&$callback)
+    public function appendCallback($callback, $args = array())
     {
-        $this->_queue[] =& $callback;
+        $this->_queue[] = array(self::CALLBACK => $callback, self::ARGS => $args);
     }
-
-    /**#@-*/
 }
 ?>

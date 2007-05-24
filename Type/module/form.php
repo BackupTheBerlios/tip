@@ -669,7 +669,7 @@ class TIP_Form extends TIP_Module
         if ($render == TIP_FORM_RENDER_HERE) {
             $this->_render();
         } elseif ($render == TIP_FORM_RENDER_IN_CONTENT) {
-            $GLOBALS[TIP_MAIN]->appendCallback($this->callback('_render'));
+            $GLOBALS[TIP_MAIN]->appendCallback(array(&$this, '_render'));
         }
 
         return $valid;

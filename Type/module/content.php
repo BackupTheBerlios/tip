@@ -566,9 +566,9 @@ class TIP_Content extends TIP_Module
         }
 
         $main =& $GLOBALS[TIP_MAIN];
-        $main->prependCallback($this->callback('pop'));
-        $main->prependCallback($this->callback('run', array($file)));
-        $main->prependCallback($this->callback('push', array(&$this->view, false)));
+        $main->prependCallback(array(&$this, 'pop'));
+        $main->prependCallback(array(&$this, 'run'),  array($file));
+        $main->prependCallback(array(&$this, 'push'), array(&$this->view, false));
         return true;
     }
 
@@ -592,9 +592,9 @@ class TIP_Content extends TIP_Module
         }
 
         $main =& $GLOBALS[TIP_MAIN];
-        $main->appendCallback($this->callback('push', array(&$this->view, false)));
-        $main->appendCallback($this->callback('run', array($file)));
-        $main->appendCallback($this->callback('pop'));
+        $main->appendCallback(array(&$this, 'push'), array(&$this->view, false));
+        $main->appendCallback(array(&$this, 'run'),  array($file));
+        $main->appendCallback(array(&$this, 'pop'));
         return true;
     }
 
