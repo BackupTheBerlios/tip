@@ -49,9 +49,7 @@
  */
 class TIP_Privilege extends TIP_Content
 {
-    /**#@+ @access private */
-
-    var $_privileges = array(
+    private $_privileges = array(
         TIP_PRIVILEGE_INVALID   => '',
         TIP_PRIVILEGE_NONE      => 'none',
         TIP_PRIVILEGE_UNTRUSTED => 'untrusted',
@@ -61,7 +59,7 @@ class TIP_Privilege extends TIP_Content
     );
 
 
-    function _getSubjectId()
+    private function _getSubjectId()
     {
         if (!array_key_exists('UID', $this->keys)) {
             if (is_null($subject_id = TIP::getGet('user', 'int'))) {
@@ -76,7 +74,7 @@ class TIP_Privilege extends TIP_Content
         return $this->keys['UID'];
     }
 
-    function _maxSettableLevel($module_id)
+    private function _maxSettableLevel($module_id)
     {
         $user_level = $this->getPrivilege($module_id);
         $subject_level = $this->getPrivilege($module_id, $this->keys['UID']);
@@ -108,7 +106,7 @@ class TIP_Privilege extends TIP_Content
         return TIP_PRIVILEGE_INVALID;
     }
 
-    function _onModulesRow(&$row)
+    public function _onModulesRow(&$row)
     {
         $module_id = $row['id'];
         $up_to_level = $this->_maxSettableLevel($module_id);
@@ -137,7 +135,7 @@ class TIP_Privilege extends TIP_Content
      * @param  int              $user_id    The user id
      * @return TIP_PRIVILEGE...             The stored privilege
      */
-    function _getStoredPrivilege($module_id, $user_id)
+    private function _getStoredPrivilege($module_id, $user_id)
     {
         /* The internal query is based only on the user id. The query could be
          * filtered on both $module_id and $user_id, but filtering only by
@@ -155,11 +153,6 @@ class TIP_Privilege extends TIP_Content
         return (int) array_search(@$row['privilege'], $this->_privileges);
     }
 
-    /**#@-*/
-
-
-    /**#@+ @access protected */
-
     /**
      * Constructor
      *
@@ -167,7 +160,7 @@ class TIP_Privilege extends TIP_Content
      *
      * @param string $id The instance identifier
      */
-    function __parent($id)
+    protected function __parent($id)
     {
         parent::__parent($id);
     }
@@ -176,28 +169,24 @@ class TIP_Privilege extends TIP_Content
      * Custom post construction method
      *
      * Overrides the default post-constructor method to avoid the
-     * TIP::getPrivilege() call, that uses the TIP_Privilege module itsself
-     * and causes a circulary dependancy.
+     * TIP::getPrivilege() call and the consequential mutual recursion.
      */
-    function postConstructor()
+    protected function postConstructor()
     {
         $this->_privilege = $this->getPrivilege($this->getId());
         $this->refreshPrivileges();
     }
-
-    /**#@+
-     * @param string @params The parameter string
-     * @return bool true on success or false on errors
-     * @subpackage SourceEngine
-     */
 
     /**
      * Check if the current user is manager
      *
      * Expands to true if the current logged-in user is manager in the module
      * specified with $params, false otherwise.
+     *
+     * @param  string @params The parameter string
+     * @return bool           true on success or false on errors
      */
-    function commandIsManager($params)
+    protected function commandIsManager($params)
     {
         echo $this->getPrivilege(strtolower($params)) >= TIP_PRIVILEGE_MANAGER ? 'true' : 'false';
         return true;
@@ -208,8 +197,11 @@ class TIP_Privilege extends TIP_Content
      *
      * Expands to true if the current logged-in user is administrator in the
      * module specified with $params, false otherwise.
+     *
+     * @param  string @params The parameter string
+     * @return bool           true on success or false on errors
      */
-    function commandIsAdmin($params)
+    protected function commandIsAdmin($params)
     {
         echo $this->getPrivilege(strtolower($params)) >= TIP_PRIVILEGE_ADMIN ? 'true' : 'false';
         return true;
@@ -220,8 +212,11 @@ class TIP_Privilege extends TIP_Content
      *
      * Expands to true if the current logged-in user is trusted in the
      * module specified with $params, false otherwise.
+     *
+     * @param  string @params The parameter string
+     * @return bool           true on success or false on errors
      */
-    function commandIsTrusted($params)
+    protected function commandIsTrusted($params)
     {
         echo $this->getPrivilege(strtolower($params)) >= TIP_PRIVILEGE_TRUSTED ? 'true' : 'false';
         return true;
@@ -232,17 +227,17 @@ class TIP_Privilege extends TIP_Content
      *
      * Expands to true if the current logged-in user is untrusted in the
      * module specified with $params, false otherwise.
+     *
+     * @param  string @params The parameter string
+     * @return bool           true on success or false on errors
      */
-    function commandIsUntrusted($params)
+    protected function commandIsUntrusted($params)
     {
         echo $this->getPrivilege(strtolower($params)) >= TIP_PRIVILEGE_UNTRUSTED ? 'true' : 'false';
         return true;
     }
 
-    /**#@-*/
-
-
-    function runManagerAction($action)
+    protected function runManagerAction($action)
     {
         switch ($action) {
 
@@ -264,10 +259,20 @@ class TIP_Privilege extends TIP_Content
 
         }
 
-        return parent::runManagerAction($action);
+        return null;
     }
 
-    function runUntrustedAction($action)
+    protected function runAdminAction($action)
+    {
+        return null;
+    }
+
+    protected function runTrustedAction($action)
+    {
+        return null;
+    }
+
+    protected function runUntrustedAction($action)
     {
         switch ($action) {
 
@@ -339,24 +344,24 @@ class TIP_Privilege extends TIP_Content
             return $done;
         }
 
-        return parent::runUntrustedAction($action);
+        return null;
     }
 
-    /**#@-*/
-
-
-    /**#@+ @access public */
-
-    function& startSpecialView($name)
+    protected function runAction($action)
     {
-        if (strcasecmp($name, 'MODULES') != 0) {
-            return parent::startSpecialView($name);
+        return null;
+    }
+
+    public function &startSpecialView($type, $options = null)
+    {
+        if (strcasecmp($type, 'MODULES') != 0) {
+            return parent::startSpecialView($type);
         }
 
         return parent::startSpecialView('modules', array('on_row' => array(&$this, '_onModulesRow')));
     }
 
-    function getPrivilege($module_id, $user_id = null)
+    public function getPrivilege($module_id, $user_id = null)
     {
         if (is_null($user_id)) {
             $user_id = TIP::getUserId();
@@ -371,7 +376,5 @@ class TIP_Privilege extends TIP_Content
 
         return TIP::getDefaultPrivilege($module_id, $user_id);
     }
-
-    /**#@-*/
 }
 ?>

@@ -29,7 +29,7 @@ class TIP_View extends TIP_Type
     /**
      * Row callback
      *
-     * Called for every row added to $rows. The only argument passed to the
+     * Called for every row added to $_rows. The only argument passed to the
      * callback is a reference to the added row. Useful to add calculated
      * fields to every row.
      *
@@ -40,7 +40,7 @@ class TIP_View extends TIP_Type
     /**
      * View callback
      *
-     * Called at the end of the population of $rows. A reference to the current
+     * Called at the end of the population of $_rows. A reference to the current
      * view is passed as argument to the callback. Useful to add summary values
      * or perform general operations on the whole data of the view.
      *
@@ -74,8 +74,8 @@ class TIP_View extends TIP_Type
     /**
      * The list of rows
      *
-     * This list is filled by the populate() method. It is null if not yet
-     * filled or false on errors.
+     * This list should be filled in the construction process. It is null if
+     * not yet filled or false on errors.
      *
      * The format of the row depends on the type of the view. In TIP_View, the
      * format is the one used also in TIP_Data. Furthermore, some common
@@ -86,7 +86,7 @@ class TIP_View extends TIP_Type
      *
      * @var array|null
      */
-    private $_rows = null;
+    protected $_rows = null;
 
     /**
      * A list of summary values
@@ -100,7 +100,7 @@ class TIP_View extends TIP_Type
      *
      * @var array
      */
-    private $_summary = null;
+    protected $_summary = null;
 
 
     /**

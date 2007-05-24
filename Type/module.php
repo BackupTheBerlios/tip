@@ -222,6 +222,9 @@ abstract class TIP_Module extends TIP_Type
 
         case 'locale':
             return $this->getLocale($id);
+
+        case 'label':
+            return $this->getLocale('label.' . $id);
         }
 
         return null;

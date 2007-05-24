@@ -27,15 +27,19 @@ class TIP_Modules_View extends TIP_View
      */
     protected function __construct($id, $args)
     {
-        // Remove the 'data' item: initialization of data source not needed
-        unset($args['data']);
-
         parent::__construct($id, $args);
     }
 
     protected function postConstructor()
     {
-        $this->_rows = $GLOBALS['cfg'];
+        foreach ($GLOBALS['cfg'] as $id => $options) {
+            // Add only module derived types
+            if (in_array('module', $options['type'])) {
+                $this->_rows[$id] = array(
+                    'id' => $id
+                );
+            }
+        }
         $this->onPopulated();
     }
 

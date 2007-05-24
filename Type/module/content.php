@@ -138,7 +138,7 @@ class TIP_Content extends TIP_Module
      *                           null on action not found
      */
 
-    function runManagerAction($action)
+    protected function runManagerAction($action)
     {
         switch ($action) {
 
@@ -165,7 +165,7 @@ class TIP_Content extends TIP_Module
         return parent::runManagerAction($action);
     }
 
-    function runAdminAction($action)
+    protected function runAdminAction($action)
     {
         switch ($action) {
 
@@ -187,7 +187,7 @@ class TIP_Content extends TIP_Module
         return parent::runAdminAction($action);
     }
 
-    function runTrustedAction($action)
+    protected function runTrustedAction($action)
     {
         switch ($action) {
 
@@ -225,7 +225,7 @@ class TIP_Content extends TIP_Module
         return parent::runTrustedAction($action);
     }
 
-    function runUntrustedAction($action)
+    protected function runUntrustedAction($action)
     {
         switch ($action) {
 
@@ -356,7 +356,7 @@ class TIP_Content extends TIP_Module
      *
      * Shortcut for the often used data url.
      */
-    function commandDataUrl($params)
+    protected function commandDataUrl($params)
     {
         echo TIP::buildDataUrl($this->getId(), $params);
         return true;
@@ -369,7 +369,7 @@ class TIP_Content extends TIP_Module
      * accordling to the wiki rules defined in the 'wiki_rules' option of the
      * field structure.
      */
-    function commandWiki($params)
+    protected function commandWiki($params)
     {
         $value = $this->getField($params);
         if (is_null($value)) {
@@ -681,7 +681,7 @@ class TIP_Content extends TIP_Module
      *                                TIP_View instance
      * @return TIP_View|null          The view instance or null on errors
      */
-    function& startView($filter, $options = array())
+    public function &startView($filter, $options = array())
     {
         $options['data'] =& $this->data;
         $options['filter'] = $filter;
@@ -699,7 +699,7 @@ class TIP_Content extends TIP_Module
      *                                TIP_View derived instance
      * @return TIP_View|null          The view instance or null on errors
      */
-    function& startSpecialView($type, $options = array())
+    public function &startSpecialView($type, $options = array())
     {
         $options['data'] =& $this->data;
         $view =& TIP_Type::singleton(array('view', $type . '_view'), $options);
@@ -725,7 +725,7 @@ class TIP_Content extends TIP_Module
      *
      * @return bool true on success or false on errors
      */
-    function endView()
+    public function endView()
     {
         if ($this->pop() === FALSE) {
             TIP::error("'endView()' requested without a previous 'startView()' or 'startSpecialView()' call");

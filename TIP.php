@@ -115,9 +115,10 @@ class TIP
      * Gets a configuration option for a specified type. All the option values
      * are defined in the config file.
      *
-     * @param string $type     Descriptor of the type
-     * @param string $option   The option to retrieve
-     * @return mixed|null The value of the requested option or null on errors
+     * @param string      $type     Descriptor of the type
+     * @param string      $option   The option to retrieve
+     * @return mixed|null           The value of the requested option or
+     *                              null on errors
      */
     function getOption($type, $option, $required = false)
     {
@@ -862,9 +863,9 @@ class TIP
     function getDefaultPrivilege($module_id, $user_id)
     {
         $privilege_type = $user_id ? 'default_privilege' : 'anonymous_privilege';
-        $result = TIP::getOption($module_id, $privilege_type);
+        $result = @$GLOBALS['cfg'][$module_id][$privilege_type];
         if (is_null($result)) {
-            $result = $GLOBALS[TIP_MAIN]->getOption('privilege_type');
+            $result = $GLOBALS[TIP_MAIN]->getOption($privilege_type);
         }
 
         return $result;

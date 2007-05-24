@@ -28,8 +28,8 @@ class TIP_Array_View extends TIP_View
      */
     protected function __construct($id, $args)
     {
-        // Remove 'id', yet passed as $id, and the 'data', unused
-        unset($args['id'], $args['data']);
+        // Remove 'id', yet passed as $id
+        unset($args['id']);
         parent::__construct($id, $args);
     }
 
