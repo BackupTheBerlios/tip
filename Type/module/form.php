@@ -230,11 +230,11 @@ class TIP_Form extends TIP_Module
         $element =& $this->_addElement('wikiarea', $id, 'expand');
 
         if (array_key_exists('wiki_rules', $field)) {
-            $wiki_rules = explode(',', $field['wiki_rules']);
+            $rules = explode(',', $field['wiki_rules']);
         } else {
-            $wiki_rules = null;
+            $rules = null;
         }
-        $element->setWiki(TIP::getWiki($wiki_rules));
+        $element->setWiki(TIP_Renderer::getWiki($rules));
         $element->setRows('10');
 
         return $element;
@@ -452,8 +452,7 @@ class TIP_Form extends TIP_Module
 
     function _render()
     {
-        require_once 'HTML/QuickForm/Renderer/Tableless.php';
-        $renderer =& new HTML_QuickForm_Renderer_Tableless();
+        $renderer =& TIP_Renderer::getForm();
         $renderer->addStopFieldsetElements('buttons');
         $this->_form->accept($renderer);
         echo $renderer->toHtml();
@@ -516,7 +515,7 @@ class TIP_Form extends TIP_Module
      * Build a TIP_Form identifier
      *
      * $args must be an array with the following items:
-     * - $args['content']: the id of the content instance
+     * - $args['content']: a reference to the content instance
      *
      * A form identifier is equal to the content identifier.
      *

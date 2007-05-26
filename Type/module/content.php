@@ -98,7 +98,7 @@ class TIP_Content extends TIP_Module
      *
      * @param mixed $id Identifier of this instance
      */
-    function __construct($id)
+    protected function __construct($id)
     {
         parent::__construct($id);
         if (is_null($options = $this->getDataOptions())) {
@@ -365,9 +365,8 @@ class TIP_Content extends TIP_Module
     /**
      * Wikize the field specified in $params
      *
-     * The value is parsed and rendered by the TIP::getWiki() instance
-     * accordling to the wiki rules defined in the 'wiki_rules' option of the
-     * field structure.
+     * The value is parsed and rendered by the Text_Wiki renderer accordling to
+     * the wiki rules defined in the 'wiki_rules' option of the field.
      */
     protected function commandWiki($params)
     {
@@ -379,13 +378,9 @@ class TIP_Content extends TIP_Module
 
         $fields =& $this->data->getFields();
         $field =& $fields[$params];
-        if (array_key_exists('wiki_rules', $field)) {
-            $wiki_rules = explode(',', $field['wiki_rules']);
-        } else {
-            $wiki_rules = null;
-        }
-        $wiki =& TIP::getWiki($wiki_rules);
-        echo $wiki->transform($value, 'Xhtml');
+        $rules = isset($field['wiki_rules']) ? explode(',', $field['wiki_rules']) : null;
+
+        echo TIP_Renderer::getWiki($rules)->transform($value);
         return true;
     }
 

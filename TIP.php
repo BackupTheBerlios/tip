@@ -15,6 +15,9 @@
  */
 error_reporting(E_ALL);
 
+require_once 'Defs.php';
+require_once './config.php';
+require_once 'Renderer.php';
 
 set_include_path(TIP::buildLogicPath('pear'));
 require_once 'PEAR.php';
@@ -29,14 +32,11 @@ require_once TIP::buildLogicPath('Callback.php');
  * A static class root of all the TIP hierarchy. It provides some global useful
  * functions.
  *
- * @static
  * @package TIP 
  */
 class TIP
 {
-    /**#@+ @access private */
-
-    function _getTyped($id, $type, &$collection)
+    static private function _getTyped($id, $type, &$collection)
     {
         $value = @$collection[$id];
         if (is_null($value) || ! settype($value, $type)) {
@@ -50,7 +50,7 @@ class TIP
         return get_magic_quotes_gpc() ? TIP::deepStripSlashes($value) : $value;
     }
 
-    function _formatTimestamp($timestamp, $format)
+    static private function _formatTimestamp($timestamp, $format)
     {
         switch ($format) {
         case 'date_iso8601':
@@ -77,14 +77,6 @@ class TIP
         return null;
     }
 
-    /**#@-*/
-
-
-    /**#@+
-     * @access public
-     * @static
-     */
-
     /**
      * Get the operating system descriptor
      *
@@ -94,7 +86,7 @@ class TIP
      *
      * @return 'unix'|'windows'|'os2' The guessed operating system descriptor
      */
-    function getOS()
+    static public function getOS()
     {
         $os = 'unix';
 
@@ -120,7 +112,7 @@ class TIP
      * @return mixed|null           The value of the requested option or
      *                              null on errors
      */
-    function getOption($type, $option, $required = false)
+    static public function getOption($type, $option, $required = false)
     {
         $value = @$GLOBALS['cfg'][$type][$option];
         if ($required && !isset($value)) {
@@ -144,7 +136,7 @@ class TIP
      * @param  bool        $cached  Whether to perform or not a cached read
      * @return string|null          The localized text or null if not found
      */
-    function getLocale($id, $prefix, $context = null, $cached = true)
+    static public function getLocale($id, $prefix, $context = null, $cached = true)
     {
         static $locale = false;
         if ($locale === false) {
@@ -157,7 +149,7 @@ class TIP
     /**
      * Start the session
      */
-    function startSession()
+    static public function startSession()
     {
         require_once 'HTTP/Session.php';
 
@@ -191,7 +183,7 @@ class TIP
      * @param array|string $value Array or string to add slashes
      * @return array|string The slashized copy of $value
      */
-    function deepAddSlashes($value)
+    static public function deepAddSlashes($value)
     {
         return is_array($value) ? array_map(array('TIP', 'deepAddSlashes'), $value) : addslashes($value);
     }
@@ -205,7 +197,7 @@ class TIP
      * @param array|string $value Array or string to strip slashes
      * @return array|string The unslashized copy of $value
      */
-    function deepStripSlashes($value)
+    static public function deepStripSlashes($value)
     {
         return is_array($value) ? array_map(array('TIP', 'deepStripSlashes'), $value) : stripslashes($value);
     }
@@ -222,7 +214,7 @@ class TIP
      * @param string $glue   The glue to use while imploding
      * @return string The imploded copy of $pieces
      */
-    function deepImplode($pieces, $glue = null)
+    static public function deepImplode($pieces, $glue = null)
     {
         static $the_glue = null;
         if (isset($glue)) {
@@ -241,7 +233,7 @@ class TIP
      * @param string|array $assignment The assignment (or array of assignments) to encode
      * @return string|array The encoded copy of $assignment
      */
-    function urlEncodeAssignment($assignment)
+    static public function urlEncodeAssignment($assignment)
     {
         if (is_array($assignment)) {
             return array_map(array('TIP', 'urlEncodeAssignment'), $assignment);
@@ -270,7 +262,7 @@ class TIP
      * @param  string     $buffer         The buffer to parse
      * @return array|null                 The resulting associative array or null on errors
      */
-    function doubleExplode($item_separator, $pair_separator, $buffer)
+    static public function doubleExplode($item_separator, $pair_separator, $buffer)
     {
         $items = explode($item_separator, $buffer);
         $result = null;
@@ -303,7 +295,7 @@ class TIP
      * @return mixed|null The content of the requested get or null on errors
      * @see getPost(),getCookie()
      */
-    function getGet($id, $type)
+    static public function getGet($id, $type)
     {
         return TIP::_getTyped($id, $type, $_GET);
     }
@@ -319,7 +311,7 @@ class TIP
      * @return mixed|null The content of the requested post or null on errors
      * @see getGet(),getCookie()
      */
-    function getPost($id, $type)
+    static public function getPost($id, $type)
     {
         return TIP::_getTyped($id, $type, $_POST);
     }
@@ -335,7 +327,7 @@ class TIP
      * @return mixed|null The content of the requested cookie or null on errors
      * @see getGet(),getPost()
      */
-    function getCookie($id, $type)
+    static public function getCookie($id, $type)
     {
         return TIP::_getTyped($id, $type, $_COOKIE);
     }
@@ -349,7 +341,7 @@ class TIP
      * - 'iso8601' for ISO8601 date or datetime (the format used, for instance, by MySql)
      *
      */
-    function getTimestamp($date, $format)
+    static public function getTimestamp($date, $format)
     {
         switch ($format) {
         case 'iso8601':
@@ -385,7 +377,7 @@ class TIP
      * @param string $input_format The format of the source date
      * @return mixed|null The formatted date or null on errors
      */
-    function formatDate($format, $input = null, $input_format = 'timestamp')
+    static public function formatDate($format, $input = null, $input_format = 'timestamp')
     {
         if (is_null($input)) {
             $timestamp = time();
@@ -409,7 +401,7 @@ class TIP
      * @param string  $message   A custom message
      * @param array  &$backtrace The backtrace array
      */
-    function log($severity, $message, &$backtrace)
+    static public function log($severity, $message, &$backtrace)
     {
         $logger =& $GLOBALS[TIP_MAIN]->getSharedModule('logger');
         if (is_object($logger)) {
@@ -428,7 +420,7 @@ class TIP
      *
      * @param string $message A custom message
      */
-    function warning($message)
+    static public function warning($message)
     {
         $backtrace = debug_backtrace();
         TIP::log('WARNING', $message, $backtrace);
@@ -445,7 +437,7 @@ class TIP
      *
      * @param string $message A custom message
      */
-    function error($message)
+    static public function error($message)
     {
         $backtrace = debug_backtrace();
         TIP::log('ERROR', $message, $backtrace);
@@ -460,7 +452,7 @@ class TIP
      *
      * @param string $message A custom message
      */
-    function fatal($message)
+    static public function fatal($message)
     {
         $backtrace = debug_backtrace();
         TIP::log('FATAL', $message, $backtrace);
@@ -488,7 +480,7 @@ class TIP
      * Notifies an error to the user throught TIP_Notify::notifyError().
      * Check the TIP_Notify documentation for further informations.
      */
-    function notifyError()
+    static public function notifyError()
     {
         $notify =& $GLOBALS[TIP_MAIN]->getSharedModule('notify');
         if (is_object($notify)) {
@@ -504,7 +496,7 @@ class TIP
      * Notifies a warning to the user throught TIP_Notify::notifyWarning().
      * Check the TIP_Notify documentation for further informations.
      */
-    function notifyWarning()
+    static public function notifyWarning()
     {
         $notify =& $GLOBALS[TIP_MAIN]->getSharedModule('notify');
         if (is_object($notify)) {
@@ -520,7 +512,7 @@ class TIP
      * Notifies a generic information to the user throught TIP_Notify::notifyInfo().
      * Check the TIP_Notify documentation for further informations.
      */
-    function notifyInfo()
+    static public function notifyInfo()
     {
         $notify =& $GLOBALS[TIP_MAIN]->getSharedModule('notify');
         if (is_object($notify)) {
@@ -542,7 +534,7 @@ class TIP
      * @param string|array $subpath,... A list of partial paths
      * @return string The constructed path
      */
-    function buildPath()
+    static public function buildPath()
     {
         static $base_path = null;
         if (!$base_path) {
@@ -561,7 +553,7 @@ class TIP
      * @param string|array $subpath,... A list of partial paths
      * @return string The constructed path
      */
-    function buildLogicPath()
+    static public function buildLogicPath()
     {
         return TIP::buildPath(array(TIP_ROOT, func_get_args()));
     }
@@ -574,7 +566,7 @@ class TIP
      * @param string|array $subpath,... A list of partial paths
      * @return string The constructed path
      */
-    function buildSourcePath()
+    static public function buildSourcePath()
     {
         static $source_path = null;
         if (!$source_path) {
@@ -592,7 +584,7 @@ class TIP
      * @param string|array $subpath,... A list of partial paths
      * @return string The constructed path
      */
-    function buildFallbackPath()
+    static public function buildFallbackPath()
     {
         static $fallback_path = null;
         if (!$fallback_path) {
@@ -610,7 +602,7 @@ class TIP
      * @param string|array $subpath,... A list of partial paths
      * @return string The constructed path
      */
-    function buildDataPath()
+    static public function buildDataPath()
     {
         static $data_path = null;
         if (!$data_path) {
@@ -629,7 +621,7 @@ class TIP
      * @param string|array $suburl,... A list of partial URLs
      * @return string The constructed URL
      */
-    function buildURL()
+    static public function buildURL()
     {
         static $root_url = null;
         if (is_null($root_url)) {
@@ -648,7 +640,7 @@ class TIP
      * @param string|array $suburl,... A list of partial URLs
      * @return string The constructed URL
      */
-    function buildSourceURL()
+    static public function buildSourceURL()
     {
         static $source_url = null;
         if (!$source_url) {
@@ -666,7 +658,7 @@ class TIP
      * @param string|array $suburl,... A list of partial URLs
      * @return string The constructed URL
      */
-    function buildFallbackURL()
+    static public function buildFallbackURL()
     {
         static $fallback_url = null;
         if (!$fallback_url) {
@@ -684,7 +676,7 @@ class TIP
      * @param string|array $suburl,... A list of partial URLs
      * @return string The constructed URL
      */
-    function buildDataURL()
+    static public function buildDataURL()
     {
         static $data_url = null;
         if (!$data_url) {
@@ -701,7 +693,7 @@ class TIP
      *
      * @return string The base URL
      */
-    function getBaseURL()
+    static public function getBaseURL()
     {
         static $base_url = null;
         if (!$base_url) {
@@ -715,7 +707,7 @@ class TIP
      *
      * @return string The requested URI
      */
-    function getScriptURI()
+    static public function getScriptURI()
     {
         static $script = null;
         if (!$script) {
@@ -731,7 +723,7 @@ class TIP
      *
      * @return string The referer URI
      */
-    function getRefererURI()
+    static public function getRefererURI()
     {
         static $referer = null;
         if (is_null($referer)) {
@@ -762,7 +754,7 @@ class TIP
      *
      * @return string The request URI
      */
-    function getRequestURI()
+    static public function getRequestURI()
     {
         return @$_SERVER['REQUEST_URI'];
     }
@@ -775,7 +767,7 @@ class TIP
      * @param mixed $value The value to convert
      * @return string The converted value 
      */
-    function toHtml($value)
+    static public function toHtml($value)
     {
         if (is_bool($value)) {
             return $value ? 'true' : 'false';
@@ -797,7 +789,7 @@ class TIP
      * @param string $id A TIP prefixed identifier
      * @return string The identifier without the TIP prefix
      */
-    function stripTipPrefix($id)
+    static public function stripTipPrefix($id)
     {
         return substr($id, strlen(TIP_PREFIX));
     }
@@ -812,7 +804,7 @@ class TIP
      *                          anonymous session or false if the user module
      *                          is not present
      */
-    function getUserId($refresh = false)
+    static public function getUserId($refresh = false)
     {
         static $initialized = false;
         static $user_id;
@@ -837,7 +829,7 @@ class TIP
      * @param  mixed            $user_id   A user id
      * @return TIP_PRIVILEGE...            The requested privilege
      */
-    function getPrivilege($module_id, $user_id = null)
+    static public function getPrivilege($module_id, $user_id = null)
     {
         static $privilege = false;
         if ($privilege === false) {
@@ -860,7 +852,7 @@ class TIP
      * @param  mixed            $user_id   A user id
      * @return TIP_PRIVILEGE...            The requested privilege
      */
-    function getDefaultPrivilege($module_id, $user_id)
+    static public function getDefaultPrivilege($module_id, $user_id)
     {
         $privilege_type = $user_id ? 'default_privilege' : 'anonymous_privilege';
         $result = @$GLOBALS['cfg'][$module_id][$privilege_type];
@@ -870,53 +862,5 @@ class TIP
 
         return $result;
     }
-
-    /**
-     * Get the Text_Wiki instance
-     *
-     * Singleton to get the Text_Wiki instance properly configured for the
-     * TIP system. You can specify an array of rules to use in the $rules
-     * array, or leave it undefined to use all the available rules.
-     *
-     * @param  array|null $enabled The array of rules to enable
-     * @return Text_Wiki           The requested instance
-     */
-    function& getWiki($enabled = null)
-    {
-        static $rules = null;
-        static $forced_rules = null;
-
-        if (is_null($rules)) {
-            // All the rules, in order, made available for the TIP system.
-            // The case is important!
-            $rules = array(
-                'Prefilter', 'Heading', 'Toc', 'Horiz', 'Break', 'Blockquote', 
-                'List', 'Deflist', 'Table', 'Center', 'Paragraph', 'Url',
-                'Strong', 'Emphasis', 'Revise', 'Tighten'
-            );
-            // Rules always included
-            $forced_rules = array('Prefilter', 'Break', 'Paragraph', 'Tighten');
-        }
-
-        require_once 'Text/Wiki.php';
-        if (is_array($enabled)) {
-            // Capitalize the $enabled values
-            $enabled = array_map('ucfirst', array_map('strtolower', $enabled));
-            // Join the forced rules
-            $enabled = array_merge($enabled, $forced_rules);
-            // Get the real rules to apply
-            $real_rules = array_intersect($rules, $enabled);
-        } else {
-            //$real_rules =& $rules;
-            $real_rules = $forced_rules;
-        }
-
-        $wiki =& Text_Wiki::singleton('Default', $real_rules);
-        $wiki->setFormatConf('Xhtml', 'charset', 'UTF-8');
-        $wiki->setFormatConf('Xhtml', 'translate', HTML_SPECIALCHARS);
-        return $wiki;
-    }
-
-    /**#@-*/
 }
 ?>

@@ -18,7 +18,8 @@ require_once 'HTML/Menu/Renderer.php';
 class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
 {
     var $_id = null;
-    var $_submenu = null;
+    var $_glue = '::';
+    var $_row = array();
 
     /**
      * Generated HTML for the menu
@@ -26,40 +27,43 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
      */
     var $_html = '';
 
-    function _pushId($level)
-    {
-        if (isset($this->_submenu[$level])) {
-            ++ $this->_submenu[$level];
-        } else {
-            $this->_submenu[$level] = 0;
-        }
-        return $this->_id . '_' . $level . '_' . $this->_submenu[$level];
-    }
+    /**
+     * Generated rows for the menu
+     * @var string
+     */
+    var $_rows = array();
 
-    function _popId($level)
-    {
-        if (!isset($this->_submenu[$level])) {
-            return false;
-        }
-        if (isset($this->_submenu[$level+1])) {
-            unset($this->_submenu[$level+1]);
-        }
-        return $this->_id . '_' . $level . '_' . $this->_submenu[$level];
-    }
 
     function setId($id)
     {
         $this->_id = $id;
-        $this->_submenu = null;
     }
 
-    function setMenuType($menuType)
+    function getId()
     {
-        if ('tree' == $menuType || 'sitemap' == $menuType) {
-            $this->_menuType = $menuType;
+        return $this->_id;
+    }
+
+    function setGlue($glue)
+    {
+        $this->_glue = $glue;
+    }
+
+    function getGlue()
+    {
+        return $this->_glue;
+    }
+
+    function setMenuType($type)
+    {
+        if ('tree' == $type || 'sitemap' == $type || 'rows' == $type) {
+            $this->_menuType = $type;
+            $this->_html = '';
+            $this->_row = array();
+            $this->_rows = array();
         } else {
             require_once 'PEAR.php';
-            return PEAR::raiseError("HTML_Menu_TipRenderer: unable to render '$menuType' type menu");
+            return PEAR::raiseError("HTML_Menu_TipRenderer: unable to render '$type' type menu");
         }
     }
 
@@ -67,13 +71,16 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
     {
         $is_active = $type != HTML_MENU_ENTRY_INACTIVE;
         $is_container = array_key_exists('sub', $node);
+        $this->_row[$level] = $node['title'];
+        $id = implode($this->_glue, $this->_row);
 
         if ($is_container) {
             $class = $is_active ? 'folder_active_open' : 'folder';
-            $href = 'javascript:switchHierarchy(\'' . $this->_pushId($level) . '\')';
+            $href = 'javascript:switchHierarchy(\'' . $id . '\')';
         } else {
             $class = $is_active ? 'active' : null;
             $href = $node['url'];
+            $this->_rows[] =& $id;
         }
 
         $content = "\n" . str_repeat('  ', $level) . '<a ';
@@ -102,9 +109,11 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         $is_active = $this->_html[$level]['active'];
         $content = $this->_html[$level]['content'];
         unset($this->_html[$level]);
+        unset($this->_row[$level]);
 
         if ($level > 0) {
-            $attributes = 'id="' . $this->_popId($level-1) . '"';
+            $id = implode($this->_glue, $this->_row);
+            $attributes = 'id="' . $id . '"';
             if ($is_active) {
                 $attributes .= ' class="active"';
             }
@@ -127,6 +136,17 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
     function toHtml()
     {
         return $this->_html;
+    }
+
+   /**
+    * Returns the array of rows generated for the menu
+    *
+    * @access public
+    * @return array
+    */
+    function toArray()
+    {
+        return $this->_rows;
     }
 }
 ?>

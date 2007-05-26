@@ -7,9 +7,6 @@
  * @package TIP
  */
 
-/** HTML_Menu PEAR package */
-require_once 'HTML/Menu.php';
-
 /**
  * A content module with a hierarchy as data model
  *
@@ -17,16 +14,30 @@ require_once 'HTML/Menu.php';
  */
 class TIP_Hierarchy extends TIP_Content
 {
-    /**#@+ @access private */
-
-    var $_model = null;
-    var $_tree = null;
+    private $_html = null;
+    private $_rows = null;
 
 
-    function _onView(&$view)
+    protected function __construct($id)
+    {
+        parent::__construct($id);
+    }
+
+    private function _render()
+    {
+        if (is_null($this->_html)) {
+            $this->startView() && $this->endView();
+        }
+
+        return !empty($this->_html);
+    }
+
+    public function _onView(&$view)
     {
         $rows = $view->getRows();
         if (empty($rows)) {
+            $this->_html = '';
+            $this->_rows = array();
             return true;
         }
 
@@ -36,7 +47,7 @@ class TIP_Hierarchy extends TIP_Content
             $total_count = 0;
         }
 
-        $base_action = TIP::getScriptURI() . '?';
+        $base_action = TIP::getScriptURI();
         $action = $this->getOption('action');
         if ($action) {
             // Action specified: prepend the root URL
@@ -44,15 +55,24 @@ class TIP_Hierarchy extends TIP_Content
         } else {
             // No action specified: construct the default action (browse)
             $id = $this->getId();
-            $action = $base_action . 'module=' . substr($id, 0, strrpos($id, '_')) . '&amp;action=browse&amp;group=';
+            $action = $base_action . '?module=' . substr($id, 0, strrpos($id, '_')) . '&amp;action=browse&amp;group=';
         }
 
         $primary_key = $this->data->getPrimaryKey();
-        $this->_tree  = array();
+        $tree = array();
         foreach (array_keys($rows) as $id) {
             $row =& $rows[$id];
             isset($row['CLASS']) || $row['CLASS'] = 'item';
-            isset($row['url']) || $row['url'] = @$row['action'] ? $base_action . $row['action'] : $action . $id;
+            if (!isset($row['url'])) {
+                if (isset($row['action'])) {
+                    $row['url'] = $base_action;
+                    if ($row['action']) {
+                        $row['url'] .= '?' . $row['action'];
+                    }
+                } else {
+                    $row['url'] = $action . $id;
+                }
+            }
             if ($count_on) {
                 isset($row['COUNT']) || $row['COUNT'] = 0;
                 $count = $row['_count'];
@@ -72,7 +92,7 @@ class TIP_Hierarchy extends TIP_Content
                     $row =& $parent;
                 }
             } else {
-                $this->_tree[$id] =& $row;
+                $tree[$id] =& $row;
             }
         }
 
@@ -80,62 +100,36 @@ class TIP_Hierarchy extends TIP_Content
             $view->setSummary('TOTAL_COUNT', $total_count);
         }
 
-        $this->_model =& new HTML_Menu($this->_tree);
-        $this->_model->forceCurrentUrl(htmlspecialchars(TIP::getRequestURI()));
+        require_once 'HTML/Menu.php';
+        $model =& new HTML_Menu($tree);
+        $model->forceCurrentUrl(htmlspecialchars(TIP::getRequestURI()));
+
+        $renderer =& TIP_Renderer::getMenu($this->getId());
+        $model->render($renderer, 'sitemap');
+        $this->_html = $renderer->toHtml();
+        $this->_rows = $renderer->toArray();
         return true;
     }
 
-    function _buildRows($nodes, $parents = array())
-    {
-        foreach ($nodes as $id => $node) {
-            $hierarchy = $parents;
-            $hierarchy[] = $node['title'];
-            if (@is_array($node['sub'])) {
-                $this->_buildRows($node['sub'], $hierarchy);
-            } else {
-                $GLOBALS['_TIP_ARRAY'][$id] = $hierarchy;
-            }
-        }
-    }
-
-    /**#@-*/
-
-
-    /**#@+ @access protected */
-
-    function __construct($id)
-    {
-        parent::__construct($id);
-    }
-
-    /**#@+
-     * @param string @params The parameter string
-     * @return bool true on success or false on errors
-     * @subpackage SourceEngine
-     */
-
     /**
-     * Echo the hierarchy of the master module
+     * Echo the hierarchy
      *
-     * $params is the base URL of the action to execute when selecting an item:
-     * TIP_Hierarchy will append the id of the item to this URL. Leave it empty
-     * to provide the default 'browse' action on the guessed master module.
+     * Outputs the DHTML hierarchy of this instance.
      *
-     * Outputs the DHTML hierarchy of the specified module.
+     * @param  string $params Not used
+     * @return bool           true on success or false on errors
      */
-    function commandShow($params)
+    protected function commandShow($params)
     {
-        return $this->show();
+        if (!$this->_render()) {
+            return false;
+        }
+
+        echo $this->_html;
+        return true;
     }
 
-    /**#@-*/
-
-    /**#@-*/
-
-
-    /**#@+ @access public */
-
-    function& startView($filter = null)
+    public function& startView($filter = null)
     {
         $model_filter = $this->data->order('order');
 
@@ -151,37 +145,7 @@ class TIP_Hierarchy extends TIP_Content
         return parent::startView($filter, array('on_view' => array(&$this, '_onView')));
     }
 
-    /**
-     * Get the hierarchy rows
-     *
-     * Builds an array of rows from this hierarchy. Useful to automatically
-     * define the options of a <select> item in a TIP_Form instance.
-     *
-     * @param  string $glue The glue to join nested levels
-     * @return array        The hierarchy content as array of strings
-     */
-    function& getRows($glue = '::')
-    {
-        // Force the model population
-        $this->_model || $this->startView() && $this->endView();
-        if (!$this->_model) {
-            $fake_rows = array();
-            return $fake_rows;
-        }
-
-        $GLOBALS['_TIP_ARRAY'] = array();
-        $this->_buildRows($this->_tree);
-        $rows =& $GLOBALS['_TIP_ARRAY'];
-        unset($GLOBALS['_TIP_ARRAY']);
-
-        foreach (array_keys($rows) as $id) {
-            $rows[$id] = implode($glue, $rows[$id]);
-        }
-
-        return $rows;
-    }
-
-    function updateCount($id, $offset)
+    public function updateCount($id, $offset)
     {
         $view =& $this->startView($this->data->rowFilter($id));
         if (is_null($view)) {
@@ -211,27 +175,24 @@ class TIP_Hierarchy extends TIP_Content
      *
      * @return true on success or false on errors
      */
-    function show()
+    public function &getHtml()
     {
-        static $renderer = false;
-
-        $this->_model || $this->startView() && $this->endView();
-        if (!$this->_model) {
-            return false;
-        }
-
-        // The renderer is unique for all the TIP_Hierarchy instances
-        if (!$renderer) {
-            require_once 'HTML/Menu/TipRenderer.php';
-            $renderer =& new HTML_Menu_TipRenderer();
-        }
-
-        $renderer->setId($this->getId());
-        $this->_model->render($renderer, 'sitemap');
-        echo $renderer->toHtml();
-        return true;
+        $this->_render();
+        return $this->_html;
     }
 
-    /**#@-*/
+    /**
+     * Get the hierarchy rows
+     *
+     * Builds an array of rows from this hierarchy. Useful to automatically
+     * define the options of a <select> item in a TIP_Form instance.
+     *
+     * @return array The hierarchy content as array of strings
+     */
+    public function &getRows()
+    {
+        $this->_render();
+        return $this->_rows;
+    }
 }
 ?>

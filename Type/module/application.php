@@ -192,6 +192,9 @@ class TIP_Application extends TIP_Module
             break;
         }
 
+        // Set the timezone
+        date_default_timezone_set('Europe/Rome');
+
         // Executes the action
         $action = TIP::getGet('action', 'string');
         if ($action) {
