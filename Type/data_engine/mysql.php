@@ -414,8 +414,6 @@ class TIP_Mysql extends TIP_Data_Engine
 
         if (!$this->_connection || !mysql_select_db($this->_database, $this->_connection)) {
             TIP::error(mysql_error($this->_connection));
-        } else {
-            $this->_query('SET CHARACTER SET utf8');
         }
     }
 
