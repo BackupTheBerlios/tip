@@ -242,7 +242,7 @@ class TIP_Content extends TIP_Module
                 return false;
             }
 
-            $row =& $this->view->rowReset();
+            $row =& $this->view->current();
             if (!$row) {
                 TIP::notifyError('notfound');
                 $this->endView();
@@ -413,12 +413,12 @@ class TIP_Content extends TIP_Module
                 return $row;
             }
 
-            $row =& $view->rowReset();
+            $row =& $view->current();
             if ($end_view || is_null($row)) {
                 $this->endView();
             }
         } elseif (isset($this->view)) {
-            $row =& $this->view->rowCurrent();
+            $row =& $this->view->current();
         }
 
         if (is_null($row)) {

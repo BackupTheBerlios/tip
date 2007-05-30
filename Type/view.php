@@ -24,7 +24,7 @@
  *
  * @package TIP
  */
-class TIP_View extends TIP_Type
+class TIP_View extends TIP_Type implements Iterator
 {
     /**
      * Row callback
@@ -183,7 +183,7 @@ class TIP_View extends TIP_Type
 
     public function getField($id)
     {
-        $row =& $this->rowCurrent();
+        $row =& $this->current();
         return @$row[$id];
     }
 
@@ -198,111 +198,54 @@ class TIP_View extends TIP_Type
     }
 
     /**
-     * Unsets the cursor
+     * Set the internal cursor to the first row
      *
-     * Sets the internal cursor to an undefined row.
-     *
-     * @return bool true
+     * @return bool true on success, false on errors
      */
-    public function rowUnset()
+    public function rewind()
     {
-        if (!is_array($this->_rows)) {
-            return false;
-        }
-
-        @end($this->_rows);
-        @next($this->_rows);
-        return true;
+        return reset($this->_rows) !== false;
     }
-
-
-    /**#@+ @return array|null The new selected row or null on errors */
 
     /**
      * Get the current row
      *
-     * Returns a reference to the current row. This function hangs if there
-     * is no current row.
+     * @return array|null The current row or null on errors
      */
-    public function& rowCurrent()
+    public function current()
     {
-        $key = @key($this->_rows);
-        if (is_null($key)) {
-            // Hoping the undefined key will be null for every php versions
-            return $key;
-        }
-
-        return $this->_rows[$key];
+        $row = current($this->_rows);
+        return is_array($row) ? $row : null;
     }
 
     /**
-     * Reset the cursor
+     * Get the id of the current row
      *
-     * Resets (set to the first row) the internal cursor. This function hangs
-     * if there are no rows.
+     * @return mixed|null The current key or null on errors
      */
-    public function& rowReset()
+    public function key()
     {
-        @reset($this->_rows);
-        return $this->rowCurrent();
+        return key($this->_rows);
     }
 
     /**
-     * Move the cursor to the end
+     * Set the cursor to the next row
      *
-     * Moves the internal cursor to the last row. This function hangs if there
-     * are no rows.
+     * @return bool true on success, false on errors
      */
-    public function& rowEnd()
+    public function next()
     {
-        @end($this->_rows);
-        return $this->rowCurrent();
+        return next($this->_rows) !== false;
     }
 
     /**
-     * Sets the cursor to the previous row
+     * Check if the current row is valid
      *
-     * Decrements the cursor so it referes to the previous row. If the cursor
-     * is in undefined position and $rewind is true, this function moves it to
-     * the last row (same as cursorEnd()). If the cursor is on the first row,
-     * returns false.
-     *
-     * @param bool $rewind If the cursor must go to the last row when unset
+     * @return bool true on success, false on errors
      */
-    public function& rowPrevious($rewind = true)
+    public function valid()
     {
-        if (is_null(@key($this->_rows))) {
-            if ($rewind) {
-                @end($this->_rows);
-            }
-        } else {
-            @prev($this->_rows);
-        }
-
-        return $this->rowCurrent();
-    }
-
-    /**
-     * Sets the cursor to the next row
-     *
-     * Increments the cursor so it referes to the next row. If the cursor is
-     * in undefined position and $rewind is true, this function moves it to the
-     * first row (same as cursorReset()). If there are no more rows, returns
-     * false.
-     *
-     * @param bool $rewind If the cursor must go to the first row when unset
-     */
-    public function& rowNext($rewind = true)
-    {
-        if (is_null(@key($this->_rows))) {
-            if ($rewind) {
-                @reset($this->_rows);
-            }
-        } else {
-            @next($this->_rows);
-        }
-
-        return $this->rowCurrent();
+        return !is_null(key($this->_rows));
     }
 }
 ?>

@@ -118,7 +118,7 @@ class TIP_Poll extends TIP_Content
             if (is_null($view)) {
                 TIP::notifyError('select');
                 return false;
-            } elseif (!$view->rowReset()) {
+            } elseif (!$view->valid()) {
                 TIP::notifyError('notfound');
                 $this->endView();
                 return false;
@@ -137,7 +137,7 @@ class TIP_Poll extends TIP_Content
                     $this->endView();
                     return false;
                 }
-                $row =& $this->view->rowCurrent();
+                $row =& $this->view->current();
                 $old_row = $row;
                 ++ $row['votes' . $answer_id];
 
@@ -165,7 +165,7 @@ class TIP_Poll extends TIP_Content
             if (is_null($view)) {
                 TIP::notifyError('select');
                 return false;
-            } elseif (!$view->rowReset()) {
+            } elseif (!$view->valid()) {
                 TIP::notifyError('notfound');
                 $this->endView();
                 return false;

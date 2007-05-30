@@ -29,7 +29,7 @@ class TIP_Comments extends TIP_Content
             return false;
         }
 
-        $row =& $view->rowReset();
+        $row =& $view->current();
         $this->_master->endView();
 
         if (is_null($row)) {

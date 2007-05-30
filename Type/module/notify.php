@@ -73,7 +73,7 @@ class TIP_Notify extends TIP_Module
         }
 
         $view->setSummary('TITLE', $locale->get($title_id, $this->getId(), null, false));
-        if (!$view->rowReset()) {
+        if (!$view->valid()) {
             TIP::warning("message id not found ($message_id)");
             $view->setSummary('MESSAGE', $message_id);
         }

@@ -304,8 +304,8 @@ class TIP_Privilege extends TIP_Content
                 $old_row = null;
                 $view =& $this->startView($this->data->filter('_user', $subject_id));
                 if ($view) {
-                    while ($row =& $view->rowNext()) {
-                        if ($module_id == @$row['_module']) {
+                    foreach ($view as $row) {
+                        if ($module_id == $row['_module']) {
                             $old_row =& $row;
                             break;
                         }

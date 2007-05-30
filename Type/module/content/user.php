@@ -34,7 +34,7 @@ class TIP_User extends TIP_Content
     function _login()
     {
         if ($this->view) {
-            $row =& $this->view->rowCurrent();
+            $row =& $this->view->current();
             $this->endView();
         }
 
@@ -98,7 +98,7 @@ class TIP_User extends TIP_Content
             return array('user' => TIP::getLocale('error.select', 'notify', null, false));
         }
 
-        $row =& $this->view->rowReset();
+        $row =& $this->view->current();
         if (!$row) {
             $this->endView();
             return array('user' => $this->getLocale('notfound'));
@@ -149,7 +149,7 @@ class TIP_User extends TIP_Content
             return;
         }
 
-        $row =& $view->rowReset();
+        $row =& $view->current();
         $this->endView();
 
         if (is_null($row)) {
@@ -295,7 +295,7 @@ class TIP_User extends TIP_Content
                 !is_null($id = $this->data->getLastId()) &&
                 !is_null($filter = $this->data->rowFilter($id)) &&
                 !is_null($view =& $this->startView($filter)) &&
-                !is_null($view->rowReset())) {
+                !$view->valid()) {
                 $this->_login();
             }
 

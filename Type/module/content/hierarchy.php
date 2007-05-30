@@ -152,7 +152,7 @@ class TIP_Hierarchy extends TIP_Content
             TIP::error("unable to get row $id on data " . $this->data->getId());
             return false;
         }
-        $row =& $view->rowReset();
+        $row =& $view->current();
         $this->endView();
         if (is_null($row)) {
             TIP::error("row $id not found in " . $this->data->getId());

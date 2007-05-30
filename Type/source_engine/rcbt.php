@@ -427,7 +427,7 @@ class TIP_Rcbt_Tag
             if ($context =& $this->createContext($parser, $module)) {
                 $view =& $module->startView($this->params);
                 if ($view) {
-                    $context->on_start->set(array(&$view, 'rowReset'));
+                    $context->on_start->set(array(&$view, 'rewind'));
                     $context->on_destroy->set(array(&$module, 'endView'));
                 } else {
                     $context->skipIf(true);
@@ -441,7 +441,7 @@ class TIP_Rcbt_Tag
                 $filter = $module->data->rowFilter($this->params);
                 $view =& $module->startView($filter);
                 if ($view) {
-                    $context->on_start->set(array(&$view, 'rowReset'));
+                    $context->on_start->set(array(&$view, 'rewind'));
                     $context->on_destroy->set(array(&$module, 'endView'));
                 } else {
                     $context->skipIf(true);
@@ -454,8 +454,8 @@ class TIP_Rcbt_Tag
             if ($context =& $this->createContext($parser, $module)) {
                 $view =& $module->startView($this->params);
                 if ($view) {
-                    $context->on_start->set(array(&$view, 'rowReset'));
-                    $context->on_loop->set(array(&$view, 'rowNext'));
+                    $context->on_start->set(array(&$view, 'rewind'));
+                    $context->on_loop->set(array(&$view, 'next'));
                     $context->on_destroy->set(array(&$module, 'endView'));
                 } else {
                     $context->skipIf(true);
@@ -469,8 +469,8 @@ class TIP_Rcbt_Tag
                 if (empty($this->params)) {
                     $view =& $module->view;
                     if ($view) {
-                        $context->on_start->set(array(&$view, 'rowReset'));
-                        $context->on_loop->set(array(&$view, 'rowNext'));
+                        $context->on_start->set(array(&$view, 'rewind'));
+                        $context->on_loop->set(array(&$view, 'next'));
                     } else {
                         $parser->warning('no current view');
                         $context->skipIf(true);
@@ -482,8 +482,8 @@ class TIP_Rcbt_Tag
                 } else {
                     $view =& $module->startSpecialView($this->params);
                     if ($view) {
-                        $context->on_start->set(array(&$view, 'rowReset'));
-                        $context->on_loop->set(array(&$view, 'rowNext'));
+                        $context->on_start->set(array(&$view, 'rewind'));
+                        $context->on_loop->set(array(&$view, 'next'));
                         $context->on_destroy->set(array(&$module, 'endView'));
                     } else {
                         $context->skipIf(true);
