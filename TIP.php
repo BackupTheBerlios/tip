@@ -151,24 +151,22 @@ class TIP
      */
     static public function startSession()
     {
-        require_once 'HTTP/Session.php';
-
-        HTTP_Session::useTransSID(false);
+        require_once 'HTTP/Session2.php';
 
         $user_id = TIP::getUserId();
         if ($user_id) {
             // For a logged in user, the session id is its user_id
-            HTTP_Session::useCookies(false);
-            HTTP_Session::start('TIP_Session', $user_id);
+            HTTP_Session2::useCookies(false);
+            HTTP_Session2::start('TIP_Session', $user_id);
         } else {
             // For anonymous users, an automatic session id is used
-            HTTP_Session::useCookies(true);
-            HTTP_Session::start('TIP_Session');
+            HTTP_Session2::useCookies(true);
+            HTTP_Session2::start('TIP_Session');
         }
 
-        HTTP_Session::setExpire(time() + 3600*2);
-        if (HTTP_Session::isExpired()) {
-            HTTP_Session::destroy();
+        HTTP_Session2::setExpire(time() + 3600*2);
+        if (HTTP_Session2::isExpired()) {
+            HTTP_Session2::destroy();
             TIP::notifyInfo('session');
         }
     }
@@ -728,17 +726,17 @@ class TIP
         static $referer = null;
         if (is_null($referer)) {
             TIP::startSession();
-            $old_request_uri = HTTP_Session::get('request_uri');
+            $old_request_uri = HTTP_Session2::get('request_uri');
             $request_uri = TIP::getRequestURI();
 
             if ($request_uri == $old_request_uri) {
                 // Page not changed: leave the old referer
-                $referer = HTTP_Session::get('referer');
+                $referer = HTTP_Session2::get('referer');
             } else {
                 // Page changed: save the new state
                 $referer = $old_request_uri ? $old_request_uri : @$_SERVER['HTTP_REFERER'];
-                HTTP_Session::set('referer', $referer);
-                HTTP_Session::set('request_uri', $request_uri);
+                HTTP_Session2::set('referer', $referer);
+                HTTP_Session2::set('request_uri', $request_uri);
             }
 
             if (empty($referer)) {

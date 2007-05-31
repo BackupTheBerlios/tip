@@ -50,12 +50,12 @@ class TIP_User extends TIP_Content
 
     function _logout()
     {
-        require_once 'HTTP/Session.php';
+        require_once 'HTTP/Session2.php';
 
         $fake_null = null;
         $this->_activateUser($fake_null);
         setcookie('TIP_User', '', time()-3600);
-        HTTP_Session::destroy();
+        HTTP_Session2::destroy();
         $this->_refreshUser();
     }
 
@@ -212,7 +212,7 @@ class TIP_User extends TIP_Content
             return !is_null($this->form(TIP_FORM_ACTION_EDIT, $id));
         }
 
-        return parent::runManagerAction($action);
+        return null;
     }
 
     function runAdminAction($action)
@@ -226,7 +226,7 @@ class TIP_User extends TIP_Content
             return !is_null($this->form(TIP_FORM_ACTION_DELETE, $id));
         }
 
-        return parent::runAdminAction($action);
+        return null;
     }
 
     function runTrustedAction($action)
@@ -238,7 +238,7 @@ class TIP_User extends TIP_Content
             return true;
         }
 
-        return parent::runTrustedAction($action);
+        return null;
     }
 
     function runUntrustedAction($action)
@@ -263,7 +263,7 @@ class TIP_User extends TIP_Content
             return !is_null($processed);
         }
 
-        return parent::runUntrustedAction($action);
+        return null;
     }
 
     function runAction($action)
@@ -295,14 +295,14 @@ class TIP_User extends TIP_Content
                 !is_null($id = $this->data->getLastId()) &&
                 !is_null($filter = $this->data->rowFilter($id)) &&
                 !is_null($view =& $this->startView($filter)) &&
-                !$view->valid()) {
+                $view->valid()) {
                 $this->_login();
             }
 
             return !is_null($processed);
         }
 
-        return parent::runAction($action);
+        return null;
     }
 
     function& startView($filter)

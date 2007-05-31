@@ -597,23 +597,23 @@ class TIP_Form extends TIP_Module
         // Process the form
         $referer = $this->_referer;
         if ($valid === true) {
-            if (@HTTP_Session::get('form.to_process')) {
+            if (@HTTP_Session2::get('form.to_process')) {
                 if ($this->_form->isSubmitted()) {
                     $this->_form->process(array(&$this, '_convert'));
                 } else {
                     $this->_onProcess($this->_defaults);
                 }
-                HTTP_Session::set('form.to_process', null);
+                HTTP_Session2::set('form.to_process', null);
             }
             $buttons = TIP_FORM_BUTTON_CLOSE;
-            $referer = HTTP_Session::get('form.referer');
+            $referer = HTTP_Session2::get('form.referer');
             $render = $this->_valid_render;
         } elseif ($valid === false) {
-            HTTP_Session::set('form.to_process', true);
+            HTTP_Session2::set('form.to_process', true);
             if (!$this->_form->isSubmitted()) {
-                HTTP_Session::set('form.referer', $referer);
+                HTTP_Session2::set('form.referer', $referer);
             } else {
-                $referer = HTTP_Session::get('form.referer');
+                $referer = HTTP_Session2::get('form.referer');
             }
             $render = $this->_invalid_render;
         } else {

@@ -107,8 +107,8 @@ class TIP_Poll extends TIP_Content
                 return false;
             }
 
-            $expiration = @HTTP_Session::getLocal('expiration');
-            $voting = @HTTP_Session::getLocal('voting');
+            $expiration = @HTTP_Session2::getLocal('expiration');
+            $voting = @HTTP_Session2::getLocal('voting');
             if ($voting && time() < $expiration) {
                 TIP::notifyError('doublevote');
                 return false;
@@ -143,11 +143,11 @@ class TIP_Poll extends TIP_Content
 
                 $this->_onRow($row);
                 $this->data->updateRow($row, $old_row);
-                HTTP_Session::setLocal('voting', false);
-                HTTP_Session::setLocal('expiration', strtotime($this->getOption('expiration')));
+                HTTP_Session2::setLocal('voting', false);
+                HTTP_Session2::setLocal('expiration', strtotime($this->getOption('expiration')));
                 $this->appendToPage('view.src');
             } else {
-                HTTP_Session::setLocal('voting', true);
+                HTTP_Session2::setLocal('voting', true);
                 $this->appendToPage('vote.src');
             }
 

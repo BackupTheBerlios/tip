@@ -5,13 +5,34 @@
  *
  * PHP versions 4 and 5
  *
- * LICENSE: This source file is subject to the new BSD license that is bundled
- * with this package in the file LICENSE.
- * It is also available through the world-wide-web at this URL:
- * http://www.opensource.org/licenses/bsd-license.php
- * If you did not receive a copy of the license and are unable to
- * obtain it through the world-wide-web, please send an email
- * to wiesemann@php.net so we can send you a copy immediately.
+ * LICENSE:
+ * 
+ * Copyright (c) 2005-2007, Mark Wiesemann <wiesemann@php.net>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ *
+ *    * Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *    * Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the 
+ *      documentation and/or other materials provided with the distribution.
+ *    * The names of the authors may not be used to endorse or promote products 
+ *      derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+ * IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
+ * THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR
+ * PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR
+ * CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+ * EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+ * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+ * PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY
+ * OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+ * NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+ * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
  * @category   HTML
  * @package    HTML_QuickForm_Renderer_Tableless
@@ -19,9 +40,8 @@
  * @author     Adam Daniel <adaniel1@eesus.jnj.com>
  * @author     Bertrand Mansion <bmansion@mamasam.com>
  * @author     Mark Wiesemann <wiesemann@php.net>
- * @copyright  2005-2006 The PHP Group
  * @license    http://www.opensource.org/licenses/bsd-license.php New BSD License
- * @version    CVS: $Id: Tableless.php,v 1.19 2006/11/09 21:12:37 wiesemann Exp $
+ * @version    CVS: $Id: Tableless.php,v 1.24 2007/05/27 19:34:29 wiesemann Exp $
  * @link       http://pear.php.net/package/HTML_QuickForm_Renderer_Tableless
  */
 
@@ -41,7 +61,7 @@ require_once 'HTML/QuickForm/Renderer/Default.php';
  * @author     Bertrand Mansion <bmansion@mamasam.com>
  * @author     Mark Wiesemann <wiesemann@php.net>
  * @license    http://www.opensource.org/licenses/bsd-license.php New BSD License
- * @version    Release: 0.4.3
+ * @version    Release: 0.5.3
  * @link       http://pear.php.net/package/HTML_QuickForm_Renderer_Tableless
  */
 class HTML_QuickForm_Renderer_Tableless extends HTML_QuickForm_Renderer_Default
@@ -74,7 +94,7 @@ class HTML_QuickForm_Renderer_Tableless extends HTML_QuickForm_Renderer_Default
     * @var      string
     * @access   private
     */
-    var $_openFieldsetTemplate = "\n\t<fieldset{id}>";
+    var $_openFieldsetTemplate = "\n\t<fieldset{id}{attributes}>";
 
    /**
     * Template used when opening a hidden fieldset
@@ -82,7 +102,7 @@ class HTML_QuickForm_Renderer_Tableless extends HTML_QuickForm_Renderer_Default
     * @var      string
     * @access   private
     */
-    var $_openHiddenFieldsetTemplate = "\n\t<fieldset class=\"hidden\">\n\t\t<ol>";
+    var $_openHiddenFieldsetTemplate = "\n\t<fieldset class=\"hidden{class}\">\n\t\t<ol>";
 
    /**
     * Template used when closing a fieldset
@@ -108,7 +128,7 @@ class HTML_QuickForm_Renderer_Tableless extends HTML_QuickForm_Renderer_Default
 
    /**
     * Array of element names that indicate the end of a fieldset
-    * (a new one will be opened when a the next header element occurs)
+    * (a new one will be opened when the next header element occurs)
     * @var      array
     * @access   private
     */
@@ -140,11 +160,25 @@ class HTML_QuickForm_Renderer_Tableless extends HTML_QuickForm_Renderer_Default
         } else {
             $header_html = str_replace('{header}', $header->toHtml(), $this->_headerTemplate);
         }
+        $attributes = $header->getAttributes();
+        $strAttr = '';
+        if (is_array($attributes)) {
+            $charset = HTML_Common::charset();
+            foreach ($attributes as $key => $value) {
+                if ($key == 'name') {
+                    continue;
+                }
+                $strAttr .= ' ' . $key . '="' . htmlspecialchars($value, ENT_COMPAT, $charset) . '"';
+            }
+        }
         if ($this->_fieldsetsOpen > 0) {
             $this->_html .= $this->_closeFieldsetTemplate;
             $this->_fieldsetsOpen--;
         }
         $openFieldsetTemplate = str_replace('{id}', $id, $this->_openFieldsetTemplate);
+        $openFieldsetTemplate = str_replace('{attributes}',
+                                            $strAttr,
+                                            $openFieldsetTemplate);
         $this->_html .= $openFieldsetTemplate . $header_html;
         $this->_fieldsetsOpen++;
     } // end func renderHeader
@@ -161,19 +195,7 @@ class HTML_QuickForm_Renderer_Tableless extends HTML_QuickForm_Renderer_Default
     */
     function renderElement(&$element, $required, $error)
     {
-        // if the element name indicates the end of a fieldset, close the fieldset
-        if (   in_array($element->getName(), $this->_stopFieldsetElements)
-            && $this->_fieldsetsOpen > 0
-           ) {
-            $this->_html .= $this->_closeFieldsetTemplate;
-            $this->_fieldsetsOpen--;
-        }
-        // if no fieldset was opened, we need to open a hidden one here to get
-        // XHTML validity
-        if ($this->_fieldsetsOpen === 0) {
-            $this->_html .= $this->_openHiddenFieldsetTemplate;
-            $this->_fieldsetsOpen++;
-        }
+        $this->_handleStopFieldsetElements($element->getName());
         if (!$this->_inGroup) {
             $html = $this->_prepareTemplate($element->getName(), $element->getLabel(), $required, $error);
             // the following lines (until the "elseif") were changed / added
@@ -184,7 +206,7 @@ class HTML_QuickForm_Renderer_Tableless extends HTML_QuickForm_Renderer_Default
             } else {
                 $id = $element->getName();
             }
-            if (!empty($id)) {
+            if ($element->getType() != 'static' && !empty($id)) {
                 $html = str_replace('<label', '<label for="' . $id . '"', $html);
                 $element_html = preg_replace('#name="' . $id . '#',
                                              'id="' . $id . '" name="' . $id,
@@ -232,6 +254,21 @@ class HTML_QuickForm_Renderer_Tableless extends HTML_QuickForm_Renderer_Default
     } // end func renderHidden
 
    /**
+    * Called when visiting a group, before processing any group elements
+    *
+    * @param object     An HTML_QuickForm_group object being visited
+    * @param bool       Whether a group is required
+    * @param string     An error message associated with a group
+    * @access public
+    * @return void
+    */
+    function startGroup(&$group, $required, $error)
+    {
+        $this->_handleStopFieldsetElements($group->getName());
+        parent::startGroup($group, $required, $error);
+    } // end func startGroup
+
+    /**
     * Called when visiting a group, after processing all group elements
     *
     * @param    object      An HTML_QuickForm_group object being visited
@@ -362,18 +399,55 @@ class HTML_QuickForm_Renderer_Tableless extends HTML_QuickForm_Renderer_Default
      * (a new one will be opened when a the next header element occurs)
      *
      * @param       mixed      Element name(s) (as array or string)
+     * @param       string     (optional) Class name for the fieldset(s)
      * @access      public
      * @return      void
      */
-    function addStopFieldsetElements($element)
+    function addStopFieldsetElements($element, $class = '')
     {
         if (is_array($element)) {
+            $elements = array();
+            foreach ($element as $name) {
+                $elements[$name] = $class;
+            }
             $this->_stopFieldsetElements = array_merge($this->_stopFieldsetElements,
-                                                       $element);
+                                                       $elements);
         } else {
-            $this->_stopFieldsetElements[] = $element;
+            $this->_stopFieldsetElements[$element] = $class;
         }
     } // end func addStopFieldsetElements
+
+    /**
+     * Handle element/group names that indicate the end of a group
+     *
+     * @param string     The name of the element or group
+     * @access private
+     * @return void
+     */
+    function _handleStopFieldsetElements($element)
+    {
+        // if the element/group name indicates the end of a fieldset, close
+        // the fieldset
+        if (   array_key_exists($element, $this->_stopFieldsetElements)
+            && $this->_fieldsetsOpen > 0
+           ) {
+            $this->_html .= $this->_closeFieldsetTemplate;
+            $this->_fieldsetsOpen--;
+        }
+        // if no fieldset was opened, we need to open a hidden one here to get
+        // XHTML validity
+        if ($this->_fieldsetsOpen === 0) {
+            $replace = '';
+            if (   array_key_exists($element, $this->_stopFieldsetElements)
+                && $this->_stopFieldsetElements[$element] != ''
+               ) {
+                $replace = ' ' . $this->_stopFieldsetElements[$element];
+            }
+            $this->_html .= str_replace('{class}', $replace,
+                                        $this->_openHiddenFieldsetTemplate);
+            $this->_fieldsetsOpen++;
+        }
+    } // end func _handleStopFieldsetElements
 
 } // end class HTML_QuickForm_Renderer_Default
 ?>
