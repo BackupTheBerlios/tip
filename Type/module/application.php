@@ -11,7 +11,8 @@
  *
  * This module manages the generation of the "page" (the most dynamic part of
  * a TIP site). This is done by using a callback queue, stored in the private
- * $_queue property, where the modules will prepend or append there callbacks.
+ * $_callback_queue property, where the modules will prepend or append their
+ * callbacks.
  *
  * When the commandPage() is called, usually throught a tag in the main source
  * file, the TIP_Application module will call the callbacks stored in the queue
@@ -40,18 +41,11 @@ class TIP_Application extends TIP_Module
 {
     const CALLBACK = 0;
     const ARGS = 1;
-    private $_queue = array();
 
+    private $_request = null;
+    private $_referer = null;
+    private $_callback_queue = array();
 
-    private function _dumpRegister(&$register, $indent)
-    {
-        foreach ($register as $id => $value) {
-            echo "$indent$id\n";
-            if (is_array($value)) {
-                $this->_dumpRegister($register[$id], $indent . '    ');
-            }
-        }
-    }
 
     protected function __construct($id)
     {
@@ -63,18 +57,77 @@ class TIP_Application extends TIP_Module
     {
         parent::postConstructor();
 
+        // Store request and referer in the session data
+        TIP::startSession();
+        $this->_request = self::_getRequest();
+        $this->_referer = self::_getReferer($this->_request);
+        HTTP_Session2::set('referer', $this->_referer);
+        HTTP_Session2::set('request', $this->_request);
+
         $this->keys['TODAY'] = TIP::formatDate('date_iso8601');
         $this->keys['NOW'] = TIP::formatDate('datetime_iso8601');
         $this->keys['BASE_URL'] = TIP::getBaseURL();
         $this->keys['SCRIPT'] = TIP::getScriptURI();
-        $this->keys['REFERER'] = TIP::getRefererURI();
-        $this->keys['REQUEST'] = TIP::getRequestURI();
+        $this->keys['REFERER'] = $this->_referer['uri'];
+        $this->keys['REQUEST'] = $this->_request['uri'];
+        $this->keys['MODULE'] = $this->_request['module'];
+        $this->keys['ACTION'] = $this->_request['action'];
 
         if ($this->keys['IS_ADMIN']) {
             require_once 'Benchmark/Profiler.php';
             $GLOBALS['_tip_profiler'] =& new Benchmark_Profiler;
             $GLOBALS['_tip_profiler']->start();
         }
+    }
+
+    static private function _getRequest()
+    {
+        // Get current module and action
+        $module = TIP::getGet('module', 'string');
+        if ($module) {
+            $action = TIP::getGet('action', 'string');
+        } else {
+            $module = TIP::getPost('module', 'string');
+            $action = TIP::getPost('action', 'string');
+        }
+
+        return array(
+            'module' => $module,
+            'action' => $action,
+            'uri'    => @$_SERVER['REQUEST_URI']
+        );
+    }
+
+    static private function _getReferer($request)
+    {
+        if (is_null($old_request = HTTP_Session2::get('request'))) {
+            // Entry page or new session: the referer is the main page
+            $referer = null;
+        } elseif ($request['module'] != $old_request['module'] || $request['action'] != $old_request['action']) {
+            // New action: the referer is the previous request
+            $referer = $old_request;
+        } else {
+            // Same action: leave the old referer
+            $referer = HTTP_Session2::get('referer');
+        }
+
+        if (!is_array($referer)) {
+            $referer['module'] = null;
+            $referer['action'] = null;
+            $referer['uri'] = TIP::getScriptURI();
+        }
+
+        return $referer;
+    }
+
+    public function getRequestURI()
+    {
+        return $this->_request['uri'];
+    }
+
+    public function getRefererURI()
+    {
+        return $this->_referer['uri'];
     }
 
     /**
@@ -88,10 +141,10 @@ class TIP_Application extends TIP_Module
      */
     protected function commandPage($params)
     {
-        if (empty($this->_queue)) {
+        if (empty($this->_callback_queue)) {
             $this->commandRunShared('default.src');
         } else {
-            foreach ($this->_queue as $item) {
+            foreach ($this->_callback_queue as $item) {
                 call_user_func_array($item[self::CALLBACK], $item[self::ARGS]);
             }
         }
@@ -111,6 +164,7 @@ class TIP_Application extends TIP_Module
     protected function commandDebug($params)
     {
         if ($this->keys['IS_TRUSTED']) {
+            // Show logged messages
             $logger =& $this->getSharedModule('logger');
             if (is_object($logger)) {
                 $logger->commandRun('browse.src');
@@ -118,6 +172,7 @@ class TIP_Application extends TIP_Module
         }
 
         if ($this->keys['IS_ADMIN']) {
+            // Display profiling informations
             global $_tip_profiler;
             if (is_object($_tip_profiler)) {
                 // Leave itsself, that is the commandDebug section
@@ -132,13 +187,21 @@ class TIP_Application extends TIP_Module
         }
 
         if ($this->keys['IS_MANAGER']) {
+            // Dump the singleton register content
             echo '<pre style="font-family: monospace">';
-            $register =& TIP_Type::singleton(array());
-            $this->_dumpRegister($register, '');
+            self::_dumpRegister(TIP_Type::singleton(array()), '  ');
             echo "</pre>";
         }
 
         return true;
+    }
+
+    static private function _dumpRegister(&$register, $indent = '')
+    {
+        foreach ($register as $id => &$obj) {
+            echo "$indent$id\n";
+            is_array($obj) && self::_dumpRegister($obj, $indent . '  ');
+        }
     }
 
     protected function runManagerAction($action)
@@ -196,29 +259,16 @@ class TIP_Application extends TIP_Module
         date_default_timezone_set('Europe/Rome');
 
         // Executes the action
-        $action = TIP::getGet('action', 'string');
-        if ($action) {
-            $module_name = TIP::getGet('module', 'string');
-        } else {
-            $action = TIP::getPost('action', 'string');
-            $module_name = TIP::getPost('module', 'string');
-        }
-
-        if ($module_name && !$action) {
-            TIP::notifyError('noaction');
-        } elseif (! $module_name && $action) {
-            TIP::notifyError('nomodule');
-        } elseif ($module_name) {
-            $module =& TIP_Type::getInstance($module_name);
-            if (is_object($module)) {
-                $this->keys['ACTION'] = $action;
-                if (is_null($module->callAction($action))) {
-                    $anonymous = is_null(TIP::getUserId());
-                    TIP::notifyError($anonymous ? 'reserved' : 'denied');
-                }
-            } else {
+        if ($this->_request['module'] && $this->_request['action']) {
+            if (is_null($module =& TIP_Type::getInstance($this->_request['module']))) {
                 TIP::notifyError('module');
+            } elseif (is_null($module->callAction($this->_request['action']))) {
+                TIP::notifyError(is_null(TIP::getUserId()) ? 'reserved' : 'denied');
             }
+        } elseif ($this->_request['module']) {
+            TIP::notifyError('noaction');
+        } elseif ($this->_request['action']) {
+            TIP::notifyError('nomodule');
         }
 
         // Generates the page
@@ -258,8 +308,8 @@ class TIP_Application extends TIP_Module
     /**
      * Prepend a page callback
      *
-     * Inserts at the beginning of $_queue the specified callback, that will
-     * be called while generating the page.
+     * Inserts at the beginning of $_callback_queue the specified callback,
+     * that will be called while generating the page.
      *
      * The callback can be expressed in any format accettable by
      * the call_user_func() function.
@@ -269,14 +319,17 @@ class TIP_Application extends TIP_Module
      */
     public function prependCallback($callback, $args = array())
     {
-        array_unshift($this->_queue, null);
-        $this->_queue[0] = array(self::CALLBACK => $callback, self::ARGS => $args);
+        array_unshift($this->_callback_queue, null);
+        $this->_callback_queue[0] = array(
+            self::CALLBACK => $callback,
+            self::ARGS     => $args
+        );
     }
 
     /**
      * Append a page callback
      *
-     * Appends at the end of $_queue the specified callback, that will
+     * Appends at the end of $_callback_queue the specified callback, that will
      * be called while generating the page.
      *
      * The callback can be expressed in any format accettable by
@@ -287,7 +340,10 @@ class TIP_Application extends TIP_Module
      */
     public function appendCallback($callback, $args = array())
     {
-        $this->_queue[] = array(self::CALLBACK => $callback, self::ARGS => $args);
+        $this->_callback_queue[] = array(
+            self::CALLBACK => $callback,
+            self::ARGS     => $args
+        );
     }
 }
 ?>

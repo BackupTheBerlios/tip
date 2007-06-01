@@ -164,7 +164,7 @@ class TIP
             HTTP_Session2::start('TIP_Session');
         }
 
-        HTTP_Session2::setExpire(time() + 3600*2);
+        HTTP_Session2::setExpire(time() + 3600*4);
         if (HTTP_Session2::isExpired()) {
             HTTP_Session2::destroy();
             TIP::notifyInfo('session');
@@ -717,34 +717,16 @@ class TIP
     /**
      * Get the referer URI
      *
-     * If a double click on the same page is catched, the old referer is retained.
+     * The returned string is not the raw referer, but a logic referer. This
+     * means page swapping on the same action or refreshing it does not change
+     * the old referer. Also, in the entry page the referer URI is set to
+     * TIP::getScriptURI().
      *
      * @return string The referer URI
      */
     static public function getRefererURI()
     {
-        static $referer = null;
-        if (is_null($referer)) {
-            TIP::startSession();
-            $old_request_uri = HTTP_Session2::get('request_uri');
-            $request_uri = TIP::getRequestURI();
-
-            if ($request_uri == $old_request_uri) {
-                // Page not changed: leave the old referer
-                $referer = HTTP_Session2::get('referer');
-            } else {
-                // Page changed: save the new state
-                $referer = $old_request_uri ? $old_request_uri : @$_SERVER['HTTP_REFERER'];
-                HTTP_Session2::set('referer', $referer);
-                HTTP_Session2::set('request_uri', $request_uri);
-            }
-
-            if (empty($referer)) {
-                $referer = TIP::getScriptURI();
-            }
-        }
-
-        return $referer;
+        return $GLOBALS[TIP_MAIN]->getRefererURI();
     }
 
     /**
@@ -754,7 +736,7 @@ class TIP
      */
     static public function getRequestURI()
     {
-        return @$_SERVER['REQUEST_URI'];
+        return $GLOBALS[TIP_MAIN]->getRequestURI();
     }
 
     /**
