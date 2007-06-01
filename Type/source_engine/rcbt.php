@@ -426,7 +426,7 @@ class TIP_Rcbt_Tag
         case 'select':
             if ($context =& $this->createContext($parser, $module)) {
                 $view =& $module->startView($this->params);
-                if ($view) {
+                if ($view && $view->isValid()) {
                     $context->on_start->set(array(&$view, 'rewind'));
                     $context->on_destroy->set(array(&$module, 'endView'));
                 } else {
@@ -440,7 +440,7 @@ class TIP_Rcbt_Tag
             if ($context =& $this->createContext($parser, $module)) {
                 $filter = $module->data->rowFilter($this->params);
                 $view =& $module->startView($filter);
-                if ($view) {
+                if ($view && $view->isValid()) {
                     $context->on_start->set(array(&$view, 'rewind'));
                     $context->on_destroy->set(array(&$module, 'endView'));
                 } else {
@@ -453,7 +453,7 @@ class TIP_Rcbt_Tag
         case 'forselect':
             if ($context =& $this->createContext($parser, $module)) {
                 $view =& $module->startView($this->params);
-                if ($view) {
+                if ($view && $view->isValid()) {
                     $context->on_start->set(array(&$view, 'rewind'));
                     $context->on_loop->set(array(&$view, 'next'));
                     $context->on_destroy->set(array(&$module, 'endView'));
@@ -468,7 +468,7 @@ class TIP_Rcbt_Tag
             if ($context =& $this->createContext($parser, $module)) {
                 if (empty($this->params)) {
                     $view =& $module->view;
-                    if ($view) {
+                    if ($view && $view->isValid()) {
                         $context->on_start->set(array(&$view, 'rewind'));
                         $context->on_loop->set(array(&$view, 'next'));
                     } else {
@@ -481,7 +481,7 @@ class TIP_Rcbt_Tag
                     $context->on_stop->set(create_function('&$module', 'unset($module->keys[\'CNT\']); return true;'), array(&$module));
                 } else {
                     $view =& $module->startSpecialView($this->params);
-                    if ($view) {
+                    if ($view && $view->isValid()) {
                         $context->on_start->set(array(&$view, 'rewind'));
                         $context->on_loop->set(array(&$view, 'next'));
                         $context->on_destroy->set(array(&$module, 'endView'));
