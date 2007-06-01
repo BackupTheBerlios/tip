@@ -279,6 +279,8 @@ class TIP_Application extends TIP_Module
 
         // Generates the page
         $this->commandRun($main_source);
+
+        HTTP_Session2::pause();
     }
 
     /**

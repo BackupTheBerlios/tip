@@ -155,11 +155,12 @@ class TIP
 
         $user_id = TIP::getUserId();
         if ($user_id) {
-            // For a logged in user, the session id is its user_id
+            // For a logged in user, use the special TIP container
             HTTP_Session2::useCookies(false);
+            HTTP_Session2::setContainer('TIP');
             HTTP_Session2::start('TIP_Session', $user_id);
         } else {
-            // For anonymous users, an automatic session id is used
+            // For anonymous users, cookie with an automatic session id is used
             HTTP_Session2::useCookies(true);
             HTTP_Session2::start('TIP_Session');
         }
