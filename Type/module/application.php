@@ -100,15 +100,21 @@ class TIP_Application extends TIP_Module
 
     static private function _getReferer($request)
     {
-        if (is_null($old_request = HTTP_Session2::get('request'))) {
+        $old_request = HTTP_Session2::get('request');
+        $old_referer = HTTP_Session2::get('referer');
+
+        if (is_null($old_request)) {
             // Entry page or new session: the referer is the main page
+            $referer = null;
+        } elseif ($request['uri'] == $old_referer['uri']) {
+            // Current URI equals to the old referer URI: probably a back action
             $referer = null;
         } elseif ($request['module'] != $old_request['module'] || $request['action'] != $old_request['action']) {
             // New action: the referer is the previous request
             $referer = $old_request;
         } else {
             // Same action: leave the old referer
-            $referer = HTTP_Session2::get('referer');
+            $referer = $old_referer;
         }
 
         if (!is_array($referer)) {
