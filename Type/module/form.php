@@ -595,7 +595,6 @@ class TIP_Form extends TIP_Module
         }
 
         // Process the form
-        $referer = $this->_referer;
         if ($valid === true) {
             if (@HTTP_Session2::get('form.to_process')) {
                 if ($this->_form->isSubmitted()) {
@@ -606,15 +605,9 @@ class TIP_Form extends TIP_Module
                 HTTP_Session2::set('form.to_process', null);
             }
             $buttons = TIP_FORM_BUTTON_CLOSE;
-            $referer = HTTP_Session2::get('form.referer');
             $render = $this->_valid_render;
         } elseif ($valid === false) {
             HTTP_Session2::set('form.to_process', true);
-            if (!$this->_form->isSubmitted()) {
-                HTTP_Session2::set('form.referer', $referer);
-            } else {
-                $referer = HTTP_Session2::get('form.referer');
-            }
             $render = $this->_invalid_render;
         } else {
             $render = $this->_valid_render;
@@ -641,10 +634,10 @@ class TIP_Form extends TIP_Module
             $group[] =& $this->_form->createElement('link', 'delete', null, $_SERVER['REQUEST_URI'] . '&process=1', $this->getLocale('button.delete'));
         }
         if ($buttons & TIP_FORM_BUTTON_CANCEL) {
-            $group[] =& $this->_form->createElement('link', 'cancel', null, $referer, $this->getLocale('button.cancel'));
+            $group[] =& $this->_form->createElement('link', 'cancel', null, $this->_referer, $this->getLocale('button.cancel'));
         }
         if ($buttons & TIP_FORM_BUTTON_CLOSE) {
-            $group[] =& $this->_form->createElement('link', 'close', null, $referer, $this->getLocale('button.close'));
+            $group[] =& $this->_form->createElement('link', 'close', null, $this->_referer, $this->getLocale('button.close'));
         }
         if ($buttons & TIP_FORM_BUTTON_DELETE && $this->_command != TIP_FORM_ACTION_DELETE) {
             $primary_id = $this->_content->data->getPrimaryKey();
