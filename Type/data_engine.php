@@ -56,7 +56,7 @@ abstract class TIP_Data_Engine extends TIP_Type
      * @return array|null         A reference to an array of rows matching the
      *                            specified conditions or null on errors
      */
-    abstract public function& select(&$data, $filter);
+    abstract public function& select(&$data, $filter, $fields);
 
     /**
      * Insert new rows

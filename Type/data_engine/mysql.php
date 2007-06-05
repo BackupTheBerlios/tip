@@ -462,7 +462,7 @@ class TIP_Mysql extends TIP_Data_Engine
         return true;
     }
 
-    function& select(&$data, $filter)
+    function& select(&$data, $filter, $fields)
     {
         if (isset($data->_joins)) {
             // Compute the joins (the main table is manually prepended)
@@ -473,7 +473,7 @@ class TIP_Mysql extends TIP_Data_Engine
             $tables = array_keys($data->_joins);
             $sets = array_map(create_function('$v', 'return @$v["fieldset"];'), $data->_joins);
             array_unshift($tables, $data->_path);
-            array_unshift($sets, $data->_fieldset);
+            array_unshift($sets, isset($fields) ? $fields : $data->_fieldset);
 
             $fieldset = $this->_preparedFieldset($sets, $tables);
             $source = $this->_preparedName($data->_path) . $this->_preparedJoin($joins);

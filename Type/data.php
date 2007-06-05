@@ -340,12 +340,14 @@ class TIP_Data extends TIP_Type
      *
      * Retrieves the content of the row with the specified $id.
      *
-     * @param  mixed      $id The row id
-     * @return array|null     The row matching the specified id or null on errors
+     * @param  mixed      $id     The row id
+     * @param  array|null $fields Fields to get or null for all
+     * @return array|null         The row matching the specified id
+     *                            or null on errors
      */
-    function& getRow($id)
+    function& getRow($id, $fields = null)
     {
-        $rows =& $this->_engine->select($this, $this->rowFilter($id));
+        $rows =& $this->_engine->select($this, $this->rowFilter($id), $fields);
         if (!@is_array($rows[$id])) {
             $fake_null = null;
             return $fake_null;
@@ -364,13 +366,14 @@ class TIP_Data extends TIP_Type
      * proper filter.
      *
      * @param    string     $filter The filter conditions
+     * @param    array|null $fields Fields to get or null for all
      * @return   array|null         The array of rows matching $filter
      *                              or null on errors
      * @tutorial TIP/DataEngine/DataEngine.pkg#rows
      */
-    function& getRows($filter)
+    function& getRows($filter, $fields = null)
     {
-        $rows =& $this->_engine->select($this, $filter);
+        $rows =& $this->_engine->select($this, $filter, $fields);
         if (is_array($rows)) {
             array_walk($rows, array(&$this, '_castRow'));
         }

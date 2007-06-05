@@ -34,9 +34,9 @@ class TIP_Bucket extends TIP_Data_Engine
         return true;
     }
 
-    function& select(&$data, $filter)
+    function& select(&$data, $filter, $fields)
     {
-        TIP::warning("get($filter, $data->_path)");
+        TIP::warning("get($filter, $data->_path, $fields)");
         $fake_result = array();
         return $fake_result;
     }

@@ -458,6 +458,17 @@ abstract class TIP_Module extends TIP_Type
     }
 
     /**
+     * Echo an uploaded URL
+     *
+     * Shortcut for the often used data url.
+     */
+    protected function commandDataUrl($params)
+    {
+        echo TIP::buildDataUrl($this->getId(), $params);
+        return true;
+    }
+
+    /**
      * Check if $params is the current user id
      *
      * Expands to true if the current logged-in user id equals to $params or

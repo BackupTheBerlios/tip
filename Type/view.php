@@ -72,6 +72,16 @@ class TIP_View extends TIP_Type implements Iterator
     protected $_filter = null;
 
     /**
+     * The fields to get
+     *
+     * A subset of fields to get with this view. Leave it undefined to get
+     * all the fields.
+     *
+     * @var array
+     */
+    protected $_fields = null;
+
+    /**
      * The list of rows
      *
      * This list should be filled in the construction process. It is null if
@@ -123,7 +133,7 @@ class TIP_View extends TIP_Type implements Iterator
 
     protected function postConstructor()
     {
-        $this->_rows =& $this->_data->getRows($this->_filter);
+        $this->_rows =& $this->_data->getRows($this->_filter, $this->_fields);
         $this->onPopulated();
     }
 
@@ -133,6 +143,7 @@ class TIP_View extends TIP_Type implements Iterator
      * $args must be an array with the following items (all are optionals):
      * - $args['data']: a reference to a TIP_Data object
      * - $args['filter']: the filter to apply
+     * - $args['fields']: the fields to get
      * - $args['on_row']: callback to run for every row
      * - $args['on_view']: callback to run when populated
      *
@@ -144,6 +155,9 @@ class TIP_View extends TIP_Type implements Iterator
         $id = $args['data']->getId();
         if (array_key_exists('filter', $args)) {
             $id .= ':' . $args['filter'];
+        }
+        if (array_key_exists('fields', $args)) {
+            $id .= '(' . $args['fields'] . ')';
         }
         return $id;
     }

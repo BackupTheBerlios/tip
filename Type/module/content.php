@@ -18,12 +18,22 @@
  */
 class TIP_Content extends TIP_Module
 {
-    /**#@+ @access private */
+    /**
+     * The stack of performed views
+     *
+     * @var array
+     */
+    private $_views = array();
 
-    var $_view_stack = array ();
+    /**
+     * Fields to use in SELECT queries (null for all fields)
+     *
+     * @var array
+     */
+    private $_subset = null;
 
 
-    function _onAdd(&$form, &$row)
+    public function _onAdd(&$form, &$row)
     {
         // Update the counters, if the hierarchy module exists
         $hierarchy_id = $this->getId() . '_hierarchy';
@@ -41,7 +51,7 @@ class TIP_Content extends TIP_Module
         $form->process($row);
     }
 
-    function _onDelete(&$form, &$row)
+    public function _onDelete(&$form, &$row)
     {
         $id = $row[$this->data->getPrimaryKey()];
         if (empty($id)) {
@@ -74,14 +84,6 @@ class TIP_Content extends TIP_Module
 
         $form->process($row);
     }
-
-    /**#@-*/
-
-
-    /**#@-*/
-
-
-    /**#@+ @access protected */
 
     /**
      * Constructor
@@ -307,7 +309,7 @@ class TIP_Content extends TIP_Module
     function &push(&$view)
     {
         if ($view->isValid()) {
-            $this->_view_stack[count($this->_view_stack)] =& $view;
+            $this->_views[count($this->_views)] =& $view;
             $this->view =& $view;
             $result =& $view;
         } else {
@@ -328,12 +330,12 @@ class TIP_Content extends TIP_Module
     function &pop()
     {
         unset($this->view);
-        $count = count($this->_view_stack);
+        $count = count($this->_views);
 
         if ($count > 0) {
-            unset($this->_view_stack[$count-1]);
+            unset($this->_views[$count-1]);
             if ($count > 1) {
-                $result =& $this->_view_stack[$count-2];
+                $result =& $this->_views[$count-2];
                 $this->view =& $result;
             } else {
                 $result = null;
@@ -345,20 +347,18 @@ class TIP_Content extends TIP_Module
         return $result;
     }
 
-    /**#@+
-     * @param      string       $params The parameter string
-     * @return     bool                 true on success or false on errors
-     * @subpackage SourceEngine
-     */
-
     /**
-     * Echo an uploaded URL
+     * Fields to use in the next queries
      *
-     * Shortcut for the often used data url.
+     * Changes the field subset in SELECT queries. If $params is empty, all the
+     * fields are used.
+     *
+     * @param  string $params A comma separated list of field ids
+     * @return bool           true on success or false on errors
      */
-    protected function commandDataUrl($params)
+    protected function commandSubset($params)
     {
-        echo TIP::buildDataUrl($this->getId(), $params);
+        $this->_subset = empty($params) ? null : explode(',', $params);
         return true;
     }
 
@@ -367,6 +367,9 @@ class TIP_Content extends TIP_Module
      *
      * The value is parsed and rendered by the Text_Wiki renderer accordling to
      * the wiki rules defined in the 'wiki_rules' option of the field.
+     *
+     * @param  string $params Field id to wikize
+     * @return bool           true on success or false on errors
      */
     protected function commandWiki($params)
     {
@@ -383,8 +386,6 @@ class TIP_Content extends TIP_Module
         echo TIP_Renderer::getWiki($rules)->transform($value);
         return true;
     }
-
-    /**#@-*/
 
     /**
      * Get a specific row
@@ -521,7 +522,7 @@ class TIP_Content extends TIP_Module
 
         if (@is_subclass_of($this->view, 'TIP_View')) {
             // Find the last non-special view
-            $stack =& $this->_view_stack;
+            $stack =& $this->_views;
             end($stack);
             do {
                 prev($stack);
@@ -680,6 +681,7 @@ class TIP_Content extends TIP_Module
     {
         $options['data'] =& $this->data;
         $options['filter'] = $filter;
+        isset($options['fields']) || $options['fields'] = $this->_subset;
         return $this->push(TIP_Type::singleton(array('view'), $options));
     }
 
