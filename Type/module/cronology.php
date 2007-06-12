@@ -84,7 +84,7 @@ class TIP_Cronology extends TIP_Module
             return true;
         }
 
-        $filter = $this->_content->data->order($this->_date_field, true);
+        $filter = $this->_content->data->order($this->_date_field);
         if (is_null($view =& $this->_content->startView($filter))) {
             return false;
         }
