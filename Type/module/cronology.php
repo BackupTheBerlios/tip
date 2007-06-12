@@ -14,10 +14,36 @@
  */
 class TIP_Cronology extends TIP_Module
 {
+    /**
+     * A reference to the master content module.
+     * @var TIP_Content
+     */
     private $_content = null;
+
+    /**
+     * The field id to parse for the date
+     * @var string
+     */
     private $_date_field = null;
+
+    /**
+     * The field to show as the leaf nodes. This can be an array of field ids,
+     * in which case the string will be a comma separated list of the values.
+     * @var string|array
+     */
     private $_title_field = null;
+
+    /**
+     * The field to show as tooltip for the leaf nodes. This can be an array
+     * of field ids, as for $_title_field.
+     * @var string|array
+     */
     private $_tooltip_field = null;
+
+    /**
+     * The cached buffer containing the rendered tree.
+     * @var string
+     */
     private $_html = null;
 
 
@@ -36,6 +62,20 @@ class TIP_Cronology extends TIP_Module
         $this->_date_field = $this->getOption('date_field');
         $this->_title_field = $this->getOption('title_field');
         $this->_tooltip_field = $this->getOption('tooltip_field');
+    }
+
+    private function _renderField($field, &$row)
+    {
+        if (is_string($field)) {
+            return $row[$field];
+        } elseif (is_array($field)) {
+            return implode(', ', array_intersect_key($row, array_flip($field)));
+        }
+
+        // No way to render this field
+        $field_type = gettype($field);
+        TIP::warning("not a valid field type ($field_type)");
+        return '';
     }
 
     private function _render()
@@ -71,7 +111,7 @@ class TIP_Cronology extends TIP_Module
         foreach ($rows as $id => &$row) {
             $row['CLASS'] = 'item';
             $row['url'] = $action . $id;
-            $row['title'] = $row[$this->_title_field];
+            $row['title'] = $this->_renderField($this->_title_field, $row);
 
             // Suppose the date is in ISO8601 format
             $date = $row[$this->_date_field];
