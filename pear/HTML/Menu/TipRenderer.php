@@ -72,15 +72,15 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         $is_active = $type != HTML_MENU_ENTRY_INACTIVE;
         $is_container = array_key_exists('sub', $node);
         $this->_row[$level] = $node['title'];
-        $id = implode($this->_glue, $this->_row);
+        $name = implode($this->_glue, $this->_row);
 
         if ($is_container) {
             $class = $is_active ? 'folder_active_open' : 'folder';
-            $href = 'javascript:switchHierarchy(\'' . $id . '\')';
+            $href = 'javascript:switchHierarchy(\'' . $name . '\')';
         } else {
             $class = $is_active ? 'active' : null;
             $href = $node['url'];
-            $this->_rows[] =& $id;
+            $this->_rows[$node['id']] =& $name;
         }
 
         $content = "\n" . str_repeat('  ', $level) . '<a ';
@@ -112,8 +112,8 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         unset($this->_row[$level]);
 
         if ($level > 0) {
-            $id = implode($this->_glue, $this->_row);
-            $attributes = 'id="' . $id . '"';
+            $name = implode($this->_glue, $this->_row);
+            $attributes = 'id="' . $name . '"';
             if ($is_active) {
                 $attributes .= ' class="active"';
             }
