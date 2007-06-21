@@ -1,5 +1,5 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * TIP_Cronology definition file
@@ -14,55 +14,102 @@
  */
 class TIP_Cronology extends TIP_Module
 {
+    //{{{ Properties
+
     /**
-     * A reference to the master content module.
+     * A reference to the master content module
      * @var TIP_Content
      */
-    private $_content = null;
+    protected $master = null;
 
     /**
-     * The field id to parse for the date
+     * The hierarchy field
+     *
+     * The field id to parse for the date and to use as index for the hierarchy.
+     *
      * @var string
      */
-    private $_date_field = null;
+    protected $date_field = '_creation';
 
     /**
-     * The field to show as the leaf nodes. This can be an array of field ids,
+     * Title field
+     *
+     * The field to show in the leaf nodes. This can be an array of field ids,
      * in which case the string will be a comma separated list of the values.
+     *
      * @var string|array
      */
-    private $_title_field = null;
+    protected $title_field = 'title';
 
     /**
+     * Tooltip field
+     *
      * The field to show as tooltip for the leaf nodes. This can be an array
-     * of field ids, as for $_title_field.
+     * of field ids, as for 'title_field'
+     *
      * @var string|array
      */
-    private $_tooltip_field = null;
+    protected $tooltip_field = null;
+
+    //}}}
+    //{{{ Internal properties
 
     /**
-     * The cached buffer containing the rendered tree.
+     * The cached buffer containing the rendered tree
      * @var string
+     * @internal
      */
     private $_html = null;
 
+    //}}}
+    //{{{ Construction/destruction
+
+    static protected function checkOptions(&$options)
+    {
+        if (!parent::checkOptions($options) || !isset($options['master'])) {
+            return false;
+        }
+
+        is_object($options['master']) || $options['master'] =& TIP_Type::getInstance($options['master']);
+        return $options['master'] instanceof TIP_Content;
+    }
 
     /**
      * Constructor
      *
      * Initializes a TIP_Cronology instance.
      *
-     * @param string $id The instance identifier
+     * $options inherits the TIP_Module properties, and add the following:
+     * - $options['master']:        a reference to the master content module (required)
+     * - $options['date_field']:    the field id to parse for the date
+     * - $options['title_field']:   the field to show in the leaf nodes
+     * - $options['tooltip_field']: the field to show as tooltip
+     * 
+     * @param array $options Properties values
      */
-    function __construct($id)
+    protected function __construct($options)
     {
-        parent::__construct($id);
-
-        $this->_content =& TIP_Type::getInstance($this->getOption('master_module'));
-        $this->_date_field = $this->getOption('date_field');
-        $this->_title_field = $this->getOption('title_field');
-        $this->_tooltip_field = $this->getOption('tooltip_field');
+        parent::__construct($options);
     }
+
+    //}}}
+    //{{{ Methods
+
+    /**
+     * Render a DHTML cronology
+     *
+     * Renders this cronology in a DHTML format.
+     *
+     * @return true on success or false on errors
+     */
+    public function &getHtml()
+    {
+        $this->_render();
+        return $this->_html;
+    }
+
+    //}}}
+    //{{{ Internal methods
 
     private function _renderField($field, &$row)
     {
@@ -84,15 +131,15 @@ class TIP_Cronology extends TIP_Module
             return true;
         }
 
-        $filter = $this->_content->data->order($this->_date_field);
-        if (is_null($view =& $this->_content->startView($filter))) {
+        $filter = $this->master->getProperty('data')->order($this->date_field);
+        if (is_null($view =& $this->master->startDataView($filter))) {
             return false;
         }
 
-        $rows =& $view->getRows();
+        $rows =& $view->getProperty('rows');
         if (empty($rows)) {
             $this->_html = '';
-            $this->_content->endView();
+            $this->master->endView();
             return true;
         }
 
@@ -103,40 +150,46 @@ class TIP_Cronology extends TIP_Module
             $action = TIP::buildUrl($action);
         } else {
             // No action specified: construct the default action (browse)
-            $id = $this->getId();
-            $action = $base_action . '?module=' . substr($id, 0, strrpos($id, '_')) . '&amp;action=browse&amp;group=';
+            $action = $base_action . '?module=' . $this->master . '&amp;action=browse&amp;group=';
         }
 
         $tree = array();
         foreach ($rows as $id => &$row) {
             $row['CLASS'] = 'item';
             $row['url'] = $action . $id;
-            $row['title'] = $this->_renderField($this->_title_field, $row);
+            $row['title'] = $this->_renderField($this->title_field, $row);
 
             // Suppose the date is in ISO8601 format
-            $date = $row[$this->_date_field];
+            $date = $row[$this->date_field];
             list($y, $m, $day) = sscanf($date, "%d-%d-%d");
-            $year = (string) $y;
-            $month = strftime('%B', mktime(0, 0, 0, $m, $day, $year));
 
+            // Compute the year
+            $year = (string) $y;
             if (!array_key_exists($year, $tree)) {
                 $tree[$year] = array(
                     'title' => $year,
                     'url'   => 'unused',
                     'CLASS' => 'folder',
-                    'sub'   => array()
+                    'sub'   => array(),
+                    'COUNT' => 0
                 );
             }
+            ++ $tree[$year]['COUNT'];
+
+            // Compute the month
             $months =& $tree[$year]['sub'];
+            $month = strftime('%B', mktime(0, 0, 0, $m, $day, $year));
             $month_id = $year . '-' . $month;
             if (!array_key_exists($month_id, $months)) {
                 $months[$month_id] = array(
                     'title' => $month,
                     'url'   => 'unused',
                     'CLASS' => 'folder',
-                    'sub'   => array()
+                    'sub'   => array(),
+                    'COUNT' => 0
                 );
             }
+            ++ $months[$month_id]['COUNT'];
             $months[$month_id]['sub'][$id] =& $row;
         }
 
@@ -144,11 +197,14 @@ class TIP_Cronology extends TIP_Module
         $model =& new HTML_Menu($tree);
         $model->forceCurrentUrl(htmlspecialchars(TIP::getRequestURI()));
 
-        $renderer =& TIP_Renderer::getMenu($this->getId());
+        $renderer =& TIP_Renderer::getMenu($this->id);
         $model->render($renderer, 'sitemap');
         $this->_html = $renderer->toHtml();
         return true;
     }
+
+    //}}}
+    //{{{ Commands
 
     /**
      * Echo the cronology
@@ -168,17 +224,6 @@ class TIP_Cronology extends TIP_Module
         return true;
     }
 
-    /**
-     * Render a DHTML cronology
-     *
-     * Renders this cronology in a DHTML format.
-     *
-     * @return true on success or false on errors
-     */
-    public function &getHtml()
-    {
-        $this->_render();
-        return $this->_html;
-    }
+    //}}}
 }
 ?>

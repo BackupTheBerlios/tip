@@ -1,12 +1,11 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * TIP_Modules_View definition file
  *
  * @package TIP
  */
-
 
 /**
  * A modules view
@@ -17,45 +16,55 @@
  */
 class TIP_Modules_View extends TIP_View
 {
+    //{{{ Static methods
+
+    static protected function checkOptions(&$options)
+    {
+        if (!parent::checkOptions($options)) {
+            return false;
+        }
+
+        $options['id'] = '__MODULES__';
+
+        return true;
+    }
+
+    //}}}
+    //{{{ Constructor/destructor
+
     /**
      * Constructor
      *
-     * Initializes a TIP_Modules_View instance.
+     * Initializes a TIP_Array_View instance.
      *
-     * @param string $id   The instance identifier
-     * @param array  $args The constructor arguments, as described in buildId()
+     * $options could be an array with the following items:
+     * - $options['on_row']:  row callback
+     * - $options['on_view']: view callback
+     *
+     * @param array $options Properties values
      */
-    protected function __construct($id, $args)
+    protected function __construct($options)
     {
-        parent::__construct($id, $args);
+        parent::__construct($options);
     }
 
-    protected function postConstructor()
+    //}}}
+    //{{{ TIP_View implementation
+
+    protected function fillRows()
     {
         foreach ($GLOBALS['cfg'] as $id => $options) {
             // Add only module derived types
             if (in_array('module', $options['type'])) {
-                $this->_rows[$id] = array(
+                $this->rows[$id] = array(
                     'id' => $id
                 );
             }
         }
-        $this->onPopulated();
+
+        return is_array($this->rows);
     }
 
-    /**
-     * Build a TIP_Modules_View identifier
-     *
-     * $args can have all the items specified in TIP_View::buildId(), but the
-     * 'filter' and 'data' arguments are not used.
-     *
-     * The returned identifier is constant because the modules view is only one.
-     *
-     * @return '__MODULES__' The data identifier
-     */
-    protected function buildId()
-    {
-        return '__MODULES__';
-    }
+    //}}}
 }
 ?>

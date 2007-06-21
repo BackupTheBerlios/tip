@@ -1,5 +1,5 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * TIP definition file
@@ -27,19 +27,48 @@
  */
 class TIP_Notify extends TIP_Module
 {
-    /**#@+ @access private */
+    //{{{ Properties
 
-    var $_no_reentrant = false;
+    /**
+     * The file to run to notify errors
+     * @var string
+     */
+    protected $error_source = 'error.src';
 
-    /**#@-*/
+    /**
+     * The file to run to notify warnings
+     * @var string
+     */
+    protected $warning_source = 'warning.src';
 
+    /**
+     * The file to run to notify informations
+     * @var string
+     */
+    protected $info_source = 'info.src';
 
-    /**#@+ @access protected */
+    //}}}
+    //{{{ Constructor/destructor
 
-    function __construct($id)
+    /**
+     * Constructor
+     *
+     * Initializes a TIP_Notify instance.
+     *
+     * $options inherits the TIP_Module properties, and add the following:
+     * - $options['error_source']:   the file to run to show errors
+     * - $options['warning_source']: the file to run to show warnings
+     * - $options['info_source']:    the file to run to show informations
+     *
+     * @param array $options Properties values
+     */
+    protected function __construct($options)
     {
-        parent::__construct($id);
+        parent::__construct($options);
     }
+
+    //}}}
+    //{{{ Methods
 
     /**
      * Generic message notification
@@ -48,51 +77,59 @@ class TIP_Notify extends TIP_Module
      * program with the current source engine. The output will be inserted
      * at the beginning of the page content.
      *
-     * @param mixed  $id   The message id
-     * @param string $source The source file to use as template
-     * @return bool true on success or false on errors
+     * If $id is null, the 'fallback' value will be used instead.
+     *
+     * @param  string $source  The source to run
+     * @param  mixed  $prefix  The string to be prepended to $id,
+     *                         without leading 'notify.' and trailing '.'
+     * @param  mixed  $id      The TIP_Locale id of the message,
+     *                         without 'notify.' and $prefix prefix
+     * @param  array  $context Optional associative array of tags to be
+     *                         expanded in the message string
+     * @return bool            true on success or false on errors
      */
-    function notify($source, $title_id, $message_id, $context)
+    public function notify($source, $prefix, $id, $context)
     {
-        if ($this->_no_reentrant) {
+        static $running = false;
+
+        // The running flag avoid recursive calls to notify()
+        if ($running) {
             TIP::warning('recursive call to notify()');
             return false;
         }
 
-        $this->_no_reentrant = true;
-        $locale =& TIP_Type::getInstance('locale');
-        if (!is_object($locale)) {
-            // TIP_Notify without TIP_Locale is not implemented 
+        $running = true;
+        if (is_null($locale =& TIP_Type::getInstance('locale'))) {
+            TIP::warning('TIP_Notify without TIP_Locale is not implemented');
             return false;
         }
 
-        $message_id = $this->getId() . '.' . $message_id;
-        $view =& $locale->startView($locale->data->rowFilter($message_id));
-        if (!is_object($view)) {
-            return false;
+        isset($id) || $id = 'fallback';
+        $title_id = $this->id . '.' . $prefix;
+        $message_id = $title_id . '.' . $id;
+        $data =& $locale->getProperty('data');
+
+        $key = $data->getProperty('primary_key');
+        $filter = $data->filter($key, $title_id) . $data->addFilter('OR', $key, $message_id);
+        if (!is_null($view =& $locale->startDataView($filter))) {
+            $rows =& $view->getProperty('rows');
+            $locale->endView();
+            $locale_id = $locale->getProperty('locale');
+            $title = @$rows[$title_id][$locale_id];
+            $message = @$rows[$message_id][$locale_id];
         }
 
-        $view->setSummary('TITLE', $locale->get($title_id, $this->getId(), null, false));
-        if (!$view->valid()) {
-            TIP::warning("message id not found ($message_id)");
-            $view->setSummary('MESSAGE', $message_id);
-        }
+        // Fallback values
+        isset($title) || ($title = 'UNDEFINED TITLE') && TIP::warning("localized id not found ($title_id)");
+        isset($message) || ($message = 'Undefined message') && TIP::warning("localized id not found ($message_id)");
 
-        $locale->insertInPage($this->buildSourcePath($this->getId(), $source));
-        $locale->endView();
-        $this->_no_reentrant = false;
+        // Run the source
+        $this->keys['TITLE'] = $title;
+        $this->keys['MESSAGE'] = $message;
+        $this->insertInPage($source);
+        $running = false;
         return true;
     }
-
-    /**#@-*/
-
-
-    /**#@+
-     * @access public
-     * @param  string $id      The locale id of the message
-     * @param  array  $context The message context
-     * @return bool            true on success or false on errors
-     */
 
     /**
      * Error notification
@@ -100,19 +137,17 @@ class TIP_Notify extends TIP_Module
      * This is a convenience function that wraps notify(), passing the
      * proper arguments for error notifications.
      *
-     * If $id is not specified, it will default to 'error.fallback'.
-     * If there are no dots in $id, 'error.' will be prepended.
+     * If $id is not specified, it will default to 'fallback'.
+     *
+     * @param  string $id      The TIP_Locale id of the message
+     *                         without the 'notify.error.' prefix
+     * @param  array  $context Optional associative array of tags to be
+     *                         expanded in the message string
+     * @return bool            true on success or false on errors
      */
-    function notifyError($id = null, $context = null)
+    public function notifyError($id = null, $context = null)
     {
-        if (is_null($id)) {
-            $id = 'error.fallback';
-        } elseif (strpos($id, '.') === false) {
-            $id = 'error.' . $id;
-        }
-
-        $source = $this->getOption('error_source');
-        return $this->notify($source, 'error', $id, $context);
+        return $this->notify($this->error_source, 'error', $id, $context);
     }
 
     /**
@@ -121,19 +156,17 @@ class TIP_Notify extends TIP_Module
      * This is a convenience function that wraps notify(), passing the
      * proper arguments for warning notifications.
      *
-     * If $id is not specified, it will default to 'warning.fallback'.
-     * If there are no dots in $id, 'warning.' will be prepended.
+     * If $id is not specified, it will default to 'fallback'.
+     *
+     * @param  string $id      The TIP_Locale id of the message
+     *                         without the 'notify.warning.' prefix
+     * @param  array  $context Optional associative array of tags to be
+     *                         expanded in the message string
+     * @return bool            true on success or false on errors
      */
-    function notifyWarning($id = null, $context = null)
+    public function notifyWarning($id = null, $context = null)
     {
-        if (is_null($id)) {
-            $id = 'warning.fallback';
-        } elseif (strpos($id, '.') === false) {
-            $id = 'warning.' . $id;
-        }
-
-        $source = $this->getOption('warning_source');
-        return $this->notify($source, 'warning', $id, $context);
+        return $this->notify($this->warning_source, 'warning', $id, $context);
     }
 
     /**
@@ -142,21 +175,19 @@ class TIP_Notify extends TIP_Module
      * This is a convenience function that wraps notify(), passing the
      * proper arguments for info notifications.
      *
-     * If $id is not specified, it will default to 'info.fallback'.
-     * If there are no dots in $id, 'info.' will be prepended.
+     * If $id is not specified, it will default to 'fallback'.
+     *
+     * @param  string $id      The TIP_Locale id of the message
+     *                         without the 'notify.info.' prefix
+     * @param  array  $context Optional associative array of tags to be
+     *                         expanded in the message string
+     * @return bool            true on success or false on errors
      */
-    function notifyInfo($id = null, $context = null)
+    public function notifyInfo($id = null, $context = null)
     {
-        if (is_null($id)) {
-            $id = 'info.fallback';
-        } elseif (strpos($id, '.') === false) {
-            $id = 'info.' . $id;
-        }
-
-        $source = $this->getOption('info_source');
-        return $this->notify($source, 'info', $id, $context);
+        return $this->notify($this->info_source, 'info', $id, $context);
     }
 
-    /**#@-*/
+    //}}}
 }
 ?>

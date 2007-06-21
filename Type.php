@@ -1,5 +1,5 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * @package TIP
@@ -22,50 +22,74 @@
  */
 abstract class TIP_Type
 {
-    /**#@+ @access private */
+    //{{{ Properties
 
-    var $_type = null;
-    var $_id = null;
+    /**
+     * Instance identifier
+     * @var string
+     */
+    protected $id = null;
 
-    /**#@-*/
+    /**
+     * An array of parent classes (without TIP_PREFIX)
+     * @var array
+     */
+    protected $type = null;
 
+    //}}}
+    //{{{ Constructor/destructor
 
-    /**#@+ @access protected */
+    /**
+     * Check the options
+     *
+     * Overridable static method that checks $options for missing or invalid
+     * values and eventually corrects its content.
+     *
+     * @param  array &$options Property values
+     * @return bool            true on success or false on error
+     */
+    static protected function checkOptions(&$options)
+    {
+        if (!isset($options['type'])) {
+            return false;
+        }
+
+        isset($options['id']) || $options['id'] = end($options['type']);
+        return true;
+    }
 
     /**
      * Constructor
      *
      * Initializes a TIP_Type instance.
      *
-     * Basically, this class set the $_type and $_id private properties.
-     * The $_type property is the name of the derived class in lowercase and
-     * with TIP_PREFIX stripped, while the $_id property is the identifier of
-     * the instance.
+     * Basically, this class set the properties values by parsing the $options
+     * array.
      *
-     * @param string $id Instance identifier
+     * @param array $options Properties values
      */
-    protected function __construct($id)
+    protected function __construct($options)
     {
-        $this->_type = strtolower(TIP::stripTipPrefix(get_class($this)));
-        $this->_id = $id;
+        // Properties initialization
+        foreach ($options as $property => &$value) {
+            $this->$property =& $value;
+        }
     }
 
     /**
-     * Get the identifier for the given constructor arguments
+     * Overridable post construction method
      *
-     * Overridable static method to build an identifier for the passed in
-     * arguments. This must be overriden by classes that want to provide
-     * complex identifiers (such as TIP_View): in any case, this method
-     * must be static, so the identifier can be built without the need to
-     * instantiate the object. This is needed by the singleton() method.
+     * Called after the construction happened. This can be overriden to do some
+     * other post costruction operation.
      *
-     * @param  mixed  $args The contructor arguments
-     * @return string       The instance identifier
+     * The TIP_Type::postConstructor() method does nothing.
      */
-    protected function buildId($args)
+    protected function postConstructor()
     {
-        return $args;
     }
+
+    //}}}
+    //{{{ Methods
 
     /**
      * Singleton method
@@ -75,129 +99,106 @@ abstract class TIP_Type
      * If the object is not found, it is dinamically defined and instantiated.
      *
      * The singletons are stored in a static tree, called register, containing
-     * all the hierarchy of the instantiated types. Not providing the $id
-     * argument, a reference to the register content of the portion specified
-     * with $hierarchy is returned. To get the whole register content, use an
-     * empty array as $hierarchy.
+     * all the hierarchy of the instantiated types.
      *
-     * If $args is not null, an id is built by a static call to the buildId()
-     * method of the $hierarchy type. If an instance with this id is found, it
-     * is returned, otherwise it will be dynamically defined and instantiated.
+     * If $options is not specified, the whole register is returned.
      *
-     * $hierarchy must be an array containing the parent types of the object.
-     * These types must be lowercase strings specifying the parent classes of
-     * the instance (TIP_Type excluded) without TIP_PREFIX. Using
-     * array('module', 'content') as $hierarchy, for instance, will
-     * instantiate a TIP_Content object.
+     * If $options is a string, it must specify a valid type: a partial
+     * register content of this type is returned.
      *
-     * @param  array              $hierarchy  The parent types of the instance
-     * @param  mixed|null         $args       The constructor arguments
-     * @return array|object|null              The register content, a reference
-     *                                        to the requested instance or null
-     *                                        on instantiation errors
-     * @static
+     * In the other cases, $options must be an array of options, and a
+     * singleton for the specified object is returned. In this situation,
+     * $options must have at least the following items:
+     * - $options['id']:   the instance identifier
+     * - $options['type']: an array containing the parent types of the instance.
+     *                     These types must be lowercase strings specifying the
+     *                     parent classes of the instance (TIP_Type excluded)
+     *                     without TIP_PREFIX. Using array('module', 'content'),
+     *                     for instance, will instantiate a TIP_Content object.
+     *
+     * Some type automatically fills $options['id'] after the checkOptions()
+     * call: check the documentation for each class for further information.
+     *
+     * @param  array|string|null $options Constructor options
+     * @return array|object|null          The register content, a reference
+     *                                    to the requested instance or null
+     *                                    on instantiation errors
      */
-    function& singleton($hierarchy, $args = null)
+    static protected function &singleton($options = null)
     {
         static $register = array();
+        static $flat_register = array();
 
-        $path = TIP::buildLogicPath('Type');
-        $node =& $register;
+        if (empty($options)) {
+            // Return the whole register content
+            return $register;
+        } elseif (is_string($options)) {
+            // Return a partial register content
+            return $flat_register[$options];
+        }
 
-        // Hierarchy scan
-        foreach ($hierarchy as $type) {
-            $path .= DIRECTORY_SEPARATOR . $type;
-            if (!array_key_exists($type, $node)) {
-                if (is_null($args)) {
-                    // Requested register content, but $hierarchy not defined
-                    return $args;
-                } else {
+        $type = end($options['type']);
+        if (array_key_exists($type, $flat_register)) {
+            // Hierarchy yet defined
+            $list =& $flat_register[$type];
+        } else {
+            // Hierarchy to be defined
+            $path = TIP::buildLogicPath('Type');
+            $list =& $register;
+
+            foreach ($options['type'] as $type) {
+                $path .= DIRECTORY_SEPARATOR . $type;
+                if (!array_key_exists($type, $list)) {
                     // Dynamic type definition
                     $file = $path . '.php';
                     if (include_once $file) {
-                        $node[$type] = array();
+                        $list[$type] = array();
+                        $flat_register[$type] =& $list[$type];
                     } else {
                         // Definition impossible: this avoid next attempts
-                        $node[$type] = null;
-                        return $node[$type];
+                        $list[$type] = $flat_register[$type] = null;
+                        return $list[$type];
                     }
                 }
+                $list =& $list[$type];
             }
-            $node =& $node[$type];
         }
 
-        if (is_null($args)) {
-            // Return the register content
-            return $node;
-        }
-       
         $class = TIP_PREFIX . $type;
-        $id = call_user_func(array($class, 'buildId'), $args);
-
-        if (!array_key_exists($id, $node)) {
-            // Object instantiation
-            $node[$id] =& new $class($id, $args);
-
-            // postConstructor() call: must be done after the registration to avoid
-            // circular dependency
-            if (is_callable(array(&$node[$id], 'postConstructor'))) {
-                $node[$id]->postConstructor();
-            }
+        if (!call_user_func_array(array($class, 'checkOptions'), array(&$options))) {
+            // Invalid options, maybe a requested option is not specified
+            $fake_null = null;
+            return $fake_null;
         }
 
-        return $node[$id];
+        $id = $options['id'];
+        if (!array_key_exists($id, $list)) {
+            // Object instantiation
+            $list[$id] = new $class($options);
+
+            // postConstructor() call: must be done after the registration
+            // to avoid circular dependency
+            $list[$id]->postConstructor();
+        }
+
+        return $list[$id];
     }
-
-    /**
-     * Get an option for the current instance
-     *
-     * Wrappers the more general TIP::getOption() function without the need to
-     * specify the type.
-     *
-     * @param string $option The option to retrieve
-     * @return mixed|null The value of the requested option or null on errors
-     */
-    function getOption($option)
-    {
-        return TIP::getOption($this->_id, $option);
-    }
-
-    /**
-     * Create a TIP_Callback
-     *
-     * Shortcut to build a TIP_Callback from a method of this class.
-     *
-     * @param string     $method The method name
-     * @param array|null $args   The arguments to pass to the callback if the
-     *                           callback is called without arguments
-     */
-    function& callback($method, $args = null)
-    {
-        $callback =& new TIP_Callback(array(&$this, $method), $args);
-        return $callback;
-    }
-
-    /**#@-*/
-
-
-    /**#@+ @access public */
 
     /**
      * Type instantiation
      *
      * Gets the singleton of a configured object. $id could be any identifier
-     * defined in config.php.
+     * defined in $GLOBALS['cfg'].
      *
-     * An internal register is mantained to avoid next calls to the
-     * singleton() method.
+     * An internal register is mantained to avoid singleton() calls with the
+     * same $id.
      *
      * @param  mixed    $id       Instance identifier
      * @param  bool     $required true if errors must be fatals
      * @return TIP_Type           The reference to the requested instance or
      *                            false on errors
-     * @static
      */
-    function& getInstance($id, $required = true)
+    static public function &getInstance($id, $required = true)
     {
         static $register = array();
 
@@ -206,14 +207,30 @@ abstract class TIP_Type
             return $register[$id];
         }
 
-        $instance =& TIP_Type::singleton($GLOBALS['cfg'][$id]['type'], $id);
-        if (!is_object($instance) && $required) {
-            TIP::fatal("unable to instantiate the configured object ($id)");
+        if (isset($GLOBALS['cfg'][$id])) {
+            $options = $GLOBALS['cfg'][$id];
+            isset($options['id']) || $options['id'] = $id;
+            $instance =& TIP_Type::singleton($options);
+        } else {
+            $instance = null;
+        }
+
+        if (is_null($instance) && $required) {
+            TIP::fatal("unable to instantiate the requested object ($id)");
             exit;
         }
 
         $register[$id] =& $instance;
         return $instance;
+    }
+
+    /**
+     * Return the id of a TIP instance
+     * @return string The instance identifier
+     */
+    public function __toString()
+    {
+        return $this->id;
     }
 
     /**
@@ -228,25 +245,36 @@ abstract class TIP_Type
      *
      * @return string The type name
      */
-    function getType()
+    public function getType()
     {
-        return $this->_type;
+        return end($this->type);
     }
 
     /**
-     * Get the id of a TIP instance
+     * Get a property of this instance
      *
-     * Returns the id of the current - instantiated - TIP object. The id is
-     * a string that univoquely identifies this instance. Check the TIP_Type
-     * constructor for further details.
-     *
-     * @return string The id name
+     * @param  string     $property The property name
+     * @return mixed|null           The property value or null on errors
      */
-    function getId()
+    public function &getProperty($property)
     {
-        return $this->_id;
+        return $this->$property;
     }
 
-    /**#@-*/
+    /**
+     * Get a global option for the current instance
+     *
+     * Wrappers the more general TIP::getOption() function without the need to
+     * specify the type.
+     *
+     * @param  string     $option The option to retrieve
+     * @return mixed|null         The value of the requested option or null on errors
+     */
+    public function getOption($option)
+    {
+        return @$GLOBALS['cfg'][$this->id][$option];
+    }
+
+    //}}}
 }
 ?>

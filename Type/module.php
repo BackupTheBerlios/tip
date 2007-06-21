@@ -1,5 +1,5 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * @package TIP
@@ -13,38 +13,118 @@
  */
 abstract class TIP_Module extends TIP_Type
 {
-    /**#@+ @access private */
+    //{{{ Properties
 
     /**
-     * The current privilege descriptor
+     * The source (or template) engine: required only for TIP_Application
+     *
+     * Contains a reference to the source engine to use when parsing a file.
+     * See the TIP_Source class for details on what is a source engine.
+     * If not configured, it defaults to the one of the main module
+     * (that obviously MUST be configured).
+     *
+     * @var TIP_Source_Engine
+     */
+    protected $engine = null;
+
+    /**
+     * The locale prefix
+     *
+     * A string to be prepended while looking for locale strings. If not
+     * specified, it defaults to getType().
+     *
+     * @var string
+     */
+    protected $locale_prefix = null;
+
+    /**
+     * The anonymous privilege level for this module
+     *
+     * If not specified, it defaults to the anonymous privilege of the main
+     * application module, that must be configured.
      *
      * @var TIP_PRIVILEGE_...
      */
-    var $_privilege = TIP_PRIVILEGE_NONE;
+    protected $anonymous_privilege = null;
 
-    /**#@-*/
+    /**
+     * The default privilege level for this module
+     *
+     * If not specified, it defaults to the default privilege of the main
+     * application module, that must be configured.
+     *
+     * @var TIP_PRIVILEGE_...
+     */
+    protected $default_privilege = null;
 
+    //}}}
+    //{{{ Internal properties
 
-    /**#@+ @access protected */
+    /**
+     * The current privilege descriptor
+     * @var TIP_PRIVILEGE_...
+     */
+    protected $privilege = TIP_PRIVILEGE_NONE;
+
+    /**
+     * Custom keys
+     *
+     * Every TIP_Module object can have a bounch of key => value pairs. These
+     * properties are mantained in this array and are used, for instance, by the
+     * getItem() method. Also, remember an object inherits the keys from its
+     * parents, in a hierarchy order.
+     *
+     * @var array
+     */
+    public $keys = array();
+
+    //}}}
+    //{{{ Constructor/destructor
+
+    /**
+     * Check the options
+     *
+     * Overridable static method that checks $options for missing or invalid
+     * values and eventually corrects its content.
+     *
+     * @param  array &$options Properties values
+     * @return bool            true on success or false on error
+     */
+    static protected function checkOptions(&$options)
+    {
+        if (!parent::checkOptions($options)) {
+            return false;
+        }
+
+        if (!isset($options['engine'])) {
+            $options['engine'] =& TIP_Application::getGlobal('engine');
+        } elseif (is_string($options['engine'])) {
+            $options['engine'] =& TIP_Type::singleton(array(
+                'type' => array('source_engine', $options['engine'])
+            ));
+        } elseif (is_array($options['engine'])) {
+            $options['engine'] =& TIP_Type::singleton($options['engine']);
+        }
+        if (!$options['engine'] instanceof TIP_Source_Engine) {
+            return false;
+        }
+
+        isset($options['locale_prefix']) || $options['locale_prefix'] = end($options['type']);
+        isset($options['anonymous_privilege']) || $options['anonymous_privilege'] = TIP_Application::getGlobal('anonymous_privilege');
+        isset($options['default_privilege']) || $options['default_privilege'] = TIP_Application::getGlobal('default_privilege');
+        return true;
+    }
 
     /**
      * Constructor
      *
      * Initializes a TIP_Module instance.
-     * You must redefine the constructor as public to be able to use it.
      *
-     * @param mixed $id Identifier of this module
+     * @param array $options Properties values
      */
-    protected function __construct($id)
+    protected function __construct($options)
     {
-        parent::__construct($id);
-
-        if (is_null($engine_name = $this->getOption('source_engine')) &&
-            is_null($engine_name = $GLOBALS[TIP_MAIN]->getOption('source_engine'))) {
-            return;
-        }
-
-        $this->engine =& TIP_Type::getInstance($engine_name);
+        parent::__construct($options);
     }
 
     /**
@@ -61,23 +141,30 @@ abstract class TIP_Module extends TIP_Type
      */
     protected function postConstructor()
     {
-        $this->_privilege = TIP::getPrivilege($this->getId());
         $this->refreshPrivileges();
     }
+
+    //}}}
+    //{{{ Methods
 
     /**
      * Refresh the privileges
      *
-     * Refreshes the privileges of the current module.
+     * Refreshes the privileges of this module. If $privilege is not defined,
+     * gets the proper privilege using the default TIP_Privilege instance.
+     *
+     * @param TIP_PRIVILEGE_... $privilege The new privilege level
      */
-    function refreshPrivileges()
+    protected function refreshPrivileges($privilege = null)
     {
+        isset($privilege) || $privilege = TIP::getPrivilege($this->id);
+        $this->privilege = $privilege;
         $this->keys['IS_MANAGER']   = false;
         $this->keys['IS_ADMIN']     = false;
         $this->keys['IS_TRUSTED']   = false;
         $this->keys['IS_UNTRUSTED'] = false;
 
-        switch ($this->_privilege) {
+        switch ($this->privilege) {
 
         case TIP_PRIVILEGE_MANAGER:
             $this->keys['IS_MANAGER']    = true;
@@ -96,9 +183,8 @@ abstract class TIP_Module extends TIP_Type
     /**
      * Get a localized text
      *
-     * Gets the localized text for a specified module. The prefix to build the
-     * row id is get from the 'locale_prefix' option of the caller module. If
-     * not specified, it defaults to getType().
+     * Gets the localized text for a specified module. $id is prefixed by the
+     * 'locale_prefix' property.
      *
      * This method always returns a valid string: if the localized text
      * can't be retrieved, a string containing prefix.$id is returned and a
@@ -112,15 +198,11 @@ abstract class TIP_Module extends TIP_Type
      * @param  bool   $cached  Whether to perform or not a cached read
      * @return string          The requested localized text
      */
-    function getLocale($id, $context = null, $cached = true)
+    protected function getLocale($id, $context = null, $cached = true)
     {
-        if (is_null($prefix = $this->getOption('locale_prefix'))) {
-            $prefix = $this->getType();
-        }
-
-        $text = TIP::getLocale($id, $prefix, $context, $cached);
+        $text = TIP::getLocale($id, $this->locale_prefix, $context, $cached);
         if (empty($text)) {
-            $text = $prefix . '.' . $id;
+            $text = $this->locale_prefix . '.' . $id;
             TIP::warning("localized text not found ($text)");
         }
 
@@ -141,7 +223,7 @@ abstract class TIP_Module extends TIP_Type
      * @param string     $id        The id to localize
      * @param array|null $modifiers A ('prefix','suffix') array
      */
-    function localize(&$dst, $id, $modifiers = null)
+    protected function localize(&$dst, $id, $modifiers = null)
     {
         if (is_array($modifiers)) {
             $id = $modifiers[0] . $id . $modifiers[1];
@@ -163,7 +245,7 @@ abstract class TIP_Module extends TIP_Type
      * @param  string     $id The item id
      * @return mixed|null     The item value or null if not found
      */
-    function getItem($id)
+    protected function getItem($id)
     {
         $value = @$this->keys[$id];
         if (!is_null($value)) {
@@ -194,7 +276,7 @@ abstract class TIP_Module extends TIP_Type
      * @param string $request The item id
      * @return mixed|null The requested value or null if the request is invalid
      */
-    function getRequest($request)
+    protected function getRequest($request)
     {
         $open_brace = strpos($request, '[');
         if ($open_brace === false) {
@@ -240,7 +322,7 @@ abstract class TIP_Module extends TIP_Type
      * @return mixed|null The first valid value or null if no valid request
      *                    are found
      */
-    function getValidRequest ($requests)
+    protected function getValidRequest ($requests)
     {
         if (!is_array($requests)) {
             return null;
@@ -262,14 +344,14 @@ abstract class TIP_Module extends TIP_Type
      * Shortcut for building a source URL: if the URL does not point to a
      * readable file, the fallback URL is used.
      *
-     * @param string|array $suburl,... A list of partial URLs
-     * @return string The constructed URL
+     * @param  string|array $suburl,... A list of partial URLs
+     * @return string                   The constructed URL
      */
-    function buildSourceUrl()
+    protected function buildSourceURL()
     {
         $pieces = func_get_args();
-        $url = TIP::buildSourceUrl($pieces);
-        return is_readable($url) ? $url : TIP::buildFallbackUrl($pieces);
+        $url = TIP::buildSourceURL($pieces);
+        return is_readable($url) ? $url : TIP::buildFallbackURL($pieces);
     }
 
     /**
@@ -281,12 +363,181 @@ abstract class TIP_Module extends TIP_Type
      * @param string|array $subpath,... A list of partial paths
      * @return string The constructed path
      */
-    function buildSourcePath()
+    protected function buildSourcePath()
     {
         $pieces = func_get_args();
         $path = TIP::buildSourcePath($pieces);
         return is_readable($path) ? $path : TIP::buildFallbackPath($pieces);
     }
+
+    /**
+     * Execute a source file
+     *
+     * Parses and executes the specified file.
+     *
+     * @param string $file The file to run
+     * @return bool true on success or false on errors
+     */
+    public function run($file)
+    {
+        $options = array('type' => array('source'), 'id' => $file);
+        return TIP_Type::singleton($options)->run($this);
+    }
+
+    /**
+     * Prepend a source file to the page
+     *
+     * Runs $file using the current source engine and puts the result at the
+     * beginning of the page.
+     *
+     * @param  string $file The source file
+     * @return bool         true on success or false on errors
+     */
+    protected function insertInPage($file)
+    {
+        if (strpos($file, DIRECTORY_SEPARATOR) === false) {
+            $file = $this->buildSourcePath($this->id, $file);
+        }
+        TIP_Application::prependCallback(array(&$this, 'run'), array($file));
+        return true;
+    }
+
+    /**
+     * Append a source file to the page
+     *
+     * Runs $file using the current source engine and puts the result at the
+     * end of the page.
+     *
+     * @param  string $file The source file
+     * @return bool         true on success or false on errors
+     */
+    protected function appendToPage($file)
+    {
+        if (strpos($file, DIRECTORY_SEPARATOR) === false) {
+            $file = $this->buildSourcePath($this->id, $file);
+        }
+        TIP_Application::appendCallback(array(&$this, 'run'), array($file));
+        return true;
+    }
+
+    /**
+     * Execute a command
+     *
+     * Executes the specified command, using $params as arguments. This
+     * function prepend 'command' to $command and try to call the so
+     * formed method. If you, for instance, runs callCommand('Test', ''), a
+     * commandTest('') call will be performed.
+     *
+     * A command is a request from the source engine to echoes something. It can
+     * be tought as the dinamic primitive of the TIP system: every dinamic tag
+     * parsed by the source engine runs a command.
+     *
+     * The commands - as everything else - are inherited from the module parents,
+     * so every TIP_Module commands are available to the TIP_Module children.
+     *
+     * @param string $command The command name
+     * @param string $params  Parameters to pass to the command
+     * @return bool|null true on success, false on errors or null if the
+     *                   command is not found
+     * @tutorial TIP/SourceEngine/SourceEngine.pkg#commands
+     */
+    public function callCommand($command, $params)
+    {
+        $command = strtolower($command);
+        $method = 'command' . $command;
+
+        if (!method_exists($this, $method)) {
+            TIP::error("the method does not exist ($method)");
+            return null;
+        }
+
+        global $_tip_profiler;
+        if (is_object($_tip_profiler)) {
+            $_tip_profiler->enterSection($command);
+        }
+
+        $done = $this->$method($params);
+
+        if (is_object($_tip_profiler)) {
+            $_tip_profiler->leaveSection($command);
+        }
+
+        return $done;
+    }
+
+    /**
+     * Execute an action
+     *
+     * Executes the Action action. This function tries to run Action
+     * by calling the following protected methods in this order:
+     *
+     * - runManagerAction()
+     * - runAdminAction()
+     * - runTrustedAction()
+     * - runUntrustedAction()
+     * - runAction()
+     *
+     * The first method called depends on the current privilege, get throught a
+     * TIP::getPrivilege() call. The first method that returns true (meaning
+     * the requested action is executed) stops the chain.
+     *
+     * Usually the actions are called adding variables to the URL. An example of
+     * an action call is the following URL:
+     * <samp>http://www.example.org/?module=news&action=view&id=23</samp>
+     *
+     * This URL will call the "view" action on the "news" module, setting "id" to
+     * 23 (it is request to view a news and its comments). You must check the
+     * documentation of every module to see which actions are available and what
+     * variables they require.
+     *
+     * @param string $action The action name
+     * @return bool|null true on success, false on errors or null if the
+     *                   action is not found
+     */
+    public function callAction($action)
+    {
+        $action = strtolower($action);
+
+        global $_tip_profiler;
+        if (is_object($_tip_profiler)) {
+            $_tip_profiler->enterSection("callAction($action)");
+        }
+
+        switch ($this->privilege) {
+
+        case TIP_PRIVILEGE_MANAGER:
+            if (!is_null($result = $this->runManagerAction($action))) {
+                break;
+            }
+
+        case TIP_PRIVILEGE_ADMIN:
+            if (!is_null($result = $this->runAdminAction($action))) {
+                break;
+            }
+
+        case TIP_PRIVILEGE_TRUSTED:
+            if (!is_null($result = $this->runTrustedAction($action))) {
+                break;
+            }
+
+        case TIP_PRIVILEGE_UNTRUSTED:
+            if (!is_null($result = $this->runUntrustedAction($action))) {
+                break;
+            }
+
+        default:
+            $result = $this->runAction($action);
+        }
+
+        if (is_object($_tip_profiler)) {
+            $_tip_profiler->leaveSection("callAction($action)");
+        }
+
+        return $result;
+    }
+
+    //}}}
+    //{{{ Commands
 
     /**#@+
      * @param string @params The parameter string
@@ -397,7 +648,7 @@ abstract class TIP_Module extends TIP_Type
             array_unshift($list, 'action=' . $action);
         }
         if (strpos($params, ',module=') === false) {
-            array_unshift($list, 'module=' . $this->getId());
+            array_unshift($list, 'module=' . $this->id);
         }
         $args = implode('&amp;', TIP::urlEncodeAssignment($list));
         echo TIP::getScriptURI() . '?' . $args;
@@ -409,9 +660,9 @@ abstract class TIP_Module extends TIP_Type
      *
      * Prepends the root URL to $params and outputs the result.
      */
-    protected function commandUrl($params)
+    protected function commandURL($params)
     {
-        echo TIP::buildUrl($params);
+        echo TIP::buildURL($params);
         return true;
     }
 
@@ -423,9 +674,9 @@ abstract class TIP_Module extends TIP_Type
      * reference if you want a theme-aware site, because enabling themes will
      * make the prepending path a dynamic variable.
      */
-    protected function commandSourceUrl($params)
+    protected function commandSourceURL($params)
     {
-        echo $this->buildSourceUrl($params);
+        echo $this->buildSourceURL($params);
         return true;
     }
 
@@ -435,23 +686,23 @@ abstract class TIP_Module extends TIP_Type
      * Prepends the source URL of the current module to $params and
      * outputs the result.
      */
-    protected function commandModuleUrl($params)
+    protected function commandModuleURL($params)
     {
-        echo $this->buildSourceUrl($this->getId(), $params);
+        echo $this->buildSourceURL($this->id, $params);
         return true;
     }
 
     /**
      * Echo an icon URL
      *
-     * Shortcut for the often used icon url. The icon URL is in the source
+     * Shortcut for the often used icon URL. The icon URL is in the source
      * root URL, under the "shared/icons" path.
      */
-    protected function commandIconUrl($params)
+    protected function commandIconURL($params)
     {
         static $icon_url = null;
         if (!$icon_url) {
-            $icon_url = $this->buildSourceUrl('shared', 'icons');
+            $icon_url = $this->buildSourceURL('shared', 'icons');
         }
         echo $icon_url . '/' . $params;
         return true;
@@ -460,11 +711,11 @@ abstract class TIP_Module extends TIP_Type
     /**
      * Echo an uploaded URL
      *
-     * Shortcut for the often used data url.
+     * Shortcut for the often used uploaded URL.
      */
-    protected function commandDataUrl($params)
+    protected function commandUploadURL($params)
     {
-        echo TIP::buildDataUrl($this->getId(), $params);
+        echo TIP::buildUploadURL($this->id, $params);
         return true;
     }
 
@@ -488,7 +739,7 @@ abstract class TIP_Module extends TIP_Type
      */
     protected function commandRun($params)
     {
-        return $this->run($this->buildSourcePath($this->getId(), $params));
+        return $this->run($this->buildSourcePath($this->id, $params));
     }
 
     /**
@@ -537,7 +788,7 @@ abstract class TIP_Module extends TIP_Type
      */
     protected function commandDate($params)
     {
-        $format = 'date_' . $GLOBALS[TIP_MAIN]->getOption('locale');
+        $format = 'date_' . TIP::getLocaleId();
         echo TIP::formatDate($format, $params, 'iso8601');
         return true;
     }
@@ -554,33 +805,9 @@ abstract class TIP_Module extends TIP_Type
     {
         static $format = null;
         if (is_null($format)) {
-            $format = 'datetime_' . $GLOBALS[TIP_MAIN]->getOption('locale');
+            $format = 'datetime_' . TIP::getLocaleId();
         }
         echo TIP::toHtml(TIP::formatDate($format, $params, 'iso8601'));
-        return true;
-    }
-
-    /**
-     * Format a multiline text
-     *
-     * $params is a string in the form "replacer,text".
-     *
-     * Replaces all the occurrences of a newline in text with the
-     * replacer string.
-     */
-    protected function commandNlReplace($params)
-    {
-        $pos = strpos ($params, ',');
-        if ($pos === false) {
-            TIP::error('no text to replace');
-            return false;
-        }
-
-        $from   = "\n";
-        $to     = substr($params, 0, $pos);
-        $buffer = str_replace("\r", '', substr ($params, $pos+1));
-
-        echo str_replace($from, $to, $buffer);
         return true;
     }
 
@@ -603,17 +830,18 @@ abstract class TIP_Module extends TIP_Type
 
     /**#@-*/
 
-
-    /**#@+
-     * @param string $action The action name
-     * @return bool|null true on action executed, false on action error or
-     *                   null on action not found
-     */
+    //}}}
+    //{{{ Actions
 
     /**
      * Executes a management action
      *
      * Executes an action that requires the 'manager' privilege.
+     *
+     * @param  string    $action The action name
+     * @return bool|null         true on action executed,
+     *                           false on action error or
+     *                           null on action not found
      */
     protected function runManagerAction($action)
     {
@@ -624,6 +852,11 @@ abstract class TIP_Module extends TIP_Type
      * Executes an administrator action
      *
      * Executes an action that requires at least the 'admin' privilege.
+     *
+     * @param  string    $action The action name
+     * @return bool|null         true on action executed,
+     *                           false on action error or
+     *                           null on action not found
      */
     protected function runAdminAction($action)
     {
@@ -634,6 +867,11 @@ abstract class TIP_Module extends TIP_Type
      * Executes a trusted action
      *
      * Executes an action that requires at least the 'trusted' privilege.
+     *
+     * @param  string    $action The action name
+     * @return bool|null         true on action executed,
+     *                           false on action error or
+     *                           null on action not found
      */
     protected function runTrustedAction($action)
     {
@@ -644,6 +882,11 @@ abstract class TIP_Module extends TIP_Type
      * Executes an untrusted action
      *
      * Executes an action that requires at least the 'untrusted' privilege.
+     *
+     * @param  string    $action The action name
+     * @return bool|null         true on action executed,
+     *                           false on action error or
+     *                           null on action not found
      */
     protected function runUntrustedAction($action)
     {
@@ -654,211 +897,17 @@ abstract class TIP_Module extends TIP_Type
      * Executes an unprivileged action
      *
      * Executes an action that does not require any privileges.
+     *
+     * @param  string    $action The action name
+     * @return bool|null         true on action executed,
+     *                           false on action error or
+     *                           null on action not found
      */
     protected function runAction($action)
     {
         return null;
     }
 
-    /**#@-*/
-
-
-    /**
-     * Prepend a source file to the page
-     *
-     * Runs $file using the current source engine and puts the result at the
-     * beginning of the page.
-     *
-     * @param  string $file The source file
-     * @return bool         true on success or false on errors
-     */
-    function insertInPage($file)
-    {
-        if (strpos($file, DIRECTORY_SEPARATOR) === false) {
-            $file = $this->buildSourcePath($this->getId(), $file);
-        }
-        $GLOBALS[TIP_MAIN]->prependCallback(array(&$this, 'run'), array($file));
-        return true;
-    }
-
-    /**
-     * Append a source file to the page
-     *
-     * Runs $file using the current source engine and puts the result at the
-     * end of the page.
-     *
-     * @param  string $file The source file
-     * @return bool         true on success or false on errors
-     */
-    function appendToPage($file)
-    {
-        if (strpos($file, DIRECTORY_SEPARATOR) === false) {
-            $file = $this->buildSourcePath($this->getId(), $file);
-        }
-        $GLOBALS[TIP_MAIN]->appendCallback(array(&$this, 'run'), array($file));
-        return true;
-    }
-
-    /**#@-*/
-
-
-    /**#@+ @access public */
-
-    /**
-     * Custom keys
-     *
-     * Every TIP_Module object can have a bounch of key => value pairs. These
-     * properties are mantained in this array and are used, for instance, by the
-     * getItem() method. Also, remember an object inherits the keys from its
-     * parents, in a hierarchy order.
-     *
-     * @var array
-     */
-    var $keys = array ();
-
-    /**
-     * The source (or template) engine
-     *
-     * Contains a reference to the source engine to use when parsing a file.
-     * See the TIP_Source class for details on what is a source engine.
-     * If not configured, it defaults to the one of the main module
-     * (that obviously MUST be configured).
-     *
-     * @var TIP_SourceEngine
-     */
-    var $engine = null;
-
-
-    /**
-     * Execute a command
-     *
-     * Executes the specified command, using $params as arguments. This
-     * function prepend 'command' to $command and try to call the so
-     * formed method. If you, for instance, runs callCommand('Test', ''), a
-     * commandTest('') call will be performed.
-     *
-     * A command is a request from the source engine to echoes something. It can
-     * be tought as the dinamic primitive of the TIP system: every dinamic tag
-     * parsed by the source engine runs a command.
-     *
-     * The commands - as everything else - are inherited from the module parents,
-     * so every TIP_Module commands are available to the TIP_Module children.
-     *
-     * @param string $command The command name
-     * @param string $params  Parameters to pass to the command
-     * @return bool|null true on success, false on errors or null if the
-     *                   command is not found
-     * @tutorial TIP/SourceEngine/SourceEngine.pkg#commands
-     */
-    function callCommand($command, $params)
-    {
-        $command = strtolower($command);
-        $method = 'command' . $command;
-
-        if (!method_exists($this, $method)) {
-            TIP::error("the method does not exist ($method)");
-            return null;
-        }
-
-        global $_tip_profiler;
-        if (is_object($_tip_profiler)) {
-            $_tip_profiler->enterSection($command);
-        }
-
-        $done = $this->$method($params);
-
-        if (is_object($_tip_profiler)) {
-            $_tip_profiler->leaveSection($command);
-        }
-
-        return $done;
-    }
-
-    /**
-     * Execute an action
-     *
-     * Executes the Action action. This function tries to run Action
-     * by calling the following protected methods in this order:
-     *
-     * - runManagerAction()
-     * - runAdminAction()
-     * - runTrustedAction()
-     * - runUntrustedAction()
-     * - runAction()
-     *
-     * The first method called depends on the current privilege, get throught a
-     * TIP::getPrivilege() call. The first method that returns true (meaning
-     * the requested action is executed) stops the chain.
-     *
-     * Usually the actions are called adding variables to the URL. An example of
-     * an action call is the following URL:
-     * <samp>http://www.example.org/?module=news&action=view&id=23</samp>
-     *
-     * This URL will call the "view" action on the "news" module, setting "id" to
-     * 23 (it is request to view a news and its comments). You must check the
-     * documentation of every module to see which actions are available and what
-     * variables they require.
-     *
-     * @param string $action The action name
-     * @return bool|null true on success, false on errors or null if the
-     *                   action is not found
-     */
-    function callAction($action)
-    {
-        $action = strtolower($action);
-
-        global $_tip_profiler;
-        if (is_object($_tip_profiler)) {
-            $_tip_profiler->enterSection("callAction($action)");
-        }
-
-        switch ($this->_privilege) {
-
-        case TIP_PRIVILEGE_MANAGER:
-            if (!is_null($result = $this->runManagerAction($action))) {
-                break;
-            }
-
-        case TIP_PRIVILEGE_ADMIN:
-            if (!is_null($result = $this->runAdminAction($action))) {
-                break;
-            }
-
-        case TIP_PRIVILEGE_TRUSTED:
-            if (!is_null($result = $this->runTrustedAction($action))) {
-                break;
-            }
-
-        case TIP_PRIVILEGE_UNTRUSTED:
-            if (!is_null($result = $this->runUntrustedAction($action))) {
-                break;
-            }
-
-        default:
-            $result = $this->runAction($action);
-        }
-
-        if (is_object($_tip_profiler)) {
-            $_tip_profiler->leaveSection("callAction($action)");
-        }
-
-        return $result;
-    }
-
-    /**
-     * Execute a source file
-     *
-     * Parses and executes the specified file.
-     *
-     * @param string $file The file to run
-     * @return bool true on success or false on errors
-     */
-    function run($file)
-    {
-        $source =& TIP_Type::singleton(array('source'), array('path' => $file, 'engine' => &$this->engine));
-        return $source->run($this);
-    }
-
-    /**#@-*/
+    //}}}
 }
 ?>

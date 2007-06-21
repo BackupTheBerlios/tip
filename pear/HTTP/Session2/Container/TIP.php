@@ -25,7 +25,7 @@ class HTTP_Session2_Container_TIP extends HTTP_Session2_Container
      */
     public function __construct()
     {
-        $this->_user =& $GLOBALS[TIP_MAIN]->getSharedModule('user');
+        $this->_user =& TIP_Application::getSharedModule('user');
     }
 
     /**

@@ -1,5 +1,5 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * TIP_Data_Engine definition file
@@ -16,24 +16,49 @@
  */
 abstract class TIP_Data_Engine extends TIP_Type
 {
+    //{{{ Interface
+
     /**
-     * Data engine constructor
+     * Prepare names for a query
      *
-     * Chains up the parent constructor.
-     * You must redefine the constructor as public to be able to use it.
+     * Prepares one or more identifiers to be inserted in a query.
+     * The TIP_Mysql instance, for example, backtick the identifier and
+     * the backticks yet presents.
      *
-     * @param string $id The derived instance identifier
+     * If $name is an array, a comma separated string of prepared names is
+     * returned.
+     *
+     * @param  string|array $name The name or array of names to prepare
+     * @return string             $name prepared for the query
      */
-    function __construct($id)
+    public function preparedName($name)
     {
-        parent::__construct($id);
+        return $name;
+    }
+
+    /**
+     * Prepare values for a query
+     *
+     * Prepares one or more values to be inserted in a query.
+     * The TIP_Mysql engine, for instance, escapes the values throught
+     * mysql_real_escape_string(). Also, if $value is null, 'NULL' is returned.
+     *
+     * If $value is an array, a comma separated string of prepared values is
+     * returned.
+     *
+     * @param  mixed|array $value The value or array of values to prepare
+     * @return string             $value prepared for the query
+     */
+    public function preparedValue($value)
+    {
+        return $value;
     }
 
     /**
      * Fill the fields structure
      *
-     * Fills the $_fields property of the TIP_Data object: read the TIP_Data
-     * documentation for further details.
+     * Fills the $_fields internal property of the TIP_Data object: read the
+     * TIP_Data documentation for further details.
      *
      * @param  TIP_Data $data The data context
      * @return bool           true on success or false on errors
@@ -53,6 +78,7 @@ abstract class TIP_Data_Engine extends TIP_Type
      *
      * @param TIP_Data   &$data   The data context
      * @param string      $filter The filter conditions
+     * @param array|null  $fields An array of field ids to get, or null for all fields
      * @return array|null         A reference to an array of rows matching the
      *                            specified conditions or null on errors
      */
@@ -103,5 +129,7 @@ abstract class TIP_Data_Engine extends TIP_Type
      * @return bool              true on success or false on errors
      */
     abstract public function delete (&$data, $filter);
+
+    //}}}
 }
 ?>

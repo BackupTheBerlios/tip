@@ -1,5 +1,5 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * TIP_Content definition file
@@ -11,78 +11,125 @@
  *
  * This class mainly adds a data management infrastructure to TIP_Module,
  * allowing for a full interaction between TIP_Source and TIP_Data throught the
- * use of TIP_View instances.
+ * use of TIP_Data_View instances.
  *
  * @package  TIP
  * @tutorial TIP/Module.pkg#TIP_Content
  */
 class TIP_Content extends TIP_Module
 {
+    //{{{ Properties
+
     /**
-     * The stack of performed views
+     * Contains a reference to the binded TIP_Data object
+     * @var TIP_Data
+     */
+    protected $data = null;
+
+    /**
+     * The file to run on view actions
+     * @var string
+     */
+    protected $view_source = 'view.src';
+
+    /**
+     * The file to run on browse actions
+     * @var string
+     */
+    protected $browse_source = 'browse.src';
+
+    /**
+     * The field containing the creation datetime
+     * @var string
+     */
+    protected $creation_field = '_creation';
+
+    /**
+     * The field containing to owner user id
+     * @var string
+     */
+    protected $owner_field = '_user';
+
+    /**
+     * Statistic user fields
+     *
+     * An associative array of field ids of TIP_User data (as values) to
+     * increment whenever a db action in this module happens (as keys).
      *
      * @var array
+     */
+    protected $statistics = array(
+        '_onAdd'    => '_submits',
+        '_onEdit'   => null,
+        '_onDelete' => '_deleted_submits'
+    );
+
+    /**
+     * Browsable fields
+     *
+     * An array of field ids enabled in the 'browse' action, specified for
+     * each privilege.
+     *
+     * @var array
+     */
+    protected $browsable_fields = array(
+        TIP_PRIVILEGE_NONE  => array('group', '_parent', '_user'),
+        TIP_PRIVILEGE_ADMIN => array('__ALL__')
+    );
+
+    //}}}
+    //{{{ Internal properties
+
+    /**
+     * Fields to use in SELECT queries (null for all fields)
+     * @var array
+     * @internal
+     */
+    private $_subset = null;
+
+    /**
+     * The stack of performed views
+     * @var array
+     * @internal
      */
     private $_views = array();
 
     /**
-     * Fields to use in SELECT queries (null for all fields)
-     *
-     * @var array
+     * A reference to the current view or null for no current views
+     * @var TIP_View
+     * @internal
      */
-    private $_subset = null;
+    private $_view = null;
 
+    /**
+     * The number of browsed rows
+     * @var int
+     * @internal
+     */
+    private $_browsed_rows = null;
 
-    public function _onAdd(&$form, &$row)
+    //}}}
+    //{{{ Construction/destruction
+
+    static protected function checkOptions(&$options)
     {
-        // Update the counters, if the hierarchy module exists
-        $hierarchy_id = $this->getId() . '_hierarchy';
-        if (array_key_exists($hierarchy_id, $GLOBALS['cfg'])) {
-            $hierarchy =& TIP_Type::getInstance($hierarchy_id);
-            $hierarchy->updateCount($row['group'], +1);
+        if (!parent::checkOptions($options)) {
+            return false;
         }
 
-        // Update _submits, if the user module exists
-        $user =& $GLOBALS[TIP_MAIN]->getSharedModule('user');
-        if (is_object($user) && !is_null($counts = $user->getLoggedField('_submits'))) {
-            $user->setLoggedField('_submits', $counts+1);
+        isset($options['data']) || $options['data'] = $options['id'];
+        if (is_string($options['data'])) {
+            $options['data'] =& TIP_Type::singleton(array(
+                'type' => array('data'),
+                'path' => TIP_Application::getGlobal('data_prefix') . $options['data']
+            ));
+        } elseif (is_array($options['data'])) {
+            isset($options['data']['type']) || $options['data']['type'] = array('data');
+            isset($options['data']['path']) || $options['data']['path'] = TIP_Application::getGlobal('data_prefix') . $options['id'];
+            $options['data'] =& TIP_Type::singleton($options['data']);
         }
 
-        $form->process($row);
-    }
-
-    public function _onDelete(&$form, &$row)
-    {
-        $id = $row[$this->data->getPrimaryKey()];
-        if (empty($id)) {
-            TIP::error('no primary key found');
-            return;
-        }
-
-        // Update the counters, if the hierarchy module exists
-        $hierarchy_id = $this->getId() . '_hierarchy';
-        if (array_key_exists($hierarchy_id, $GLOBALS['cfg'])) {
-            $hierarchy =& TIP_Type::getInstance($hierarchy_id);
-            $hierarchy->updateCount($row['group'], -1);
-        }
-
-        // Remove the comments, if the comment module exists
-        $comments_id = $this->getId() . '_comments';
-        if (array_key_exists($comments_id, $GLOBALS['cfg'])) {
-            $comments =& TIP_Type::getInstance($comments_id);
-            if (!$comments->parentRemoved($id)) {
-                return;
-            }
-        }
-
-        // Update _deleted_submits, if the user module exists
-        $user =& $GLOBALS[TIP_MAIN]->getSharedModule('user');
-        if (is_object($user) && !is_null($count = $user->getLoggedField('_deleted_submits'))) {
-            $user->setLoggedField('_deleted_submits', $count+1);
-        }
-
-
-        $form->process($row);
+        return $options['data'] instanceof TIP_Data;
     }
 
     /**
@@ -90,212 +137,264 @@ class TIP_Content extends TIP_Module
      *
      * Initializes a TIP_Content instance.
      *
-     * The data path is defined by the 'data_path' option of this module.
-     * If not specified, it defaults to the 'data_path' option of the
-     * main module with the getId() of this module appended.
-     *
-     * The data engine is defined by the 'data_engine' option of this module.
-     * If not specified, it defaults to the 'data_engine' option of the
-     * main module.
-     *
-     * @param mixed $id Identifier of this instance
+     * @param array $options Properties values
      */
-    protected function __construct($id)
+    protected function __construct($options)
     {
-        parent::__construct($id);
-        if (is_null($options = $this->getDataOptions())) {
-            return;
-        }
-
-        $this->data =& TIP_Type::singleton(array('data'), $options);
+        parent::__construct($options);
     }
 
-    function getDataOptions()
+    //}}}
+    //{{{ Callbacks
+
+    /**
+     * Overridable 'add' callback
+     *
+     * Called by a TIP_Form instance before performing the 'add' action.
+     * The default handler calls the _onMasterAdd signal for every configured
+     * module that has this module as 'master' and update the '_submit'
+     * field of the TIP_User instance (if present).
+     *
+     * @param  array &$row The data row to add
+     * @return bool        true on success, false on errors
+     */
+    public function _onAdd(&$row)
     {
-        if (is_null($path = $this->getOption('data_path'))) {
-            $path = @$GLOBALS[TIP_MAIN]->getOption('data_path') . $this->getId();
+        isset($this->creation_field) &&
+            empty($row[$this->creation_field]) &&
+            $row[$this->creation_field] = TIP::formatDate('datetime_iso8601');
+        isset($this->owner_field) &&
+            empty($row[$this->owner_field]) &&
+            $row[$this->owner_field] = TIP::getUserId();
+
+        return $this->_onDbAction('Add', $row);
+    }
+
+    /**
+     * Overridable 'edit' callback
+     *
+     * Called by a TIP_Form instance before performing the 'edit' action.
+     * The default handler calls the _onMasterEdit signal for every configured
+     * module that has this module as 'master'.
+     *
+     * @param  array &$row The modified data row
+     * @return bool        true on success, false on errors
+     */
+    public function _onEdit(&$row)
+    {
+        // Set some common automatic fields
+        array_key_exists('_edit_count', $row) && ++ $row['_edit_count'];
+        array_key_exists('_edit_on', $row) && $row['_edit_on'] = TIP::formatDate('datetime_iso8601');
+        array_key_exists('_edit_by', $row) && $row['_edit_by'] = TIP::getUserId();
+
+        return $this->_onDbAction('Edit', $row);
+    }
+
+    /**
+     * Overridable 'delete' callback
+     *
+     * Called by a TIP_Form instance before performing the 'delete' action.
+     * The default handler calls the _onMasterDelete signal for every configured
+     * module that has this module as 'master' and update the '_deleted_submit'
+     * field of the TIP_User instance (if present).
+     *
+     * @param  array &$row The deleted data row
+     * @return bool        true on success, false on errors
+     */
+    public function _onDelete(&$row)
+    {
+        return $this->_onDbAction('Delete', $row);
+    }
+
+    //}}}
+    //{{{ Methods
+
+    /**
+     * Get the current view
+     *
+     * @return TIP_View|null The current view or null
+     */
+    public function &getCurrentView()
+    {
+        return $this->_view;
+    }
+
+    /**
+     * Get a field value
+     *
+     * Gets a field from the current row of the current view.
+     *
+     * @param  string     $id The field id
+     * @return mixed|null     The field value or null on errors
+     */
+    public function getField($id)
+    {
+        return isset($this->_view) ? $this->_view->getField($id) : null;
+    }
+
+    /**
+     * Get a summary value
+     *
+     * Gets a summary value from the current view.
+     *
+     * @param string      $id The summary id
+     * @return mixed|null     The summary value or null on errors
+     */
+    public function getSummary($id)
+    {
+        return isset($this->_view) ? $this->_view->getSummary($id) : null;
+    }
+
+    /**
+     * Return the value of a generic item
+     *
+     * Gets the value of a generic item. This implementation adds the field
+     * feature to the TIP_Module::getItem() method.
+     *
+     * Getting an item performs some search operations with this priority:
+     *
+     * - Try to get the field in the current row throught getField().
+     *
+     * - If the field is not found but the current view is not a TIP_Data_View
+     *   (that is, it is not a TIP_Data_View object), it scans the view stack
+     *   for the last view that was of TIP_Data_View type and checks if $id is
+     *   present as a field in the current row.
+     *   This because views others than TIP_Data_View are considered "weaks",
+     *   that is their values are not built from real data fields.
+     *
+     * - Summary value of the current view throught getSummary().
+     *
+     * - Chain-up the parent method TIP_Module::getItem().
+     *
+     * The first succesful search operation will stop the sequence.
+     *
+     * @param  string     $id The item id
+     * @return mixed|null     The value of the item or null if not found
+     */
+    public function getItem($id)
+    {
+        if (!is_null($value = $this->getField($id))) {
+            return $value;
         }
 
-        if (is_null($engine_name = $this->getOption('data_engine'))) {
-            if (is_null($engine_name = $GLOBALS[TIP_MAIN]->getOption('data_engine'))) {
+        if (isset($this->_view) && !$this->_view instanceof TIP_Data_View) {
+            // Find the last TIP_Data_View
+            $stack =& $this->_views;
+            end($stack);
+            do {
+                prev($stack);
+                $view_id = key($stack);
+            } while (isset($view_id) && !$stack[$view_id] instanceof TIP_Data_View);
+
+            if (isset($stack[$view_id]) && !is_null($value = $stack[$view_id]->getField($id))) {
+                return $value;
+            }
+        }
+
+        $value = $this->getSummary($id);
+        if (!is_null($value)) {
+            return $value;
+        }
+
+        return parent::getItem($id);
+    }
+
+    /**
+     * Prepend a source file to the page
+     *
+     * Overrides TIP_Module::insertInPage() storing also the current view (if
+     * present) in the callback.
+     *
+     * @param  string $file The source file
+     * @return bool         true on success or false on errors
+     */
+    protected function insertInPage($file)
+    {
+        if (empty($this->_view)) {
+            return parent::insertInPage($file);
+        }
+
+        if (strpos($file, DIRECTORY_SEPARATOR) === false) {
+            $file = $this->buildSourcePath($this->id, $file);
+        }
+
+        TIP_Application::prependCallback(array(&$this, 'pop'));
+        TIP_Application::prependCallback(array(&$this, 'run'),  array($file));
+        TIP_Application::prependCallback(array(&$this, 'push'), array(&$this->_view, false));
+        return true;
+    }
+
+    /**
+     * Append a source file to the page
+     *
+     * Overrides TIP_Module::appendToPage() storing also the current view (if
+     * present) in the callback.
+     *
+     * @param  string $file The source file
+     * @return bool         true on success or false on errors
+     */
+    protected function appendToPage($file)
+    {
+        if (empty($this->_view)) {
+            return parent::appendToPage($file);
+        }
+
+        if (strpos($file, DIRECTORY_SEPARATOR) === false) {
+            $file = $this->buildSourcePath($this->id, $file);
+        }
+
+        TIP_Application::appendCallback(array(&$this, 'push'), array(&$this->_view, false));
+        TIP_Application::appendCallback(array(&$this, 'run'),  array($file));
+        TIP_Application::appendCallback(array(&$this, 'pop'));
+        return true;
+    }
+
+    /**
+     * Form management
+     *
+     * Generates a form with the specified $options and executes $action on it.
+     *
+     * The default values of the form (that usually must be present in
+     * $options['defaults']) can also be specified by providing a row $id. If
+     * both are provided, the two arrays are merged, with the one in
+     * $options['defaults'] with higher priority. Before merging, if $action is
+     * TIP_FORM_ACTION_ADD, the primary key on the read row is stripped.
+     *
+     * If $action is not TIP_FORM_ACTION_ADD and either $id or
+     * $options['defaults'] are not provided, the current row is assumed as
+     * default values. If there is not current row, an error is raised.
+     *
+     * @param  TIP_FORM_ACTION_... $action  The action
+     * @param  array|null          $id      A row id to use as default
+     * @param  array               $options The options to pass to the form
+     * @return bool|null                    true if the form has been processed,
+     *                                      false if the form must be processed
+     *                                      or null on errors
+     */
+    protected function form($action, $id = null, $options = array())
+    {
+        // Define the 'defaults' option
+        if ($action != TIP_FORM_ACTION_ADD || isset($id)) {
+            if (is_null($row = $this->fromRow($id))) {
                 return null;
             }
-        } 
 
-        if (is_null($engine =& TIP_Type::getInstance($engine_name))) {
-            return null;
+            if ($action == TIP_FORM_ACTION_ADD) {
+                unset($row[$this->data->getProperty('primary_key')]);
+            }
+
+            if (@is_array($options['defaults'])) {
+                $options['defaults'] = array_merge($row, $options['defaults']);
+            } else {
+                $options['defaults'] =& $row;
+            }
         }
 
-        return array(
-            'engine'    => &$engine,
-            'path'      =>  $path,
-            'joins'     => @$this->getOption('data_joins'),
-            'fieldset'  => @$this->getOption('data_fieldset')
-        );
+        $options['type']   = array('form');
+        $options['master'] =& $this;
+        $options['action'] = $action;
+        return TIP_Type::singleton($options)->run();
     }
-
-    /**#@+
-     * @param  string    $action The action name
-     * @return bool|null         true on action executed, false on action error or
-     *                           null on action not found
-     */
-
-    protected function runManagerAction($action)
-    {
-        switch ($action) {
-
-        case 'edit':
-            if (is_null($id = TIP::getGet('id', 'integer')) && is_null($id = TIP::getPost('id', 'integer'))) {
-                TIP::error('no id specified');
-                return false;
-            }
-            $processed = $this->form(TIP_FORM_ACTION_EDIT, $id);
-            return !is_null($processed);
-
-        case 'delete':
-            if (is_null($id = TIP::getGet('id', 'integer'))) {
-                TIP::warning('no id specified');
-                TIP::notifyError('noparams');
-                return false;
-            }
-            $processed = $this->form(TIP_FORM_ACTION_DELETE, $id, array(
-                'on_process' => array(&$this, '_onDelete'))
-            );
-            return !is_null($processed);
-        }
-
-        return parent::runManagerAction($action);
-    }
-
-    protected function runAdminAction($action)
-    {
-        switch ($action) {
-
-        case 'delete':
-            if (is_null($id = TIP::getGet('id', 'integer'))) {
-                TIP::warning('no id specified');
-                TIP::notifyError('noparams');
-                return false;
-            }
-            if (!$this->rowOwner($id)) {
-                return false;
-            }
-            $processed = $this->form(TIP_FORM_ACTION_DELETE, $id, array(
-                'on_process' => array(&$this, '_onDelete'))
-            );
-            return !is_null($processed);
-        }
-
-        return parent::runAdminAction($action);
-    }
-
-    protected function runTrustedAction($action)
-    {
-        switch ($action) {
-
-        case 'add':
-            $processed = $this->form(TIP_FORM_ACTION_ADD, null, array(
-                'on_process'   => array(&$this, '_onAdd'),
-                'valid_render' => TIP_FORM_RENDER_NOTHING
-            ));
-
-            if ($processed) {
-                $id = $this->data->getLastId();
-                if (empty($id) || is_null($this->getRow($id, false))) {
-                    return false;
-                }
-
-                $this->appendToPage('view.src');
-                $this->endView();
-            }
-            return !is_null($processed);
-
-        case 'edit':
-            if (is_null($id = TIP::getGet('id', 'integer')) && is_null($id = TIP::getPost('id', 'integer'))) {
-                TIP::error('no id specified');
-                return false;
-            }
-
-            if (!$this->rowOwner($id)) {
-                return false;
-            }
-
-            $processed = $this->form(TIP_FORM_ACTION_EDIT, $id);
-            return !is_null($processed);
-        }
-
-        return parent::runTrustedAction($action);
-    }
-
-    protected function runUntrustedAction($action)
-    {
-        switch ($action) {
-
-        case 'view':
-            $id = TIP::getGet('id', 'integer');
-            if (is_null($id)) {
-                TIP::notifyError('noparams');
-                return false;
-            }
-
-            $filter = $this->data->rowFilter($id);
-            if (!$this->startView($filter)) {
-                TIP::notifyError('select');
-                return false;
-            }
-
-            $row =& $this->view->current();
-            if (!$row) {
-                TIP::notifyError('notfound');
-                $this->endView();
-                return false;
-            }
-
-            if (array_key_exists('_public', $row) && !$row['_public']) {
-                TIP::notifyError('denied');
-                $this->endView();
-                return false;
-            }
-
-            $this->appendToPage('view.src');
-            $this->endView();
-
-            if (array_key_exists('_hits', $row)) {
-                $old_row = $row;
-                $row['_hits'] += 1;
-                $row['_lasthit'] = TIP::formatDate('datetime_iso8601');
-                $this->data->updateRow($row, $old_row);
-            }
-
-            return true;
-
-        case 'browse':
-            $filter = array();
-
-            $user = TIP::getGet('user', 'integer');
-            if ($user) {
-                $filter[] = $this->data->filter('_user', $user);
-            }
-
-            $group = TIP::getGet('group', 'integer');
-            if ($group) {
-                $filter[] = $this->data->filter('group', $group);
-            }
-
-            if (!$this->startView(implode(' AND ', $filter))) {
-                TIP::notifyError('select');
-                return false;
-            }
-
-            $this->appendToPage('browse.src');
-            $this->endView();
-            return true;
-        }
-
-        return parent::runUntrustedAction($action);
-    }
-
-    /**#@-*/
 
     /**
      * Push a view
@@ -306,11 +405,11 @@ class TIP_Content extends TIP_Module
      * @param  TIP_View     &$view The view to push
      * @return TIP_View|null       The pushed view on success or null on errors
      */
-    function &push(&$view)
+    public function &push(&$view)
     {
         if ($view->isValid()) {
             $this->_views[count($this->_views)] =& $view;
-            $this->view =& $view;
+            $this->_view =& $view;
             $result =& $view;
         } else {
             $result = null;
@@ -327,16 +426,16 @@ class TIP_Content extends TIP_Module
      * @return TIP_View|null|false The previous view on success, null if the
      *                             view stack is empty or false on errors
      */
-    function &pop()
+    public function &pop()
     {
-        unset($this->view);
+        unset($this->_view);
         $count = count($this->_views);
 
         if ($count > 0) {
             unset($this->_views[$count-1]);
             if ($count > 1) {
                 $result =& $this->_views[$count-2];
-                $this->view =& $result;
+                $this->_view =& $result;
             } else {
                 $result = null;
             }
@@ -346,6 +445,290 @@ class TIP_Content extends TIP_Module
 
         return $result;
     }
+
+    /**
+     * Start a generic view
+     *
+     * Starts a view trying to instantiate the class named "TIP_{$type}_View".
+     *
+     * Furthermore, some options are automatically set to the following
+     * defaults if not explicitely specified in the $options array:
+     * - $options['data']    = the TIP_Data object of this module
+     * - $options['fields']  = the 'subset' property value
+     * - $options['on_row']  = the '_on{$type}Row' callback, if it is defined
+     * - $options['on_view'] = the '_on{$type}View' callback, if it is defined
+     *
+     * @param  string        $type    The view type
+     * @param  array         $options The constructor arguments to pass to the
+     *                                TIP_View derived instance
+     * @return TIP_View|null          The view instance or null on errors
+     */
+    public function &startView($type, $options = array())
+    {
+        $options['type'] = array('view', strtolower($type) . '_view');
+        array_key_exists('data', $options) || $options['data'] =& $this->data;
+        array_key_exists('fields', $options) || $options['fields'] = $this->_subset;
+
+        if (!array_key_exists('on_row', $options) &&
+            method_exists($this, '_on' . $type . 'Row')) {
+            $options['on_row'] = array(&$this, '_on' . $type . 'Row');
+        }
+
+        if (!array_key_exists('on_view', $options) &&
+            method_exists($this, '_on' . $type . 'View')) {
+            $options['on_view'] = array(&$this, '_on' . $type . 'View');
+        }
+
+        if (is_null($view =& TIP_Type::singleton($options))) {
+            TIP::error("view type does not exist ($type)");
+            return $view;
+        }
+
+        return $this->push($view);
+    }
+
+    /**
+     * Start a data view
+     *
+     * A shortcut for often used TIP_Data_View calls. Also, it provides an
+     * easy way to specify the filter instead of setting $options['filter'].
+     *
+     * See startView() for further details.
+     *
+     * @param  string            $filter  The filter conditions
+     * @param  array             $options The constructor arguments to pass
+     *                                    to the TIP_Data_View instance
+     * @return TIP_Data_View|null         The view instance or null on errors
+     */
+    public function &startDataView($filter, $options = array())
+    {
+        $options['filter'] = $filter;
+        return $this->startView('Data', $options);
+    }
+
+    /**
+     * Ends a view
+     *
+     * Ends the current view. Ending a view means the previously active view
+     * in the internal stack is made current.
+     *
+     * Usually, you always have to close all views. Anyway, in some situations,
+     * is useful to have the base view ever active (so called default view)
+     * where all commands of a TIP_Content refers if no views were started.
+     * In any case, you can't have more endView() than start[Data]View().
+     *
+     * @return bool true on success or false on errors
+     */
+    public function endView()
+    {
+        if ($this->pop() === FALSE) {
+            TIP::error("'endView()' requested without a previous 'startView()' or 'startDataView()' call");
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Get a specific GET value
+     *
+     * If $id is not specified, it defaults to the primary key of the binded
+     * data.
+     *
+     * This is an high level method that notify errors to the user if $id is
+     * not found.
+     *
+     * @param  mixed      $id The get id
+     * @return mixed|null     The get value or null if not found
+     */
+    public function fromGet($id = null, $type = 'integer')
+    {
+        isset($id) || $id = $this->data->getProperty('primary_key');
+        if (is_null($value = TIP::getGet($id, $type))) {
+            TIP::warning("GET not found ($id)");
+            TIP::notifyError('noparams');
+        }
+
+        return $value;
+    }
+
+    /**
+     * Get a specific GET or POST value
+     *
+     * If $id is not specified, it defaults to the primary key of the binded
+     * data.
+     *
+     * This is an high level method that notify errors to the user if $id is
+     * not found.
+     *
+     * @param  mixed      $id The get/post id
+     * @return mixed|null     The get/post value or null if not found
+     */
+    public function fromGetOrPost($id = null, $type = 'integer')
+    {
+        isset($id) || $id = $this->data->getProperty('primary_key');
+        if (is_null($value = TIP::getGet($id, $type)) &&
+            is_null($value = TIP::getPost($id, $type))) {
+            TIP::warning("GET or POST not found ($id)");
+            TIP::notifyError('noparams');
+        }
+
+        return $value;
+    }
+
+    /**
+     * Get a specific row
+     *
+     * Gets a reference to a specific row. If $id is not specified, the current
+     * row is assumed.
+     *
+     * This is an high level method that notify errors to the user if the row
+     * is not found.
+     *
+     * The method starts (and ends) a view to find a row, so every further
+     * requests will be cached.
+     *
+     * @param  mixed      $id       The row id
+     * @param  bool       $end_view Wheter to end the view or not
+     * @return array|null           The row or null on errors
+     */
+    public function &fromRow($id = null, $end_view = true)
+    {
+        $row = null;
+        $start_view = isset($id);
+
+        if ($start_view) {
+            if (is_null($view =& $this->startDataView($this->data->rowFilter($id)))) {
+                TIP::notifyError('select');
+                return $row;
+            }
+        } elseif (isset($this->_view)) {
+            $view =& $this->_view;
+            $id = $view->key();
+        }
+
+        if (isset($view)) {
+            // Use the 'rows' property instead of current() to get a real
+            // reference to the row stored inside the view
+            $rows =& $view->getProperty('rows');
+            isset($rows[$id]) && $row =& $rows[$id];
+        }
+
+        if (is_null($row)) {
+            TIP::warning("row not found ($id)");
+            TIP::notifyError('notfound');
+        }
+
+        $start_view && ($end_view || is_null($row)) && $this->endView();
+        return $row;
+    }
+
+    /**
+     * Check if the row is owned by the current user
+     *
+     * Checks if the $field in the $id row is equal to the current user id,
+     * that is if $id is owned by the current user.
+     *
+     * This is an high level method that raises errors and notify them to the
+     * user on any errors: use it only when error notify is needed.
+     *
+     * If there are no errors but the row is not owned by the current user,
+     * the 'denied' error is notified.
+     *
+     * @param  mixed  $id    The row id
+     * @param  string $field The name of the field containing the user id
+     * @return bool          true if $id is owned by the current user or false
+     *                       on errors
+     */
+    public function isOwner($id = null, $field = '_user')
+    {
+        if (is_null($row =& $this->fromRow($id))) {
+            return false;
+        }
+
+        if ($row[$field] != TIP::getUserId()) {
+            TIP::warning("not an owned row ($id)");
+            TIP::notifyError('denied');
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Check if the row is not owned by the current user
+     *
+     * Similar to isOwner(), but works in the reverse way: check if the row
+     * identified by $id is NOT owned by the current user.
+     *
+     * @param  mixed  $id    The row id
+     * @param  string $field The name of the field containing the user id
+     * @return bool          true if $id is not owned by the current user
+     *                       or false on errors
+     */
+    public function isNotOwner($id = null, $field = '_user')
+    {
+        if (is_null($row =& $this->fromRow($id))) {
+            return false;
+        }
+
+        if ($row[$field] == TIP::getUserId()) {
+            TIP::warning("owned row ($id)");
+            TIP::notifyError('denied');
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Get the number of browsed rows
+     * @return int The number of browsed row or null
+     */
+    public function getBrowsedRows()
+    {
+        return $this->_browsed_rows;
+    }
+
+    //}}}
+    //{{{ Internal methods
+
+    /**
+     * General db action manager
+     *
+     * Internal method used by _onAdd(), _onEdit() and _onDelete().
+     *
+     * @param  string $action 'Add', 'Edit' or 'Delete'
+     * @param  array &$row    The subject row
+     * @return bool           true on success or false on errors
+     * @internal
+     */
+    private function _onDbAction($action, &$row)
+    {
+        // Dispatch the signal to all children modules
+        $callback = create_function('$a', 'return @$a[\'master\'] == \'' . $this->id . '\';');
+        if (is_array($children = array_filter($GLOBALS['cfg'], $callback))) {
+            $method = '_onMaster' . $action;
+            foreach (array_keys($children) as $child_id) {
+                $child = TIP_Type::getInstance($child_id);
+                if (method_exists($child, $method) &&
+                    !$child->$method($row)) {
+                    return false;
+                }
+            }
+        }
+
+        // Update user statistics, if the user module exists
+        if (!is_null($field = @$this->statistics['_on' . $action]) &&
+            !is_null($user =& TIP_Application::getSharedModule('user'))) {
+            $user->increment($field);
+        }
+
+        return true;
+    }
+
+    //}}}
+    //{{{ Commands
 
     /**
      * Fields to use in the next queries
@@ -387,351 +770,252 @@ class TIP_Content extends TIP_Module
         return true;
     }
 
+    //}}}
+    //{{{ Actions
+
     /**
-     * Get a specific row
+     * Perform an add action
      *
-     * Gets a reference to a specific row. If $id is not specified, the current
-     * row is assumed.
+     * Generates and executes a TIP_Form instance to add a new row.
      *
-     * This is an high level method that notify errors to the user if the row
-     * is not found.
+     * If no $options are specified, the default behaviour is to render the
+     * form in the page and to try to call actionView() on the result when the
+     * form is validated.
      *
-     * The method starts (and ends) a view to find a row, so every further
-     * requests will be cached.
+     * Notice also that $options['on_process'], if not specified, will be set
+     * to the _onAdd() default callback.
      *
-     * @param  mixed      $id       The row id
-     * @param  bool       $end_view Wheter to end the view or not
-     * @return array|null           The row or null on errors
+     * @param  array|null $options Options to pass to the form() call
+     * @return bool                true on success or false on errors
      */
-    function& getRow($id = null, $end_view = true)
+    protected function actionAdd($options = null)
     {
-        $row = null;
+        isset($options) || $options = array('valid_render' => TIP_FORM_RENDER_NOTHING);
+        isset($options['on_process']) || $options['on_process'] = array(&$this, '_onAdd');
 
-        if (isset($id)) {
-            $view =& $this->startView($this->data->rowFilter($id));
-            if (!$view) {
-                TIP::notifyError('select');
-                return $row;
-            }
-
-            $row =& $view->current();
-            if ($end_view || is_null($row)) {
-                $this->endView();
-            }
-        } elseif (isset($this->view)) {
-            $row =& $this->view->current();
+        $processed = $this->form(TIP_FORM_ACTION_ADD, null, $options);
+        if (is_null($processed)) {
+            return false;
+        } elseif (!$processed) {
+            return true;
         }
 
-        if (is_null($row)) {
-            TIP::warning("'$id' not found in " . $this->data->getId());
-            TIP::notifyError('notfound');
+        // Form validate: if 'valid_render' is set to nothing, try to
+        // call actionView() on the newly appended row
+        if (@$options['valid_render'] == TIP_FORM_RENDER_NOTHING) {
+            return $this->actionView($this->data->getLastId());
         }
 
-        return $row;
+        return true;
     }
 
     /**
-     * Check if the row is owned by the current user
+     * Perform an edit action
      *
-     * Checks if the $field in the $id row is equal to the current user id,
-     * that is if $id is owned by the current user.
+     * Generates and executes a TIP_Form instance to edit a row.
      *
-     * This is an high level method that raises errors and notify them to the
-     * user on any errors: use it only when error notify is needed.
+     * If no $options are specified, the default behaviour is to render both
+     * valid and invalid form in the page.
      *
-     * If there are no errors but the row is not owned by the current user,
-     * the 'denied' notify error is raised.
+     * Notice also that $options['on_process'], if not specified, will be set
+     * to the _onEdit() default callback.
      *
-     * @param  mixed  $id    The row id
-     * @param  string $field The name of the field containing the user id
-     * @return bool          true if $id is owned by the current user or false
-     *                       on errors
+     * @param  mixed      $id      The identifier of the row to edit
+     * @param  array|null $options Options to pass to the form() call
+     * @return bool                true on success or false on errors
      */
-    function rowOwner($id = null, $field = '_user')
+    protected function actionEdit($id, $options = null)
     {
-        if (is_null($row =& $this->getRow($id))) {
+        isset($options) || $options = array();
+        isset($options['on_process']) || $options['on_process'] = array(&$this, '_onEdit');
+        return !is_null($this->form(TIP_FORM_ACTION_EDIT, $id, $options));
+    }
+
+    /**
+     * Perform a delete action
+     *
+     * Generates and executes a TIP_Form instance to delete a row.
+     *
+     * If no $options are specified, the default behaviour is to render both
+     * valid and invalid form in the page.
+     *
+     * Notice also that $options['on_process'], if not specified, will be set
+     * to the _onDelete() default callback.
+     *
+     * @param  mixed      $id      The identifier of the row to delete
+     * @param  array|null $options Options to pass to the form() call
+     * @return bool                true on success or false on errors
+     */
+    protected function actionDelete($id, $options = null)
+    {
+        isset($options) || $options = array();
+        isset($options['on_process']) || $options['on_process'] = array(&$this, '_onDelete');
+        return !is_null($this->form(TIP_FORM_ACTION_DELETE, $id, $options));
+    }
+
+    /**
+     * Perform a view action
+     *
+     * Runs the file identified by the 'view_source' property for the
+     * specified row. Also, updates the row statistics, the '_hits' and
+     * '_lasthit' fields, if these fields exists.
+     *
+     * The rendered result is appended to the page.
+     *
+     * @param  mixed $id The identifier of the row to view
+     * @return bool      true on success or false on errors
+     */
+    protected function actionView($id)
+    {
+        if (is_null($row =& $this->fromRow($id, false))) {
             return false;
         }
 
-        if ($row[$field] != TIP::getUserId()) {
-            TIP::notifyError('denied');
+        $this->appendToPage($this->view_source);
+        $this->endView();
+
+        // Update row statistics, if exist
+        if (array_key_exists('_hits', $row)) {
+            $old_row = $row;
+            $row['_hits'] += 1;
+            $row['_lasthit'] = TIP::formatDate('datetime_iso8601');
+            $this->data->updateRow($row, $old_row);
+        }
+
+        return true;
+    }
+
+    /**
+     * Perform a browse action
+     *
+     * Runs the file identified by the 'browse_source' property for the rows
+     * that match the specified $filter.
+     *
+     * The rendered result is appended to the page.
+     *
+     * @param  string|array $filter              The filter to use
+     * @param  bool         $update_browsed_rows Update the internal '_browsed_rows' property
+     * @return bool                              true on success or false on errors
+     */
+    protected function actionBrowse($filter, $update_browsed_rows = true)
+    {
+        is_array($filter) && $filter = implode(' AND ', $filter);
+        if (is_null($view = $this->startDataView($filter))) {
+            TIP::notifyError('select');
             return false;
         }
 
+        if ($update_browsed_rows) {
+            // Store the number of rows of this browse action to let the children
+            // modules check or update their counters
+            $this->_browsed_rows = $view->nRows();
+        }
+
+        $this->appendToPage($this->browse_source);
+        $this->endView();
         return true;
     }
 
-    /**
-     * Get a field value
-     *
-     * Gets a field from the current row of the current view.
-     *
-     * @param  string     $id The field id
-     * @return mixed|null     The field value or null on errors
-     */
-    function getField($id)
+    protected function runManagerAction($action)
     {
-        return isset($this->view) ? $this->view->getField($id) : null;
+        switch ($action) {
+
+        case 'edit':
+            return
+                !is_null($id = $this->fromGetOrPost()) &&
+                $this->actionEdit($id);
+        }
+
+        return null;
     }
 
-    /**
-     * Get a summary value
-     *
-     * Gets a summary value from the current view.
-     *
-     * @param string      $id The summary id
-     * @return mixed|null     The summary value or null on errors
-     */
-    function getSummary($id)
+    protected function runAdminAction($action)
     {
-        return isset($this->view) ? $this->view->getSummary($id) : null;
+        switch ($action) {
+
+        case 'delete':
+            return
+                !is_null($id = $this->fromGet()) &&
+                $this->actionDelete($id);
+        }
+
+        return null;
     }
 
-    /**
-     * Return the value of a generic item
-     *
-     * Gets the value of a generic item. This implementation adds the field
-     * feature to the TIP_Module::getItem() method.
-     *
-     * Getting an item performs some search operations with this priority:
-     *
-     * - Try to get the field in the current row throught getField().
-     *
-     * - If the field is not found but the current view is a special view
-     *   (that is, it is a subclass of the standard TIP_View object), it
-     *   scans the view stack for the last view that was of TIP_View type and
-     *   checks if $id is present as a field in the current row.
-     *   This because the special views are considered "weaks", that is their
-     *   values are not built from real data fields.
-     *
-     * - Summary value of the current view throught getSummary().
-     *
-     * - Chain-up the parent method TIP_Module::getItem().
-     *
-     * The first succesful search operation will stop the sequence.
-     *
-     * @param  string     $id The item id
-     * @return mixed|null     The value of the item or null if not found
-     */
-    function getItem($id)
+    protected function runTrustedAction($action)
     {
-        $value = $this->getField($id);
-        if (isset($value)) {
-            return $value;
+        switch ($action) {
+
+        case 'edit':
+            return
+                !is_null($id = $this->fromGetOrPost()) &&
+                $this->isOwner($id) &&
+                $this->actionEdit($id);
+
+        case 'delete':
+            return
+                !is_null($id = $this->fromGet()) &&
+                $this->isOwner($id) &&
+                $this->actionDelete($id);
         }
 
-        if (@is_subclass_of($this->view, 'TIP_View')) {
-            // Find the last non-special view
-            $stack =& $this->_views;
-            end($stack);
-            do {
-                prev($stack);
-                $view_id = key($stack);
-            } while (isset($view_id) && is_subclass_of($stack[$view_id], 'TIP_View'));
-
-            if (isset($stack[$view_id]) && !is_null($value = $stack[$view_id]->getField($id))) {
-                return $value;
-            }
-        }
-
-        $value = $this->getSummary($id);
-        if (!is_null($value)) {
-            return $value;
-        }
-
-        return parent::getItem($id);
+        return null;
     }
 
-    /**
-     * Prepend a source file to the page
-     *
-     * Overrides TIP_Module::insertInPage() storing also the current view (if
-     * present) in the callback.
-     *
-     * @param  string $file The source file
-     * @return bool         true on success or false on errors
-     */
-    function insertInPage($file)
+    protected function runUntrustedAction($action)
     {
-        if (empty($this->view)) {
-            return parent::insertInPage($file);
+        switch ($action) {
+
+        case 'add':
+            return $this->actionAdd();
         }
 
-        if (strpos($file, DIRECTORY_SEPARATOR) === false) {
-            $file = $this->buildSourcePath($this->getId(), $file);
-        }
-
-        $main =& $GLOBALS[TIP_MAIN];
-        $main->prependCallback(array(&$this, 'pop'));
-        $main->prependCallback(array(&$this, 'run'),  array($file));
-        $main->prependCallback(array(&$this, 'push'), array(&$this->view, false));
-        return true;
+        return null;
     }
 
-    /**
-     * Append a source file to the page
-     *
-     * Overrides TIP_Module::appendToPage() storing also the current view (if
-     * present) in the callback.
-     *
-     * @param  string $file The source file
-     * @return bool         true on success or false on errors
-     */
-    function appendToPage($file)
+    protected function runAction($action)
     {
-        if (empty($this->view)) {
-            return parent::appendToPage($file);
-        }
+        switch ($action) {
 
-        if (strpos($file, DIRECTORY_SEPARATOR) === false) {
-            $file = $this->buildSourcePath($this->getId(), $file);
-        }
+        case 'view':
+            return
+                !is_null($id = $this->fromGetOrPost()) &&
+                $this->actionView($id);
 
-        $main =& $GLOBALS[TIP_MAIN];
-        $main->appendCallback(array(&$this, 'push'), array(&$this->view, false));
-        $main->appendCallback(array(&$this, 'run'),  array($file));
-        $main->appendCallback(array(&$this, 'pop'));
-        return true;
-    }
+        case 'browse':
+            $conditions = array();
 
-    /**
-     * Form management
-     *
-     * Generates a form with the specified $options and executes $action on it.
-     *
-     * The default values of the form (that usually must be present in
-     * $options['defaults']) can also be specified by providing a row $id. If
-     * both are provided, the two arrays are merged, with the one in
-     * $options['defaults'] with higher priority. Before merging, if $action is
-     * TIP_FORM_ACTION_ADD, the primary key on the read row is stripped.
-     *
-     * If $action is not TIP_FORM_ACTION_ADD and either $id or
-     * $options['defaults'] are not provided, the current row is assumed as
-     * default values. If there is not current row, an error is raised.
-     *
-     * @param  TIP_FORM_ACTION_... $action  The action
-     * @param  array|null          $id      A row id to use as default
-     * @param  array               $options The options to pass to the form
-     * @return bool|null                    true if the form has been processed,
-     *                                      false if the form must be processed
-     *                                      or null on errors
-     */
-    function form($action, $id = null, $options = array())
-    {
-        // Define the 'defaults' option
-        if ($action != TIP_FORM_ACTION_ADD || isset($id)) {
-            if (is_null($row = $this->getRow($id))) {
-                return null;
+            // Merge all browsable fields for this privilege level
+            $browsable = array();
+            for ($n = $this->privilege; $n > TIP_PRIVILEGE_INVALID; --$n) {
+                if (array_key_exists($n, $this->browsable_fields)) {
+                    $browsable = array_merge($browsable, $this->browsable_fields[$n]);
+                }
             }
 
-            if ($action == TIP_FORM_ACTION_ADD) {
-                unset($row[$this->data->getPrimaryKey()]);
+            // Build a query for every GETS matching the $browsable array
+            // and which has a corrispondence in the data structure
+            $fields = $this->data->getFields();
+            foreach ($browsable as $id) {
+                if (array_key_exists($id, $fields) &&
+                    !is_null($value = TIP::getGet($id, $fields[$id]['type']))) {
+                    $conditions[] = $this->data->filter($id, $value);
+                }
             }
 
-            if (@is_array($options['defaults'])) {
-                $options['defaults'] = array_merge($row, $options['defaults']);
-            } else {
-                $options['defaults'] =& $row;
+            // Global browsing is enabled only if there is the special
+            // '__ALL__' id in the browsable fields
+            if (empty($conditions) && !in_array('__ALL__', $browsable)) {
+                TIP::notifyError('denied');
+                return false;
             }
+
+            return $this->actionBrowse($conditions);
         }
 
-        $options['content'] =& $this;
-        $options['action'] = $action;
-        $form =& TIP_Type::singleton(array('module', 'form'), $options);
-        return $form->run();
+        return null;
     }
 
-    /**#@-*/
-
-
-    /**#@+ @access public */
-
-    /**
-     * The data context
-     *
-     * Contains a reference to the data from which this module will get
-     * informations. See the TIP_Data class for details on what is it.
-     *
-     * @var TIP_Data
-     */
-    var $data = null;
-
-    /**
-     * The current view
-     *
-     * A reference to the current view or null if there are no current views.
-     *
-     * @var TIP_View
-     */
-    var $view = null;
-
-
-    /**
-     * Start a view
-     *
-     * Starts a filtered view. Starting a view pushes it in the internal view
-     * stack and makes it the current view.
-     *
-     * @param  string        $filter  The filter conditions
-     * @param  array         $options The constructor arguments to pass to the
-     *                                TIP_View instance
-     * @return TIP_View|null          The view instance or null on errors
-     */
-    public function &startView($filter, $options = array())
-    {
-        $options['data'] =& $this->data;
-        $options['filter'] = $filter;
-        isset($options['fields']) || $options['fields'] = $this->_subset;
-        return $this->push(TIP_Type::singleton(array('view'), $options));
-    }
-
-    /**
-     * Start a special view
-     *
-     * Starts a view trying to instantiate the class named TIP_{$type}_View.
-     * All the startView() advices also applies to startSpecialView().
-     *
-     * @param  string        $type    The special view type
-     * @param  array         $options The constructor arguments to pass to the
-     *                                TIP_View derived instance
-     * @return TIP_View|null          The view instance or null on errors
-     */
-    public function &startSpecialView($type, $options = array())
-    {
-        $options['data'] =& $this->data;
-        $view =& TIP_Type::singleton(array('view', $type . '_view'), $options);
-        if (is_null($view)) {
-            TIP::error("special view does not exist ($type)");
-        } else {
-            $this->push($view);
-        }
-
-        return $view;
-    }
-
-    /**
-     * Ends a view
-     *
-     * Ends the current view. Ending a view means the previously active view
-     * in the internal stack is made current.
-     *
-     * Usually, you always have to close all views. Anyway, in some situations,
-     * is useful to have the base view ever active (so called default view)
-     * where all commands of a TIP_Content refers if no views were started.
-     * In any case, you can't have more endView() than start[Special]View().
-     *
-     * @return bool true on success or false on errors
-     */
-    public function endView()
-    {
-        if ($this->pop() === FALSE) {
-            TIP::error("'endView()' requested without a previous 'startView()' or 'startSpecialView()' call");
-            return false;
-        }
-
-        return true;
-    }
-
-    /**#@-*/
+    //}}}
 }
 ?>

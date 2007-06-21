@@ -1,5 +1,5 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * @package TIP
@@ -13,66 +13,39 @@
  */
 class TIP_Source extends TIP_Type
 {
-    /**#@+ @access private */
-
-    /**
-     * The absolute path to the source file
-     * @var string
-     */
-    var $_path = null;
+    //{{{ Internal properties
 
     /**
      * The content of the source file
      * @var string|false
+     * @internal
      */
-    var $_buffer = null;
+    public $_buffer = null;
 
     /**
      * A custom property to be used by the source engine
      * @var mixed
+     * @internal
      */
-    var $_implementation = null;
+    public $_implementation = null;
 
-    /**#@-*/
-
-
-    /**#@+ @access protected */
+    //}}}
+    //{{{ Constructor/destructor
 
     /**
      * Constructor
      *
-     * Initializes a TIP_Source instance.
+     * Initializes a TIP_Data instance.
      *
-     * @param string $id   The instance identifier
-     * @param array  $args The constructor arguments, as described in buildId()
+     * @param array $options Properties values
      */
-    function __construct($id, $args)
+    protected function __construct($options)
     {
-        parent::__construct($id);
-
-        $this->_path = $args['path'];
-        $this->_engine =& $args['engine'];
+        parent::__construct($options);
     }
 
-    /**
-     * Build a TIP_Source identifier
-     *
-     * $args must be an array with at least the following items:
-     * - $args['path']: the absolute path to the source file
-     * - $args['engine']: a reference to the source engine
-     *
-     * @param  array  $args The constructor arguments
-     * @return string       The source identifier
-     */
-    function buildId($args)
-    {
-        return $args['engine']->getId() . ':' . $args['path'];
-    }
-
-    /**#@-*/
-
-
-    /**#@+ @access public */
+    //}}}
+    //{{{ Methods
 
     /**
      * Execute the source file
@@ -82,17 +55,17 @@ class TIP_Source extends TIP_Type
      * @param  TIP_Module &$module The caller module
      * @return bool                true on success or false on errors
      */
-    function run(&$module)
+    public function run(&$module)
     {
         if (is_null($this->_buffer)) {
-            $this->_buffer = file_get_contents($this->_path, false);
+            $this->_buffer = file_get_contents($this->id, false);
             if ($this->_buffer === false) {
-                TIP::error("error in reading file ($this->_path)");
+                TIP::error("error in reading file ($this->id)");
             }
         }
-        return $this->_buffer !== false && $this->_engine->run($this, $module);
+        return $this->_buffer !== false && $module->getProperty('engine')->run($this, $module);
     }
 
-    /**#@-*/
+    //}}}
 }
 ?>

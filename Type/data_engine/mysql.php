@@ -1,5 +1,5 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * @package TIP
@@ -12,8 +12,8 @@
  * Interface to the MySql database.
  *
  * Some methods could be static, but I preferred to define them all as
- * non-static to avoid confusion (for instance, _preparedName() could be
- * static but _preparedValue not, because the connection property is needed).
+ * non-static to avoid confusion (for instance, preparedName() could be
+ * static but preparedValue not, because the connection property is needed).
  *
  * @package    TIP
  * @subpackage DataEngine
@@ -21,13 +21,100 @@
  */
 class TIP_Mysql extends TIP_Data_Engine
 {
-    /**#@+ @access private */
+    //{{{ Properties
 
-    var $_connection;
-    var $_database;
+    /**
+     * The server address: it defaults to 'localhost'
+     * @var string
+     */
+    protected $server = 'localhost';
 
+    /**
+     * The database name
+     * @var string
+     */
+    protected $database = null;
 
-    function _query()
+    /**
+     * The user name
+     * @var string
+     */
+    protected $user = null;
+
+    /**
+     * The password of $user
+     * @var string
+     */
+    protected $password = null;
+
+    //}}}
+    //{{{ Internal properties
+
+    /**
+     * The connection resource created in the constructor
+     * @var resource
+     */
+    private $_connection;
+
+    //}}}
+    //{{{ Costructor/destructor
+
+    /**
+     * Check the options
+     *
+     * Overridable static method that checks $options for missing or invalid
+     * values and eventually corrects its content.
+     *
+     * @param  array &$options Properties values
+     * @return bool            true on success or false on error
+     */
+    static protected function checkOptions(&$options)
+    {
+        return parent::checkOptions($options) && isset($options['database'], $options['user'], $options['password']);
+    }
+
+    /**
+     * Constructor
+     *
+     * Initializes a TIP_Mysql instance.
+     *
+     * $options inherits the TIP_Type properties, and add the following:
+     * - $options['server']:   server address
+     * - $options['database']: database name (required)
+     * - $options['user']:     user name (required)
+     * - $options['password']: user password (required)
+     *
+     * @param array $options Properties values
+     */
+    protected function __construct($options)
+    {
+        parent::__construct($options);
+    }
+
+    /**
+     * Overridable post construction method
+     *
+     * Called after the construction happened. This can be overriden to do some
+     * other post costruction operation.
+     *
+     * In TIP_Mysql, the postConstructor() method initializes the database
+     * connection.
+     */
+    protected function postConstructor()
+    {
+        $this->_connection = mysql_pconnect($this->server, $this->user, $this->password);
+
+        if (!$this->_connection || !mysql_select_db($this->database, $this->_connection)) {
+            TIP::error(mysql_error($this->_connection));
+        } else {
+            $this->_query('SET CHARACTER SET utf8');
+        }
+    }
+
+    //}}}
+    //{{{ Methods
+
+    private function _query()
     {
         $pieces = func_get_args();
         $query = implode(' ', $pieces);
@@ -38,7 +125,7 @@ class TIP_Mysql extends TIP_Data_Engine
         return $result;
     }
 
-    function _mapType(&$field, $type)
+    private function _mapType(&$field, $type)
     {
         // Fallback values
         $field['type'] = 'string';
@@ -153,9 +240,10 @@ class TIP_Mysql extends TIP_Data_Engine
         }
     }
 
-    function _tryFillFields(&$data, &$resource)
+    private function _tryFillFields(&$data, &$resource)
     {
-        if (isset($data->_fields)) {
+        $fields =& $data->getFieldsRef();
+        if (isset($fields)) {
             return true;
         }
 
@@ -165,7 +253,7 @@ class TIP_Mysql extends TIP_Data_Engine
 
         $n_fields = mysql_num_fields($resource);
         for ($n = 0; $n < $n_fields; ++ $n) {
-            if (mysql_field_table($resource, $n) != $data->_path) {
+            if (mysql_field_table($resource, $n) != $data->getProperty('path')) {
                 continue;
             }
 
@@ -180,8 +268,8 @@ class TIP_Mysql extends TIP_Data_Engine
                 $type = 'SET';
             }
 
-            $data->_fields[$name] = array('id' => $name);
-            $field =& $data->_fields[$name];
+            $fields[$name] = array('id' => $name);
+            $field =& $fields[$name];
             $this->_mapType($field, $type);
 
             if ($type == 'string' && $length > 0) {
@@ -196,63 +284,6 @@ class TIP_Mysql extends TIP_Data_Engine
     }
 
     /**
-     * Prepare names for a query
-     *
-     * Prepares one or more identifiers to be inserted in a query. This means
-     * to backtick the identifier and the backticks yet presents.
-     *
-     * If $name is an array, a comma separated string of prepared names is
-     * returned.
-     *
-     * @param  string|array $name The name or array of names to prepare
-     * @return string             $name prepared for the query
-     */
-    function _preparedName($name)
-    {
-        if (is_array($name)) {
-            $self = array(&$this, __FUNCTION__);
-            return implode(',', array_map($self, $name));
-        } elseif ($name == '*') {
-            // These special names must not be backticked
-            return $name;
-        }
-        return '`' . str_replace('`', '``', $name) . '`';
-    }
-
-    /**
-     * Prepare values for a query
-     *
-     * Prepares one or more values to be inserted in a query. This means to
-     * escapes (throught mysql_real_escape_string()) and quotes all the string
-     * values. Furthermore, if $value is null, 'NULL' is returned.
-     *
-     * If $value is an array, a comma separated string of prepared values is
-     * returned.
-     *
-     * @param  mixed|array $value The value or array of values to prepare
-     * @return string             $value prepared for the query
-     */
-    function _preparedValue($value)
-    {
-        if (is_int($value) || is_float($value)) {
-            return $value;
-        } elseif (is_string($value)) {
-            return "'" . mysql_real_escape_string($value, $this->_connection) . "'";
-        } elseif (is_array($value)) {
-            $self = array(&$this, __FUNCTION__);
-            return implode(',', array_map($self, $value));
-        } elseif (is_null($value)) {
-            return 'NULL';
-        } elseif (is_bool($value)) {
-            return $value ? 'TRUE' : 'FALSE';
-        }
-
-        $type = gettype($value);
-        TIP::error("type not recognized ($type)");
-        return null;
-    }
-
-    /**
      * Prepare one or more rows for an INSERT...VALUES... query
      *
      * Similar to _prepareValue(), but works only on arrays and arrays of
@@ -262,7 +293,7 @@ class TIP_Mysql extends TIP_Data_Engine
      * @param  array  $row A row or an array of rows
      * @return string      $row prepared for an INSERT...VALUES... query
      */
-    function _preparedContent($row)
+    private function _preparedContent($row)
     {
         // Recurse if the first $row element is an array: this means $row is an
         // array of arrays, that is an array or rows
@@ -270,7 +301,7 @@ class TIP_Mysql extends TIP_Data_Engine
             $self = array(&$this, __FUNCTION__);
             return implode(',', array_map($self, $row));
         }
-        return '(' . $this->_preparedValue($row) . ')';
+        return '(' . $this->preparedValue($row) . ')';
     }
 
     /**
@@ -284,7 +315,7 @@ class TIP_Mysql extends TIP_Data_Engine
      * @param  array|string $value A value or an array of values
      * @return string              The prepared set
      */
-    function _preparedSet($field, $value)
+    private function _preparedSet($field, $value)
     {
         if (is_array($field)) {
             if (!is_array($value)) {
@@ -294,7 +325,7 @@ class TIP_Mysql extends TIP_Data_Engine
             return implode(',', array_map($self, $field, $value));
         }
 
-        return $this->_preparedName($field) . '=' . $this->_preparedValue($value);
+        return $this->preparedName($field) . '=' . $this->preparedValue($value);
     }
 
     /**
@@ -314,7 +345,7 @@ class TIP_Mysql extends TIP_Data_Engine
      * @param  array|string|null $alias Optional alias of the prepared field
      * @return string                   The prepared field
      */
-    function _preparedField($field, $table = null, $alias = null)
+    private function _preparedField($field, $table = null, $alias = null)
     {
         if (is_array($field)) {
             if (!is_array($alias)) {
@@ -327,12 +358,12 @@ class TIP_Mysql extends TIP_Data_Engine
             return implode(',', array_map($self, $field, $table, $alias));
         }
 
-        $result = $this->_preparedName($field);
+        $result = $this->preparedName($field);
         if (!empty($table)) {
-            $result = $this->_preparedName($table) . '.' . $result;
+            $result = $this->preparedName($table) . '.' . $result;
         }
         if (is_string($alias)) {
-            $result .= ' AS ' . $this->_preparedName($alias);
+            $result .= ' AS ' . $this->preparedName($alias);
         }
         return $result;
     }
@@ -354,7 +385,7 @@ class TIP_Mysql extends TIP_Data_Engine
      * @param  array|string|null $table  Table where the field is
      * @return string                    The prepared fieldset
      */
-    function _preparedFieldset($fields, $table = null)
+    private function _preparedFieldset($fields, $table = null)
     {
         if (is_null($fields)) {
             return $this->_preparedField('*', $table);
@@ -384,7 +415,7 @@ class TIP_Mysql extends TIP_Data_Engine
      * @param  array  $join An array of join definitions
      * @return string       The prepared join structure
      */
-    function _preparedJoin($join)
+    private function _preparedJoin($join)
     {
         // Recurse if the first $join element is an array: this means $join is
         // an array of arrays, that is an array or join definition
@@ -394,40 +425,54 @@ class TIP_Mysql extends TIP_Data_Engine
         }
 
         extract($join, EXTR_REFS);
-        return 'LEFT JOIN ' . $this->_preparedName($slave_table) .
+        return 'LEFT JOIN ' . $this->preparedName($slave_table) .
                ' ON ' . $this->_preparedField($master, $master_table) . '=' .
                         $this->_preparedField($slave, $slave_table);
     }
 
-    /**#@-*/
+    //}}}
+    //{{{ TIP_Data_Engine implementation
 
-    function __construct($id)
+    public function preparedName($name)
     {
-        parent::__construct($id);
-
-        $server   = $this->getOption('server');
-        $user     = $this->getOption('user');
-        $password = $this->getOption('password');
-
-        $this->_connection = mysql_pconnect($server, $user, $password);
-        $this->_database = $this->getOption('database');
-
-        if (!$this->_connection || !mysql_select_db($this->_database, $this->_connection)) {
-            TIP::error(mysql_error($this->_connection));
-        } else {
-            $this->_query('SET CHARACTER SET utf8');
+        if (is_array($name)) {
+            $self = array(&$this, __FUNCTION__);
+            return implode(',', array_map($self, $name));
+        } elseif ($name == '*') {
+            // These special names must not be backticked
+            return $name;
         }
+        return '`' . str_replace('`', '``', $name) . '`';
     }
 
-    /**#@+ @access public */
-
-    function fillFields(&$data)
+    public function preparedValue($value)
     {
-        $result = $this->_query('SHOW FULL COLUMNS FROM', $this->_preparedName($data->_path));
+        if (is_int($value) || is_float($value)) {
+            return $value;
+        } elseif (is_string($value)) {
+            return "'" . mysql_real_escape_string($value, $this->_connection) . "'";
+        } elseif (is_array($value)) {
+            $self = array(&$this, __FUNCTION__);
+            return implode(',', array_map($self, $value));
+        } elseif (is_null($value)) {
+            return 'NULL';
+        } elseif (is_bool($value)) {
+            return $value ? 'TRUE' : 'FALSE';
+        }
+
+        $type = gettype($value);
+        TIP::error("type not recognized ($type)");
+        return null;
+    }
+
+    public function fillFields(&$data)
+    {
+        $result = $this->_query('SHOW FULL COLUMNS FROM', $this->preparedName($data->getProperty('path')));
         if (!$result) {
             return false;
         }
 
+        $fields =& $data->getFieldsRef();
         while ($row = mysql_fetch_assoc($result)) {
             $name = $row['Field'];
             $field = array('id' => $name);
@@ -456,30 +501,32 @@ class TIP_Mysql extends TIP_Data_Engine
 
             $field['info'] = $row['Comment'];
             $field['can_be_null'] = $row['Null'] == 'YES';
-            $data->_fields[$name] = $field;
+            $fields[$name] = $field;
         }
 
         return true;
     }
 
-    function& select(&$data, $filter, $fields)
+    public function &select(&$data, $filter, $fields)
     {
-        if (isset($data->_joins)) {
+        $table = $data->getProperty('path');
+        $joins = $data->getProperty('joins');
+
+        if (isset($joins)) {
             // Compute the joins (the main table is manually prepended)
-            $joins = $data->_joins;
-            array_walk($joins, create_function('&$v,$s', '$v["slave_table"]=$s; $v["master_table"]="'.$data->_path.'";'));
+            array_walk($joins, create_function('&$v,$s', '$v["slave_table"]=$s; $v["master_table"]="'.$table.'";'));
 
             // Get the joined tables and prepend the main one
-            $tables = array_keys($data->_joins);
-            $sets = array_map(create_function('$v', 'return @$v["fieldset"];'), $data->_joins);
-            array_unshift($tables, $data->_path);
-            array_unshift($sets, isset($fields) ? $fields : $data->_fieldset);
+            $tables = array_keys($joins);
+            $sets = array_map(create_function('$v', 'return @$v["fieldset"];'), $joins);
+            array_unshift($tables, $table);
+            array_unshift($sets, $fields);
 
             $fieldset = $this->_preparedFieldset($sets, $tables);
-            $source = $this->_preparedName($data->_path) . $this->_preparedJoin($joins);
+            $source = $this->preparedName($table) . $this->_preparedJoin($joins);
         } else {
-            $fieldset = $this->_preparedFieldset($data->_fieldset);
-            $source = $this->_preparedName($data->_path);
+            $fieldset = $this->_preparedFieldset($fields);
+            $source = $this->preparedName($table);
         }
 
         $result = $this->_query('SELECT', $fieldset, 'FROM', $source, $filter);
@@ -491,7 +538,7 @@ class TIP_Mysql extends TIP_Data_Engine
         $this->_tryFillFields($data, $result);
         $rows = array();
         while ($row = mysql_fetch_assoc($result)) {
-            $rows[$row[$data->getPrimaryKey()]] =& $row;
+            $rows[$row[$data->getProperty('primary_key')]] =& $row;
             unset($row);
         }
 
@@ -500,10 +547,10 @@ class TIP_Mysql extends TIP_Data_Engine
         return $rows;
     }
 
-    function insert(&$data, &$rows)
+    public function insert(&$data, &$rows)
     {
-        $result = $this->_query('INSERT INTO', $this->_preparedName($data->_path),
-                                '(' . $this->_preparedName(array_keys($rows[0])) . ')',
+        $result = $this->_query('INSERT INTO', $this->preparedName($data->getProperty('path')),
+                                '(' . $this->preparedName(array_keys($rows[0])) . ')',
                                 'VALUES', $this->_preparedContent($rows));
         if ($result === false) {
             return null;
@@ -512,22 +559,19 @@ class TIP_Mysql extends TIP_Data_Engine
         return mysql_insert_id($this->_connection);
     }
 
-    function update(&$data, $filter, &$row)
+    public function update(&$data, $filter, &$row)
     {
-        return $this->_query('UPDATE', $this->_preparedName($data->_path),
+        return $this->_query('UPDATE', $this->preparedName($data->getProperty('path')),
                              'SET', $this->_preparedSet(array_keys($row), $row),
                              $filter);
     }
 
-    function delete(&$data, $filter)
+    public function delete(&$data, $filter)
     {
-        return $this->_query('DELETE FROM', $this->_preparedName($data->_path),
+        return $this->_query('DELETE FROM', $this->preparedName($data->getProperty('path')),
                              $filter);
     }
 
-    /**#@-*/
+    //}}}
 }
-
-return 'TIP_Mysql';
-
 ?>

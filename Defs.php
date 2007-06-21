@@ -17,7 +17,7 @@
  * such as to get the type name from the class by stripping this prefix
  * (avoiding tedious prefix repetitions).
  */
-define('TIP_PREFIX', 'TIP_');
+define('TIP_PREFIX',              'TIP_');
 
 /**
  * The name of the main module
@@ -25,7 +25,7 @@ define('TIP_PREFIX', 'TIP_');
  * The name of the global variable holding the reference to the main module.
  * It be accessed throught <code>$GLOBALS[TIP_MAIN]</code>.
  */
-define('TIP_MAIN', '_tip_main_');
+define('TIP_MAIN',                '_tip_main_');
 
 /**#@+ Privileges */
 define('TIP_PRIVILEGE_INVALID',   0);
@@ -40,24 +40,26 @@ define('TIP_PRIVILEGE_MANAGER',   5);
 /**#@+ Form related constants */
 
 /**#@+ Form action */
-define('TIP_FORM_ACTION_ADD',    'add');
-define('TIP_FORM_ACTION_EDIT',   'edit');
-define('TIP_FORM_ACTION_VIEW',   'view');
-define('TIP_FORM_ACTION_DELETE', 'delete');
+define('TIP_FORM_ACTION_ADD',     'add');
+define('TIP_FORM_ACTION_EDIT',    'edit');
+define('TIP_FORM_ACTION_VIEW',    'view');
+define('TIP_FORM_ACTION_DELETE',  'delete');
+define('TIP_FORM_ACTION_CUSTOM',  'custom');
 /**#@-*/
 
 /**#@+ Form button */
-define('TIP_FORM_BUTTON_SUBMIT', 1);
-define('TIP_FORM_BUTTON_RESET',  2);
-define('TIP_FORM_BUTTON_DELETE', 4);
-define('TIP_FORM_BUTTON_CANCEL', 8);
-define('TIP_FORM_BUTTON_CLOSE',  16);
+define('TIP_FORM_BUTTON_SUBMIT',  1);
+define('TIP_FORM_BUTTON_RESET',   2);
+define('TIP_FORM_BUTTON_DELETE',  4);
+define('TIP_FORM_BUTTON_CANCEL',  8);
+define('TIP_FORM_BUTTON_CLOSE',   16);
+define('TIP_FORM_BUTTON_OK',      32);
 /**#@-*/
 
 /**#@+ Form rendering */
-define('TIP_FORM_RENDER_HERE',        1);
-define('TIP_FORM_RENDER_IN_CONTENT',  2);
-define('TIP_FORM_RENDER_NOTHING',     3);
+define('TIP_FORM_RENDER_HERE',    1);
+define('TIP_FORM_RENDER_IN_PAGE', 2);
+define('TIP_FORM_RENDER_NOTHING', 3);
 /**#@-*/
 
 /**#@-*/

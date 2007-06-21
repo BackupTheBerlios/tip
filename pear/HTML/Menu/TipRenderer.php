@@ -17,9 +17,17 @@ require_once 'HTML/Menu/Renderer.php';
  */
 class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
 {
+    /**
+     * Menu identifier
+     * @var string
+     */
     var $_id = null;
+
+    /**
+     * Text to use to connect different levels in row rendering
+     * @var array
+     */
     var $_glue = '::';
-    var $_row = array();
 
     /**
      * Generated HTML for the menu
@@ -32,6 +40,13 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
      * @var string
      */
     var $_rows = array();
+
+    /**
+     * Partial render state of the current entry
+     * @var array
+     * @internal
+     */
+    var $_row = array();
 
 
     function setId($id)

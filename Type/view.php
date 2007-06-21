@@ -1,5 +1,5 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * TIP_View definition file
@@ -8,57 +8,21 @@
  */
 
 /**
- * A data view
+ * View abstraction
  *
- * Management of the data views mainly used by the TIP_Block.
- * This class provides a way to bind summuries values to the view (such as
- * totals or subtotals) and some callbacks to customize the view.
- * Specifically, the $on_row callback is used to add some custom fields
- * (also called calculated fields) to every row while the $on_view callback
- * can be used to fill the $_summary values with every kind of aggregate
- * function you desire.
- *
- * Notice after starting a view there is no current row, so trying to retrieve
- * some data will fail. You must use a cursor movement method to initially set
- * the cursor position.
+ * The TIP_View is a rows data model.
  *
  * @package TIP
  */
-class TIP_View extends TIP_Type implements Iterator
+abstract class TIP_View extends TIP_Type implements Iterator
 {
-    /**
-     * Row callback
-     *
-     * Called for every row added to $_rows. The only argument passed to the
-     * callback is a reference to the added row. Useful to add calculated
-     * fields to every row.
-     *
-     * @var TIP_Callback
-     */
-    private $_on_row = null;
+    //{{{ Properties
 
     /**
-     * View callback
-     *
-     * Called at the end of the population of $_rows. A reference to the current
-     * view is passed as argument to the callback. Useful to add summary values
-     * or perform general operations on the whole data of the view.
-     *
-     * The custom callback must return true to validate the view or false to
-     * invalidate it.
-     *
-     * @var TIP_Callback
-     */
-    private $_on_view = null;
-
-    /**
-     * The data object
-     *
-     * A reference to the TIP_Data object the view will apply.
-     *
+     * A reference to the TIP_Data object the view will apply
      * @var TIP_Data
      */
-    protected $_data = null;
+    protected $data = null;
 
     /**
      * The filter conditions
@@ -69,7 +33,7 @@ class TIP_View extends TIP_Type implements Iterator
      *
      * @var string
      */
-    protected $_filter = null;
+    protected $filter = null;
 
     /**
      * The fields to get
@@ -79,7 +43,7 @@ class TIP_View extends TIP_Type implements Iterator
      *
      * @var array
      */
-    protected $_fields = null;
+    protected $fields = null;
 
     /**
      * The list of rows
@@ -96,83 +60,75 @@ class TIP_View extends TIP_Type implements Iterator
      *
      * @var array|null
      */
-    protected $_rows = null;
+    protected $rows = null;
 
     /**
      * A list of summary values
      *
      * Here must be present the values of summary operations done on the
-     * $rows array, such as totals and counts.
+     * 'rows' property, such as totals and counts.
      *
-     * The following values are always present in $_summary:
+     * The following values are always present in 'summary':
      *
-     * - 'COUNT', the number of rows in the $rows property
+     * - 'COUNT', the number of rows in the 'rows' property
      *
      * @var array
      */
-    protected $_summary = null;
+    protected $summary = null;
 
+    /**
+     * Row callback
+     *
+     * Called for every row added to the 'rows' property. The only argument
+     * passed to the callback is a reference to the added row. Useful to add
+     * calculated fields to every row.
+     *
+     * The custom callback must return true to include the processed row in
+     * the 'rows' property.
+     *
+     * @var callback
+     */
+    protected $on_row = null;
+
+    /**
+     * View callback
+     *
+     * Called at the end of the population of the 'rows' property. A reference
+     * to the current view is passed as argument to the callback. Useful to add
+     * summary values or perform general operations on the whole data view.
+     *
+     * The custom callback must return true to validate the view or false to
+     * invalidate it.
+     *
+     * @var callback
+     */
+    protected $on_view = null;
+
+    //}}}
+    //{{{ Constructor/destructor
 
     /**
      * Constructor
      *
      * Initializes a TIP_View instance.
      *
-     * @param string $id   The instance identifier
-     * @param array  $args The constructor arguments, as described in buildId()
+     * @param array $options Properties values
      */
-    protected function __construct($id, $args)
+    protected function __construct($options)
     {
-        parent::__construct($id);
-
-        foreach ($args as $key => &$value) {
-            $property = '_' . $key;
-            $this->$property =& $value;
-        }
+        parent::__construct($options);
     }
 
     protected function postConstructor()
     {
-        $this->_rows =& $this->_data->getRows($this->_filter, $this->_fields);
-        $this->onPopulated();
-    }
-
-    /**
-     * Build a TIP_View identifier
-     *
-     * $args must be an array with the following items (all are optionals):
-     * - $args['data']: a reference to a TIP_Data object
-     * - $args['filter']: the filter to apply
-     * - $args['fields']: the fields to get
-     * - $args['on_row']: callback to run for every row
-     * - $args['on_view']: callback to run when populated
-     *
-     * @param  array  $args The constructor arguments
-     * @return string       The data identifier
-     */
-    protected function buildId($args)
-    {
-        $id = $args['data']->getId();
-        if (array_key_exists('filter', $args)) {
-            $id .= ':' . $args['filter'];
-        }
-        if (array_key_exists('fields', $args)) {
-            $id .= '(' . $args['fields'] . ')';
-        }
-        return $id;
-    }
-
-    protected function onPopulated()
-    {
-        $this->_summary = null;
-        if (!is_array($this->_rows)) {
-            return false;
+        if (is_null($this->rows) && !$this->fillRows() || !is_array($this->rows)) {
+            return;
         }
 
         $filtered_rows = array();
         $n_row = 0;
-        foreach ($this->_rows as $id => &$row) {
-            if (!$this->_on_row || call_user_func_array($this->_on_row, array(&$row))) {
+        foreach ($this->rows as $id => &$row) {
+            if (!$this->on_row || call_user_func_array($this->on_row, array(&$row))) {
                 ++ $n_row;
                 $row['ROW']     = $n_row;
                 $row['ODDEVEN'] = ($n_row & 1) > 0 ? 'odd' : 'even';
@@ -180,36 +136,80 @@ class TIP_View extends TIP_Type implements Iterator
             }
         }
 
-        $this->_rows =& $filtered_rows;
-        $this->_summary['COUNT'] = $n_row;
-        return !$this->_on_view || call_user_func_array($this->_on_view, array(&$this));
+        $this->rows =& $filtered_rows;
+        $this->summary['COUNT'] = $n_row;
+        if (isset($this->on_view) && !call_user_func_array($this->on_view, array(&$this))) {
+            // 'on_view' callback returned false: invalidate the view
+            $this->rows = null;
+        }
     }
 
+    //}}}
+    //{{{ Methods
+ 
+    /**
+     * Check for a valid view
+     *
+     * Checks if this view instance contains valid data, that is if the query
+     * was performed succesfully.
+     *
+     * @return bool true if the view is valid or false otherwise
+     */
     public function isValid()
     {
-        return is_array($this->_rows);
+        return is_array($this->rows);
     }
 
-    public function &getRows()
+    /**
+     * The number of rows in this view
+     * @return int The number of rows or -1 on errors
+     */
+    public function nRows()
     {
-        return $this->_rows;
+        return is_array($this->rows) ? count($this->rows) : -1;
     }
 
-    public function getField($id)
+    /**
+     * Get a field value from the current row
+     *
+     * @param  mixed      $field The field id
+     * @return mixed|null        The requested field value or null on errors
+     */
+    public function getField($field)
     {
         $row =& $this->current();
-        return @$row[$id];
+        return @$row[$field];
     }
 
-    public function getSummary($id)
+    /**
+     * Get a summary field value
+     *
+     * @param  mixed      $field The summary field id
+     * @return mixed|null        The requested field value or null on errors
+     */
+    public function getSummary($field)
     {
-        return @$this->_summary[$id];
+        return @$this->summary[$field];
     }
 
-    public function setSummary($id, $value)
+    /**
+     * Set a summary field value
+     *
+     * @param  mixed      $field The summary field id
+     * @param  mixed      $value The new summary field value
+     */
+    public function setSummary($field, $value)
     {
-        $this->_summary[$id] = $value;
+        $this->summary[$field] = $value;
     }
+
+    //}}}
+    //{{{ Interface
+
+    abstract protected function fillRows();
+
+    //}}}
+    //{{{ Iterator implementation
 
     /**
      * Set the internal cursor to the first row
@@ -218,7 +218,7 @@ class TIP_View extends TIP_Type implements Iterator
      */
     public function rewind()
     {
-        return reset($this->_rows) !== false;
+        return reset($this->rows) !== false;
     }
 
     /**
@@ -228,7 +228,7 @@ class TIP_View extends TIP_Type implements Iterator
      */
     public function current()
     {
-        $row = current($this->_rows);
+        $row = current($this->rows);
         return is_array($row) ? $row : null;
     }
 
@@ -239,7 +239,7 @@ class TIP_View extends TIP_Type implements Iterator
      */
     public function key()
     {
-        return key($this->_rows);
+        return key($this->rows);
     }
 
     /**
@@ -249,7 +249,7 @@ class TIP_View extends TIP_Type implements Iterator
      */
     public function next()
     {
-        return next($this->_rows) !== false;
+        return next($this->rows) !== false;
     }
 
     /**
@@ -259,7 +259,9 @@ class TIP_View extends TIP_Type implements Iterator
      */
     public function valid()
     {
-        return !is_null(key($this->_rows));
+        return !is_null(key($this->rows));
     }
+
+    //}}}
 }
 ?>

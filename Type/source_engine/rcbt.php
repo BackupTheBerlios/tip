@@ -1,5 +1,5 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * TIP_Rcbt definition file
@@ -79,7 +79,6 @@ class TIP_Rcbt_Context
 
     /**#@-*/
 }
-
 
 /**
  * The parser used by the Rcbt engine
@@ -425,7 +424,7 @@ class TIP_Rcbt_Tag
 
         case 'select':
             if ($context =& $this->createContext($parser, $module)) {
-                $view =& $module->startView($this->params);
+                $view =& $module->startDataView($this->params);
                 if ($view && $view->isValid()) {
                     $context->on_start->set(array(&$view, 'rewind'));
                     $context->on_destroy->set(array(&$module, 'endView'));
@@ -438,8 +437,8 @@ class TIP_Rcbt_Tag
 
         case 'selectrow':
             if ($context =& $this->createContext($parser, $module)) {
-                $filter = $module->data->rowFilter($this->params);
-                $view =& $module->startView($filter);
+                $filter = $module->getProperty('data')->rowFilter($this->params);
+                $view =& $module->startDataView($filter);
                 if ($view && $view->isValid()) {
                     $context->on_start->set(array(&$view, 'rewind'));
                     $context->on_destroy->set(array(&$module, 'endView'));
@@ -452,7 +451,7 @@ class TIP_Rcbt_Tag
 
         case 'forselect':
             if ($context =& $this->createContext($parser, $module)) {
-                $view =& $module->startView($this->params);
+                $view =& $module->startDataView($this->params);
                 if ($view && $view->isValid()) {
                     $context->on_start->set(array(&$view, 'rewind'));
                     $context->on_loop->set(array(&$view, 'next'));
@@ -467,12 +466,11 @@ class TIP_Rcbt_Tag
         case 'foreach':
             if ($context =& $this->createContext($parser, $module)) {
                 if (empty($this->params)) {
-                    $view =& $module->view;
+                    $view =& $module->getCurrentView();
                     if ($view && $view->isValid()) {
                         $context->on_start->set(array(&$view, 'rewind'));
                         $context->on_loop->set(array(&$view, 'next'));
                     } else {
-                        $parser->warning('no current view');
                         $context->skipIf(true);
                     }
                 } elseif ($this->params > 0) {
@@ -480,7 +478,7 @@ class TIP_Rcbt_Tag
                     $context->on_loop->set(create_function('&$module,$n', 'return $n > $module->keys[\'CNT\'] ++;'), array(&$module, (int)$this->params));
                     $context->on_stop->set(create_function('&$module', 'unset($module->keys[\'CNT\']); return true;'), array(&$module));
                 } else {
-                    $view =& $module->startSpecialView($this->params);
+                    $view =& $module->startView($this->params);
                     if ($view && $view->isValid()) {
                         $context->on_start->set(array(&$view, 'rewind'));
                         $context->on_loop->set(array(&$view, 'next'));
@@ -502,8 +500,6 @@ class TIP_Rcbt_Tag
     }
 }
 
-
-
 /**
  * Recursive Curly Brace Tags source engine
  *
@@ -515,15 +511,26 @@ class TIP_Rcbt_Tag
  */
 class TIP_Rcbt extends TIP_Source_Engine
 {
-    function __construct($id)
+    //{{{ Constructor/destructor
+
+    /**
+     * Constructor
+     *
+     * Initializes a TIP_Rcbt instance.
+     *
+     * @param array $options Properties values
+     */
+    protected function __construct($options)
     {
-        parent::__construct($id);
+        parent::__construct($options);
     }
 
+    //}}}
+    //{{{ TIP_Source_Engine implementation
+ 
     function run(&$source, &$module)
     {
-        $parser =& $source->_implementation;
-        if (is_null($parser)) {
+        if (is_null($parser =& $source->_implementation)) {
             $parser =& new TIP_Rcbt_Parser($source);
             $source->_implementation =& $parser;
             $parser->parse();
@@ -531,5 +538,7 @@ class TIP_Rcbt extends TIP_Source_Engine
 
         return $parser->run($module);
     }
+
+    //}}}
 }
 ?>

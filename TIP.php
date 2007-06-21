@@ -1,9 +1,17 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * TIP definition file
- * @package TIP
+ *
+ * The TIP system require PHP v.5.2.0 or later.
+ *
+ * @author    Nicola Fontana <ntd@users.sourceforge.net>
+ * @copyright Copyright &copy; 2006-2007 Nicola Fontana
+ * @license   http://www.php.net/license/3_0.txt The PHP License, Version 3.0
+ * @category  HTML
+ * @package   TIP
+ * @since     0.0.1
  */
 
 /**
@@ -11,7 +19,7 @@
  * fully PHP-5 compliant.
  *
  * Now I have too many PHP-4 dependencies that cannot be updated (PEAR overall,
- * but also Text_Wiki and HTML_Menu).
+ * but also Text_Wiki, HTML_QuickForm and HTML_Menu).
  */
 error_reporting(E_ALL);
 
@@ -32,10 +40,13 @@ require_once TIP::buildLogicPath('Callback.php');
  * A static class root of all the TIP hierarchy. It provides some global useful
  * functions.
  *
+ *
  * @package TIP 
  */
 class TIP
 {
+    //{{{ Static methods
+
     static private function _getTyped($id, $type, &$collection)
     {
         $value = @$collection[$id];
@@ -122,6 +133,27 @@ class TIP
     }
 
     /**
+     * Get the current locale id
+     *
+     * Gets the currently active locale id, such as 'en' or 'it'.
+     *
+     * @param  string      $id      The identifier
+     * @param  string      $prefix  The prefix
+     * @param  array       $context A context associative array
+     * @param  bool        $cached  Whether to perform or not a cached read
+     * @return string|null          The localized text or null if not found
+     */
+    static public function getLocaleId()
+    {
+        static $locale = null;
+        if (is_null($locale)) {
+            $shared_modules = TIP_Application::getGlobal('shared_modules');
+            $locale = TIP::getOption($shared_modules['locale'], 'locale');
+        }
+        return $locale;
+    }
+
+    /**
      * Get a localized text
      *
      * Gets the localized text for the specified id and prefix.
@@ -140,7 +172,7 @@ class TIP
     {
         static $locale = false;
         if ($locale === false) {
-            $locale =& $GLOBALS[TIP_MAIN]->getSharedModule('locale');
+            $locale =& TIP_Application::getSharedModule('locale');
         }
 
         return @$locale->get($id, $prefix, $context, $cached);
@@ -171,7 +203,6 @@ class TIP
             TIP::notifyInfo('session');
         }
     }
-
 
     /**
      * Deep addslashes()
@@ -229,8 +260,8 @@ class TIP
      * string in the form 'param=value', often used as construct to pass values
      * in URLs. This function works also on array.
      *
-     * @param string|array $assignment The assignment (or array of assignments) to encode
-     * @return string|array The encoded copy of $assignment
+     * @param  string|array $assignment The assignment (or array of assignments) to encode
+     * @return string|array             The encoded copy of $assignment
      */
     static public function urlEncodeAssignment($assignment)
     {
@@ -289,10 +320,10 @@ class TIP
      * - 'array'  to force an array
      * - 'object' to force an object
      *
-     * @param string $id   The get identifier
-     * @param string $type The expected type
-     * @return mixed|null The content of the requested get or null on errors
-     * @see getPost(),getCookie()
+     * @param  string     $id   The get identifier
+     * @param  string     $type The expected type
+     * @return mixed|null       The content of the requested get or null on errors
+     * @see                     getPost(),getCookie()
      */
     static public function getGet($id, $type)
     {
@@ -305,10 +336,10 @@ class TIP
      * Performs the same job as getGet(), but using the superglobal $_POST
      * array.
      *
-     * @param string $id   The post identifier
-     * @param string $type The expected type
-     * @return mixed|null The content of the requested post or null on errors
-     * @see getGet(),getCookie()
+     * @param  string     $id   The post identifier
+     * @param  string     $type The expected type
+     * @return mixed|null       The content of the requested post or null on errors
+     * @see                     getGet(),getCookie()
      */
     static public function getPost($id, $type)
     {
@@ -321,10 +352,10 @@ class TIP
      * Performs the same job as getGet(), but using the superglobal $_COOKIE
      * array.
      *
-     * @param string $id   The cookie identifier
-     * @param string $type The expected type
-     * @return mixed|null The content of the requested cookie or null on errors
-     * @see getGet(),getPost()
+     * @param  string     $id   The cookie identifier
+     * @param  string     $type The expected type
+     * @return mixed|null       The content of the requested cookie or null on errors
+     * @see                     getGet(),getPost()
      */
     static public function getCookie($id, $type)
     {
@@ -336,20 +367,23 @@ class TIP
      *
      * Parses $date, specified in $format format, and return the timestamp.
      * The currently supported formats are:
-     *
      * - 'iso8601' for ISO8601 date or datetime (the format used, for instance, by MySql)
      *
+     * @param  mixed    $date   The input date
+     * @param  string   $format A supported date format
+     * @return int|null         $date converted in timestamp or null on errors
      */
     static public function getTimestamp($date, $format)
     {
         switch ($format) {
+
         case 'iso8601':
             @list($year, $month, $day, $hour, $min, $sec) = sscanf($date, '%d-%d-%d %d:%d:%d');
             return mktime($hour, $min, $sec, $month, $day, $year);
         }
 
         TIP::warning("Input time format not recognized ($format)");
-        return false;
+        return null;
     }
 
     /**
@@ -360,21 +394,19 @@ class TIP
      * time is used as input.
      *
      * The $format parameter can be one of the following values:
-     *
      * - 'date_iso8601' for a string with a day description in ISO 8601 format
      * - 'datetime_iso8601' for a string with day and hour description in ISO 8601 format
      * - 'date_it' for a string with a day description (italian locale)
      * - 'datetime_it' for a string with day and hour description (italian locale)
      *
      * The $input_format parameter can be one of the following values:
-     *
      * - 'timestamp' for UNIX timestamps
      * - 'iso8601' for ISO8601 date (the format used, for instance, by MySql)
      *
-     * @param string $format       The format of the resulting date
-     * @param mixed  $input        The source date to format
-     * @param string $input_format The format of the source date
-     * @return mixed|null The formatted date or null on errors
+     * @param  string     $format       The format of the resulting date
+     * @param  mixed      $input        The source date to format
+     * @param  string     $input_format The format of the source date
+     * @return mixed|null               The formatted date or null on errors
      */
     static public function formatDate($format, $input = null, $input_format = 'timestamp')
     {
@@ -402,7 +434,7 @@ class TIP
      */
     static public function log($severity, $message, &$backtrace)
     {
-        $logger =& $GLOBALS[TIP_MAIN]->getSharedModule('logger');
+        $logger =& TIP_Application::getSharedModule('logger');
         if (is_object($logger)) {
             $logger->log($severity, $message, $backtrace);
         }
@@ -455,7 +487,7 @@ class TIP
     {
         $backtrace = debug_backtrace();
         TIP::log('FATAL', $message, $backtrace);
-        $fatal_uri = HTTP::absoluteURI($GLOBALS[TIP_MAIN]->getOption('fatal_url'));
+        $fatal_uri = HTTP::absoluteURI(TIP_Application::getGlobal('fatal_url'));
         if ($fatal_uri == @$_SERVER['REQUEST_URI']) {
             // This is a recursive redirection
             HTTP::redirect('/fatal.html');
@@ -481,7 +513,7 @@ class TIP
      */
     static public function notifyError()
     {
-        $notify =& $GLOBALS[TIP_MAIN]->getSharedModule('notify');
+        $notify =& TIP_Application::getSharedModule('notify');
         if (is_object($notify)) {
             $args = func_get_args();
             return call_user_func_array(array(&$notify, 'notifyError'), $args);
@@ -497,7 +529,7 @@ class TIP
      */
     static public function notifyWarning()
     {
-        $notify =& $GLOBALS[TIP_MAIN]->getSharedModule('notify');
+        $notify =& TIP_Application::getSharedModule('notify');
         if (is_object($notify)) {
             $args = func_get_args();
             return call_user_func_array(array(&$notify, 'notifyWarning'), $args);
@@ -513,7 +545,7 @@ class TIP
      */
     static public function notifyInfo()
     {
-        $notify =& $GLOBALS[TIP_MAIN]->getSharedModule('notify');
+        $notify =& TIP_Application::getSharedModule('notify');
         if (is_object($notify)) {
             $args = func_get_args();
             return call_user_func_array(array(&$notify, 'notifyInfo'), $args);
@@ -530,8 +562,8 @@ class TIP
      * Constructs a path from the argument list and prepending the application
      * base path.
      *
-     * @param string|array $subpath,... A list of partial paths
-     * @return string The constructed path
+     * @param  string|array $subpath,... A list of partial paths
+     * @return string                    The constructed path
      */
     static public function buildPath()
     {
@@ -549,8 +581,8 @@ class TIP
      *
      * Shortcut for building a path prepending the application 'logic_root'.
      *
-     * @param string|array $subpath,... A list of partial paths
-     * @return string The constructed path
+     * @param  string|array $subpath,... A list of partial paths
+     * @return string                    The constructed path
      */
     static public function buildLogicPath()
     {
@@ -562,14 +594,14 @@ class TIP
      *
      * Shortcut for building a path prepending the application 'source_root'.
      *
-     * @param string|array $subpath,... A list of partial paths
-     * @return string The constructed path
+     * @param  string|array $subpath,... A list of partial paths
+     * @return string                    The constructed path
      */
     static public function buildSourcePath()
     {
         static $source_path = null;
         if (!$source_path) {
-            $source_path = TIP::buildPath($GLOBALS[TIP_MAIN]->getOption('source_root'));
+            $source_path = TIP::buildPath(TIP_Application::getGlobal('source_root'));
         }
 
         return TIP::deepImplode(array($source_path, func_get_args()), DIRECTORY_SEPARATOR);
@@ -580,35 +612,35 @@ class TIP
      *
      * Shortcut for building a path prepending the application 'source_fallback'.
      *
-     * @param string|array $subpath,... A list of partial paths
-     * @return string The constructed path
+     * @param  string|array $subpath,... A list of partial paths
+     * @return string                    The constructed path
      */
     static public function buildFallbackPath()
     {
         static $fallback_path = null;
         if (!$fallback_path) {
-            $fallback_path = TIP::buildPath($GLOBALS[TIP_MAIN]->getOption('source_fallback'));
+            $fallback_path = TIP::buildPath(TIP_Application::getGlobal('source_fallback'));
         }
 
         return TIP::deepImplode(array($fallback_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
 
     /**
-     * Build a data path
+     * Build an upload path
      *
-     * Shortcut for building a path prepending the application 'data_root'.
+     * Shortcut for building a path prepending the application 'upload_root'.
      *
-     * @param string|array $subpath,... A list of partial paths
-     * @return string The constructed path
+     * @param  string|array $subpath,... A list of partial paths
+     * @return string                    The constructed path
      */
-    static public function buildDataPath()
+    static public function buildUploadPath()
     {
-        static $data_path = null;
-        if (!$data_path) {
-            $data_path = TIP::buildPath($GLOBALS[TIP_MAIN]->getOption('data_root'));
+        static $upload_path = null;
+        if (!$upload_path) {
+            $upload_path = TIP::buildPath(TIP_Application::getGlobal('upload_root'));
         }
 
-        return TIP::deepImplode(array($data_path, func_get_args()), DIRECTORY_SEPARATOR);
+        return TIP::deepImplode(array($upload_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
 
     /**
@@ -617,8 +649,8 @@ class TIP
      * Constructs a URL from the argument list and prepending the application
      * base URL.
      *
-     * @param string|array $suburl,... A list of partial URLs
-     * @return string The constructed URL
+     * @param  string|array $suburl,... A list of partial URLs
+     * @return string                   The constructed URL
      */
     static public function buildURL()
     {
@@ -636,14 +668,14 @@ class TIP
      *
      * Shortcut for building a URL prepending the application 'source_root'.
      *
-     * @param string|array $suburl,... A list of partial URLs
-     * @return string The constructed URL
+     * @param  string|array $suburl,... A list of partial URLs
+     * @return string                   The constructed URL
      */
     static public function buildSourceURL()
     {
         static $source_url = null;
         if (!$source_url) {
-            $source_url = TIP::buildURL($GLOBALS[TIP_MAIN]->getOption('source_root'));
+            $source_url = TIP::buildURL(TIP_Application::getGlobal('source_root'));
         }
 
         return TIP::deepImplode(array($source_url, func_get_args()), '/');
@@ -654,35 +686,35 @@ class TIP
      *
      * Shortcut for building a URL prepending the application 'source_fallback'.
      *
-     * @param string|array $suburl,... A list of partial URLs
-     * @return string The constructed URL
+     * @param  string|array $suburl,... A list of partial URLs
+     * @return string                   The constructed URL
      */
     static public function buildFallbackURL()
     {
         static $fallback_url = null;
         if (!$fallback_url) {
-            $fallback_url = TIP::buildURL($GLOBALS[TIP_MAIN]->getOption('source_fallback'));
+            $fallback_url = TIP::buildURL(TIP_Application::getGlobal('source_fallback'));
         }
 
         return TIP::deepImplode(array($fallback_url, func_get_args()), '/');
     }
 
     /**
-     * Build a data URL
+     * Build an upload URL
      *
-     * Shortcut for building a URL prepending the application 'data_root'.
+     * Shortcut for building a URL prepending the application 'upload_root'.
      *
-     * @param string|array $suburl,... A list of partial URLs
-     * @return string The constructed URL
+     * @param  string|array $suburl,... A list of partial URLs
+     * @return string                   The constructed URL
      */
-    static public function buildDataURL()
+    static public function buildUploadURL()
     {
-        static $data_url = null;
-        if (!$data_url) {
-            $data_url = TIP::buildURL($GLOBALS[TIP_MAIN]->getOption('data_root'));
+        static $upload_url = null;
+        if (!$upload_url) {
+            $upload_url = TIP::buildURL(TIP_Application::getGlobal('upload_root'));
         }
 
-        return TIP::deepImplode(array($data_url, func_get_args()), '/');
+        return TIP::deepImplode(array($upload_url, func_get_args()), '/');
     }
 
     /**
@@ -727,7 +759,12 @@ class TIP
      */
     static public function getRefererURI()
     {
-        return $GLOBALS[TIP_MAIN]->getRefererURI();
+        static $referer_uri = null;
+        if (is_null($referer_uri)) {
+            $referer =& TIP_Application::getGlobal('_referer');
+            $referer_uri = $referer['uri'];
+        }
+        return $referer_uri;
     }
 
     /**
@@ -737,7 +774,12 @@ class TIP
      */
     static public function getRequestURI()
     {
-        return $GLOBALS[TIP_MAIN]->getRequestURI();
+        static $request_uri = null;
+        if (is_null($request_uri)) {
+            $request =& TIP_Application::getGlobal('_request');
+            $request_uri = $request['uri'];
+        }
+        return $request_uri;
     }
 
     /**
@@ -745,8 +787,8 @@ class TIP
      *
      * Converts the $value content in HTML safe manner, accordling to its type.
      *
-     * @param mixed $value The value to convert
-     * @return string The converted value 
+     * @param  mixed  $value The value to convert
+     * @return string        The converted value 
      */
     static public function toHtml($value)
     {
@@ -767,8 +809,8 @@ class TIP
      * Removes the TIP prefix, defined in the TIP_PREFIX constant, from a
      * string.
      *
-     * @param string $id A TIP prefixed identifier
-     * @return string The identifier without the TIP prefix
+     * @param  string $id A TIP prefixed identifier
+     * @return string     The identifier without the TIP prefix
      */
     static public function stripTipPrefix($id)
     {
@@ -780,10 +822,10 @@ class TIP
      *
      * Returns the id of the logged in user.
      *
-     * @param bool $refresh Forces the update of the internal user id cache
-     * @return mixed|false|null The current user id, null if this is an
-     *                          anonymous session or false if the user module
-     *                          is not present
+     * @param  bool             $refresh Forces the update of the internal cache
+     * @return mixed|false|null          The current user id,
+     *                                   null for anonymous session or
+     *                                   false if the user module does not exist
      */
     static public function getUserId($refresh = false)
     {
@@ -791,7 +833,7 @@ class TIP
         static $user_id;
 
         if (!$initialized || $refresh) {
-            $user =& $GLOBALS[TIP_MAIN]->getSharedModule('user');
+            $user =& TIP_Application::getSharedModule('user');
             $user_id = is_object($user) ? @$user->keys['CID'] : false;
             $initialized = true;
         }
@@ -802,26 +844,26 @@ class TIP
     /**
      * Get the privilege for the specified module
      *
-     * Returns the privilege for a module and the specified user.  If $user_id
+     * Returns the privilege for a module and the specified user.  If $user
      * is omitted, the current user id is used. Check TIP_Privilege to see how the
      * privileges are used.
      *
-     * @param  string           $module_id The requesting module identifier
-     * @param  mixed            $user_id   A user id
-     * @return TIP_PRIVILEGE...            The requested privilege
+     * @param  string           $module The requesting module identifier
+     * @param  mixed            $user   A user id
+     * @return TIP_PRIVILEGE...         The requested privilege
      */
-    static public function getPrivilege($module_id, $user_id = null)
+    static public function getPrivilege($module, $user = null)
     {
         static $privilege = false;
         if ($privilege === false) {
-            $privilege =& $GLOBALS[TIP_MAIN]->getSharedModule('privilege');
+            $privilege =& TIP_Application::getSharedModule('privilege');
         }
 
         if ($privilege) {
-            return $privilege->getPrivilege($module_id, $user_id);
+            return $privilege->getPrivilege($module, $user);
         }
 
-        return TIP::getDefaultPrivilege($module_id, $user_id);
+        return TIP::getDefaultPrivilege($module, $user);
     }
 
     /**
@@ -829,19 +871,21 @@ class TIP
      *
      * Returns the default privilege for a module and a specified user.
      *
-     * @param  string           $module_id The requesting module identifier
-     * @param  mixed            $user_id   A user id
-     * @return TIP_PRIVILEGE...            The requested privilege
+     * @param  string           $module The requesting module identifier
+     * @param  mixed            $user   A user id
+     * @return TIP_PRIVILEGE...         The requested privilege
      */
-    static public function getDefaultPrivilege($module_id, $user_id)
+    static public function getDefaultPrivilege($module, $user)
     {
-        $privilege_type = $user_id ? 'default_privilege' : 'anonymous_privilege';
-        $result = @$GLOBALS['cfg'][$module_id][$privilege_type];
+        $privilege_type = $user ? 'default_privilege' : 'anonymous_privilege';
+        $result = @$GLOBALS['cfg'][(string) $module][$privilege_type];
         if (is_null($result)) {
-            $result = $GLOBALS[TIP_MAIN]->getOption($privilege_type);
+            $result = TIP_Application::getGlobal($privilege_type);
         }
 
         return $result;
     }
+
+    //}}}
 }
 ?>

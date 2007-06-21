@@ -1,5 +1,5 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * TIP_Bucket definition file
@@ -23,40 +23,54 @@
  */
 class TIP_Bucket extends TIP_Data_Engine
 {
-    function __construct($id)
+    //{{{ Constructor/destructor
+
+    /**
+     * Constructor
+     *
+     * Initializes a TIP_Bucket instance.
+     *
+     * @param array $options Properties values
+     */
+    protected function __construct($options)
     {
-        parent::__construct($id);
+        parent::__construct($options);
     }
+
+    //}}}
+    //{{{ TIP_Data_Engine implementation
 
     function fillFields(&$data)
     {
-        TIP::warning("fillFields($data->_path)");
+        TIP::warning("fillFields($data)");
         return true;
     }
 
     function& select(&$data, $filter, $fields)
     {
-        TIP::warning("get($filter, $data->_path, $fields)");
+        TIP::warning("get($data, $filter, $fields)");
         $fake_result = array();
         return $fake_result;
     }
 
     function insert(&$data, &$row)
     {
-        TIP::warning("insert(row, $data->_path)");
+        TIP::warning("insert(row, $data)");
         return true;
     }
 
     function update(&$data, $filter, &$row)
     {
-        TIP::warning("update($filter, row, $data->_path)");
+        TIP::warning("update($data, $filter, row)");
         return true;
     }
 
     function delete(&$data, $filter)
     {
-        TIP::warning("delete($filter, $data->_path)");
+        TIP::warning("delete($data, $filter)");
         return true;
     }
+
+    //}}}
 }
 ?>

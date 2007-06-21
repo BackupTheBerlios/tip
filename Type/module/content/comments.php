@@ -1,5 +1,5 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * @package TIP
@@ -12,190 +12,203 @@
  */
 class TIP_Comments extends TIP_Content
 {
-    /**#@+ access private */
+    //{{{ Properties
 
-    var $_master = null;
-    var $_slave_field = null;
-    var $_master_id = null;
+    /**
+     * A reference to the master module
+     * @var TIP_Content
+     */
+    protected $master = null;
 
+    /**
+     * The field to be joined to the master primary key
+     * @var string
+     */
+    protected $parent_field = '_parent';
 
-    function _updateCounter($offset)
+    /**
+     * The field of 'master' that holds the comment counter
+     * @var string
+     */
+    protected $master_count = '_comments';
+
+    //}}}
+    //{{{ Static methods
+
+    static protected function checkOptions(&$options)
     {
-        $id = $this->_master_id;
-        $view =& $this->_master->startView($this->_master->data->rowFilter($id));
-        if (is_null($view)) {
-            TIP::warning("unable to get row $id on data " . $this->_master->data->getId());
-            TIP::notifyError('select');
+        if (!parent::checkOptions($options) || !isset($options['master'])) {
             return false;
         }
 
-        $row =& $view->current();
-        $this->_master->endView();
+        isset($options['statistics']) || $options['statistics'] = array(
+            '_onAdd'    => '_comments',
+            '_onEdit'   => null,
+            '_onDelete' => '_deleted_comments'
+        );
 
-        if (is_null($row)) {
-            TIP::error("row $id not found in " . $this->_master->data->getId());
-            TIP::notifyError('notfound');
-            return false;
-        }
-        $row =& $this->_master->getRow($this->_master_id);
-
-        $old_row = $row;
-        $row['_comments'] += $offset;
-        if (!$this->_master->data->updateRow($row, $old_row)) {
-            TIP::error("no way to update comments counter on row $id in " . $this->_master->data->getId());
-            return false;
+        if (is_string($options['master'])) {
+            $options['master'] =& TIP_Type::getInstance($options['master']);
+        } elseif (is_array($options['master'])) {
+            $options['master'] =& TIP_Type::singleton($options['master']);
         }
 
-        return true;
+        return $options['master'] instanceof TIP_Content;
     }
 
-    function _onAdd(&$form, &$row)
-    {
-        if ($this->_updateCounter(+1)) {
-            $form->process($row);
-        }
-
-        // Update _comments, if the user module exists
-        $user =& $GLOBALS[TIP_MAIN]->getSharedModule('user');
-        if (is_object($user) && !is_null($count = $user->getLoggedField('_comments'))) {
-            $user->setLoggedField('_comments', $count+1);
-        }
-    }
-
-    function _onDelete(&$form, &$row)
-    {
-        $this->_master_id = $row[$this->_slave_field];
-        if ($this->_updateCounter(-1)) {
-            $form->process($row);
-        }
-
-        // Update _deleted_comments, if the user module exists
-        $user =& $GLOBALS[TIP_MAIN]->getSharedModule('user');
-        if (is_object($user) && !is_null($count = $user->getLoggedField('_deleted_comments'))) {
-            $user->setLoggedField('_deleted_comments', $count+1);
-        }
-    }
-
-    /**#@-*/
-
-
-    /**#@+ access protected */
+    //}}}
+    //{{{ Constructor/destructor
 
     /**
      * Constructor
      *
      * Initializes a TIP_Comments instance.
      *
-     * @param string $id The instance identifier
+     * $options inherits the TIP_Content properties, and add the following:
+     * - $options['master']:       the name of the master module (required)
+     * - $options['parent_field']: the field to join to the master primary key
+     * - $options['master_count']: the field on the master module that holds
+     *                             the comment counter
+     *
+     * @param array $options Properties values
      */
-    function __construct($id)
+    protected function __construct($options)
     {
-        parent::__construct($id);
-
-        $this->_master =& TIP_Type::getInstance($this->getOption('master_module'));
-        $this->_slave_field = $this->getOption('slave_field');
+        parent::__construct($options);
     }
 
-    /**#@+
-     * @param string @params The parameter string
-     * @return bool true on success or false on errors
-     * @subpackage SourceEngine
+    //}}}
+    //{{{ Callbacks
+
+    /**
+     * Update statistic on the master module
+     *
+     * Updates the counter of the linked row in the master module accordling
+     * to the specified $offset.
+     *
+     * This is an high level method that raises errors and notify them to the
+     * user on any errors.
+     *
+     * @param  array &$comment_row The comment row
+     * @param  int    $offset      The offset of the counter (+1 add, -1 delete)
+     * @return bool                true on success or false on errors
      */
+    private function _updateMaster(&$comment_row, $offset)
+    {
+        $id = $comment_row[$this->parent_field];
+        if (empty($id)) {
+            TIP::notifyError('notfound');
+            TIP::warning("master row not specified ($id)");
+            return false;
+        }
+
+        if (is_null($row =& $this->master->fromRow($id, false))) {
+            return false;
+        }
+
+        $old_row = $row;
+        $row[$this->master_count] += $offset;
+
+        if (!$this->master->getProperty('data')->updateRow($row, $old_row)) {
+            TIP::notifyError('update');
+            TIP::warning("no way to update comments counter on master row ($id)");
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * Provide additional statistic update on the master module
+     * @param  array &$row The data row to add
+     * @return bool        true on success, false on errors
+     */
+    public function _onAdd(&$row)
+    {
+        return $this->_updateMaster($row, +1) && parent::_onAdd($row);
+    }
+
+    /**
+     * Provide additional statistic update on the master module
+     * @param  array &$row The data row to add
+     * @return bool        true on success, false on errors
+     */
+    public function _onDelete(&$row)
+    {
+        return $this->_updateMaster($row, -1) && parent::_onDelete($row);
+    }
+
+    /**
+     * Remove all comments linked to a master row
+     * @param  array &$row The row deleted from the master module
+     * @return bool        true on success, false on errors
+     */
+    public function _onMasterDelete(&$row)
+    {
+        $primary_key = $this->master->getProperty('data')->getProperty('primary_key');
+        if (!isset($row[$primary_key])) {
+            return false;
+        }
+
+        $filter = $this->getProperty('data')->filter($this->parent_field, $row[$primary_key]);
+        return $this->getProperty('data')->deleteRows($filter);
+    }
+
+    //}}}
+    //{{{ Commands
 
     /**
      * Add a comments form
+     *
+     * Allows to show an inline form in the middle of a page.
+     *
+     * If the form is validated, the result is rendered in the page. Also, the
+     * cancel button in the invalidated form is removed (it is not useful for
+     * inline forms).
+     *
+     * @param  int  $params The id of the master row
+     * @return bool         true on success or false on errors
      */
-    function commandAdd($params)
+    protected function commandAdd($params)
     {
-        $this->_master_id = (int) $params;
-        return $this->callAction('add');
+        if (empty($params)) {
+            TIP::notifyError('noparams');
+            return false;
+        }
+
+        $options['defaults'][$this->parent_field] = (int) $params;
+        $options['buttons'] = TIP_FORM_BUTTON_SUBMIT;
+        $options['invalid_render'] = TIP_FORM_RENDER_HERE;
+        $options['valid_render'] = TIP_FORM_RENDER_IN_PAGE;
+        return $this->actionAdd($options);
     }
 
-    /**#@-*/
+    //}}}
+    //{{{ Actions
 
-
-    function runManagerAction($action)
+    /**
+     * Perform an add action
+     *
+     * Overrides the default add action, assuring the 'parent_field' has a
+     * valid value.
+     *
+     * @param  array $options Options to pass to the form() call
+     * @return bool           true on success or false on errors
+     */
+    protected function actionAdd($options = array())
     {
-        switch ($action) {
-        case 'edit':
-            if (is_null($id = TIP::getPost('id', 'int')) && is_null($id = TIP::getGet('id', 'int'))) {
-                TIP::error('no id specified');
+        // Check for the default value of 'parent_field' (the parent id)
+        if (!isset($options['defaults'], $options['defaults'][$this->parent_field])) {
+            // Try to get the parent id from GET or POST
+            if (is_null($parent_id = $this->fromGetOrPost($this->parent_field))) {
                 return false;
             }
-
-            $processed = $this->form(TIP_FORM_ACTION_EDIT, $id);
-            return !is_null($processed);
+            $options['defaults'][$this->parent_field] = $parent_id;
         }
 
-        return null;
+        return parent::actionAdd($options);
     }
 
-    function runAdminAction($action)
-    {
-        switch ($action) {
-        case 'delete':
-            $id = TIP::getGet('id', 'int');
-            if (empty($id)) {
-                TIP::error('no comment specified');
-                return false;
-            }
-
-            $processed = $this->form(TIP_FORM_ACTION_DELETE, $id, array(
-                'on_process' => array(&$this, '_onDelete')
-            ));
-            return !is_null($processed);
-        }
-
-        return null;
-    }
-
-    function runTrustedAction($action)
-    {
-        switch ($action) {
-        case 'add':
-            if (is_null($this->_master_id)) {
-                $this->_master_id = TIP::getPost($this->_slave_field, 'int');
-            }
-
-            if (is_null($this->_master_id)) {
-                $this->_master_id = TIP::getGet($this->_slave_field, 'int');
-            }
-
-            if (is_null($this->_master_id)) {
-                TIP::error('no parent id specified');
-                return null;
-            }
-
-            $processed = $this->form(TIP_FORM_ACTION_ADD, null, array(
-                'referer'               => $_SERVER['REQUEST_URI'],
-                'buttons'               => TIP_FORM_BUTTON_SUBMIT,
-                'invalid_render'        => TIP_FORM_RENDER_HERE,
-                'valid_render'          => TIP_FORM_RENDER_IN_CONTENT,
-                'defaults'              => array(
-                    '_creation'         => TIP::formatDate('datetime_iso8601'),
-                    '_user'             => TIP::getUserId(),
-                    $this->_slave_field => $this->_master_id
-                ),
-                'on_process'            => array(&$this, '_onAdd')
-            ));
-
-            return !is_null($processed);
-        }
-
-        return parent::runTrustedAction($action);
-    }
-
-    /**#@-*/
-
-
-    /**#@+ @access public */
-
-    function parentRemoved($id)
-    {
-        $filter = $this->data->filter($this->_slave_field, $id);
-        return $this->data->deleteRows($filter);
-    }
-
-    /**#@-*/
+    //}}}
 }
 ?>

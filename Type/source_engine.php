@@ -1,5 +1,5 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * TIP_Source_Engine definition file
@@ -16,18 +16,7 @@
  */
 abstract class TIP_Source_Engine extends TIP_Type
 {
-    /**
-     * Source engine constructor
-     *
-     * Chains up the parent constructor.
-     * You must redefine the constructor as public to be able to use it.
-     *
-     * @param string $id The derived instance identifier
-     */
-    function __construct($id)
-    {
-        parent::__construct($id);
-    }
+    //{{{ Interface
 
     /**
      * Execute a source/template file
@@ -39,5 +28,7 @@ abstract class TIP_Source_Engine extends TIP_Type
      * @return bool                true on success or false on errors
      */
     abstract public function run(&$source, &$module);
+
+    //}}}
 }
 ?>

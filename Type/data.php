@@ -1,5 +1,5 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * TIP_Data definition file
@@ -8,12 +8,12 @@
 
 
 /**
- * Ascending order, used by TIP_Query::setOrder()
+ * Ascending order, used by TIP_Data::order()
  */
 define('TIP_ASCENDING', false);
 
 /**
- * Descending order, used by TIP_Query::setOrder()
+ * Descending order, used by TIP_Data::order()
  */
 define('TIP_DESCENDING', true);
 
@@ -26,23 +26,19 @@ define('TIP_DESCENDING', true);
  */
 class TIP_Data extends TIP_Type
 {
-    /**#@+ @access private */
+    //{{{ Properties
 
     /**
-     * The data identifier
-     *
-     * The path (or name) which univoquely identify the data.
-     * This field is filled by TIP_Data during this class instantiation.
-     *
+     * The data path
      * @var string
      */
-    var $_path = null;
+    protected $path = null;
 
     /**
      * The data engine
      * @var TIP_Data_Engine
      */
-    var $_engine = null;
+    protected $engine = null;
 
     /**
      * The primary key field
@@ -52,44 +48,99 @@ class TIP_Data extends TIP_Type
      *
      * @var $string
      */
-    var $_primary_key = 'id';
+    protected $primary_key = 'id';
 
     /**
-     * The last id
-     *
-     * Contains the last id of the putRow() method, if any.
-     */
-    var $_last_id = null;
-
-    /**
-     * Fields of $_path to use in queries
+     * Fields to use in queries
      *
      * An array of field ids used by this object. If left null, all the fields
-     * of $_path are assumed.
+     * are assumed.
      * @var array
      */
-    var $_fieldset = null;
+    protected $fieldset = null;
 
     /**
      * Join definitions
      * @var array
      */
-    var $_joins = null;
+    protected $joins = null;
+
+    //}}}
+    //{{{ Internal properties
 
     /**
      * Fields structure
      * @var array
+     * @internal
      */
-    var $_fields = null;
+    private $_fields = null;
     
     /**
-     * Has the $this->_engine->fillFields() method been called?
+     * Has the $this->engine->fillFields() method been called?
      * @var bool
+     * @internal
      */
-    var $_detailed = false;
+    private $_detailed = false;
 
+    /**
+     * The last id as returned by the putRow() method, if any
+     * @var mixed|null
+     * @internal
+     */
+    private $_last_id = null;
 
-    function _castField(&$value, $key)
+    //}}}
+    //{{{ Constructor/destructor
+
+    /**
+     * Check the options
+     *
+     * Overridable static method that checks $options for missing or invalid
+     * values and eventually corrects its content.
+     *
+     * @param  array &$options Properties values
+     * @return bool            true on success or false on error
+     */
+    static protected function checkOptions(&$options)
+    {
+        if (!parent::checkOptions($options) || !isset($options['path'])) {
+            return false;
+        }
+
+        isset($options['engine']) || $options['engine'] =& TIP_Application::getGlobal('data_engine');
+
+        // Forced overriding of the default id ('data')
+        $options['id'] = $options['engine']->getProperty('id') . ':' . $options['path'];
+        if (isset($options['fieldset'])) {
+            $options['id'] .= '(' . implode(',', $options['fieldset']) . ')';
+        }
+
+        return true;
+    }
+
+    /**
+     * Constructor
+     *
+     * Initializes a TIP_Data instance.
+     *
+     * $options inherits the TIP_Type properties, and add the following:
+     * - $options['path']:        the path to the data source or the table name
+     * - $options['engine']:      the TIP_Data_Engine options to use
+     * - $options['primary_key']: the primary key field
+     * - $options['fieldset']:    fields to use in queries
+     * - $options['join']:        join definitions
+     *
+     * @param array $options Properties values
+     */
+    protected function __construct($options)
+    {
+        parent::__construct($options);
+    }
+
+    //}}}
+    //{{{ Methods
+
+    private function _castField(&$value, $key)
     {
         if (array_key_exists($key, $this->_fields)) {
             $field =& $this->_fields[$key];
@@ -111,13 +162,13 @@ class TIP_Data extends TIP_Type
      *
      * @param array &$row The row to cast
      */
-    function _castRow(&$row)
+    private function _castRow(&$row)
     {
         $this->getFields(false);
         array_walk($row, array(&$this, '_castField'));
     }
 
-    function _mergeFieldInfo(&$field)
+    private function _mergeFieldInfo(&$field)
     {
         if (isset($field['info'])) {
             $info = TIP::doubleExplode('|', '=', $field['info']);
@@ -125,16 +176,16 @@ class TIP_Data extends TIP_Type
         }
     }
 
-    function _validate(&$row)
+    private function _validate(&$row)
     {
         $this->getFields(false);
 
         // Keep only the keys that are fields
         $row = array_intersect_key($row, $this->_fields);
 
-        if (isset($this->_fieldset)) {
+        if (isset($this->fieldset)) {
             // Apply the fieldset filter
-            $row = array_intersect_key($row, array_flip($this->_fieldset));
+            $row = array_intersect_key($row, array_flip($this->fieldset));
         }
 
         // Check for empty set
@@ -148,90 +199,6 @@ class TIP_Data extends TIP_Type
         return true;
     }
 
-    /**#@-*/
-
-
-    /**#@+ @access protected */
-
-    /**
-     * Constructor
-     *
-     * Initializes a TIP_Data instance.
-     *
-     * @param string $id   The instance identifier
-     * @param array  $args The constructor arguments, as described in buildId()
-     */
-    function __construct($id, $args)
-    {
-        parent::__construct($id);
-
-        $this->_path = $args['path'];
-        $this->_joins = $args['joins'];
-        $this->_engine =& $args['engine'];
-
-        if (isset($args['primary_key'])) {
-            $this->_primary_key =& $args['primary_key'];
-        }
-
-        if (isset($args['fieldset'])) {
-            $this->_fieldset =& $args['fieldset'];
-        }
-    }
-
-    /**
-     * Build a TIP_Data identifier
-     *
-     * $args must be an array with at least the following items:
-     * - $args['path']: the path/table to use
-     * - $args['engine']: a reference to the data engine
-     *
-     * The following items are optionals:
-     * - $args['fieldset']: an array of fields to select
-     * - $args['joins']: an associative array of joins to other data
-     * - $args['primary_key']: the field to use as primary key instead of the
-     *                         default one (that is 'id')
-     *
-     * @param  array  $args The constructor arguments
-     * @return string       The data identifier
-     */
-    function buildId($args)
-    {
-        $id = $args['engine']->getId() . ':' . $args['path'];
-        if (isset($args['fieldset'])) {
-            $id .= '(' . implode(',', $args['fieldset']) . ')';
-        }
-        return $id;
-    }
-
-    /**#@-*/
-
-
-    /**#@+ @access public */
-
-    /**
-     * Get the path
-     *
-     * Returns the path of this data object.
-     *
-     * @return string The requested data path
-     */
-    function getPath()
-    {
-        return $this->_path;
-    }
-
-    /**
-     * Get the primary key
-     *
-     * Returns the primary key of this data object.
-     *
-     * @return string The primary key field
-     */
-    function getPrimaryKey()
-    {
-        return $this->_primary_key;
-    }
-
     /**
      * Get the last id
      *
@@ -239,9 +206,21 @@ class TIP_Data extends TIP_Type
      *
      * @return mixed The last id
      */
-    function getLastId()
+    public function getLastId()
     {
         return $this->_last_id;
+    }
+
+    /**
+     * Get the reference of the $_fields internal property
+     *
+     * Mainly used by the data engine to fill the fields structure.
+     *
+     * @return array A reference to $_fields
+     */
+    public function &getFieldsRef()
+    {
+        return $this->_fields;
     }
 
     /**
@@ -256,23 +235,35 @@ class TIP_Data extends TIP_Type
      * @param  string $condition The condition to apply
      * @return string            The filter in the proper engine format
      */
-    function filter($name, $value, $condition = '=')
+    public function filter($name, $value, $condition = '=')
     {
         return $this->addFilter('WHERE', $name, $value, $condition);
     }
 
-    function addFilter($connector, $name, $value, $condition = '=')
+    /**
+     * Create an appendable filter expression
+     *
+     * Creates a portion of a filter (in the proper engine format) that can
+     * be added to the main filter (generated throught the filter() method).
+     *
+     * @param  string $connector A boolean expression
+     * @param  string $name      A field id
+     * @param  mixed  $value     The reference value
+     * @param  string $condition The condition to apply
+     * @return string            The filter portion in the proper engine format
+     */
+    public function addFilter($connector, $name, $value, $condition = '=')
     {
         // Special condition
         if (is_null($value) && strpos('is', strtolower($condition)) === false) {
             $condition = $condition == '=' ? 'IS' : 'IS NOT';
         }
 
-        $name = $this->_engine->_preparedName($name);
-        $path = $this->_engine->_preparedName($this->_path);
+        $name = $this->engine->preparedName($name);
+        $path = $this->engine->preparedName($this->path);
         $name = $path . '.' . $name;
 
-        $value = $this->_engine->_preparedValue($value);
+        $value = $this->engine->preparedValue($value);
         return ' ' . $connector . ' '. $name . ' ' . $condition . ' ' . $value;
     }
 
@@ -280,17 +271,17 @@ class TIP_Data extends TIP_Type
      * Create a basic order clause
      *
      * Builds the order clause (in the proper engine format) to sort the rows
-     * using the specified field.
+     * using the specified field. This clause can be appended to a main filter.
      *
      * @param  string $name       A field id
      * @param  bool   $descending true for descending order
      * @return string             The order clause in the proper engine format
      */
-    function order($name, $descending = false)
+    public function order($name, $descending = false)
     {
-        $name = $this->_engine->_preparedName($name);
+        $name = $this->engine->preparedName($name);
         $tail = $descending ? ' DESC' : '';
-        return 'ORDER BY ' . $name . $tail;
+        return ' ORDER BY ' . $name . $tail;
     }
 
     /**
@@ -303,9 +294,9 @@ class TIP_Data extends TIP_Type
      * @param  mixed  $id The primary key value
      * @return string     The requested filter in the proper engine format
      */
-    function rowFilter($id)
+    public function rowFilter($id)
     {
-        return $this->filter($this->_primary_key, $id) . ' LIMIT 1';
+        return $this->filter($this->primary_key, $id) . ' LIMIT 1';
     }
 
     /**
@@ -317,18 +308,19 @@ class TIP_Data extends TIP_Type
      * @return   array|null           The field structure or null on errors
      * @tutorial TIP/DataEngine/DataEngine.pkg#fields
      */
-    function& getFields($detailed = true)
+    public function &getFields($detailed = true)
     {
         if (is_null($this->_fields) || $detailed && !$this->_detailed) {
             $this->_detailed = true;
-            if ($this->_engine->fillFields($this)) {
+            if ($this->engine->fillFields($this)) {
                 if (is_array($this->_fields)) {
                     array_walk($this->_fields, array(&$this, '_mergeFieldInfo'));
                 } else {
                     TIP::error('Populated fields are not an array (' . gettype($this->_fields) . ')');
                 }
             } else {
-                TIP::error("no way to get the table structure ($data->_path)");
+                $id = $this->path;
+                TIP::error("no way to get the table structure ($id)");
             }
         }
 
@@ -345,9 +337,10 @@ class TIP_Data extends TIP_Type
      * @return array|null         The row matching the specified id
      *                            or null on errors
      */
-    function& getRow($id, $fields = null)
+    public function &getRow($id, $fields = null)
     {
-        $rows =& $this->_engine->select($this, $this->rowFilter($id), $fields);
+        isset($fields) || $fields = $this->fieldset;
+        $rows =& $this->engine->select($this, $this->rowFilter($id), $fields);
         if (!@is_array($rows[$id])) {
             $fake_null = null;
             return $fake_null;
@@ -371,9 +364,10 @@ class TIP_Data extends TIP_Type
      *                              or null on errors
      * @tutorial TIP/DataEngine/DataEngine.pkg#rows
      */
-    function& getRows($filter, $fields = null)
+    public function &getRows($filter, $fields = null)
     {
-        $rows =& $this->_engine->select($this, $filter, $fields);
+        isset($fields) || $fields = $this->fieldset;
+        $rows =& $this->engine->select($this, $filter, $fields);
         if (is_array($rows)) {
             array_walk($rows, array(&$this, '_castRow'));
         }
@@ -389,7 +383,7 @@ class TIP_Data extends TIP_Type
      * If $row is an empty array, a new row with default values will be
      * inserted without errors.
      *
-     * Also, this method is subject to the fieldset: if $_fieldset is set,
+     * Also, this method is subject to the fieldset: if $fieldset is set,
      * only the fields present in this subset will be inserted.
      *
      * Instead, if the primary key is defined in $row, this function fails if
@@ -398,7 +392,7 @@ class TIP_Data extends TIP_Type
      * @param  array &$row The row to insert
      * @return bool        true on success or false on errors
      */
-    function putRow(&$row)
+    public function putRow(&$row)
     {
         if (!is_array($row)) {
             $type = gettype($row);
@@ -416,14 +410,14 @@ class TIP_Data extends TIP_Type
             $rows = array($row);
         }
 
-        $result = $this->_engine->insert($this, $rows);
+        $result = $this->engine->insert($this, $rows);
         if (is_null($result)) {
             return false;
         }
 
-        if (empty($row[$this->_primary_key]) && $result) {
+        if (empty($row[$this->primary_key]) && $result) {
             // Set the primary key to the last autoincrement value, if any
-            $row[$this->_primary_key] = $result;
+            $row[$this->primary_key] = $result;
             $this->_last_id = $result;
         }
 
@@ -444,7 +438,7 @@ class TIP_Data extends TIP_Type
      * @param  array $rows An array of rows to insert
      * @return bool        true on success or false on errors
      */
-    function putRows($rows)
+    public function putRows($rows)
     {
         if (!is_array($rows)) {
             $type = gettype($rows);
@@ -458,7 +452,7 @@ class TIP_Data extends TIP_Type
             return false;
         }
 
-        $result = $this->_engine->insert($this, $rows);
+        $result = $this->engine->insert($this, $rows);
         return !is_null($result);
     }
 
@@ -478,7 +472,7 @@ class TIP_Data extends TIP_Type
      * @param  array $old_row The old row content
      * @return bool           true on success or false on errors
      */
-    function updateRow($row, $old_row = null)
+    public function updateRow($row, $old_row = null)
     {
         if (!is_array($row)) {
             $type = gettype($row);
@@ -486,12 +480,12 @@ class TIP_Data extends TIP_Type
             return false;
         }
 
-        if (@array_key_exists($this->_primary_key, $old_row)) {
-            $id = $old_row[$this->_primary_key];
+        if (@array_key_exists($this->primary_key, $old_row)) {
+            $id = $old_row[$this->primary_key];
         } 
         
-        if (@array_key_exists($this->_primary_key, $row)) {
-            $id = $row[$this->_primary_key];
+        if (@array_key_exists($this->primary_key, $row)) {
+            $id = $row[$this->primary_key];
         }
        
         if (!isset($id)) {
@@ -514,7 +508,7 @@ class TIP_Data extends TIP_Type
             return true;
         }
 
-        return $this->_engine->update($this, $this->rowFilter($id), $row);
+        return $this->engine->update($this, $this->rowFilter($id), $row);
     }
 
     /**
@@ -534,7 +528,7 @@ class TIP_Data extends TIP_Type
      * @param  array  $row    A row with the field => value pairs to update
      * @return bool           true on success or false on errors
      */
-    function updateRows($filter, $row)
+    public function updateRows($filter, $row)
     {
         if (!is_array($row)) {
             $type = gettype($row);
@@ -543,8 +537,8 @@ class TIP_Data extends TIP_Type
         }
 
         // Found a primary key: error
-        if (array_key_exists($this->_primary_key, $row)) {
-            $key = $row[$this->_primary_key];
+        if (array_key_exists($this->primary_key, $row)) {
+            $key = $row[$this->primary_key];
             TIP::error("updateRows() impossible with a primary key defined ($key)");
             return false;
         }
@@ -554,7 +548,7 @@ class TIP_Data extends TIP_Type
             return false;
         }
 
-        return $this->_engine->update($this, $filter, $row);
+        return $this->engine->update($this, $filter, $row);
     }
 
     /**
@@ -565,9 +559,9 @@ class TIP_Data extends TIP_Type
      * @param  mixed $id The row id
      * @return bool      true on success or false on errors
      */
-    function deleteRow($id)
+    public function deleteRow($id)
     {
-        return $this->_engine->delete($this, $this->rowFilter($id));
+        return $this->engine->delete($this, $this->rowFilter($id));
     }
 
     /**
@@ -584,16 +578,16 @@ class TIP_Data extends TIP_Type
      * @param  string $filter The row filter
      * @return bool           true on success or false on errors
      */
-    function deleteRows($filter)
+    public function deleteRows($filter)
     {
         // Empty filter are by default not accepted
         if (empty($filter)) {
             return false;
         }
 
-        return $this->_engine->delete($this, $filter);
+        return $this->engine->delete($this, $filter);
     }
 
-    /**#@-*/
+    //}}}
 }
 ?>

@@ -1,5 +1,5 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * TIP specific renderers
@@ -13,6 +13,8 @@
  */
 class TIP_Renderer
 {
+    //{{{ Static methods
+
     /**
      * Get the HTML_Menu_Renderer
      *
@@ -101,5 +103,7 @@ class TIP_Renderer
 
         return $renderer;
     }
+
+    //}}}
 }
 ?>

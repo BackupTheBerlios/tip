@@ -1,5 +1,5 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
  * TIP_Logger definition file
@@ -17,39 +17,43 @@
  */
 class TIP_Logger extends TIP_Content
 {
-    /**#@+ @access private */
+    //{{{ Internal properties
 
-    var $_rows = null;
+    /**
+     * The cached array of logger rows 
+     * @var array|null
+     */
+    private $_cache = null;
 
+    //}}}
+    //{{{ Constructor/destructor
 
-    function _storeLogs()
+    /**
+     * Constructor
+     *
+     * Initializes a TIP_Logger instance.
+     *
+     * @param array $options Properties values
+     */
+    protected function __construct($options)
     {
-        $this->data->putRows($this->_rows);
+        parent::__construct($options);
     }
 
-    /**#@-*/
-
-
-    /**#@+ @access protected */
-
-    function __construct($id)
+    /**
+     * Destructor
+     *
+     * Stores the cache content in once, if $_cache is an array.
+     */
+    function _destruct()
     {
-        parent::__construct($id);
-    }
-
-    function& startSpecialView($type)
-    {
-        if (strcasecmp($type, 'LOGS') != 0) {
-            return parent::startSpecialView($type);
+        if (is_array($this->_cache)) {
+            $this->data->putRows($this->_cache);
         }
-
-        return parent::startSpecialView('array', array('id' => '__LOGS__', 'rows' => &$this->_rows));
     }
 
-    /**#@-*/
-
-
-    /**#@+ @access public */
+    //}}}
+    //{{{ Methods
 
     /**
      * Append a log
@@ -61,12 +65,20 @@ class TIP_Logger extends TIP_Content
      * @param string  $severity  The text of the log
      * @param string  $message   A custom message
      * @param array  &$backtrace The backtrace array
-     * @static
      */
-    function log($severity, $message, &$backtrace)
+    public function log($severity, $message, &$backtrace)
     {
-        // Careful scans the backtrace to find useful informations and store
-        // them in the $context array
+        static $running = false;
+
+        // The running flag avoid recursive calls to log()
+        if ($running) {
+            return false;
+        } else {
+            $running = true;
+        }
+
+        // Carefully scans the backtrace to find useful informations
+        // and store them in the $context array
         $context = array();
         foreach ($backtrace as $n => $trace) {
             if ($n == 0) {
@@ -105,9 +117,8 @@ class TIP_Logger extends TIP_Content
                     $last =& $backtrace[$n-1];
                     if (is_object($last['args'][0])) {
                         $source =& $last['args'][0];
-                        $id     =  $source->getId();
                         $method =  $last['function'];
-                        $context['source'] = "$id on method $method";
+                        $context['source'] = "$source on method $method";
                     }
                 }
                 continue;
@@ -116,9 +127,8 @@ class TIP_Logger extends TIP_Content
                     $last =& $backtrace[$n-1];
                     if (is_object($last['args'][0])) {
                         $data   =& $last['args'][0];
-                        $id     =  $data->getId();
                         $method =  $last['function'];
-                        $context['data'] = "$id on method $method";
+                        $context['data'] = "$data on method $method";
                     }
                 }
                 continue;
@@ -137,14 +147,16 @@ class TIP_Logger extends TIP_Content
             }
         }
 
-        if (is_null($this->_rows)) {
-            // First time log() is called (the $_rows array is empty)
-            register_shutdown_function(array(&$this, '_storeLogs'));
-        }
-
-        $this->_rows[] =& $row;
+        $this->_cache[] =& $row;
+        $running = false;
+        return true;
     }
 
-    /**#@-*/
+    public function &getLogs()
+    {
+        return $this->_cache;
+    }
+
+    //}}}
 }
 ?>
