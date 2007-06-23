@@ -45,7 +45,7 @@ require_once TIP::buildLogicPath('Callback.php');
  */
 class TIP
 {
-    //{{{ Static methods
+    //{{{ Internal methods
 
     static private function _getTyped($id, $type, &$collection)
     {
@@ -87,6 +87,9 @@ class TIP
         TIP::warning("Output time format not recognized ($format)");
         return null;
     }
+
+    //}}}
+    //{{{ Static methods
 
     /**
      * Get the operating system descriptor

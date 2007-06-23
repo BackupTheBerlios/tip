@@ -51,17 +51,48 @@ class TIP_Content extends TIP_Module
     protected $owner_field = '_user';
 
     /**
+     * The field containing the last edit datetime
+     * @var string
+     */
+    protected $last_edit_field = '_edit_on';
+
+    /**
+     * The field containing the last editor id
+     * @var string
+     */
+    protected $editor_field = '_edit_by';
+
+    /**
+     * The field containing the counter of edit performed a row
+     * @var string
+     */
+    protected $edits_field = '_edit_count';
+
+    /**
+     * The field containing the counter of actionView
+     * @var string
+     */
+    protected $hits_field = '_hits';
+
+    /**
+     * The field containing the date of the last actionView
+     * @var string
+     */
+    protected $last_hit_field = '_lasthit';
+
+    /**
      * Statistic user fields
      *
-     * An associative array of field ids of TIP_User data (as values) to
-     * increment whenever a db action in this module happens (as keys).
+     * An associative array of field ids in TIP_User to increment whenever a
+     * callback action in this module has been called.
      *
      * @var array
      */
-    protected $statistics = array(
+    protected $user_statistic = array(
         '_onAdd'    => '_submits',
-        '_onEdit'   => null,
-        '_onDelete' => '_deleted_submits'
+        '_onEdit'   => '_edited_submits',
+        '_onDelete' => '_deleted_submits',
+        '_onView'   => '_viewed_submits'
     );
 
     /**
@@ -152,8 +183,8 @@ class TIP_Content extends TIP_Module
      *
      * Called by a TIP_Form instance before performing the 'add' action.
      * The default handler calls the _onMasterAdd signal for every configured
-     * module that has this module as 'master' and update the '_submit'
-     * field of the TIP_User instance (if present).
+     * module that has this module as 'master' and updates 'creation_field'
+     * and 'owner_field', if they exists.
      *
      * @param  array &$row The data row to add
      * @return bool        true on success, false on errors
@@ -161,9 +192,11 @@ class TIP_Content extends TIP_Module
     public function _onAdd(&$row)
     {
         isset($this->creation_field) &&
+            array_key_exists($this->creation_field, $row) &&
             empty($row[$this->creation_field]) &&
             $row[$this->creation_field] = TIP::formatDate('datetime_iso8601');
         isset($this->owner_field) &&
+            array_key_exists($this->owner_field, $row) &&
             empty($row[$this->owner_field]) &&
             $row[$this->owner_field] = TIP::getUserId();
 
@@ -175,17 +208,23 @@ class TIP_Content extends TIP_Module
      *
      * Called by a TIP_Form instance before performing the 'edit' action.
      * The default handler calls the _onMasterEdit signal for every configured
-     * module that has this module as 'master'.
+     * module that has this module as 'master' and updates 'editor_field',
+     * 'last_edit_field' and 'edit_count', if they exist.
      *
      * @param  array &$row The modified data row
      * @return bool        true on success, false on errors
      */
     public function _onEdit(&$row)
     {
-        // Set some common automatic fields
-        array_key_exists('_edit_count', $row) && ++ $row['_edit_count'];
-        array_key_exists('_edit_on', $row) && $row['_edit_on'] = TIP::formatDate('datetime_iso8601');
-        array_key_exists('_edit_by', $row) && $row['_edit_by'] = TIP::getUserId();
+        isset($this->last_edit_field) &&
+            array_key_exists($this->last_edit_field, $row) &&
+            $row[$this->last_edit_field] = TIP::formatDate('datetime_iso8601');
+        isset($this->editor_field) &&
+            array_key_exists($this->editor_field, $row) &&
+            $row[$this->editor_field] = TIP::getUserId();
+        isset($this->edits_field) &&
+            array_key_exists($this->edits_field, $row) &&
+            ++ $row[$this->edits_field];
 
         return $this->_onDbAction('Edit', $row);
     }
@@ -195,8 +234,7 @@ class TIP_Content extends TIP_Module
      *
      * Called by a TIP_Form instance before performing the 'delete' action.
      * The default handler calls the _onMasterDelete signal for every configured
-     * module that has this module as 'master' and update the '_deleted_submit'
-     * field of the TIP_User instance (if present).
+     * module that has this module as 'master'.
      *
      * @param  array &$row The deleted data row
      * @return bool        true on success, false on errors
@@ -204,6 +242,35 @@ class TIP_Content extends TIP_Module
     public function _onDelete(&$row)
     {
         return $this->_onDbAction('Delete', $row);
+    }
+
+    /**
+     * Overridable 'view' callback
+     *
+     * Called by actionView() before performing the 'view' action.
+     * The default handler updates 'hits_field' and 'last_hit_field', if they
+     * are present.
+     *
+     * @param  array &$row The data row to view
+     * @return bool        true on success, false on errors
+     */
+    public function _onView(&$row)
+    {
+        $old_row = $row;
+
+        isset($this->last_hit_field) &&
+            array_key_exists($this->last_hit_field, $row) &&
+            $row[$this->last_hit_field] = TIP::formatDate('datetime_iso8601');
+        isset($this->hits_field) &&
+            array_key_exists($this->hits_field, $row) &&
+            ++ $row[$this->hits_field];
+
+        // Update user statistics, if the user module exists
+        if (!is_null($user =& TIP_Application::getSharedModule('user'))) {
+            $user->increment($this->user_statistic['_onView']);
+        }
+
+        return $this->data->updateRow($row, $old_row);
     }
 
     //}}}
@@ -624,10 +691,10 @@ class TIP_Content extends TIP_Module
     }
 
     /**
-     * Check if the row is owned by the current user
+     * Check if a row is owned by the current user
      *
-     * Checks if the $field in the $id row is equal to the current user id,
-     * that is if $id is owned by the current user.
+     * Checks if the owner field in the row identified by $id is equal to the
+     * current user id, that is if $id is owned by the current user.
      *
      * This is an high level method that raises errors and notify them to the
      * user on any errors: use it only when error notify is needed.
@@ -635,18 +702,16 @@ class TIP_Content extends TIP_Module
      * If there are no errors but the row is not owned by the current user,
      * the 'denied' error is notified.
      *
-     * @param  mixed  $id    The row id
-     * @param  string $field The name of the field containing the user id
-     * @return bool          true if $id is owned by the current user or false
-     *                       on errors
+     * @param  mixed $id The row id
+     * @return bool      true if owned by the current user or false on errors
      */
-    public function isOwner($id = null, $field = '_user')
+    public function isOwner($id = null)
     {
         if (is_null($row =& $this->fromRow($id))) {
             return false;
         }
 
-        if ($row[$field] != TIP::getUserId()) {
+        if ($row[$this->owner_field] != TIP::getUserId()) {
             TIP::warning("not an owned row ($id)");
             TIP::notifyError('denied');
             return false;
@@ -656,23 +721,21 @@ class TIP_Content extends TIP_Module
     }
 
     /**
-     * Check if the row is not owned by the current user
+     * Check if a row is not owned by the current user
      *
      * Similar to isOwner(), but works in the reverse way: check if the row
      * identified by $id is NOT owned by the current user.
      *
-     * @param  mixed  $id    The row id
-     * @param  string $field The name of the field containing the user id
-     * @return bool          true if $id is not owned by the current user
-     *                       or false on errors
+     * @param  mixed $id The row id
+     * @return bool      true if not owned by the current user or false on errors
      */
-    public function isNotOwner($id = null, $field = '_user')
+    public function isNotOwner($id = null)
     {
         if (is_null($row =& $this->fromRow($id))) {
             return false;
         }
 
-        if ($row[$field] == TIP::getUserId()) {
+        if ($row[$this->owner_field] == TIP::getUserId()) {
             TIP::warning("owned row ($id)");
             TIP::notifyError('denied');
             return false;
@@ -719,7 +782,7 @@ class TIP_Content extends TIP_Module
         }
 
         // Update user statistics, if the user module exists
-        if (!is_null($field = @$this->statistics['_on' . $action]) &&
+        if (!is_null($field = @$this->user_statistic['_on' . $action]) &&
             !is_null($user =& TIP_Application::getSharedModule('user'))) {
             $user->increment($field);
         }
@@ -857,31 +920,19 @@ class TIP_Content extends TIP_Module
      * Perform a view action
      *
      * Runs the file identified by the 'view_source' property for the
-     * specified row. Also, updates the row statistics, the '_hits' and
-     * '_lasthit' fields, if these fields exists.
-     *
-     * The rendered result is appended to the page.
+     * specified row. The rendered result is appended to the page.
      *
      * @param  mixed $id The identifier of the row to view
      * @return bool      true on success or false on errors
      */
     protected function actionView($id)
     {
-        if (is_null($row =& $this->fromRow($id, false))) {
+        if (is_null($row =& $this->fromRow($id, false)) || !$this->_onView($row)) {
             return false;
         }
 
         $this->appendToPage($this->view_source);
         $this->endView();
-
-        // Update row statistics, if exist
-        if (array_key_exists('_hits', $row)) {
-            $old_row = $row;
-            $row['_hits'] += 1;
-            $row['_lasthit'] = TIP::formatDate('datetime_iso8601');
-            $this->data->updateRow($row, $old_row);
-        }
-
         return true;
     }
 

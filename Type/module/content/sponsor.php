@@ -17,6 +17,33 @@
  */
 class TIP_Sponsor extends TIP_Content
 {
+    //{{{ Properties
+
+    /**
+     * The field of the destination url of the sponsor
+     * @var string
+     */
+    protected $url_field = 'url';
+
+    /**
+     * The field of the counter of times the sponsor was showed
+     * @var string
+     */
+    protected $count_field = '_count';
+
+    /**
+     * The field of the counter of past actionView
+     * @var string
+     */
+    protected $counted_field = '_submitted_count';
+
+    /**
+     * The field of the counter of past times the sponsor was showed
+     * @var string
+     */
+    protected $hitted_field = '_submitted_hits';
+
+    //}}}
     //{{{ Internal properties
 
     /**
@@ -52,11 +79,11 @@ class TIP_Sponsor extends TIP_Content
     {
         parent::postConstructor();
 
-        $filter = $this->data->order('_count') . ' LIMIT 1';
+        $filter = $this->data->order($this->count_field) . ' LIMIT 1';
         if (!is_null($view = $this->startDataView($filter))) {
             $this->_row = $this->_old_row = $view->current();
-            // Increment _count_field
-            ++ $this->_row['_count'];
+            // Increment count field
+            ++ $this->_row[$this->count_field];
         }
     }
 
@@ -87,8 +114,54 @@ class TIP_Sponsor extends TIP_Content
      */
     public function _onDataRow(&$row)
     {
-        $row['COUNT'] = $row['_count'] - $row['_submitted_count'];
-        $row['HITS'] = $row['_hits'] - $row['_submitted_hits'];
+        $row['COUNT'] = $row[$this->count_field] - $row[$this->counted_field];
+        $row['HITS'] = $row[$this->hits_field] - $row[$this->hitted_field];
+        return true;
+    }
+
+    /**
+     * Overridable 'add' callback
+     *
+     * Overrides the default 'add' callback setting 'count_field' and
+     * 'counted_field' to the current sponsor count.
+     *
+     * @param  array &$row The data row to add
+     * @return bool        true on success, false on errors
+     */
+    public function _onAdd(&$row)
+    {
+        $row[$this->count_field] = $this->_row[$this->count_field];
+        $row[$this->counted_field] = $this->_row[$this->count_field];
+        return parent::_onAdd($row);
+    }
+
+    //}}}
+    //{{{ Actions
+
+    /**
+     * Perform a view action
+     *
+     * Overrides the default view providing a redirection to the sponsor site,
+     * if the 'url_field' is not empty. If the destination url is not defined,
+     * performs the default view action.
+     *
+     * @param  mixed $id The identifier of the row to view
+     * @return bool      true on success or false on errors
+     */
+    protected function actionView($id)
+    {
+        if (is_null($row =& $this->fromRow($id, false)) || !$this->_onView($row)) {
+            return false;
+        }
+
+        if (@array_key_exists($this->url_field, $row) && !empty($row[$this->url_field])) {
+            // The url of the sponsor site is defined: redirect the browser
+            header('Location: ' . $row[$this->url_field]);
+            exit;
+        }
+
+        $this->appendToPage($this->view_source);
+        $this->endView();
         return true;
     }
 
