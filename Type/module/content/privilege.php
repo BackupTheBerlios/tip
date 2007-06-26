@@ -66,7 +66,7 @@ class TIP_Privilege extends TIP_Content
      */
     protected function postConstructor()
     {
-        $this->_privilege = $this->getPrivilege($this->id);
+        $this->privilege = $this->getPrivilege($this->id);
         $this->refreshPrivileges();
     }
 
@@ -98,8 +98,8 @@ class TIP_Privilege extends TIP_Content
      * Expands to true if the current logged-in user is manager in the module
      * specified with $params, false otherwise.
      *
-     * @param  string @params The parameter string
-     * @return bool           true on success or false on errors
+     * @param  string $params The module id
+     * @return bool           true for managers
      */
     protected function tagIsManager($params)
     {
@@ -113,8 +113,8 @@ class TIP_Privilege extends TIP_Content
      * Expands to true if the current logged-in user is administrator in the
      * module specified with $params, false otherwise.
      *
-     * @param  string @params The parameter string
-     * @return bool           true on success or false on errors
+     * @param  string $params The module id
+     * @return bool           true for administrators or above
      */
     protected function tagIsAdmin($params)
     {
@@ -128,8 +128,8 @@ class TIP_Privilege extends TIP_Content
      * Expands to true if the current logged-in user is trusted in the
      * module specified with $params, false otherwise.
      *
-     * @param  string @params The parameter string
-     * @return bool           true on success or false on errors
+     * @param  string $params The module id
+     * @return bool           true for trusted users or above
      */
     protected function tagIsTrusted($params)
     {
@@ -143,13 +143,41 @@ class TIP_Privilege extends TIP_Content
      * Expands to true if the current logged-in user is untrusted in the
      * module specified with $params, false otherwise.
      *
-     * @param  string @params The parameter string
-     * @return bool           true on success or false on errors
+     * @param  string $params The module id
+     * @return bool           true for untrusted users or above
      */
     protected function tagIsUntrusted($params)
     {
         echo $this->getPrivilege(strtolower($params)) >= TIP_PRIVILEGE_UNTRUSTED ? 'true' : 'false';
         return true;
+    }
+
+    /**
+     * Check if the current user is an untrusted user
+     *
+     * Expands to true if the current logged-in user is untrusted in the
+     * module specified with $params, false otherwise.
+     *
+     * @param  string $params The parameter string
+     * @return bool           true on success or false on errors
+     */
+    protected function tagPrivilegeDescription($params)
+    {
+        global $cfg;
+        list($module, $privilege) = explode(',', $params);
+        $prefixes = array_reverse($cfg[$module]['type']);
+        isset($cfg[$module]['locale_prefix']) && array_unshift($prefixes, $cfg[$module]['locale_prefix']);
+
+        foreach ($prefixes as $prefix) {
+            $description = TIP::getLocale($privilege, $prefix);
+            if (!empty($description)) {
+                echo TIP::toHtml($description);
+                return true;
+            }
+        }
+
+        TIP::warning("localized privilege description not found ($params)");
+        return false;
     }
 
     //}}}
@@ -160,12 +188,11 @@ class TIP_Privilege extends TIP_Content
         switch ($action) {
 
         case 'restore':
-            if (is_null($subject = $this->_getSubjectId())) {
+            if (is_null($user = $this->_getUser())) {
                 return false;
             }
 
-            $filter = $this->data->filter('_user', $subject);
-            if (!$this->data->deleteRows($filter)) {
+            if (!$this->data->deleteRows($this->filterOwnedBy($user))) {
                 TIP::notifyError('delete');
                 $this->appendToPage('edit.src');
                 return false;
@@ -195,34 +222,26 @@ class TIP_Privilege extends TIP_Content
         switch ($action) {
 
         case 'edit':
-            if (is_null($subject = $this->_getSubjectId())) {
-                return false;
-            }
-
-            $this->appendToPage('edit.src');
-            return true;
+            return
+                !is_null($user = $this->_getUser()) &&
+                $this->appendToPage('edit.src');
 
         case 'change':
-            if (is_null($subject = $this->_getSubjectId())) {
-                return false;
-            } elseif (is_null($module = TIP::getGet('where', 'string'))) {
-                TIP::warning('no subject module specified');
-                TIP::notifyError('noparams');
-                return false;
-            } elseif (is_null($privilege = TIP::getGet('privilege', 'string')) || ($level = @array_search($privilege, $this->_privileges)) < TIP_PRIVILEGE_NONE) {
-                TIP::warning('no subject privilege specified');
-                TIP::notifyError('noparams');
+            if (is_null($user = $this->_getUser()) ||
+                is_null($module = $this->fromGet('where', 'string')) ||
+                is_null($privilege = $this->fromGet('privilege', 'string'))) {
                 return false;
             }
 
-            if ($level > $this->_maxSettableLevel($module)) {
+            $level = @array_search($privilege, $this->_privileges);
+            if ($level < TIP_PRIVILEGE_NONE || $level > $this->_maxSettableLevel($module)) {
                 TIP::notifyError('denied');
                 $done = false;
             } else {
                 $old_row = null;
-                $view =& $this->startDataView($this->data->filter('_user', $subject));
-                if ($view) {
-                    foreach ($view as $row) {
+                if (!is_null($view =& $this->startDataView($this->filterOwnedBy($user)))) {
+                    $rows =& $view->getProperty('rows');
+                    foreach ($rows as &$row) {
                         if ($module == $row['_module']) {
                             $old_row =& $row;
                             break;
@@ -230,23 +249,26 @@ class TIP_Privilege extends TIP_Content
                     }
                 }
 
-                $new_row['privilege'] = $privilege;
-                $new_row['_user']     = $subject;
-                $new_row['_module']   = (string) $module;
+                $row = $old_row;
+                $row['privilege'] = $privilege;
+                $row[$this->owner_field] = $user;
+                $row['_module'] = (string) $module;
 
                 if ($old_row) {
-                    if ($done = $this->data->updateRow($new_row, $old_row)) {
+                    // Previous stored privilege: it needs update
+                    if ($done = $this->data->updateRow($row, $old_row)) {
                         TIP::notifyInfo('done');
-                        $old_row = $new_row;
+                        $old_row = $row;
                     } else {
                         TIP::notifyError('update');
                     }
                 } else {
-                    if ($done = $this->data->putRow($new_row)) {
+                    // New stored privilege
+                    if ($done = $this->data->putRow($row)) {
                         TIP::notifyInfo('done');
                         if ($view) {
                             $rows =& $view->getProperty('rows');
-                            $rows[$new_row['id']] = $new_row;
+                            $rows[$row['id']] = $row;
                         }
                     } else {
                         TIP::notifyError('insert');
@@ -289,11 +311,11 @@ class TIP_Privilege extends TIP_Content
      * 'on_row' callback for TIP_Modules_View
      *
      * Adds the following calculated fields to every module row:
-     * - 'ACTIVE':        privilege level of the subject user for this module
-     * - 'CAN_MANAGER':   true if the subject user is manager
-     * - 'CAN_ADMIN':     true if the subject user is at least administrator
-     * - 'CAN_TRUSTED':   true if the subject user is at least trusted
-     * - 'CAN_UNTRUSTED': true if the subject user is at least untrusted
+     * - 'ACTIVE':        privilege level of the user for this module
+     * - 'CAN_MANAGER':   true if the user is manager
+     * - 'CAN_ADMIN':     true if the user is at least administrator
+     * - 'CAN_TRUSTED':   true if the user is at least trusted
+     * - 'CAN_UNTRUSTED': true if the user is at least untrusted
      * - 'CAN_NONE':      always true
      *
      * @param  array &$row The row as generated by TIP_Modules_View
@@ -302,15 +324,16 @@ class TIP_Privilege extends TIP_Content
     public function _onModulesRow(&$row)
     {
         $module = $row['id'];
+        $user = $this->keys['UID'];
+        $lowest_level = $this->privilege < TIP_PRIVILEGE_ADMIN ? TIP::getDefaultPrivilege($module, $user) : TIP_PRIVILEGE_NONE;
         $up_to_level = $this->_maxSettableLevel($module);
 
-        // Modules where the subject user does not have any privilege
-        // are not included in the view
-        if ($up_to_level <= TIP_PRIVILEGE_NONE) {
+        // Modules where I cannot change the user level are not included
+        if ($up_to_level <= $lowest_level) {
             return false;
         }
 
-        $row['ACTIVE'] = $this->getPrivilege($module, $this->keys['UID']);
+        $row['ACTIVE'] = $this->getPrivilege($module, $user);
         foreach ($this->_privileges as $id => $privilege) {
             $row['CAN_' . strtoupper($privilege)] = $id <= $up_to_level;
         }
@@ -321,16 +344,14 @@ class TIP_Privilege extends TIP_Content
     //}}}
     //{{{ Internal methods
 
-    private function _getSubjectId()
+    private function _getUser()
     {
         if (!array_key_exists('UID', $this->keys)) {
-            if (is_null($subject = TIP::getGet('user', 'int'))) {
-                TIP::notifyError('noparams');
-            } elseif ($this->_privilege < TIP_PRIVILEGE_MANAGER && $subject == TIP::getUserId()) {
+            if (!is_null($user = $this->fromGet('user')) && $this->privilege < TIP_PRIVILEGE_MANAGER && $user == TIP::getUserId()) {
                 TIP::notifyError('denied');
-                $subject = null;
+                $user = null;
             }
-            $this->keys['UID'] = $subject;
+            $this->keys['UID'] = $user;
         }
 
         return $this->keys['UID'];
@@ -338,10 +359,10 @@ class TIP_Privilege extends TIP_Content
 
     private function _maxSettableLevel($module)
     {
-        $user_level = $this->getPrivilege($module);
-        $subject_level = $this->getPrivilege($module, $this->keys['UID']);
+        $my_level = $this->getPrivilege($module);
+        $user_level = $this->getPrivilege($module, $this->keys['UID']);
 
-        switch ($this->_privilege) {
+        switch ($this->privilege) {
 
         case TIP_PRIVILEGE_MANAGER:
             // The manager of the privilege module can do anything
@@ -349,20 +370,21 @@ class TIP_Privilege extends TIP_Content
 
         case TIP_PRIVILEGE_ADMIN:
             // The administrator can modify anything up to his level
-            return $user_level < $subject_level ?
-                TIP_PRIVILEGE_INVALID : $user_level;
+            return $my_level < $user_level ?
+                TIP_PRIVILEGE_INVALID : $my_level;
 
         case TIP_PRIVILEGE_TRUSTED:
             // The trusted can modify anything up to his level only in the
             // modules where he has at least the administrator level
-            return $user_level < TIP_PRIVILEGE_ADMIN || $user_level < $subject_level ?
-                TIP_PRIVILEGE_INVALID : $user_level;
+            return $my_level < TIP_PRIVILEGE_ADMIN || $my_level < $user_level ?
+                TIP_PRIVILEGE_INVALID : $my_level;
 
         case TIP_PRIVILEGE_UNTRUSTED:
-            // The untrusted can modify the privileges up to TIP_PRIVILEGE_UNTRUSTED
-            // and only in the modules where he has at least the administrator level
-            return $user_level < TIP_PRIVILEGE_ADMIN || $user_level <= $subject_level ?
-                TIP_PRIVILEGE_INVALID : TIP_PRIVILEGE_UNTRUSTED;
+            // The untrusted can modify the privileges up to
+            // TIP_PRIVILEGE_TRUSTED and only in the modules where he has at
+            // least the administrator level
+            return $my_level < TIP_PRIVILEGE_ADMIN || $my_level <= $user_level ?
+                TIP_PRIVILEGE_INVALID : TIP_PRIVILEGE_TRUSTED;
         }
 
         return TIP_PRIVILEGE_INVALID;
@@ -387,8 +409,7 @@ class TIP_Privilege extends TIP_Content
          * filtered on both $module and $user, but filtering only by
          * user id allows the next requests, with the same user id but different
          * module (which are expected to be done), to be cached. */
-        $view =& $this->startDataView($this->data->filter('_user', $user));
-        if (is_null($view)) {
+        if (is_null($view =& $this->startDataView($this->filterOwnedBy($user)))) {
             return TIP_PRIVILEGE_INVALID;
         }
 

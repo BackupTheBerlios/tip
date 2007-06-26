@@ -501,63 +501,35 @@ class TIP
         exit;
     }
 
-
-    /** #@+
-     * The parameters are passed throught: this is merely a shortcut.
-     * @return bool|null The return value of the wrapped function or null if
-     *                   the TIP_Notify module is not present
-     */
-
     /**
      * Error notification to the user
-     *
-     * Notifies an error to the user throught TIP_Notify::notifyError().
-     * Check the TIP_Notify documentation for further informations.
+     * @param  string $id The notification id
+     * @return bool       true on success or false on errors
      */
-    static public function notifyError()
+    static public function notifyError($id = 'fallback')
     {
-        $notify =& TIP_Application::getSharedModule('notify');
-        if (is_object($notify)) {
-            $args = func_get_args();
-            return call_user_func_array(array(&$notify, 'notifyError'), $args);
-        }
-        return null;
+        return TIP_Application::notify(TIP_SEVERITY_ERROR, $id);
     }
 
     /**
      * Warning notification to the user
-     *
-     * Notifies a warning to the user throught TIP_Notify::notifyWarning().
-     * Check the TIP_Notify documentation for further informations.
+     * @param  string $id The notification id
+     * @return bool       true on success or false on errors
      */
-    static public function notifyWarning()
+    static public function notifyWarning($id = 'fallback')
     {
-        $notify =& TIP_Application::getSharedModule('notify');
-        if (is_object($notify)) {
-            $args = func_get_args();
-            return call_user_func_array(array(&$notify, 'notifyWarning'), $args);
-        }
-        return null;
+        return TIP_Application::notify(TIP_SEVERITY_WARNING, $id);
     }
 
     /**
      * Notification to the user
-     *
-     * Notifies a generic information to the user throught TIP_Notify::notifyInfo().
-     * Check the TIP_Notify documentation for further informations.
+     * @param  string $id The notification id
+     * @return bool       true on success or false on errors
      */
-    static public function notifyInfo()
+    static public function notifyInfo($id = 'fallback')
     {
-        $notify =& TIP_Application::getSharedModule('notify');
-        if (is_object($notify)) {
-            $args = func_get_args();
-            return call_user_func_array(array(&$notify, 'notifyInfo'), $args);
-        }
-        return null;
+        return TIP_Application::notify(TIP_SEVERITY_INFO, $id);
     }
-
-    /**#@-*/
-
 
     /**
      * Build a path

@@ -131,12 +131,12 @@ class TIP_User extends TIP_Content
         }
 
         // Update statistic fields
-        if (array_key_exists('_hits', $this->_row)) {
-            $this->_row['_hits'] ++;
-        }
-        if (array_key_exists('_lasthit', $this->_row)) {
-            $this->_row['_lasthit'] = TIP::formatDate('datetime_iso8601');
-        }
+        isset($this->hits_field) &&
+            array_key_exists($this->hits_field, $this->_row) &&
+            ++ $this->_row[$this->hits_field];
+        isset($this->last_hit_field) &&
+            array_key_exists($this->last_hit_field, $this->_row) &&
+            $this->_row[$this->last_hit_field] = TIP::formatDate('datetime_iso8601');
 
         $this->data->updateRow($this->_row, $this->_old_row);
     }

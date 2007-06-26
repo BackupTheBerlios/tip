@@ -69,12 +69,6 @@ class TIP_Cronology extends TIP_Module
      *
      * Initializes a TIP_Cronology instance.
      *
-     * $options inherits the TIP_Module properties, and add the following:
-     * - $options['master']:        a reference to the master content module (required)
-     * - $options['date_field']:    the field id to parse for the date
-     * - $options['title_field']:   the field to show in the leaf nodes
-     * - $options['tooltip_field']: the field to show as tooltip
-     * 
      * @param array $options Properties values
      */
     protected function __construct($options)
@@ -86,37 +80,13 @@ class TIP_Cronology extends TIP_Module
     //{{{ Methods
 
     /**
-     * Render a DHTML cronology
-     *
-     * Renders this cronology in a DHTML format.
-     *
-     * @return true on success or false on errors
+     * Render this cronology in a DHTML format
+     * @return string The rendered html
      */
-    public function &getHtml()
+    public function &toHtml()
     {
         $this->_render();
         return $this->_html;
-    }
-
-    //}}}
-    //{{{ Tags
-
-    /**
-     * Echo the cronology
-     *
-     * Outputs the DHTML cronology of this instance.
-     *
-     * @param  string $params Not used
-     * @return bool           true on success or false on errors
-     */
-    protected function tagShow($params)
-    {
-        if (!$this->_render()) {
-            return false;
-        }
-
-        echo $this->_html;
-        return true;
     }
 
     //}}}
@@ -148,7 +118,7 @@ class TIP_Cronology extends TIP_Module
 
     private function _render()
     {
-        if (!is_null($this->_html)) {
+        if (isset($this->_html)) {
             return true;
         }
 
@@ -170,8 +140,8 @@ class TIP_Cronology extends TIP_Module
             // Action specified: prepend the root URL
             $action = TIP::buildUrl($action);
         } else {
-            // No action specified: construct the default action (browse)
-            $action = $base_action . '?module=' . $this->master . '&amp;action=browse&amp;group=';
+            // No action specified: construct the default cronology action (view)
+            $action = $base_action . '?module=' . $this->master . '&amp;action=view&amp;id=';
         }
 
         $tree = array();

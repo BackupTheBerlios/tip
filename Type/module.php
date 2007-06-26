@@ -513,8 +513,8 @@ abstract class TIP_Module extends TIP_Type
     //{{{ Tags
 
     /**#@+
-     * @param string @params The parameter string
-     * @return bool true on success or false on errors
+     * @param      string       $params Parameters of the tag
+     * @return     bool                 true on success or false on errors
      * @subpackage SourceEngine
      */
 

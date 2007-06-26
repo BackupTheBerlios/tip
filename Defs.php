@@ -36,6 +36,12 @@ define('TIP_PRIVILEGE_ADMIN',     4);
 define('TIP_PRIVILEGE_MANAGER',   5);
 /**#@-*/
 
+/**#@+ Severity levels */
+define('TIP_SEVERITY_INFO',       'info');
+define('TIP_SEVERITY_WARNING',    'warning');
+define('TIP_SEVERITY_ERROR',      'error');
+/**#@-*/
+
 
 /**#@+ Form related constants */
 

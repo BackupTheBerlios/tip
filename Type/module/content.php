@@ -616,6 +616,16 @@ class TIP_Content extends TIP_Module
     }
 
     /**
+     * Shortcut to build a filter on the owned field
+     * @param  mixed $user The user id
+     * @return string      The requested filter in the proper engine format
+     */
+    public function filterOwnedBy($user)
+    {
+        return $this->data->filter($this->owner_field, $user);
+    }
+
+    /**
      * Get the number of browsed rows
      * @return int The number of browsed row or null
      */
@@ -664,6 +674,25 @@ class TIP_Content extends TIP_Module
         $rules = isset($field['wiki_rules']) ? explode(',', $field['wiki_rules']) : null;
 
         echo TIP_Renderer::getWiki($rules)->transform($value);
+        return true;
+    }
+
+    /**
+     * Browse the content throught a cronology interface
+     *
+     * The value is parsed and rendered by the Text_Wiki renderer accordling to
+     * the wiki rules defined in the 'wiki_rules' option of the field.
+     *
+     * @param  string $params Cronology options, in the form 'date_field,title_field,tooltip_field'
+     * @return bool           true on success or false on errors
+     */
+    protected function tagCronology($params)
+    {
+        $options['type'] = array('cronology');
+        $options['id'] = $this->id . '(' . $params . ')';
+        $options['master'] =& $this;
+        @list($options['date_field'], $options['title_field'], $options['tooltip_field']) = explode(',', $params);
+        echo TIP_Type::singleton($options)->toHtml();
         return true;
     }
 

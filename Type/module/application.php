@@ -91,6 +91,24 @@ class TIP_Application extends TIP_Module
      */
     protected $fatal_url = 'index.php?module=application&action=fatal';
 
+    /**
+     * The file to run to notify errors
+     * @var string
+     */
+    protected $error_source = 'error.src';
+
+    /**
+     * The file to run to notify warnings
+     * @var string
+     */
+    protected $warning_source = 'warning.src';
+
+    /**
+     * The file to run to notify informations
+     * @var string
+     */
+    protected $info_source = 'info.src';
+
     //}}}
     //{{{ Constructor/destructor
 
@@ -279,9 +297,64 @@ class TIP_Application extends TIP_Module
      * @param mixed $callback The callback
      * @param array $args     Arguments of the callback
      */
-    public function appendCallback($callback, $args = array())
+    static public function appendCallback($callback, $args = array())
     {
         $GLOBALS[TIP_MAIN]->_queue[] = array($callback, $args);
+    }
+
+    /**
+     * Generic message notification
+     *
+     * Outputs a generic notification message running the specified source
+     * program with the current source engine. The output will be inserted
+     * at the beginning of the page content.
+     *
+     * @param  TIP_SEVERITY_... $severity Severity level
+     * @param  mixed            $id       The id of the message, without the
+     *                                    "notify.$severity." prefix
+     * @return bool                       true on success or false on errors
+     */
+    static public function notify($severity, $id)
+    {
+        static $running = false;
+
+        // The running flag avoid recursive calls to notify()
+        if ($running) {
+            TIP::warning('recursive call to notify()');
+            return false;
+        }
+
+        $running = true;
+        if (is_null($locale =& TIP_Type::getInstance('locale'))) {
+            TIP::warning('TIP_Notify without TIP_Locale is not implemented');
+            return false;
+        }
+
+        $title_id = 'notify.' . $severity;
+        $message_id = $title_id . '.' . $id;
+        $data =& $locale->getProperty('data');
+
+        $key = $data->getProperty('primary_key');
+        $filter = $data->filter($key, $title_id) . $data->addFilter('OR', $key, $message_id);
+        if (!is_null($view =& $locale->startDataView($filter))) {
+            $rows =& $view->getProperty('rows');
+            $locale->endView();
+            $locale_id = $locale->getProperty('locale');
+            $title = @$rows[$title_id][$locale_id];
+            $message = @$rows[$message_id][$locale_id];
+        }
+
+        // Fallback values
+        isset($title) || ($title = 'UNDEFINED TITLE') && TIP::warning("localized id not found ($title_id)");
+        isset($message) || ($message = 'Undefined message') && TIP::warning("localized id not found ($message_id)");
+
+        $main = $GLOBALS[TIP_MAIN];
+        $source_property = $severity . '_source';
+        $source = $main->$source_property;
+        $main->prependCallback(array(&$main, '_runNotify'), array($source, $title, $message));
+
+        $running = false;
+        return true;
     }
 
     /**
@@ -483,6 +556,14 @@ class TIP_Application extends TIP_Module
             echo "$indent$id\n";
             is_array($obj) && self::_dumpRegister($obj, $indent . '  ');
         }
+    }
+
+    private function _runNotify($source, $title, $message)
+    {
+        // Run the source
+        $this->keys['TITLE'] = $title;
+        $this->keys['MESSAGE'] = $message;
+        $this->tagRun($source);
     }
 
     //}}}
