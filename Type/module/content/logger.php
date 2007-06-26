@@ -91,15 +91,15 @@ class TIP_Logger extends TIP_Content
             }
 
             $function = @strtolower($trace['function']);
-            if ($function == 'callcommand') {
+            if ($function == 'calltag') {
                 if (!array_key_exists('command', $context)) {
                     $module  = @$trace['class'];
-                    $command = @$trace['args'][0];
+                    $name = @$trace['args'][0];
                     $params  = @$trace['args'][1];
                     if (strlen($params) > 80) {
                         $params = substr($params, 0, 77) . '...';
                     }
-                    $context['command'] = "$module::callCommand($command, $params)";
+                    $context['command'] = "$module::callTag($name, $params)";
                 }
                 continue;
             } elseif ($function == 'callaction') {

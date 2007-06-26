@@ -227,7 +227,7 @@ class TIP_Advertisement extends TIP_Content
     protected function actionCheck($id, $options = null)
     {
         isset($options) || $options = array(
-            'command'    => 'check',
+            'action_id'  => 'check',
             'buttons'    => TIP_FORM_BUTTON_OK|TIP_FORM_BUTTON_CANCEL,
             'on_process' => array(&$this, '_onCheck')
         );
@@ -237,7 +237,7 @@ class TIP_Advertisement extends TIP_Content
     protected function actionLegalize($id, $options = null)
     {
         isset($options) || $options = array(
-            'command'    => 'legalize',
+            'action_id'  => 'legalize',
             'buttons'    => TIP_FORM_BUTTON_OK|TIP_FORM_BUTTON_CANCEL,
             'on_process' => array(&$this, '_onLegalize')
         );
@@ -247,7 +247,7 @@ class TIP_Advertisement extends TIP_Content
     protected function actionRefresh($id, $options = null)
     {
         isset($options) || $options = array(
-            'command'    => 'refresh',
+            'action_id'  => 'refresh',
             'buttons'    => TIP_FORM_BUTTON_OK|TIP_FORM_BUTTON_CANCEL,
             'on_process' => array(&$this, '_onRefresh')
         );

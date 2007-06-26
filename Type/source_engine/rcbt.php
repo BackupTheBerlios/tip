@@ -260,7 +260,7 @@ class TIP_Rcbt_Tag
     var $subtag = array();
     var $subtags = 0;
     var $module_name = null;
-    var $command = null;
+    var $tag_name = null;
     var $params = null;
 
     function& createContext(&$parser, &$module)
@@ -367,17 +367,17 @@ class TIP_Rcbt_Tag
         case 1:
             $this->module_name = null;
             if ($this->params === false) {
-                $this->command = 'html';
+                $this->tag_name = 'html';
                 $this->params = $token[0];
             } elseif (empty ($token[0])) {
-                $this->command = 'tryhtml';
+                $this->tag_name = 'tryhtml';
             } else {
-                $this->command = strtolower($token[0]);
+                $this->tag_name = strtolower($token[0]);
             }
             break;
         case 2:
             $this->module_name = $token[0];
-            $this->command = strtolower($token[1]);
+            $this->tag_name = strtolower($token[1]);
             break;
         default:
             if (strlen($text) > 20)
@@ -397,14 +397,14 @@ class TIP_Rcbt_Tag
             $module =& $parser->context->module;
         }
 
-        if (!$this->command) {
+        if (!$this->tag_name) {
             if (!$parser->pop()) {
                 $parser->warning('too much {} tags');
             }
             return true;
         }
 
-        switch ($this->command) {
+        switch ($this->tag_name) {
         case 'if':
             if ($context =& $this->createContext($parser, $module)) {
                 $condition = @create_function('', "return $this->params;");
@@ -493,7 +493,7 @@ class TIP_Rcbt_Tag
         }
 
         if (!$parser->context->skip) {
-            $module->callCommand($this->command, $this->params);
+            $module->callTag($this->tag_name, $this->params);
         }
 
         return true;

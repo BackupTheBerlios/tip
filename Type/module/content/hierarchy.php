@@ -47,23 +47,6 @@ class TIP_Hierarchy extends TIP_Content
     protected $count_field = '_count';
 
     //}}}
-    //{{{ Internal properties
-
-    /**
-     * The generated html content
-     * @var string
-     * @internal
-     */
-    private $_html = null;
-
-    /**
-     * The generated rows content
-     * @var array
-     * @internal
-     */
-    private $_rows = null;
-
-    //}}}
     //{{{ Construction/destruction
 
     static protected function checkOptions(&$options)
@@ -267,6 +250,44 @@ class TIP_Hierarchy extends TIP_Content
     }
 
     //}}}
+    //{{{ Tags
+
+    /**
+     * Echo the hierarchy
+     *
+     * Outputs the DHTML hierarchy of this instance.
+     *
+     * @param  string $params Not used
+     * @return bool           true on success or false on errors
+     */
+    protected function tagShow($params)
+    {
+        if (!$this->_render()) {
+            return false;
+        }
+
+        echo $this->_html;
+        return true;
+    }
+
+    //}}}
+    //{{{ Internal properties
+
+    /**
+     * The generated html content
+     * @var string
+     * @internal
+     */
+    private $_html = null;
+
+    /**
+     * The generated rows content
+     * @var array
+     * @internal
+     */
+    private $_rows = null;
+
+    //}}}
     //{{{ Internal methods
 
     private function _updateCount($id, $offset)
@@ -296,27 +317,6 @@ class TIP_Hierarchy extends TIP_Content
             return false;
         }
 
-        return true;
-    }
-
-    //}}}
-    //{{{ Commands
-
-    /**
-     * Echo the hierarchy
-     *
-     * Outputs the DHTML hierarchy of this instance.
-     *
-     * @param  string $params Not used
-     * @return bool           true on success or false on errors
-     */
-    protected function commandShow($params)
-    {
-        if (!$this->_render()) {
-            return false;
-        }
-
-        echo $this->_html;
         return true;
     }
 

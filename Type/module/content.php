@@ -109,37 +109,6 @@ class TIP_Content extends TIP_Module
     );
 
     //}}}
-    //{{{ Internal properties
-
-    /**
-     * Fields to use in SELECT queries (null for all fields)
-     * @var array
-     * @internal
-     */
-    private $_subset = null;
-
-    /**
-     * The stack of performed views
-     * @var array
-     * @internal
-     */
-    private $_views = array();
-
-    /**
-     * A reference to the current view or null for no current views
-     * @var TIP_View
-     * @internal
-     */
-    private $_view = null;
-
-    /**
-     * The number of browsed rows
-     * @var int
-     * @internal
-     */
-    private $_browsed_rows = null;
-
-    //}}}
     //{{{ Construction/destruction
 
     static protected function checkOptions(&$options)
@@ -173,104 +142,6 @@ class TIP_Content extends TIP_Module
     protected function __construct($options)
     {
         parent::__construct($options);
-    }
-
-    //}}}
-    //{{{ Callbacks
-
-    /**
-     * Overridable 'add' callback
-     *
-     * Called by a TIP_Form instance before performing the 'add' action.
-     * The default handler calls the _onMasterAdd signal for every configured
-     * module that has this module as 'master' and updates 'creation_field'
-     * and 'owner_field', if they exists.
-     *
-     * @param  array &$row The data row to add
-     * @return bool        true on success, false on errors
-     */
-    public function _onAdd(&$row)
-    {
-        isset($this->creation_field) &&
-            array_key_exists($this->creation_field, $row) &&
-            empty($row[$this->creation_field]) &&
-            $row[$this->creation_field] = TIP::formatDate('datetime_iso8601');
-        isset($this->owner_field) &&
-            array_key_exists($this->owner_field, $row) &&
-            empty($row[$this->owner_field]) &&
-            $row[$this->owner_field] = TIP::getUserId();
-
-        return $this->_onDbAction('Add', $row);
-    }
-
-    /**
-     * Overridable 'edit' callback
-     *
-     * Called by a TIP_Form instance before performing the 'edit' action.
-     * The default handler calls the _onMasterEdit signal for every configured
-     * module that has this module as 'master' and updates 'editor_field',
-     * 'last_edit_field' and 'edit_count', if they exist.
-     *
-     * @param  array &$row The modified data row
-     * @return bool        true on success, false on errors
-     */
-    public function _onEdit(&$row)
-    {
-        isset($this->last_edit_field) &&
-            array_key_exists($this->last_edit_field, $row) &&
-            $row[$this->last_edit_field] = TIP::formatDate('datetime_iso8601');
-        isset($this->editor_field) &&
-            array_key_exists($this->editor_field, $row) &&
-            $row[$this->editor_field] = TIP::getUserId();
-        isset($this->edits_field) &&
-            array_key_exists($this->edits_field, $row) &&
-            ++ $row[$this->edits_field];
-
-        return $this->_onDbAction('Edit', $row);
-    }
-
-    /**
-     * Overridable 'delete' callback
-     *
-     * Called by a TIP_Form instance before performing the 'delete' action.
-     * The default handler calls the _onMasterDelete signal for every configured
-     * module that has this module as 'master'.
-     *
-     * @param  array &$row The deleted data row
-     * @return bool        true on success, false on errors
-     */
-    public function _onDelete(&$row)
-    {
-        return $this->_onDbAction('Delete', $row);
-    }
-
-    /**
-     * Overridable 'view' callback
-     *
-     * Called by actionView() before performing the 'view' action.
-     * The default handler updates 'hits_field' and 'last_hit_field', if they
-     * are present.
-     *
-     * @param  array &$row The data row to view
-     * @return bool        true on success, false on errors
-     */
-    public function _onView(&$row)
-    {
-        $old_row = $row;
-
-        isset($this->last_hit_field) &&
-            array_key_exists($this->last_hit_field, $row) &&
-            $row[$this->last_hit_field] = TIP::formatDate('datetime_iso8601');
-        isset($this->hits_field) &&
-            array_key_exists($this->hits_field, $row) &&
-            ++ $row[$this->hits_field];
-
-        // Update user statistics, if the user module exists
-        if (!is_null($user =& TIP_Application::getSharedModule('user'))) {
-            $user->increment($this->user_statistic['_onView']);
-        }
-
-        return $this->data->updateRow($row, $old_row);
     }
 
     //}}}
@@ -581,7 +452,7 @@ class TIP_Content extends TIP_Module
      *
      * Usually, you always have to close all views. Anyway, in some situations,
      * is useful to have the base view ever active (so called default view)
-     * where all commands of a TIP_Content refers if no views were started.
+     * where all tags of a TIP_Content refers if no views were started.
      * In any case, you can't have more endView() than start[Data]View().
      *
      * @return bool true on success or false on errors
@@ -754,44 +625,7 @@ class TIP_Content extends TIP_Module
     }
 
     //}}}
-    //{{{ Internal methods
-
-    /**
-     * General db action manager
-     *
-     * Internal method used by _onAdd(), _onEdit() and _onDelete().
-     *
-     * @param  string $action 'Add', 'Edit' or 'Delete'
-     * @param  array &$row    The subject row
-     * @return bool           true on success or false on errors
-     * @internal
-     */
-    private function _onDbAction($action, &$row)
-    {
-        // Dispatch the signal to all children modules
-        $callback = create_function('$a', 'return @$a[\'master\'] == \'' . $this->id . '\';');
-        if (is_array($children = array_filter($GLOBALS['cfg'], $callback))) {
-            $method = '_onMaster' . $action;
-            foreach (array_keys($children) as $child_id) {
-                $child = TIP_Type::getInstance($child_id);
-                if (method_exists($child, $method) &&
-                    !$child->$method($row)) {
-                    return false;
-                }
-            }
-        }
-
-        // Update user statistics, if the user module exists
-        if (!is_null($field = @$this->user_statistic['_on' . $action]) &&
-            !is_null($user =& TIP_Application::getSharedModule('user'))) {
-            $user->increment($field);
-        }
-
-        return true;
-    }
-
-    //}}}
-    //{{{ Commands
+    //{{{ Tags
 
     /**
      * Fields to use in the next queries
@@ -802,7 +636,7 @@ class TIP_Content extends TIP_Module
      * @param  string $params A comma separated list of field ids
      * @return bool           true on success or false on errors
      */
-    protected function commandSubset($params)
+    protected function tagSubset($params)
     {
         $this->_subset = empty($params) ? null : explode(',', $params);
         return true;
@@ -817,7 +651,7 @@ class TIP_Content extends TIP_Module
      * @param  string $params Field id to wikize
      * @return bool           true on success or false on errors
      */
-    protected function commandWiki($params)
+    protected function tagWiki($params)
     {
         $value = $this->getField($params);
         if (is_null($value)) {
@@ -1065,6 +899,172 @@ class TIP_Content extends TIP_Module
         }
 
         return null;
+    }
+
+    //}}}
+    //{{{ Internal properties
+
+    /**
+     * Fields to use in SELECT queries (null for all fields)
+     * @var array
+     * @internal
+     */
+    private $_subset = null;
+
+    /**
+     * The stack of performed views
+     * @var array
+     * @internal
+     */
+    private $_views = array();
+
+    /**
+     * A reference to the current view or null for no current views
+     * @var TIP_View
+     * @internal
+     */
+    private $_view = null;
+
+    /**
+     * The number of browsed rows
+     * @var int
+     * @internal
+     */
+    private $_browsed_rows = null;
+
+    //}}}
+    //{{{ Callbacks
+
+    /**
+     * Overridable 'add' callback
+     *
+     * Called by a TIP_Form instance before performing the 'add' action.
+     * The default handler calls the _onMasterAdd signal for every configured
+     * module that has this module as 'master' and updates 'creation_field'
+     * and 'owner_field', if they exists.
+     *
+     * @param  array &$row The data row to add
+     * @return bool        true on success, false on errors
+     */
+    public function _onAdd(&$row)
+    {
+        isset($this->creation_field) &&
+            array_key_exists($this->creation_field, $row) &&
+            empty($row[$this->creation_field]) &&
+            $row[$this->creation_field] = TIP::formatDate('datetime_iso8601');
+        isset($this->owner_field) &&
+            array_key_exists($this->owner_field, $row) &&
+            empty($row[$this->owner_field]) &&
+            $row[$this->owner_field] = TIP::getUserId();
+
+        return $this->_onDbAction('Add', $row);
+    }
+
+    /**
+     * Overridable 'edit' callback
+     *
+     * Called by a TIP_Form instance before performing the 'edit' action.
+     * The default handler calls the _onMasterEdit signal for every configured
+     * module that has this module as 'master' and updates 'editor_field',
+     * 'last_edit_field' and 'edit_count', if they exist.
+     *
+     * @param  array &$row The modified data row
+     * @return bool        true on success, false on errors
+     */
+    public function _onEdit(&$row)
+    {
+        isset($this->last_edit_field) &&
+            array_key_exists($this->last_edit_field, $row) &&
+            $row[$this->last_edit_field] = TIP::formatDate('datetime_iso8601');
+        isset($this->editor_field) &&
+            array_key_exists($this->editor_field, $row) &&
+            $row[$this->editor_field] = TIP::getUserId();
+        isset($this->edits_field) &&
+            array_key_exists($this->edits_field, $row) &&
+            ++ $row[$this->edits_field];
+
+        return $this->_onDbAction('Edit', $row);
+    }
+
+    /**
+     * Overridable 'delete' callback
+     *
+     * Called by a TIP_Form instance before performing the 'delete' action.
+     * The default handler calls the _onMasterDelete signal for every configured
+     * module that has this module as 'master'.
+     *
+     * @param  array &$row The deleted data row
+     * @return bool        true on success, false on errors
+     */
+    public function _onDelete(&$row)
+    {
+        return $this->_onDbAction('Delete', $row);
+    }
+
+    /**
+     * Overridable 'view' callback
+     *
+     * Called by actionView() before performing the 'view' action.
+     * The default handler updates 'hits_field' and 'last_hit_field', if they
+     * are present.
+     *
+     * @param  array &$row The data row to view
+     * @return bool        true on success, false on errors
+     */
+    public function _onView(&$row)
+    {
+        $old_row = $row;
+
+        isset($this->last_hit_field) &&
+            array_key_exists($this->last_hit_field, $row) &&
+            $row[$this->last_hit_field] = TIP::formatDate('datetime_iso8601');
+        isset($this->hits_field) &&
+            array_key_exists($this->hits_field, $row) &&
+            ++ $row[$this->hits_field];
+
+        // Update user statistics, if the user module exists
+        if (!is_null($user =& TIP_Application::getSharedModule('user'))) {
+            $user->increment($this->user_statistic['_onView']);
+        }
+
+        return $this->data->updateRow($row, $old_row);
+    }
+
+    //}}}
+    //{{{ Internal methods
+
+    /**
+     * General db action manager
+     *
+     * Internal method used by _onAdd(), _onEdit() and _onDelete().
+     *
+     * @param  string $action 'Add', 'Edit' or 'Delete'
+     * @param  array &$row    The subject row
+     * @return bool           true on success or false on errors
+     * @internal
+     */
+    private function _onDbAction($action, &$row)
+    {
+        // Dispatch the signal to all children modules
+        $callback = create_function('$a', 'return @$a[\'master\'] == \'' . $this->id . '\';');
+        if (is_array($children = array_filter($GLOBALS['cfg'], $callback))) {
+            $method = '_onMaster' . $action;
+            foreach (array_keys($children) as $child_id) {
+                $child = TIP_Type::getInstance($child_id);
+                if (method_exists($child, $method) &&
+                    !$child->$method($row)) {
+                    return false;
+                }
+            }
+        }
+
+        // Update user statistics, if the user module exists
+        if (!is_null($field = @$this->user_statistic['_on' . $action]) &&
+            !is_null($user =& TIP_Application::getSharedModule('user'))) {
+            $user->increment($field);
+        }
+
+        return true;
     }
 
     //}}}

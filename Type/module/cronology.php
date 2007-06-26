@@ -52,16 +52,6 @@ class TIP_Cronology extends TIP_Module
     protected $tooltip_field = null;
 
     //}}}
-    //{{{ Internal properties
-
-    /**
-     * The cached buffer containing the rendered tree
-     * @var string
-     * @internal
-     */
-    private $_html = null;
-
-    //}}}
     //{{{ Construction/destruction
 
     static protected function checkOptions(&$options)
@@ -107,6 +97,37 @@ class TIP_Cronology extends TIP_Module
         $this->_render();
         return $this->_html;
     }
+
+    //}}}
+    //{{{ Tags
+
+    /**
+     * Echo the cronology
+     *
+     * Outputs the DHTML cronology of this instance.
+     *
+     * @param  string $params Not used
+     * @return bool           true on success or false on errors
+     */
+    protected function tagShow($params)
+    {
+        if (!$this->_render()) {
+            return false;
+        }
+
+        echo $this->_html;
+        return true;
+    }
+
+    //}}}
+    //{{{ Internal properties
+
+    /**
+     * The cached buffer containing the rendered tree
+     * @var string
+     * @internal
+     */
+    private $_html = null;
 
     //}}}
     //{{{ Internal methods
@@ -200,27 +221,6 @@ class TIP_Cronology extends TIP_Module
         $renderer =& TIP_Renderer::getMenu($this->id);
         $model->render($renderer, 'sitemap');
         $this->_html = $renderer->toHtml();
-        return true;
-    }
-
-    //}}}
-    //{{{ Commands
-
-    /**
-     * Echo the cronology
-     *
-     * Outputs the DHTML cronology of this instance.
-     *
-     * @param  string $params Not used
-     * @return bool           true on success or false on errors
-     */
-    protected function commandShow($params)
-    {
-        if (!$this->_render()) {
-            return false;
-        }
-
-        echo $this->_html;
         return true;
     }
 

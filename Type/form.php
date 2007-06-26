@@ -30,10 +30,22 @@ class TIP_Form extends TIP_Module
     protected $master = null;
 
     /**
-     * The action this form must perform
+     * The type of action this form must perform
      * @var TIP_FORM_ACTION_...
      */
     protected $action = null;
+
+    /**
+     * Action name
+     *
+     * Action identifier to use in localizing the title.
+     *
+     * For basic actions, such as 'add', 'delete' and 'edit', you can leave it
+     * null: the value will default to the content of the 'action' property.
+     *
+     * @var string
+     */
+    protected $action_id = null;
 
     /**
      * A list of field ids to be used by the form: leave null for full automatic
@@ -42,17 +54,6 @@ class TIP_Form extends TIP_Module
      * @var array|null
      */
     protected $fields = null;
-
-    /**
-     * Real command to execute
-     *
-     * Basically, this property defines the title of the form (to be defined
-     * by the "form.header.$command" row). Usually, you can leave it null and
-     * the $command value will default to the 'action' property value.
-     *
-     * @var string
-     */
-    protected $command = null;
 
     /**
      * A sum of TIP_FORM_BUTTON_... constants: leave it null to use
@@ -122,6 +123,208 @@ class TIP_Form extends TIP_Module
     protected $referer = null;
 
     //}}}
+    //{{{ Constructor/destructor
+
+    static protected function checkOptions(&$options)
+    {
+        if (!parent::checkOptions($options) || !isset($options['master'], $options['action'])) {
+            return false;
+        }
+
+        // Default values
+        $options['id'] = $options['master']->getProperty('id');
+        isset($options['action_id']) || $options['action_id'] = $options['action'];
+        isset($options['referer']) || $options['referer'] = TIP::getRefererURI();
+        if (!isset($options['buttons'])) {
+            switch ($options['action']) {
+
+            case TIP_FORM_ACTION_ADD:
+            case TIP_FORM_ACTION_EDIT:
+                $options['buttons'] = TIP_FORM_BUTTON_SUBMIT|TIP_FORM_BUTTON_CANCEL;
+                break;
+
+            case TIP_FORM_ACTION_VIEW:
+                $options['buttons'] = TIP_FORM_BUTTON_CLOSE;
+                break;
+
+            case TIP_FORM_ACTION_DELETE:
+                $options['buttons'] = TIP_FORM_BUTTON_DELETE|TIP_FORM_BUTTON_CANCEL;
+                break;
+
+            default:
+                $options['buttons'] = TIP_FORM_BUTTON_CLOSE;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * Constructor
+     *
+     * Initializes a TIP_Form instance.
+     *
+     * @param array $options Properties values
+     */
+    protected function __construct($options)
+    {
+        parent::__construct($options);
+        HTML_QuickForm::registerRule('unique', 'callback', '_ruleUnique', 'TIP_Form');
+        $this->_data =& $this->master->getProperty('data');
+    }
+
+    //}}}
+    //{{{ Methods
+
+    /**
+     * Get a localized text
+     *
+     * Gets a localized text using 'form' as prefix. Furthermore, it logs a
+     * warning message if the label is not found.
+     *
+     * @param  string $id      The identifier
+     * @param  array  $context A context associative array
+     * @param  bool   $cached  Whether to perform or not a cached read
+     * @return string          The requested localized text
+     */
+    protected function getLocale($id, $context = null, $cached = true)
+    {
+        if (is_null($text = TIP::getLocale($id, 'form', $context, $cached))) {
+            TIP::warning("localized text not found (form.$id)");
+            $text = '';
+        }
+
+        return $text;
+    }
+
+    /**
+     * Run the form
+     *
+     * Executes the requested action, accordling to the properties values set
+     * in the constructor.
+     *
+     * @return bool|null true if the action is performed, false if not
+     *                   or null on errors
+     */
+    public function run()
+    {
+        isset($this->fields) || $this->fields = $this->_data->getFields();
+
+        if ($this->action == TIP_FORM_ACTION_ADD) {
+            $this->_addAutomaticDefaults();
+        }
+
+        // The localized header text is defined by the content
+        $header_label = $this->master->getLocale('header.' . $this->action_id);
+
+        // Create the interface
+        require_once 'HTML/QuickForm/DHTMLRulesTableless.php';
+        $this->_form =& new HTML_QuickForm_DHTMLRulesTableless($this->id);
+
+        // XHTML compliance
+        $this->_form->removeAttribute('name');
+
+        // The label element (default header object) is buggy at least on
+        // Firefox, so I provide a decent alternative (a static <h1> element)
+        $this->_form->addElement('header', 'header.' . $this->action_id, $header_label);
+        $this->_form->addElement('html', '<h1>' . $header_label . '</h1>');
+        $this->_form->addElement('hidden', 'module', $this->id);
+        $this->_form->addElement('hidden', 'action', $this->action_id);
+        array_walk(array_keys($this->fields), array(&$this, '_addWidget'));
+
+        // Set the default content
+        if (is_array($this->defaults)) {
+            $defaults =& $this->defaults;
+        } else {
+            $defaults = array_map(create_function('&$f', 'return $f["default"];'), $this->fields);
+        }
+        $this->_form->setDefaults($defaults);
+
+        // Validate the form
+        $valid = $this->_validate();
+
+        // Perform uploads (if any)
+        if (is_callable(array('HTML_QuickForm_picture', 'doUploads'))) {
+            HTML_QuickForm_picture::doUploads($this->_form);
+        }
+
+        // Process the form
+        if ($valid === true) {
+            if (HTTP_Session2::get($this->id . '.process')) {
+                if ($this->_form->isSubmitted()) {
+                    $this->_form->process(array(&$this, '_convert'));
+                } else {
+                    $this->_process($this->defaults);
+                }
+                HTTP_Session2::set($this->id . '.process', null);
+            }
+            $buttons = TIP_FORM_BUTTON_CLOSE;
+            $render = $this->valid_render;
+        } elseif ($valid === false) {
+            HTTP_Session2::set($this->id . '.process', true);
+            $render = $this->invalid_render;
+        } else {
+            $render = $this->valid_render;
+        }
+
+        if ($render == TIP_FORM_RENDER_NOTHING) {
+            return $valid;
+        }
+
+        // Define buttons if $this->buttons is not set
+        if (!isset($buttons)) {
+            $buttons = $this->buttons;
+        }
+
+        // Add buttons
+        $group = array();
+        if ($buttons & TIP_FORM_BUTTON_SUBMIT) {
+            $group[] =& $this->_form->createElement('submit', null, $this->getLocale('button.submit'), array('class' => 'command'));
+        }
+        if ($buttons & TIP_FORM_BUTTON_RESET) {
+            $group[] =& $this->_form->createElement('reset', null, $this->getLocale('button.reset'), array('class' => 'command'));
+        }
+        if ($buttons & TIP_FORM_BUTTON_OK) {
+            $group[] =& $this->_form->createElement('link', 'ok', null, $_SERVER['REQUEST_URI'] . '&process=1', $this->getLocale('button.ok'));
+        }
+        if ($buttons & TIP_FORM_BUTTON_DELETE && $this->action_id == TIP_FORM_ACTION_DELETE) {
+            $group[] =& $this->_form->createElement('link', 'delete', null, $_SERVER['REQUEST_URI'] . '&process=1', $this->getLocale('button.delete'));
+        }
+        if ($buttons & TIP_FORM_BUTTON_CANCEL) {
+            $group[] =& $this->_form->createElement('link', 'cancel', null, $this->referer, $this->getLocale('button.cancel'));
+        }
+        if ($buttons & TIP_FORM_BUTTON_CLOSE) {
+            $group[] =& $this->_form->createElement('link', 'close', null, $this->referer, $this->getLocale('button.close'));
+        }
+        if ($buttons & TIP_FORM_BUTTON_DELETE && $this->action_id != TIP_FORM_ACTION_DELETE) {
+            $primary_key = $this->_data->getProperty('primary_key');
+            $url = TIP::getScriptURI() . '?module=' . $this->id .
+                '&action=delete&' .
+                $primary_key . '=' . urlencode($this->_form->getElementValue($primary_key));
+            $group[] =& $this->_form->createElement('link', 'delete', null, $url, $this->getLocale('button.delete'), array('class' => 'dangerous'));
+        }
+
+        // Add the tabindex property to the buttons
+        foreach (array_keys($group) as $id) {
+            ++ $this->_tabindex;
+            $group[$id]->setAttribute ('tabindex', $this->_tabindex);
+        }
+
+        // Add the group of buttons to the form
+        $element =& $this->_form->addElement('group', 'buttons', null, $group, '');
+        $element->setAttribute('class', 'command');
+
+        // Rendering
+        if ($render == TIP_FORM_RENDER_HERE) {
+            $this->_render();
+        } elseif ($render == TIP_FORM_RENDER_IN_PAGE) {
+            TIP_Application::appendCallback(array(&$this, '_render'));
+        }
+
+        return $valid;
+    }
+
+    //}}}
     //{{{ Internal properties
 
     /**
@@ -155,71 +358,6 @@ class TIP_Form extends TIP_Module
     private $_tabindex = 0;
 
     //}}}
-    //{{{ Constructor/destructor
-
-    static protected function checkOptions(&$options)
-    {
-        if (!parent::checkOptions($options) || !isset($options['master'], $options['action'])) {
-            return false;
-        }
-
-        // Default values
-        $options['id'] = $options['master']->getProperty('id');
-        isset($options['command']) || $options['command'] = $options['action'];
-        isset($options['referer']) || $options['referer'] = TIP::getRefererURI();
-        if (!isset($options['buttons'])) {
-            switch ($options['action']) {
-
-            case TIP_FORM_ACTION_ADD:
-            case TIP_FORM_ACTION_EDIT:
-                $options['buttons'] = TIP_FORM_BUTTON_SUBMIT|TIP_FORM_BUTTON_CANCEL;
-                break;
-
-            case TIP_FORM_ACTION_VIEW:
-                $options['buttons'] = TIP_FORM_BUTTON_CLOSE;
-                break;
-
-            case TIP_FORM_ACTION_DELETE:
-                $options['buttons'] = TIP_FORM_BUTTON_DELETE|TIP_FORM_BUTTON_CANCEL;
-                break;
-
-            default:
-                $options['buttons'] = TIP_FORM_BUTTON_CLOSE;
-            }
-        }
-
-        return true;
-    }
-
-    /**
-     * Constructor
-     *
-     * Initializes a TIP_Form instance.
-     *
-     * $options could be an array with the following items:
-     * - $options['master']:         a reference to the TIP_Content master instance (requested)
-     * - $options['action']:         the action this form must perform (requested)
-     * - $options['fields']:         a list of field ids to be used by the form
-     * - $options['command']:        real command to execute
-     * - $options['buttons']:        a sum of TIP_FORM_BUTTON_... constant to show at the end of the form
-     * - $options['defaults']:       array of default element values
-     * - $options['validation']:     'client'|'server', as described by HTML_QuickForm
-     * - $options['validator']:      global validation callback
-     * - $options['on_process']:     before-process callback
-     * - $options['invalid_render']: render mode for not-validated form
-     * - $options['valid_render']:   render mode for validated form
-     * - $options['referer']:        url where turn back
-     *
-     * @param array  $options Properties values
-     */
-    protected function __construct($options)
-    {
-        parent::__construct($options);
-        HTML_QuickForm::registerRule('unique', 'callback', '_ruleUnique', 'TIP_Form');
-        $this->_data =& $this->master->getProperty('data');
-    }
-
-    //}}}
     //{{{ Callbacks
 
     public function _ruleUnique($value, $options)
@@ -230,7 +368,7 @@ class TIP_Form extends TIP_Module
         // The active form is the last registered form
         $form_id = end(array_keys($form_register));
         $form =& $form_register[$form_id];
-        if ($form->command != TIP_FORM_ACTION_ADD && $form->command != TIP_FORM_ACTION_EDIT) {
+        if ($form->action_id != TIP_FORM_ACTION_ADD && $form->action_id != TIP_FORM_ACTION_EDIT) {
             return true;
         }
 
@@ -297,7 +435,7 @@ class TIP_Form extends TIP_Module
     }
 
     //}}}
-    //{{{ Methods
+    //{{{ Internal methods
 
     private function _addAutomaticDefaults()
     {
@@ -476,148 +614,6 @@ class TIP_Form extends TIP_Module
         return true;
     }
 
-    /**
-     * Get a localized text
-     *
-     * Gets a localized text using 'form' as prefix. Furthermore, it logs a
-     * warning message if the label is not found.
-     *
-     * @param  string $id      The identifier
-     * @param  array  $context A context associative array
-     * @param  bool   $cached  Whether to perform or not a cached read
-     * @return string          The requested localized text
-     */
-    protected function getLocale($id, $context = null, $cached = true)
-    {
-        if (is_null($text = TIP::getLocale($id, 'form', $context, $cached))) {
-            TIP::warning("localized text not found (form.$id)");
-            $text = '';
-        }
-
-        return $text;
-    }
-
-    public function run()
-    {
-        isset($this->fields) || $this->fields = $this->_data->getFields();
-
-        if ($this->action == TIP_FORM_ACTION_ADD) {
-            $this->_addAutomaticDefaults();
-        }
-
-        // The localized header text is defined by the content
-        $header_label = $this->master->getLocale('header.' . $this->command);
-
-        // Create the interface
-        require_once 'HTML/QuickForm/DHTMLRulesTableless.php';
-        $this->_form =& new HTML_QuickForm_DHTMLRulesTableless($this->id);
-
-        // XHTML compliance
-        $this->_form->removeAttribute('name');
-
-        // The label element (default header object) is buggy at least on
-        // Firefox, so I provide a decent alternative (a static <h1> element)
-        $this->_form->addElement('header', 'header.' . $this->command, $header_label);
-        $this->_form->addElement('html', '<h1>' . $header_label . '</h1>');
-        $this->_form->addElement('hidden', 'module', $this->id);
-        $this->_form->addElement('hidden', 'action', $this->command);
-        array_walk(array_keys($this->fields), array(&$this, '_addWidget'));
-
-        // Set the default content
-        if (is_array($this->defaults)) {
-            $defaults =& $this->defaults;
-        } else {
-            $defaults = array_map(create_function('&$f', 'return $f["default"];'), $this->fields);
-        }
-        $this->_form->setDefaults($defaults);
-
-        // Validate the form
-        $valid = $this->_validate();
-
-        // Perform uploads (if any)
-        if (is_callable(array('HTML_QuickForm_picture', 'doUploads'))) {
-            HTML_QuickForm_picture::doUploads($this->_form);
-        }
-
-        // Process the form
-        if ($valid === true) {
-            if (HTTP_Session2::get($this->id . '.process')) {
-                if ($this->_form->isSubmitted()) {
-                    $this->_form->process(array(&$this, '_convert'));
-                } else {
-                    $this->_process($this->defaults);
-                }
-                HTTP_Session2::set($this->id . '.process', null);
-            }
-            $buttons = TIP_FORM_BUTTON_CLOSE;
-            $render = $this->valid_render;
-        } elseif ($valid === false) {
-            HTTP_Session2::set($this->id . '.process', true);
-            $render = $this->invalid_render;
-        } else {
-            $render = $this->valid_render;
-        }
-
-        if ($render == TIP_FORM_RENDER_NOTHING) {
-            return $valid;
-        }
-
-        // Define buttons if $this->buttons is not set
-        if (!isset($buttons)) {
-            $buttons = $this->buttons;
-        }
-
-        // Add buttons
-        $group = array();
-        if ($buttons & TIP_FORM_BUTTON_SUBMIT) {
-            $group[] =& $this->_form->createElement('submit', null, $this->getLocale('button.submit'), array('class' => 'command'));
-        }
-        if ($buttons & TIP_FORM_BUTTON_RESET) {
-            $group[] =& $this->_form->createElement('reset', null, $this->getLocale('button.reset'), array('class' => 'command'));
-        }
-        if ($buttons & TIP_FORM_BUTTON_OK) {
-            $group[] =& $this->_form->createElement('link', 'ok', null, $_SERVER['REQUEST_URI'] . '&process=1', $this->getLocale('button.ok'));
-        }
-        if ($buttons & TIP_FORM_BUTTON_DELETE && $this->command == TIP_FORM_ACTION_DELETE) {
-            $group[] =& $this->_form->createElement('link', 'delete', null, $_SERVER['REQUEST_URI'] . '&process=1', $this->getLocale('button.delete'));
-        }
-        if ($buttons & TIP_FORM_BUTTON_CANCEL) {
-            $group[] =& $this->_form->createElement('link', 'cancel', null, $this->referer, $this->getLocale('button.cancel'));
-        }
-        if ($buttons & TIP_FORM_BUTTON_CLOSE) {
-            $group[] =& $this->_form->createElement('link', 'close', null, $this->referer, $this->getLocale('button.close'));
-        }
-        if ($buttons & TIP_FORM_BUTTON_DELETE && $this->command != TIP_FORM_ACTION_DELETE) {
-            $primary_key = $this->_data->getProperty('primary_key');
-            $url = TIP::getScriptURI() . '?module=' . $this->id .
-                '&action=delete&' .
-                $primary_key . '=' . urlencode($this->_form->getElementValue($primary_key));
-            $group[] =& $this->_form->createElement('link', 'delete', null, $url, $this->getLocale('button.delete'), array('class' => 'dangerous'));
-        }
-
-        // Add the tabindex property to the buttons
-        foreach (array_keys($group) as $id) {
-            ++ $this->_tabindex;
-            $group[$id]->setAttribute ('tabindex', $this->_tabindex);
-        }
-
-        // Add the group of buttons to the form
-        $element =& $this->_form->addElement('group', 'buttons', null, $group, '');
-        $element->setAttribute('class', 'command');
-
-        // Rendering
-        if ($render == TIP_FORM_RENDER_HERE) {
-            $this->_render();
-        } elseif ($render == TIP_FORM_RENDER_IN_PAGE) {
-            TIP_Application::appendCallback(array(&$this, '_render'));
-        }
-
-        return $valid;
-    }
-
-    //}}}
-    //{{{ Widgets
-
     private function &_widgetText(&$field)
     {
         $id = $field['id'];
@@ -641,7 +637,7 @@ class TIP_Form extends TIP_Module
             $this->_addRule($id, 'maxlength', $field['length']);
         }
 
-        if ($this->command == TIP_FORM_ACTION_ADD || $this->command == TIP_FORM_ACTION_EDIT) {
+        if ($this->action_id == TIP_FORM_ACTION_ADD || $this->action_id == TIP_FORM_ACTION_EDIT) {
             $reid = 're' . $id;
             $reelement =& $this->_addElement('password', $reid, 'expand');
 

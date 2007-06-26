@@ -14,7 +14,7 @@
  * $_queue property, where the modules will prepend or append their
  * callbacks.
  *
- * When the commandPage() is called, usually throught a tag in the main source
+ * When the tagPage() is called, usually throught a tag in the main source
  * file, the TIP_Application module will call the callbacks stored in the queue
  * in sequential order. The page is the output of these callbacks.
  *
@@ -90,42 +90,6 @@ class TIP_Application extends TIP_Module
      * @var string
      */
     protected $fatal_url = 'index.php?module=application&action=fatal';
-
-    //}}}
-    //{{{ Internal properties
-
-    /**
-     * The current request data
-     *
-     * Contains three items identifying the current request:
-     * - $_request['uri']:    the absolute requesting uri
-     * - $_request['module']: the requesting module
-     * - $_request['action']: the requesting action
-     *
-     * @var array
-     * @internal
-     */
-    private $_request = null;
-
-    /**
-     * The current referer data
-     *
-     * Contains three items identifying the current referer:
-     * - $_referer['uri']:    the absolute referring uri
-     * - $_referer['module']: the refererring module
-     * - $_referer['action']: the refererring action
-     *
-     * @var array
-     * @internal
-     */
-    private $_referer = null;
-
-    /**
-     * The callback queue to scan to generate the page
-     * @var array
-     * @internal
-     */
-    private $_queue = array();
 
     //}}}
     //{{{ Constructor/destructor
@@ -365,33 +329,13 @@ class TIP_Application extends TIP_Module
         }
 
         // Generates the page
-        $this->commandRun($main_source);
+        $this->tagRun($main_source);
 
         HTTP_Session2::pause();
     }
 
     //}}}
-    //{{{ Internal methods
-
-    /**
-     * Internal debug function
-     *
-     * Used to dump the register for debugging purpose.
-     *
-     * @param array  &$register The register to dump
-     * @param string  $indent   The indentation text
-     * @internal
-     */
-    static private function _dumpRegister(&$register, $indent = '')
-    {
-        foreach ($register as $id => &$obj) {
-            echo "$indent$id\n";
-            is_array($obj) && self::_dumpRegister($obj, $indent . '  ');
-        }
-    }
-
-    //}}}
-    //{{{ Commands
+    //{{{ Tags
 
     /**
      * Output the page
@@ -402,10 +346,10 @@ class TIP_Application extends TIP_Module
      * @param  string $params The parameter string
      * @return bool           true on success or false on errors
      */
-    protected function commandPage($params)
+    protected function tagPage($params)
     {
         if (empty($this->_queue)) {
-            $this->commandRunShared('default.src');
+            $this->tagRunShared('default.src');
         } else {
             foreach ($this->_queue as $item) {
                 call_user_func_array($item[0], $item[1]);
@@ -424,13 +368,13 @@ class TIP_Application extends TIP_Module
      * @param  string $params The parameter string
      * @return bool           true on success or false on errors
      */
-    protected function commandDebug($params)
+    protected function tagDebug($params)
     {
         if ($this->keys['IS_TRUSTED']) {
             // Show logged messages
             $logger =& $this->getSharedModule('logger');
             if (is_object($logger)) {
-                $logger->commandRun('browse.src');
+                $logger->tagRun('browse.src');
             }
         }
 
@@ -438,7 +382,7 @@ class TIP_Application extends TIP_Module
             // Display profiling informations
             global $_tip_profiler;
             if (is_object($_tip_profiler)) {
-                // Leave itsself, that is the commandDebug section
+                // Leave itsself, that is the tagDebug section
                 $_tip_profiler->leaveSection('debug');
 
                 $_tip_profiler->stop();
@@ -483,6 +427,62 @@ class TIP_Application extends TIP_Module
         }
 
         return null;
+    }
+
+    //}}}
+    //{{{ Internal properties
+
+    /**
+     * The current request data
+     *
+     * Contains three items identifying the current request:
+     * - $_request['uri']:    the absolute requesting uri
+     * - $_request['module']: the requesting module
+     * - $_request['action']: the requesting action
+     *
+     * @var array
+     * @internal
+     */
+    private $_request = null;
+
+    /**
+     * The current referer data
+     *
+     * Contains three items identifying the current referer:
+     * - $_referer['uri']:    the absolute referring uri
+     * - $_referer['module']: the refererring module
+     * - $_referer['action']: the refererring action
+     *
+     * @var array
+     * @internal
+     */
+    private $_referer = null;
+
+    /**
+     * The callback queue to scan to generate the page
+     * @var array
+     * @internal
+     */
+    private $_queue = array();
+
+    //}}}
+    //{{{ Internal methods
+
+    /**
+     * Internal debug function
+     *
+     * Used to dump the register for debugging purpose.
+     *
+     * @param array  &$register The register to dump
+     * @param string  $indent   The indentation text
+     * @internal
+     */
+    static private function _dumpRegister(&$register, $indent = '')
+    {
+        foreach ($register as $id => &$obj) {
+            echo "$indent$id\n";
+            is_array($obj) && self::_dumpRegister($obj, $indent . '  ');
+        }
     }
 
     //}}}

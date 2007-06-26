@@ -33,7 +33,7 @@ class TIP_Comments extends TIP_Content
     protected $master_count = '_comments';
 
     //}}}
-    //{{{ Static methods
+    //{{{ Constructor/destructor
 
     static protected function checkOptions(&$options)
     {
@@ -56,25 +56,71 @@ class TIP_Comments extends TIP_Content
         return $options['master'] instanceof TIP_Content;
     }
 
-    //}}}
-    //{{{ Constructor/destructor
-
     /**
      * Constructor
      *
      * Initializes a TIP_Comments instance.
-     *
-     * $options inherits the TIP_Content properties, and add the following:
-     * - $options['master']:       the name of the master module (required)
-     * - $options['parent_field']: the field to join to the master primary key
-     * - $options['master_count']: the field on the master module that holds
-     *                             the comment counter
      *
      * @param array $options Properties values
      */
     protected function __construct($options)
     {
         parent::__construct($options);
+    }
+
+    //}}}
+    //{{{ Tags
+
+    /**
+     * Add a comments form
+     *
+     * Allows to show an inline form in the middle of a page.
+     *
+     * If the form is validated, the result is rendered in the page. Also, the
+     * cancel button in the invalidated form is removed (it is not useful for
+     * inline forms).
+     *
+     * @param  int  $params The id of the master row
+     * @return bool         true on success or false on errors
+     */
+    protected function tagAdd($params)
+    {
+        if (empty($params)) {
+            TIP::notifyError('noparams');
+            return false;
+        }
+
+        $options['defaults'][$this->parent_field] = (int) $params;
+        $options['buttons'] = TIP_FORM_BUTTON_SUBMIT;
+        $options['invalid_render'] = TIP_FORM_RENDER_HERE;
+        $options['valid_render'] = TIP_FORM_RENDER_IN_PAGE;
+        return $this->actionAdd($options);
+    }
+
+    //}}}
+    //{{{ Actions
+
+    /**
+     * Perform an add action
+     *
+     * Overrides the default add action, assuring the 'parent_field' has a
+     * valid value.
+     *
+     * @param  array $options Options to pass to the form() call
+     * @return bool           true on success or false on errors
+     */
+    protected function actionAdd($options = array())
+    {
+        // Check for the default value of 'parent_field' (the parent id)
+        if (!isset($options['defaults'], $options['defaults'][$this->parent_field])) {
+            // Try to get the parent id from GET or POST
+            if (is_null($parent_id = $this->fromGetOrPost($this->parent_field))) {
+                return false;
+            }
+            $options['defaults'][$this->parent_field] = $parent_id;
+        }
+
+        return parent::actionAdd($options);
     }
 
     //}}}
@@ -152,61 +198,6 @@ class TIP_Comments extends TIP_Content
 
         $filter = $this->getProperty('data')->filter($this->parent_field, $row[$primary_key]);
         return $this->getProperty('data')->deleteRows($filter);
-    }
-
-    //}}}
-    //{{{ Commands
-
-    /**
-     * Add a comments form
-     *
-     * Allows to show an inline form in the middle of a page.
-     *
-     * If the form is validated, the result is rendered in the page. Also, the
-     * cancel button in the invalidated form is removed (it is not useful for
-     * inline forms).
-     *
-     * @param  int  $params The id of the master row
-     * @return bool         true on success or false on errors
-     */
-    protected function commandAdd($params)
-    {
-        if (empty($params)) {
-            TIP::notifyError('noparams');
-            return false;
-        }
-
-        $options['defaults'][$this->parent_field] = (int) $params;
-        $options['buttons'] = TIP_FORM_BUTTON_SUBMIT;
-        $options['invalid_render'] = TIP_FORM_RENDER_HERE;
-        $options['valid_render'] = TIP_FORM_RENDER_IN_PAGE;
-        return $this->actionAdd($options);
-    }
-
-    //}}}
-    //{{{ Actions
-
-    /**
-     * Perform an add action
-     *
-     * Overrides the default add action, assuring the 'parent_field' has a
-     * valid value.
-     *
-     * @param  array $options Options to pass to the form() call
-     * @return bool           true on success or false on errors
-     */
-    protected function actionAdd($options = array())
-    {
-        // Check for the default value of 'parent_field' (the parent id)
-        if (!isset($options['defaults'], $options['defaults'][$this->parent_field])) {
-            // Try to get the parent id from GET or POST
-            if (is_null($parent_id = $this->fromGetOrPost($this->parent_field))) {
-                return false;
-            }
-            $options['defaults'][$this->parent_field] = $parent_id;
-        }
-
-        return parent::actionAdd($options);
     }
 
     //}}}

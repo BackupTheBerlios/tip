@@ -58,27 +58,6 @@ abstract class TIP_Module extends TIP_Type
     protected $default_privilege = null;
 
     //}}}
-    //{{{ Internal properties
-
-    /**
-     * The current privilege descriptor
-     * @var TIP_PRIVILEGE_...
-     */
-    protected $privilege = TIP_PRIVILEGE_NONE;
-
-    /**
-     * Custom keys
-     *
-     * Every TIP_Module object can have a bounch of key => value pairs. These
-     * properties are mantained in this array and are used, for instance, by the
-     * getItem() method. Also, remember an object inherits the keys from its
-     * parents, in a hierarchy order.
-     *
-     * @var array
-     */
-    public $keys = array();
-
-    //}}}
     //{{{ Constructor/destructor
 
     /**
@@ -259,7 +238,7 @@ abstract class TIP_Module extends TIP_Type
      * Get the value of a pair throught a "request" interface
      *
      * This method is usually used by the source engine interface methods
-     * (the command... functions) to access any pair information available
+     * (the tag... functions) to access any pair information available
      * in the TIP system.
      *
      * A request can get the value of an item, a get, a post or a localized
@@ -421,30 +400,30 @@ abstract class TIP_Module extends TIP_Type
     }
 
     /**
-     * Execute a command
+     * Execute a tag
      *
-     * Executes the specified command, using $params as arguments. This
-     * function prepend 'command' to $command and try to call the so
-     * formed method. If you, for instance, runs callCommand('Test', ''), a
-     * commandTest('') call will be performed.
+     * Executes the specified tag, using $params as arguments. This
+     * function prepend 'tag' to $name and try to call the so
+     * formed method. If you, for instance, runs callTag('Test', ''), a
+     * tagTest('') call will be performed.
      *
-     * A command is a request from the source engine to echoes something. It can
+     * A tag is a request from the source engine to echoes something. It can
      * be tought as the dinamic primitive of the TIP system: every dinamic tag
-     * parsed by the source engine runs a command.
+     * parsed by the source engine runs a tag.
      *
-     * The commands - as everything else - are inherited from the module parents,
-     * so every TIP_Module commands are available to the TIP_Module children.
+     * The tags - as everything else - are inherited from the module parents,
+     * so every TIP_Module tags are available to the TIP_Module children.
      *
-     * @param string $command The command name
-     * @param string $params  Parameters to pass to the command
-     * @return bool|null true on success, false on errors or null if the
-     *                   command is not found
-     * @tutorial TIP/SourceEngine/SourceEngine.pkg#commands
+     * @param string     $name   The tag name
+     * @param string     $params Parameters to pass to the tag
+     * @return bool|null         true on success, false on errors or
+     *                           null if $name is not a valid tag
+     * @tutorial TIP/SourceEngine/SourceEngine.pkg#tags
      */
-    public function callCommand($command, $params)
+    public function callTag($name, $params)
     {
-        $command = strtolower($command);
-        $method = 'command' . $command;
+        $name = strtolower($name);
+        $method = 'tag' . $name;
 
         if (!method_exists($this, $method)) {
             TIP::error("the method does not exist ($method)");
@@ -452,15 +431,9 @@ abstract class TIP_Module extends TIP_Type
         }
 
         global $_tip_profiler;
-        if (is_object($_tip_profiler)) {
-            $_tip_profiler->enterSection($command);
-        }
-
+        is_object($_tip_profiler) && $_tip_profiler->enterSection($name);
         $done = $this->$method($params);
-
-        if (is_object($_tip_profiler)) {
-            $_tip_profiler->leaveSection($command);
-        }
+        is_object($_tip_profiler) && $_tip_profiler->leaveSection($name);
 
         return $done;
     }
@@ -537,7 +510,7 @@ abstract class TIP_Module extends TIP_Type
     }
 
     //}}}
-    //{{{ Commands
+    //{{{ Tags
 
     /**#@+
      * @param string @params The parameter string
@@ -550,12 +523,12 @@ abstract class TIP_Module extends TIP_Type
      *
      * $params is a string in the form "request,request,...".
      *
-     * This command will perform a serie of request and will echo the first
+     * This tag will perform a serie of request and will echo the first
      * value found.
      *
      * @uses getValidRequest() The method used to resolve the requests
      */
-    protected function commandRaw($params)
+    protected function tagRaw($params)
     {
         $requests = explode(',', $params);
         $value = $this->getValidRequest($requests);
@@ -573,12 +546,12 @@ abstract class TIP_Module extends TIP_Type
      *
      * $params is a string in the form "request,request,...".
      *
-     * Equal to commandRaw(), but do not log any warning if the request is not
+     * Equal to tagRaw(), but do not log any warning if the request is not
      * found.
      *
      * @uses getValidRequest() The method used to resolve the requests
      */
-    protected function commandTryRaw($params)
+    protected function tagTryRaw($params)
     {
         $requests = explode(',', $params);
         $value = $this->getValidRequest($requests);
@@ -593,10 +566,10 @@ abstract class TIP_Module extends TIP_Type
      *
      * $params is a string in the form "request,request,...".
      *
-     * Equals to commandRaw(), but the result is converted throught TIP::toHtml()
+     * Equals to tagRaw(), but the result is converted throught TIP::toHtml()
      * before the output.
      */
-    protected function commandHtml($params)
+    protected function tagHtml($params)
     {
         $requests = explode(',', $params);
         $value = $this->getValidRequest($requests);
@@ -614,10 +587,10 @@ abstract class TIP_Module extends TIP_Type
      *
      * $params is a string in the form "request,request,...".
      *
-     * Equals to commandTryRaw(), but the result is converted throught
+     * Equals to tagTryRaw(), but the result is converted throught
      * TIP::toHtml() before the output.
      */
-    protected function commandTryHtml($params)
+    protected function tagTryHtml($params)
     {
         $requests = explode(',', $params);
         $value = $this->getValidRequest($requests);
@@ -633,7 +606,7 @@ abstract class TIP_Module extends TIP_Type
      * Output a proper link to the specified action. The values are urlencoded
      * to avoid collateral effects.
      */
-    protected function commandAction($params)
+    protected function tagAction($params)
     {
         $pos = strpos ($params, ',');
         if ($pos === false) {
@@ -660,7 +633,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * Prepends the root URL to $params and outputs the result.
      */
-    protected function commandURL($params)
+    protected function tagURL($params)
     {
         echo TIP::buildURL($params);
         return true;
@@ -670,11 +643,11 @@ abstract class TIP_Module extends TIP_Type
      * Echo a source URL
      *
      * Prepends the source root URL $params and outputs the result.
-     * This command (or any of its variants) MUST be used for every file
+     * This tag (or any of its variants) MUST be used for every file
      * reference if you want a theme-aware site, because enabling themes will
      * make the prepending path a dynamic variable.
      */
-    protected function commandSourceURL($params)
+    protected function tagSourceURL($params)
     {
         echo $this->buildSourceURL($params);
         return true;
@@ -686,7 +659,7 @@ abstract class TIP_Module extends TIP_Type
      * Prepends the source URL of the current module to $params and
      * outputs the result.
      */
-    protected function commandModuleURL($params)
+    protected function tagModuleURL($params)
     {
         echo $this->buildSourceURL($this->id, $params);
         return true;
@@ -698,7 +671,7 @@ abstract class TIP_Module extends TIP_Type
      * Shortcut for the often used icon URL. The icon URL is in the source
      * root URL, under the "shared/icons" path.
      */
-    protected function commandIconURL($params)
+    protected function tagIconURL($params)
     {
         static $icon_url = null;
         if (!$icon_url) {
@@ -713,7 +686,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * Shortcut for the often used uploaded URL.
      */
-    protected function commandUploadURL($params)
+    protected function tagUploadURL($params)
     {
         echo TIP::buildUploadURL($this->id, $params);
         return true;
@@ -725,7 +698,7 @@ abstract class TIP_Module extends TIP_Type
      * Expands to true if the current logged-in user id equals to $params or
      * false otherwise.
      */
-    protected function commandIs($params)
+    protected function tagIs($params)
     {
         echo ((int) $params) === TIP::getUserId() ? 'true' : 'false';
         return true;
@@ -737,7 +710,7 @@ abstract class TIP_Module extends TIP_Type
      * Executes the source file $params found in the current module source path,
      * using the current source engine.
      */
-    protected function commandRun($params)
+    protected function tagRun($params)
     {
         return $this->run($this->buildSourcePath($this->id, $params));
     }
@@ -748,7 +721,7 @@ abstract class TIP_Module extends TIP_Type
      * Executes the source file $params found in the shared source path, using
      * the current source engine.
      */
-    protected function commandRunShared($params)
+    protected function tagRunShared($params)
     {
         return $this->run($this->buildSourcePath('shared', $params));
     }
@@ -762,7 +735,7 @@ abstract class TIP_Module extends TIP_Type
      * Useful to check if a value is contained (that is, if it is selected) in
      * a "set" or "enum" field.
      */
-    protected function commandInList($params)
+    protected function tagInList($params)
     {
         $pos = strpos($params, ',');
         if ($pos === false) {
@@ -786,7 +759,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * @uses TIP::formatDate() The date formatter
      */
-    protected function commandDate($params)
+    protected function tagDate($params)
     {
         $format = 'date_' . TIP::getLocaleId();
         echo TIP::formatDate($format, $params, 'iso8601');
@@ -801,7 +774,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * @uses TIP::formatDate() The date formatter
      */
-    protected function commandDateTime($params)
+    protected function tagDateTime($params)
     {
         static $format = null;
         if (is_null($format)) {
@@ -815,13 +788,13 @@ abstract class TIP_Module extends TIP_Type
      * Check if a module exists
      *
      * Expands to true if the module module exists or to false
-     * otherwise. This command only checks if the logic file for the $params
+     * otherwise. This tag only checks if the logic file for the $params
      * module exists, does not load the module itsself nor change
      * the default module.
      *
      * Useful to provide conditional links between different modules.
      */
-    protected function commandModuleExists($params)
+    protected function tagModuleExists($params)
     {
         $file = TIP::buildLogicPath('module', $params) . '.php';
         echo is_readable($file) ? 'true' : 'false';
@@ -907,6 +880,27 @@ abstract class TIP_Module extends TIP_Type
     {
         return null;
     }
+
+    //}}}
+    //{{{ Internal properties
+
+    /**
+     * The current privilege descriptor
+     * @var TIP_PRIVILEGE_...
+     */
+    protected $privilege = TIP_PRIVILEGE_NONE;
+
+    /**
+     * Custom keys
+     *
+     * Every TIP_Module object can have a bounch of key => value pairs. These
+     * properties are mantained in this array and are used, for instance, by the
+     * getItem() method. Also, remember an object inherits the keys from its
+     * parents, in a hierarchy order.
+     *
+     * @var array
+     */
+    public $keys = array();
 
     //}}}
 }
