@@ -102,7 +102,7 @@ class Text_Wiki_Render_Xhtml_Toc extends Text_Wiki_Render {
             $pad = ($level - $this->min);
             $html .= " style=\"margin-left: {$pad}em;\">";
 
-            $html .= "<a href=\"#$id\">";
+            $html .= '<a href="' . $_SERVER['REQUEST_URI'] . '#' . $id . '">';
             return $html;
             break;
 

@@ -54,9 +54,12 @@ class TIP_Renderer
     {
         static $renderer = null;
         static $all_rules = array(
-            'Prefilter', 'Heading', 'Toc', 'Horiz', 'Break', 'Blockquote', 
-            'List', 'Deflist', 'Table', 'Center', 'Paragraph', 'Url',
-            'Strong', 'Emphasis', 'Revise', 'Tighten'
+            'Prefilter', 'Delimiter', 'Code', 'Function', 'Html', 'Raw',
+            'Include', 'Embed', 'Anchor', 'Heading', 'Toc', 'Horiz', 'Break',
+            'Blockquote', 'List', 'Deflist', 'Table', 'Image', 'Phplookup',
+            'Center', 'Newline', 'Paragraph', 'Url', 'Freelink', 'Interwiki',
+            'Wikilink', 'Colortext', 'Strong', 'Bold', 'Emphasis', 'Italic',
+            'Underline', 'Tt', 'Superscript', 'Subscript', 'Revise', 'Tighten'
         );
         static $base_rules = array(
             'Prefilter', 'Break', 'Paragraph', 'Tighten'
@@ -67,6 +70,10 @@ class TIP_Renderer
             $renderer =& Text_Wiki::singleton('Default');
             $renderer->setFormatConf('Xhtml', 'charset', 'UTF-8');
             $renderer->setFormatConf('Xhtml', 'translate', HTML_SPECIALCHARS);
+            $renderer->setRenderConf('Xhtml', 'toc', array(
+                'title'    => null,
+                'collapse' => false
+            ));
         }
 
         if (is_array($rules)) {
