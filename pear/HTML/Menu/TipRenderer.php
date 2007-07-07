@@ -106,7 +106,11 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         if (isset($node['COUNT'])) {
             $content .= '<var>' . $node['COUNT'] . '</var>';
         }
-        $content .= $node['title'] . '</a>';
+        $content .= $node['title'];
+        if (isset($node['ITEMS'])) {
+            $content .= ' (' . $node['ITEMS'] . ')';
+        }
+        $content .= '</a>';
 
         if (isset($this->_html[$level])) {
             $this->_html[$level]['active'] = $this->_html[$level]['active'] || $is_active;

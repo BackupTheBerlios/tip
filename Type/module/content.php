@@ -691,7 +691,12 @@ class TIP_Content extends TIP_Module
         $options['type'] = array('cronology');
         $options['id'] = $this->id . '(' . $params . ')';
         $options['master'] =& $this;
-        @list($options['date_field'], $options['title_field'], $options['tooltip_field']) = explode(',', $params);
+        @list(
+            $options['date_field'],
+            $options['title_field'],
+            $options['tooltip_field'],
+            $options['count_field']
+        ) = explode(',', $params);
         echo TIP_Type::singleton($options)->toHtml();
         return true;
     }

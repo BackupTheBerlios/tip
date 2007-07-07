@@ -51,6 +51,12 @@ class TIP_Cronology extends TIP_Module
      */
     protected $tooltip_field = null;
 
+    /**
+     * The field that forces a specified order
+     * @var string
+     */
+    protected $count_field = '_count';
+
     //}}}
     //{{{ Construction/destruction
 
@@ -162,10 +168,12 @@ class TIP_Cronology extends TIP_Module
                     'url'   => 'unused',
                     'CLASS' => 'folder',
                     'sub'   => array(),
-                    'COUNT' => 0
+                    'ITEMS' => 0
                 );
+                isset($this->count_field) && $tree[$year]['COUNT'] = 0;
             }
-            ++ $tree[$year]['COUNT'];
+            ++ $tree[$year]['ITEMS'];
+            isset($this->count_field) && $tree[$year]['COUNT'] += $row[$this->count_field];
 
             // Compute the month
             $months =& $tree[$year]['sub'];
@@ -177,11 +185,15 @@ class TIP_Cronology extends TIP_Module
                     'url'   => 'unused',
                     'CLASS' => 'folder',
                     'sub'   => array(),
-                    'COUNT' => 0
+                    'ITEMS' => 0
                 );
+                isset($this->count_field) && $months[$month_id]['COUNT'] = 0;
             }
-            ++ $months[$month_id]['COUNT'];
+            ++ $months[$month_id]['ITEMS'];
+            isset($this->count_field) && $months[$month_id]['COUNT'] += $row[$this->count_field];
+
             $months[$month_id]['sub'][$id] =& $row;
+            isset($this->count_field) && $row['COUNT'] = $row[$this->count_field];
         }
 
         require_once 'HTML/Menu.php';
