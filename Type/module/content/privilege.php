@@ -183,6 +183,70 @@ class TIP_Privilege extends TIP_Content
     //}}}
     //{{{ Actions
 
+    /**
+     * Perform a change action
+     *
+     * Changes the privilege level for the given user on the specified module.
+     *
+     * @param  int    $user      The user to modify
+     * @param  string $module    A module name
+     * @param  string $privilege The new privilege level
+     * @return bool              true on success or false on errors
+     */
+    protected function actionChange($user, $module, $privilege)
+    {
+        $level = @array_search($privilege, $this->_privileges);
+        if ($level < TIP_PRIVILEGE_NONE || $level > $this->_maxSettableLevel($module)) {
+            TIP::notifyError('denied');
+            $done = false;
+        } else {
+            $old_row = null;
+            if (!is_null($view =& $this->startDataView($this->filterOwnedBy($user)))) {
+                $rows =& $view->getProperty('rows');
+                foreach ($rows as &$row) {
+                    if ($module == $row['_module']) {
+                        $old_row =& $row;
+                        unset($row);
+                        break;
+                    }
+                }
+            }
+
+            $row = $old_row;
+            $row['privilege'] = $privilege;
+            $row[$this->owner_field] = $user;
+            $row['_module'] = (string) $module;
+
+            if ($old_row) {
+                // Previous stored privilege: it needs update
+                if ($done = $this->data->updateRow($row, $old_row)) {
+                    TIP::notifyInfo('done');
+                    $old_row = $row;
+                } else {
+                    TIP::notifyError('update');
+                }
+            } else {
+                // New stored privilege
+                if ($done = $this->data->putRow($row)) {
+                    TIP::notifyInfo('done');
+                    if ($view) {
+                        $rows =& $view->getProperty('rows');
+                        $rows[$row['id']] = $row;
+                    }
+                } else {
+                    TIP::notifyError('insert');
+                }
+            }
+
+            if ($view) {
+                $this->endView();
+            }
+        }
+
+        $this->appendToPage('edit.src');
+        return $done;
+    }
+
     protected function runManagerAction($action)
     {
         switch ($action) {
@@ -227,61 +291,11 @@ class TIP_Privilege extends TIP_Content
                 $this->appendToPage('edit.src');
 
         case 'change':
-            if (is_null($user = $this->_getUser()) ||
-                is_null($module = $this->fromGet('where', 'string')) ||
-                is_null($privilege = $this->fromGet('privilege', 'string'))) {
-                return false;
-            }
-
-            $level = @array_search($privilege, $this->_privileges);
-            if ($level < TIP_PRIVILEGE_NONE || $level > $this->_maxSettableLevel($module)) {
-                TIP::notifyError('denied');
-                $done = false;
-            } else {
-                $old_row = null;
-                if (!is_null($view =& $this->startDataView($this->filterOwnedBy($user)))) {
-                    $rows =& $view->getProperty('rows');
-                    foreach ($rows as &$row) {
-                        if ($module == $row['_module']) {
-                            $old_row =& $row;
-                            break;
-                        }
-                    }
-                }
-
-                $row = $old_row;
-                $row['privilege'] = $privilege;
-                $row[$this->owner_field] = $user;
-                $row['_module'] = (string) $module;
-
-                if ($old_row) {
-                    // Previous stored privilege: it needs update
-                    if ($done = $this->data->updateRow($row, $old_row)) {
-                        TIP::notifyInfo('done');
-                        $old_row = $row;
-                    } else {
-                        TIP::notifyError('update');
-                    }
-                } else {
-                    // New stored privilege
-                    if ($done = $this->data->putRow($row)) {
-                        TIP::notifyInfo('done');
-                        if ($view) {
-                            $rows =& $view->getProperty('rows');
-                            $rows[$row['id']] = $row;
-                        }
-                    } else {
-                        TIP::notifyError('insert');
-                    }
-                }
-
-                if ($view) {
-                    $this->endView();
-                }
-            }
-
-            $this->appendToPage('edit.src');
-            return $done;
+            return
+                !is_null($user = $this->_getUser()) &&
+                !is_null($module = $this->fromGet('where', 'string')) &&
+                !is_null($privilege = $this->fromGet('privilege', 'string')) &&
+                $this->actionChange($user, $module, $privilege);
         }
 
         return null;
