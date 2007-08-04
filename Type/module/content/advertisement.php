@@ -32,15 +32,6 @@ class TIP_Advertisement extends TIP_Content
     //}}}
     //{{{ Construction/destruction
 
-    /**
-     * Check the options
-     *
-     * Overridable static method that checks $options for missing or invalid
-     * values and eventually corrects its content.
-     *
-     * @param  array &$options Properties values
-     * @return bool            true on success or false on error
-     */
     static protected function checkOptions(&$options)
     {
         if (!parent::checkOptions($options)) {
@@ -59,10 +50,6 @@ class TIP_Advertisement extends TIP_Content
      * Constructor
      *
      * Initializes a TIP_Advertisement instance.
-     *
-     * $options inherits the TIP_Content properties, and add the following:
-     * - $options['expiration_field']: the field owning the expiration time
-     * - $options['expiration']:       the default expiration time
      *
      * @param array $options Properties values
      */

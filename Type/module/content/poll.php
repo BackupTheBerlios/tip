@@ -32,6 +32,18 @@ class TIP_Poll extends TIP_Content
     //}}}
     //{{{ Constructor/destructor
 
+    static protected function checkOptions(&$options)
+    {
+        if (!parent::checkOptions($options)) {
+            return false;
+        }
+
+        isset($options['browsable_fields']) || $options['browsable_fields'] = array(
+            TIP_PRIVILEGE_NONE    => array('__ALL__')
+        );
+        return true;
+    }
+
     /**
      * Constructor
      *
