@@ -721,8 +721,8 @@ class TIP_Content extends TIP_Module
      */
     protected function actionAdd($options = null)
     {
-        isset($options) || $options = array('valid_render' => TIP_FORM_RENDER_NOTHING);
         isset($options['on_process']) || $options['on_process'] = array(&$this, '_onAdd');
+        isset($options['follower']) || $options['follower'] = TIP::getScriptURI() . '?module=' . $this->id . '&action=view&id=%lastid%';
 
         $processed = $this->form(TIP_FORM_ACTION_ADD, null, $options);
         if (is_null($processed)) {

@@ -117,10 +117,26 @@ class TIP_Form extends TIP_Module
     protected $valid_render = TIP_FORM_RENDER_IN_PAGE;
 
     /**
-     * The url where turn back: leave it null to use the default referer
+     * The url where turn back
+     *
+     * Leaves it null to use the default referer. If the action is processed,
+     * all occurrences of '%lastid%' inside this string will be replaced by the
+     * last id (if any).
+     *
      * @var string|null
      */
     protected $referer = null;
+
+    /**
+     * The url where go on: leave it null to use the referer as default value
+     *
+     * Leaves it null to use the referer as default value. If the action is
+     * processed, all occurrences of '%lastid%' inside this string will be
+     * replaced by the last id (if any).
+     *
+     * @var string|null
+     */
+    protected $follower = null;
 
     //}}}
     //{{{ Constructor/destructor
@@ -135,6 +151,7 @@ class TIP_Form extends TIP_Module
         $options['id'] = $options['master']->getProperty('id');
         isset($options['action_id']) || $options['action_id'] = $options['action'];
         isset($options['referer']) || $options['referer'] = TIP::getRefererURI();
+        isset($options['follower']) || $options['follower'] = $options['referer'];
         if (!isset($options['buttons'])) {
             switch ($options['action']) {
 
@@ -257,6 +274,12 @@ class TIP_Form extends TIP_Module
                     $this->_process($this->defaults);
                 }
                 HTTP_Session2::set($this->id . '.process', null);
+
+                $last_id = $this->_data->getLastId();
+                if (isset($last_id)) {
+                    $this->referer = str_replace('%lastid%', $last_id, $this->referer);
+                    $this->follower = str_replace('%lastid%', $this->_data->getLastId(), $this->follower);
+                }
             }
             $buttons = TIP_FORM_BUTTON_CLOSE;
             $render = $this->valid_render;
@@ -294,7 +317,7 @@ class TIP_Form extends TIP_Module
             $group[] =& $this->_form->createElement('link', 'cancel', null, $this->referer, $this->getLocale('button.cancel'));
         }
         if ($buttons & TIP_FORM_BUTTON_CLOSE) {
-            $group[] =& $this->_form->createElement('link', 'close', null, $this->referer, $this->getLocale('button.close'));
+            $group[] =& $this->_form->createElement('link', 'close', null, $this->follower, $this->getLocale('button.close'));
         }
         if ($buttons & TIP_FORM_BUTTON_DELETE && $this->action_id != TIP_FORM_ACTION_DELETE) {
             $primary_key = $this->_data->getProperty('primary_key');
