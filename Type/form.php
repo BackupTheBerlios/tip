@@ -73,7 +73,7 @@ class TIP_Form extends TIP_Module
      * Validation type, as described in HTML_QuickForm
      * @var string
      */
-    protected $validation = 'server';
+    protected $validation = 'client';
 
     /**
      * Validation callback
