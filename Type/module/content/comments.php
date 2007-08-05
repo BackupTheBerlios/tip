@@ -85,7 +85,11 @@ class TIP_Comments extends TIP_Content
      */
     protected function tagAdd($params)
     {
-        if (empty($params)) {
+        if ($this->privilege < TIP_PRIVILEGE_UNTRUSTED) {
+            // Privilege level too low: return without rendering
+            return true;
+        } elseif (empty($params)) {
+            // No param id specified
             TIP::notifyError('noparams');
             return false;
         }
