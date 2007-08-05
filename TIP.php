@@ -121,10 +121,9 @@ class TIP
      * Gets a configuration option for a specified type. All the option values
      * are defined in the config file.
      *
-     * @param string      $type     Descriptor of the type
-     * @param string      $option   The option to retrieve
-     * @return mixed|null           The value of the requested option or
-     *                              null on errors
+     * @param string      $type   Descriptor of the type
+     * @param string      $option The option to retrieve
+     * @return mixed|null         The requested option or null on errors
      */
     static public function getOption($type, $option, $required = false)
     {
@@ -208,13 +207,27 @@ class TIP
     }
 
     /**
+     * Extended trim function
+     *
+     * The same as trim(), but converts '&nbsp;' and '&#160;' to spaces before
+     * trimming the string.
+     *
+     * @param  string $str The string to trim
+     * @return             The trimmed string
+     */
+    static public function extendedTrim($str)
+    {
+        return trim(str_replace(array('&#160', '&nbsp;'), ' ', $str));
+    }
+
+    /**
      * Deep addslashes()
      *
      * Wrappes addslashes() in a deeper form, allowing to add slashes also to
      * embedded arrays.
      *
-     * @param array|string $value Array or string to add slashes
-     * @return array|string The slashized copy of $value
+     * @param  array|string $value Array or string to add slashes
+     * @return array|string        The slashized copy of $value
      */
     static public function deepAddSlashes($value)
     {
@@ -227,8 +240,8 @@ class TIP
      * Wrappes stripslashes() in a deeper form, allowing to strip slashes also
      * to embedded arrays.
      *
-     * @param array|string $value Array or string to strip slashes
-     * @return array|string The unslashized copy of $value
+     * @param  array|string $value Array or string to strip slashes
+     * @return array|string        The unslashized copy of $value
      */
     static public function deepStripSlashes($value)
     {
@@ -243,9 +256,9 @@ class TIP
      * original implode() function. This because the array_map() recursive
      * calls pass the array as the first argument.
      *
-     * @param array  $pieces The array to implode
-     * @param string $glue   The glue to use while imploding
-     * @return string The imploded copy of $pieces
+     * @param  array  $pieces The array to implode
+     * @param  string $glue   The glue to use while imploding
+     * @return string         The imploded copy of $pieces
      */
     static public function deepImplode($pieces, $glue = null)
     {

@@ -73,7 +73,7 @@ class TIP_Form extends TIP_Module
      * Validation type, as described in HTML_QuickForm
      * @var string
      */
-    protected $validation = 'client';
+    protected $validation = 'server';
 
     /**
      * Validation callback
@@ -523,11 +523,11 @@ class TIP_Form extends TIP_Module
 
     private function _addGuessedRules($id)
     {
-        if (is_numeric($this->fields[$id]['default'])) {
-            $this->_addRule($id, 'numeric');
-        }
         if (@$this->fields[$id]['category'] == 'required') {
             $this->_addRule($id, 'required');
+        }
+        if (is_numeric($this->fields[$id]['default'])) {
+            $this->_addRule($id, 'numeric');
         }
     }
 
@@ -580,7 +580,7 @@ class TIP_Form extends TIP_Module
             }
 
             isset($this->validator) && $this->_form->addFormRule($this->validator);
-            $this->_form->applyFilter('__ALL__', 'trim');
+            $this->_form->applyFilter('__ALL__', array('TIP', 'extendedTrim'));
             if ($this->_form->validate()) {
                 $this->_form->freeze();
                 return true;
@@ -808,7 +808,7 @@ class TIP_Form extends TIP_Module
         $hierarchy =& TIP_Type::getInstance($hierarchy_id);
 
         // Populate the option list, prepending an empty option
-        $items = array('&#160;') + $hierarchy->toRows();
+        $items = array(' ' => '&#160;') + $hierarchy->toRows();
 
         ++ $this->_tabindex;
         return $this->_form->addElement('select', $id, $label, $items, array('tabindex' => $this->_tabindex, 'class' => 'expand'));
