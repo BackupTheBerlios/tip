@@ -226,8 +226,8 @@ class TIP_Form extends TIP_Module
 
         // The label element (default header object) is buggy at least on
         // Firefox, so I provide a decent alternative (a static <h1> element)
-        $this->_form->addElement('header', 'header.' . $this->action_id, $header_label);
         $this->_form->addElement('html', '<h1>' . $header_label . '</h1>');
+        $this->_form->addElement('header', 'header.' . $this->action_id, $header_label);
         $this->_form->addElement('hidden', 'module', $this->id);
         $this->_form->addElement('hidden', 'action', $this->action_id);
         array_walk(array_keys($this->fields), array(&$this, '_addWidget'));
@@ -429,7 +429,6 @@ class TIP_Form extends TIP_Module
     public function _render()
     {
         $renderer =& TIP_Renderer::getForm();
-        $renderer->addStopFieldsetElements('buttons');
         $this->_form->accept($renderer);
         echo $renderer->toHtml();
     }
