@@ -302,29 +302,29 @@ class TIP_Form extends TIP_Module
         // Add buttons
         $group = array();
         if ($buttons & TIP_FORM_BUTTON_SUBMIT) {
-            $group[] =& $this->_form->createElement('submit', null, $this->getLocale('button.submit'), array('class' => 'command'));
+            $group[] =& $this->_form->createElement('submit', null, $this->getLocale('button.submit'), array('class' => 'ok'));
         }
         if ($buttons & TIP_FORM_BUTTON_RESET) {
-            $group[] =& $this->_form->createElement('reset', null, $this->getLocale('button.reset'), array('class' => 'command'));
+            $group[] =& $this->_form->createElement('reset', null, $this->getLocale('button.reset'), array('class' => 'restore'));
         }
         if ($buttons & TIP_FORM_BUTTON_OK) {
-            $group[] =& $this->_form->createElement('link', 'ok', null, $_SERVER['REQUEST_URI'] . '&process=1', $this->getLocale('button.ok'));
+            $group[] =& $this->_form->createElement('link', 'ok', null, $_SERVER['REQUEST_URI'] . '&process=1', $this->getLocale('button.ok'), array('class' => 'ok'));
         }
         if ($buttons & TIP_FORM_BUTTON_DELETE && $this->action_id == TIP_FORM_ACTION_DELETE) {
-            $group[] =& $this->_form->createElement('link', 'delete', null, $_SERVER['REQUEST_URI'] . '&process=1', $this->getLocale('button.delete'));
+            $group[] =& $this->_form->createElement('link', 'delete', null, $_SERVER['REQUEST_URI'] . '&process=1', $this->getLocale('button.delete'), array('class' => 'delete'));
         }
         if ($buttons & TIP_FORM_BUTTON_CANCEL) {
-            $group[] =& $this->_form->createElement('link', 'cancel', null, $this->referer, $this->getLocale('button.cancel'));
+            $group[] =& $this->_form->createElement('link', 'cancel', null, $this->referer, $this->getLocale('button.cancel'), array('class' => 'cancel'));
         }
         if ($buttons & TIP_FORM_BUTTON_CLOSE) {
-            $group[] =& $this->_form->createElement('link', 'close', null, $this->follower, $this->getLocale('button.close'));
+            $group[] =& $this->_form->createElement('link', 'close', null, $this->follower, $this->getLocale('button.close'), array('class' => 'close'));
         }
         if ($buttons & TIP_FORM_BUTTON_DELETE && $this->action_id != TIP_FORM_ACTION_DELETE) {
             $primary_key = $this->_data->getProperty('primary_key');
             $url = TIP::getScriptURI() . '?module=' . $this->id .
                 '&action=delete&' .
                 $primary_key . '=' . urlencode($this->_form->getElementValue($primary_key));
-            $group[] =& $this->_form->createElement('link', 'delete', null, $url, $this->getLocale('button.delete'), array('class' => 'dangerous'));
+            $group[] =& $this->_form->createElement('link', 'delete', null, $url, $this->getLocale('button.delete'), array('class' => 'delete'));
         }
 
         // Add the tabindex property to the buttons
@@ -334,8 +334,7 @@ class TIP_Form extends TIP_Module
         }
 
         // Add the group of buttons to the form
-        $element =& $this->_form->addElement('group', 'buttons', null, $group, '');
-        $element->setAttribute('class', 'command');
+        $element =& $this->_form->addElement('group', 'buttons', null, $group, ' ');
 
         // Rendering
         if ($render == TIP_FORM_RENDER_HERE) {
