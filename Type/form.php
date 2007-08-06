@@ -517,7 +517,7 @@ class TIP_Form extends TIP_Module
         }
             
         $message = $this->getLocale('rule.' . $type, $context);
-        $this->_form->addRule($id, $message, $type, $format, $this->validation);
+        $result = $this->_form->addRule($id, $message, $type, $format, $this->validation);
     }
 
     private function _addGuessedRules($id)

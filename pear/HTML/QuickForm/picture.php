@@ -10,6 +10,8 @@ define('QF_PICTURE_TO_UNLOAD', 3);
 
 // Register picture-related rules
 HTML_QuickForm::registerRule('uploadedpicture', 'callback', '_ruleUploadedPicture', 'HTML_QuickForm_picture');
+HTML_QuickForm::registerRule('maxfilesize', 'callback', '_ruleCheckMaxFileSize', 'HTML_QuickForm_picture');
+HTML_QuickForm::registerRule('mimetype', 'callback', '_ruleCheckMimeType', 'HTML_QuickForm_picture');
 HTML_QuickForm::registerRule('minpicturesize', 'callback', '_ruleMinPictureSize', 'HTML_QuickForm_picture');
 HTML_QuickForm::registerRule('maxpicturesize', 'callback', '_ruleMaxPictureSize', 'HTML_QuickForm_picture');
 
@@ -183,9 +185,6 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     {
         if (is_string($value) && !empty($value)) {
             $this->_file = $value;
-            if ($this->_state == QF_PICTURE_EMPTY) {
-                $this->_state = QF_PICTURE_UPLOADED;
-            }
         } elseif (is_array($value) && $this->_state != QF_PICTURE_TO_UNLOAD) {
             // Check the validity of $value
             if ((!isset($value['error']) || $value['error'] == 0) &&
@@ -381,11 +380,15 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
                     // An element is considered valid if does not have an error message:
                     // not ever right but it is a good starting point ...
                     $error_message = $form->getElementError($name);
-                    empty($error_message) && $element->_upload();
+                    if (empty($error_message)) {
+                        $element->_upload();
+                    } else {
+                        $element->_reset();
+                        $form->updateAttributes(array('enctype' => 'multipart/form-data'));
+                        $form->setMaxFileSize();
+                    }
                 } elseif ($element->getState() == QF_PICTURE_TO_UNLOAD) {
                     $element->_unload();
-                    $form->updateAttributes(array('enctype' => 'multipart/form-data'));
-                    $form->setMaxFileSize();
                 }
 
                 // This is a really dirty hack to force the value to be the
@@ -422,12 +425,16 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
                 break;
 
             case 'updateValue':
-                is_null($value = $this->_findValue($caller->_constantValues)) &&
-                is_null($value = $this->_findUploadedValue()) &&
-                is_null($value = $this->_findValue($caller->_submitValues)) &&
-                is_null($value = $this->_findValue($caller->_defaultValues));
+                if (!is_null($value = $this->_findValue($caller->_constantValues))) {
+                    $this->_state = QF_PICTURE_UPLOADED;
+                } elseif (!is_null($value = $this->_findUploadedValue())) {
+                    $this->_state = QF_PICTURE_TO_UPLOAD;
+                } elseif (!is_null($value = $this->_findValue($caller->_submitValues)) ||
+                          !is_null($value = $this->_findValue($caller->_defaultValues))) {
+                    $this->_state == QF_PICTURE_TO_UNLOAD || $this->_state = QF_PICTURE_UPLOADED;
+                }
                 $this->setValue($value);
-                if ($this->_state == QF_PICTURE_EMPTY) {
+                if ($this->_state == QF_PICTURE_EMPTY || $this->_state == QF_PICTURE_TO_UNLOAD) {
                     $caller->updateAttributes(array('enctype' => 'multipart/form-data'));
                     $caller->setMaxFileSize();
                 }
@@ -642,8 +649,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     /**
      * Check if the given value is an uploaded picture
      *
-     * @param  array   $value  Value as returned by HTML_QuickForm_picture::getValue()
-     * @return bool            true if file has been uploaded, false otherwise
+     * @param  array   $value Value as returned by HTML_QuickForm_picture::getValue()
+     * @return bool           true if file has been uploaded, false otherwise
      * @access private
      */
     function _ruleUploadedPicture($value)
@@ -658,15 +665,65 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     } //end func _ruleIsUploadedPicture
     
     // }}}
+    // {{{ _ruleCheckMaxFileSize()
+
+    /**
+     * Check that the file does not exceed the max file size
+     *
+     * @param  array   $value Value as returned by HTML_QuickForm_picture::getValue()
+     * @param  int     $size  Max file size
+     * @return bool           true if file is smaller than $size, false otherwise
+     * @access private
+     */
+    function _ruleCheckMaxFileSize($value, $size)
+    {
+        if (!@array_key_exists('_qf_element', $value)) {
+            // No recent upload done
+            return true;
+        }
+
+        if (!@array_key_exists('tmp_name', $value)) {
+            // Invalid uploaded image
+            return false;
+        }
+
+        return ($size >= @filesize($value['tmp_name']));
+    } // end func _ruleCheckMaxFileSize
+
+    // }}}
+    // {{{ _ruleCheckMimeType()
+
+    /**
+     * Check if the given element contains an uploaded file of the right mime type
+     *
+     * @param  array        $value Value as returned by HTML_QuickForm_picture::getValue()
+     * @param  string|array $type  Mime type[s]
+     * @return bool                true if mimetype is correct, false otherwise
+     * @access private
+     */
+    function _ruleCheckMimeType($value, $type)
+    {
+        if (!@array_key_exists('_qf_element', $value)) {
+            // No recent upload done
+            return true;
+        }
+
+        if (is_array($type)) {
+            return in_array($value['type'], $type);
+        }
+        return $value['type'] == $type;
+    } // end func _ruleCheckMimeType
+
+    // }}}
     // {{{ _ruleMinPictureSize()
 
 
     /**
-     * Check if the specified bounding box is contained by the picture
+     * Check if the specified box can be contained inside the picture
      *
-     * @param  array   $value  Value as returned by HTML_QuickForm_picture::getValue()
-     * @param  array   $box    Bounding box specified with array(width,height)
-     * @return bool            true if the box is contained by the picture, false otherwise
+     * @param  array   $value Value as returned by HTML_QuickForm_picture::getValue()
+     * @param  array   $box   Inside box specified with array(width,height)
+     * @return bool           true if the box is contained by the picture, false otherwise
      * @access private
      */
     function _ruleMinPictureSize($value, $box)
