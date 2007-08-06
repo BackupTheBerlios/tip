@@ -128,7 +128,7 @@ class TIP_Advertisement extends TIP_Content
         return true;
     }
 
-    public function _onLegalize(&$old_row)
+    public function _onRestore(&$old_row)
     {
         $row['_check'] = 'no';
         if (!$this->data->updateRow($row, $old_row)) {
@@ -221,12 +221,12 @@ class TIP_Advertisement extends TIP_Content
         return !is_null($this->form(TIP_FORM_ACTION_CUSTOM, $id, $options));
     }
 
-    protected function actionLegalize($id, $options = null)
+    protected function actionRestore($id, $options = null)
     {
         isset($options) || $options = array(
-            'action_id'  => 'legalize',
+            'action_id'  => 'restore',
             'buttons'    => TIP_FORM_BUTTON_OK|TIP_FORM_BUTTON_CANCEL,
-            'on_process' => array(&$this, '_onLegalize')
+            'on_process' => array(&$this, '_onRestore')
         );
         return !is_null($this->form(TIP_FORM_ACTION_CUSTOM, $id, $options));
     }
@@ -246,10 +246,10 @@ class TIP_Advertisement extends TIP_Content
     {
         switch ($action) {
 
-        case 'legalize':
+        case 'restore':
             return
                 !is_null($id = $this->fromGetOrPost()) &&
-                $this->actionLegalize($id);
+                $this->actionRestore($id);
 
         case 'refresh':
             return
