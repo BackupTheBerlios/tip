@@ -82,7 +82,7 @@ abstract class TIP_Data_Engine extends TIP_Type
      * @return array|null         A reference to an array of rows matching the
      *                            specified conditions or null on errors
      */
-    abstract public function& select(&$data, $filter, $fields);
+    abstract public function &select(&$data, $filter, $fields);
 
     /**
      * Insert new rows
@@ -129,6 +129,14 @@ abstract class TIP_Data_Engine extends TIP_Type
      * @return bool              true on success or false on errors
      */
     abstract public function delete (&$data, $filter);
+
+    /**
+     * Dump a whole database content
+     *
+     * @param  string $root The base path where to store the result
+     * @return bool         true on success or false otherwise
+     */
+    abstract public function dump($root);
 
     //}}}
 }

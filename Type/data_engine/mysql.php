@@ -47,14 +47,11 @@ class TIP_Mysql extends TIP_Data_Engine
      */
     protected $password = null;
 
-    //}}}
-    //{{{ Internal properties
-
     /**
-     * The connection resource created in the constructor
-     * @var resource
+     * The import/export format of dump()
+     * @var string
      */
-    private $_connection;
+    protected $dump_format = '';
 
     //}}}
     //{{{ Costructor/destructor
@@ -112,7 +109,187 @@ class TIP_Mysql extends TIP_Data_Engine
     }
 
     //}}}
-    //{{{ Methods
+    //{{{ TIP_Data_Engine implementation
+
+    public function preparedName($name)
+    {
+        if (is_array($name)) {
+            $self = array(&$this, __FUNCTION__);
+            return implode(',', array_map($self, $name));
+        } elseif ($name == '*') {
+            // These special names must not be backticked
+            return $name;
+        }
+        return '`' . str_replace('`', '``', $name) . '`';
+    }
+
+    public function preparedValue($value)
+    {
+        if (is_int($value) || is_float($value)) {
+            return $value;
+        } elseif (is_string($value)) {
+            return "'" . mysql_real_escape_string($value, $this->_connection) . "'";
+        } elseif (is_array($value)) {
+            $self = array(&$this, __FUNCTION__);
+            return implode(',', array_map($self, $value));
+        } elseif (is_null($value)) {
+            return 'NULL';
+        } elseif (is_bool($value)) {
+            return $value ? 'TRUE' : 'FALSE';
+        }
+
+        $type = gettype($value);
+        TIP::error("type not recognized ($type)");
+        return null;
+    }
+
+    public function fillFields(&$data)
+    {
+        $result = $this->_query('SHOW FULL COLUMNS FROM', $this->preparedName($data->getProperty('path')));
+        if (!$result) {
+            return false;
+        }
+
+        $fields =& $data->getFieldsRef();
+        while ($row = mysql_fetch_assoc($result)) {
+            $name = $row['Field'];
+            $field = array('id' => $name);
+            $type = $row['Type'];
+
+            $open_brace = strpos($type, '(');
+            if ($open_brace !== false) {
+                $flags = substr($type, $open_brace+1, -1);
+                $type = substr($type, 0, $open_brace);
+            }
+
+            $this->_mapType($field, $type);
+            if ($field['type'] == 'string' && !empty($flags)) {
+                $field['length'] = (int) $flags;
+            }
+
+            $field['default'] = $row['Default'];
+            settype($field['default'], $field['type']);
+
+            $field['automatic'] = strpos($row['Extra'], 'auto_increment') !== false;
+
+            if (($field['widget'] == 'set' || $field['widget'] == 'enum') &&
+                is_array($field['choices'] = @explode(',', $flags))) {
+                array_walk($field['choices'], create_function('&$v', '$v=trim($v,"\'");'));
+            }
+
+            $field['info'] = $row['Comment'];
+            $field['can_be_null'] = $row['Null'] == 'YES';
+            $fields[$name] = $field;
+        }
+
+        return true;
+    }
+
+    public function &select(&$data, $filter, $fields)
+    {
+        $table = $data->getProperty('path');
+        $joins = $data->getProperty('joins');
+
+        if (isset($joins)) {
+            // Compute the joins (the main table is manually prepended)
+            array_walk($joins, create_function('&$v,$s', '$v["slave_table"]=$s; $v["master_table"]="'.$table.'";'));
+
+            // Get the joined tables and prepend the main one
+            $tables = array_keys($joins);
+            $sets = array_map(create_function('$v', 'return @$v["fieldset"];'), $joins);
+            array_unshift($tables, $table);
+            array_unshift($sets, $fields);
+
+            $fieldset = $this->_preparedFieldset($sets, $tables);
+            $source = $this->preparedName($table) . $this->_preparedJoin($joins);
+        } else {
+            $fieldset = $this->_preparedFieldset($fields);
+            $source = $this->preparedName($table);
+        }
+
+        $result = $this->_query('SELECT', $fieldset, 'FROM', $source, $filter);
+        if ($result === false) {
+            $result = null;
+            return $result;
+        }
+
+        $this->_tryFillFields($data, $result);
+        $rows = array();
+        while ($row = mysql_fetch_assoc($result)) {
+            $rows[$row[$data->getProperty('primary_key')]] =& $row;
+            unset($row);
+        }
+
+        // To free or not to free
+        mysql_free_result($result);
+        return $rows;
+    }
+
+    public function insert(&$data, &$rows)
+    {
+        $result = $this->_query('INSERT INTO', $this->preparedName($data->getProperty('path')),
+                                '(' . $this->preparedName(array_keys($rows[0])) . ')',
+                                'VALUES', $this->_preparedContent($rows));
+        if ($result === false) {
+            return null;
+        }
+
+        return mysql_insert_id($this->_connection);
+    }
+
+    public function update(&$data, $filter, &$row)
+    {
+        return $this->_query('UPDATE', $this->preparedName($data->getProperty('path')),
+                             'SET', $this->_preparedSet(array_keys($row), $row),
+                             $filter);
+    }
+
+    public function delete(&$data, $filter)
+    {
+        return $this->_query('DELETE FROM', $this->preparedName($data->getProperty('path')),
+                             $filter);
+    }
+
+    public function dump($root)
+    {
+        $result =& $this->_query('SHOW TABLES');
+        if ($result === false) {
+            return false;
+        }
+
+        if (substr($root, -1) != DIRECTORY_SEPARATOR) {
+            $root .= DIRECTORY_SEPARATOR;
+        }
+
+        if (!is_writable($root)) {
+            return false;
+        }
+
+        while ($row = mysql_fetch_row($result)) {
+            $table = $row[0];
+            $file = $root . $table;
+            if (file_exists($file)) {
+                unlink($file);
+            }
+            if ($this->_query("SELECT * INTO OUTFILE '$file' $this->dump_format FROM `$table`") === false) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    //}}}
+    //{{{ Internal properties
+
+    /**
+     * The connection resource created in the constructor
+     * @var resource
+     */
+    private $_connection;
+
+    //}}}
+    //{{{ Internal methods
 
     private function _query()
     {
@@ -428,148 +605,6 @@ class TIP_Mysql extends TIP_Data_Engine
         return 'LEFT JOIN ' . $this->preparedName($slave_table) .
                ' ON ' . $this->_preparedField($master, $master_table) . '=' .
                         $this->_preparedField($slave, $slave_table);
-    }
-
-    //}}}
-    //{{{ TIP_Data_Engine implementation
-
-    public function preparedName($name)
-    {
-        if (is_array($name)) {
-            $self = array(&$this, __FUNCTION__);
-            return implode(',', array_map($self, $name));
-        } elseif ($name == '*') {
-            // These special names must not be backticked
-            return $name;
-        }
-        return '`' . str_replace('`', '``', $name) . '`';
-    }
-
-    public function preparedValue($value)
-    {
-        if (is_int($value) || is_float($value)) {
-            return $value;
-        } elseif (is_string($value)) {
-            return "'" . mysql_real_escape_string($value, $this->_connection) . "'";
-        } elseif (is_array($value)) {
-            $self = array(&$this, __FUNCTION__);
-            return implode(',', array_map($self, $value));
-        } elseif (is_null($value)) {
-            return 'NULL';
-        } elseif (is_bool($value)) {
-            return $value ? 'TRUE' : 'FALSE';
-        }
-
-        $type = gettype($value);
-        TIP::error("type not recognized ($type)");
-        return null;
-    }
-
-    public function fillFields(&$data)
-    {
-        $result = $this->_query('SHOW FULL COLUMNS FROM', $this->preparedName($data->getProperty('path')));
-        if (!$result) {
-            return false;
-        }
-
-        $fields =& $data->getFieldsRef();
-        while ($row = mysql_fetch_assoc($result)) {
-            $name = $row['Field'];
-            $field = array('id' => $name);
-            $type = $row['Type'];
-
-            $open_brace = strpos($type, '(');
-            if ($open_brace !== false) {
-                $flags = substr($type, $open_brace+1, -1);
-                $type = substr($type, 0, $open_brace);
-            }
-
-            $this->_mapType($field, $type);
-            if ($field['type'] == 'string' && !empty($flags)) {
-                $field['length'] = (int) $flags;
-            }
-
-            $field['default'] = $row['Default'];
-            settype($field['default'], $field['type']);
-
-            $field['automatic'] = strpos($row['Extra'], 'auto_increment') !== false;
-
-            if (($field['widget'] == 'set' || $field['widget'] == 'enum') &&
-                is_array($field['choices'] = @explode(',', $flags))) {
-                array_walk($field['choices'], create_function('&$v', '$v=trim($v,"\'");'));
-            }
-
-            $field['info'] = $row['Comment'];
-            $field['can_be_null'] = $row['Null'] == 'YES';
-            $fields[$name] = $field;
-        }
-
-        return true;
-    }
-
-    public function &select(&$data, $filter, $fields)
-    {
-        $table = $data->getProperty('path');
-        $joins = $data->getProperty('joins');
-
-        if (isset($joins)) {
-            // Compute the joins (the main table is manually prepended)
-            array_walk($joins, create_function('&$v,$s', '$v["slave_table"]=$s; $v["master_table"]="'.$table.'";'));
-
-            // Get the joined tables and prepend the main one
-            $tables = array_keys($joins);
-            $sets = array_map(create_function('$v', 'return @$v["fieldset"];'), $joins);
-            array_unshift($tables, $table);
-            array_unshift($sets, $fields);
-
-            $fieldset = $this->_preparedFieldset($sets, $tables);
-            $source = $this->preparedName($table) . $this->_preparedJoin($joins);
-        } else {
-            $fieldset = $this->_preparedFieldset($fields);
-            $source = $this->preparedName($table);
-        }
-
-        $result = $this->_query('SELECT', $fieldset, 'FROM', $source, $filter);
-        if ($result === false) {
-            $result = null;
-            return $result;
-        }
-
-        $this->_tryFillFields($data, $result);
-        $rows = array();
-        while ($row = mysql_fetch_assoc($result)) {
-            $rows[$row[$data->getProperty('primary_key')]] =& $row;
-            unset($row);
-        }
-
-        // To free or not to free
-        mysql_free_result($result);
-        return $rows;
-    }
-
-    public function insert(&$data, &$rows)
-    {
-        $result = $this->_query('INSERT INTO', $this->preparedName($data->getProperty('path')),
-                                '(' . $this->preparedName(array_keys($rows[0])) . ')',
-                                'VALUES', $this->_preparedContent($rows));
-        if ($result === false) {
-            return null;
-        }
-
-        return mysql_insert_id($this->_connection);
-    }
-
-    public function update(&$data, $filter, &$row)
-    {
-        return $this->_query('UPDATE', $this->preparedName($data->getProperty('path')),
-                             'SET', $this->_preparedSet(array_keys($row), $row),
-                             $filter);
-    }
-
-    public function delete(&$data, $filter)
-    {
-        return $this->_query('DELETE FROM', $this->preparedName($data->getProperty('path')),
-                             $filter);
     }
 
     //}}}

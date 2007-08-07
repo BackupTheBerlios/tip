@@ -66,30 +66,6 @@ class TIP_Data extends TIP_Type
     protected $joins = null;
 
     //}}}
-    //{{{ Internal properties
-
-    /**
-     * Fields structure
-     * @var array
-     * @internal
-     */
-    private $_fields = null;
-    
-    /**
-     * Has the $this->engine->fillFields() method been called?
-     * @var bool
-     * @internal
-     */
-    private $_detailed = false;
-
-    /**
-     * The last id as returned by the putRow() method, if any
-     * @var mixed|null
-     * @internal
-     */
-    private $_last_id = null;
-
-    //}}}
     //{{{ Constructor/destructor
 
     /**
@@ -139,65 +115,6 @@ class TIP_Data extends TIP_Type
 
     //}}}
     //{{{ Methods
-
-    private function _castField(&$value, $key)
-    {
-        if (array_key_exists($key, $this->_fields)) {
-            $field =& $this->_fields[$key];
-            if ((!is_null($value) || !$field['can_be_null']) && !settype($value, $field['type'])) {
-                TIP::warning("invalid type for field['$key'] => $value ($field[type])");
-            }
-        }
-    }
-
-    /**
-     * Cast a row content to the proper type
-     *
-     * Given a row, forces every field in the row that matches the field
-     * structure in this context to be of the type specified by getFields().
-     * The type forcing is done using settype().
-     *
-     * At least, the non-detailed part of the $_fields property MUST be filled
-     * before calling this method.
-     *
-     * @param array &$row The row to cast
-     */
-    private function _castRow(&$row)
-    {
-        $this->getFields(false);
-        array_walk($row, array(&$this, '_castField'));
-    }
-
-    private function _mergeFieldInfo(&$field)
-    {
-        if (isset($field['info'])) {
-            $info = TIP::doubleExplode('|', '=', $field['info']);
-            $field = array_merge($field, $info);
-        }
-    }
-
-    private function _validate(&$row)
-    {
-        $this->getFields(false);
-
-        // Keep only the keys that are fields
-        $row = array_intersect_key($row, $this->_fields);
-
-        if (isset($this->fieldset)) {
-            // Apply the fieldset filter
-            $row = array_intersect_key($row, array_flip($this->fieldset));
-        }
-
-        // Check for empty set
-        if (empty($row)) {
-            TIP::error('no valid field found');
-            return false;
-        }
-
-        // Cast the set to the proper type
-        $this->_castRow($row);
-        return true;
-    }
 
     /**
      * Get the last id
@@ -586,6 +503,92 @@ class TIP_Data extends TIP_Type
         }
 
         return $this->engine->delete($this, $filter);
+    }
+
+    //}}}
+    //{{{ Internal properties
+
+    /**
+     * Fields structure
+     * @var array
+     * @internal
+     */
+    private $_fields = null;
+    
+    /**
+     * Has the $this->engine->fillFields() method been called?
+     * @var bool
+     * @internal
+     */
+    private $_detailed = false;
+
+    /**
+     * The last id as returned by the putRow() method, if any
+     * @var mixed|null
+     * @internal
+     */
+    private $_last_id = null;
+
+    //}}}
+    //{{{ Internal methods
+
+    private function _castField(&$value, $key)
+    {
+        if (array_key_exists($key, $this->_fields)) {
+            $field =& $this->_fields[$key];
+            if ((!is_null($value) || !$field['can_be_null']) && !settype($value, $field['type'])) {
+                TIP::warning("invalid type for field['$key'] => $value ($field[type])");
+            }
+        }
+    }
+
+    /**
+     * Cast a row content to the proper type
+     *
+     * Given a row, forces every field in the row that matches the field
+     * structure in this context to be of the type specified by getFields().
+     * The type forcing is done using settype().
+     *
+     * At least, the non-detailed part of the $_fields property MUST be filled
+     * before calling this method.
+     *
+     * @param array &$row The row to cast
+     */
+    private function _castRow(&$row)
+    {
+        $this->getFields(false);
+        array_walk($row, array(&$this, '_castField'));
+    }
+
+    private function _mergeFieldInfo(&$field)
+    {
+        if (isset($field['info'])) {
+            $info = TIP::doubleExplode('|', '=', $field['info']);
+            $field = array_merge($field, $info);
+        }
+    }
+
+    private function _validate(&$row)
+    {
+        $this->getFields(false);
+
+        // Keep only the keys that are fields
+        $row = array_intersect_key($row, $this->_fields);
+
+        if (isset($this->fieldset)) {
+            // Apply the fieldset filter
+            $row = array_intersect_key($row, array_flip($this->fieldset));
+        }
+
+        // Check for empty set
+        if (empty($row)) {
+            TIP::error('no valid field found');
+            return false;
+        }
+
+        // Cast the set to the proper type
+        $this->_castRow($row);
+        return true;
     }
 
     //}}}

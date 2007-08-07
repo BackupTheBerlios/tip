@@ -64,6 +64,12 @@ class TIP_Application extends TIP_Module
     protected $upload_root = 'upload';
 
     /**
+     * The cache root path
+     * @var string
+     */
+    protected $cache_root = 'cache';
+
+    /**
      * The shared modules interface
      *
      * The associative array of shared modules, organized by "job".
@@ -161,9 +167,6 @@ class TIP_Application extends TIP_Module
     {
         parent::postConstructor();
 
-        // Start the session
-        TIP::startSession();
-
         // Set $_request
         $module = TIP::getGet('module', 'string');
         if ($module) {
@@ -175,9 +178,16 @@ class TIP_Application extends TIP_Module
 
         $this->_request = array(
             'uri'    => @$_SERVER['REQUEST_URI'],
-            'module' => $module,
-            'action' => $action
+            'module' => @strtolower($module),
+            'action' => @strtolower($action)
         );
+
+        if ($this->_request['module'] == $this->id && $this->_request['action'] == 'backup') {
+            return;
+        }
+
+        // Start the session
+        TIP::startSession();
 
         // Set $_referer
         $request = HTTP_Session2::get('request');
@@ -486,6 +496,38 @@ class TIP_Application extends TIP_Module
         case 'phpinfo':
             $GLOBALS[TIP_MAIN]->appendCallback('phpinfo');
             return true;
+        }
+
+        return null;
+    }
+
+    protected function runUntrustedAction($action)
+    {
+        switch($action) {
+
+        case 'backup':
+            include_once 'HTTP/Download.php';
+            include_once 'Archive/Tar.php';
+
+            if (!$this->data_engine->dump(TIP::buildUploadPath('dump'))) {
+                echo "Error!";
+                die();
+            }
+
+            $tar_file = TIP::buildCachePath($this->id . '-' . TIP::formatDate('date_sql') . '.tar.gz');
+            $tar_object = new Archive_Tar($tar_file, 'gz');
+            $result = $tar_object->createModify(TIP::buildUploadPath(), '', TIP::buildPath());
+            unset($tar_object);
+
+            if ($result !== true) {
+                return false;
+            }
+        
+            HTTP_Download::staticSend(array(
+                'file'               => $tar_file,
+                'contenttype'        => 'application/x-gzip',
+                'contentdisposition' => HTTP_DOWNLOAD_ATTACHMENT));
+            exit;
         }
 
         return null;

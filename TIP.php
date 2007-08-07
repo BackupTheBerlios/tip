@@ -65,10 +65,13 @@ class TIP
     {
         switch ($format) {
         case 'date_iso8601':
-            return strftime('%F', $timestamp);
+            return strftime('%Y-%m-%d', $timestamp);
+
+        case 'date_sql':
+            return strftime('%Y%m%d', $timestamp);
 
         case 'datetime_iso8601':
-            return strftime('%F %H:%M:%S', $timestamp);
+            return strftime('%Y-%m-%d %H:%M:%S', $timestamp);
 
         case 'date_it':
             $same_year = date('Y', $timestamp) == date('Y');
@@ -411,6 +414,7 @@ class TIP
      *
      * The $format parameter can be one of the following values:
      * - 'date_iso8601' for a string with a day description in ISO 8601 format
+     * - 'date_sql' for a string with a day description as '%Y%m%d'
      * - 'datetime_iso8601' for a string with day and hour description in ISO 8601 format
      * - 'date_it' for a string with a day description (italian locale)
      * - 'datetime_it' for a string with day and hour description (italian locale)
@@ -629,6 +633,24 @@ class TIP
         }
 
         return TIP::deepImplode(array($upload_path, func_get_args()), DIRECTORY_SEPARATOR);
+    }
+
+    /**
+     * Build a cached path
+     *
+     * Shortcut for building a path prepending the application 'cache_root'.
+     *
+     * @param  string|array $subpath,... A list of partial paths
+     * @return string                    The constructed path
+     */
+    static public function buildCachePath()
+    {
+        static $cache_path = null;
+        if (!$cache_path) {
+            $cache_path = TIP::buildPath(TIP_Application::getGlobal('cache_root'));
+        }
+
+        return TIP::deepImplode(array($cache_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
 
     /**

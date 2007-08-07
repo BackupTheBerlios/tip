@@ -71,6 +71,12 @@ class TIP_Bucket extends TIP_Data_Engine
         return true;
     }
 
+    public function dump($root)
+    {
+        TIP::warning("dump($root)");
+        return true;
+    }
+
     //}}}
 }
 ?>
