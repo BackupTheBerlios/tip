@@ -183,9 +183,14 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
      */
     function setValue($value)
     {
-        if (is_string($value) && !empty($value)) {
+        if ($this->_state == QF_PICTURE_TO_UNLOAD) {
+            return;
+        } elseif (empty($value)) {
+            $this->_file = null;
+            $this->_state = QF_PICTURE_EMPTY;
+        } elseif (is_string($value) && !empty($value)) {
             $this->_file = $value;
-        } elseif (is_array($value) && $this->_state != QF_PICTURE_TO_UNLOAD) {
+        } elseif (is_array($value)) {
             // Check the validity of $value
             if ((!isset($value['error']) || $value['error'] == 0) &&
                 !empty($value['tmp_name']) && $value['tmp_name'] != 'none' &&
@@ -429,9 +434,10 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
                     $this->_state = QF_PICTURE_UPLOADED;
                 } elseif (!is_null($value = $this->_findUploadedValue())) {
                     $this->_state = QF_PICTURE_TO_UPLOAD;
-                } elseif (!is_null($value = $this->_findValue($caller->_submitValues)) ||
-                          !is_null($value = $this->_findValue($caller->_defaultValues))) {
-                    $this->_state == QF_PICTURE_TO_UNLOAD || $this->_state = QF_PICTURE_UPLOADED;
+                } elseif ($this->_state != QF_PICTURE_TO_UNLOAD) {
+                    $value = $this->_findValue($caller->_submitValues);
+                    empty($value) && $value = $this->_findValue($caller->_defaultValues);
+                    empty($value) || $this->_state = QF_PICTURE_UPLOADED;
                 }
                 $this->setValue($value);
                 if ($this->_state == QF_PICTURE_EMPTY || $this->_state == QF_PICTURE_TO_UNLOAD) {
@@ -637,7 +643,10 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
      */
     function _unload()
     {
-        unlink($this->_base_path . $this->_file);
+        if (!empty($this->_file)) {
+            unlink($this->_base_path . $this->_file);
+        }
+
         $this->_reset();
         return true;
     } // end func _unload
