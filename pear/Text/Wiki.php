@@ -9,7 +9,7 @@
  * @package    Text_Wiki
  * @author     Paul M. Jones <pmjones@php.net>
  * @license    http://www.gnu.org/copyleft/lesser.html  LGPL License 2.1
- * @version    CVS: $Id: Wiki.php,v 1.50 2006/10/27 18:42:52 justinpatrin Exp $
+ * @version    CVS: $Id: Wiki.php,v 1.51 2007/06/09 23:17:46 justinpatrin Exp $
  * @link       http://pear.php.net/package/Text_Wiki
  */
 
@@ -33,7 +33,7 @@ require_once 'Text/Wiki/Render.php';
  * @package    Text_Wiki
  * @author     Paul M. Jones <pmjones@php.net>
  * @license    http://www.gnu.org/copyleft/lesser.html  LGPL License 2.1
- * @version    Release: 1.2.0RC2
+ * @version    Release: 1.2.0
  * @link       http://pear.php.net/package/Text_Wiki
  */
 class Text_Wiki {
@@ -386,7 +386,10 @@ class Text_Wiki {
     function Text_Wiki($rules = null)
     {
         if (is_array($rules)) {
-            $this->rules = $rules;
+            $this->rules = array();
+            foreach ($rules as $rule) {
+                $this->rules[] = ucfirst($rule);
+            }
         }
 
         $this->addPath(

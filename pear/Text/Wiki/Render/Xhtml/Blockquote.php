@@ -9,7 +9,7 @@
  * @package    Text_Wiki
  * @author     Paul M. Jones <pmjones@php.net>
  * @license    http://www.gnu.org/copyleft/lesser.html  LGPL License 2.1
- * @version    CVS: $Id: Blockquote.php,v 1.8 2007/02/19 08:50:22 mic Exp $
+ * @version    CVS: $Id: Blockquote.php,v 1.9 2007/05/26 18:25:23 mic Exp $
  * @link       http://pear.php.net/package/Text_Wiki
  */
 
@@ -55,7 +55,7 @@ class Text_Wiki_Render_Xhtml_Blockquote extends Text_Wiki_Render {
         // pick the css type
         $css = $this->formatConf(' class="%s"', 'css');
 
-        if (array_key_exists('css', $options)) {
+        if (isset($options['css'])) {
             $css = ' class="' . $options['css']. '"';
         }
         // starting

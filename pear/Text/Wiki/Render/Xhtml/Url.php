@@ -9,7 +9,7 @@
  * @package    Text_Wiki
  * @author     Paul M. Jones <pmjones@php.net>
  * @license    http://www.gnu.org/copyleft/lesser.html  LGPL License 2.1
- * @version    CVS: $Id: Url.php,v 1.16 2007/02/23 14:19:19 mic Exp $
+ * @version    CVS: $Id: Url.php,v 1.18 2007/05/26 17:15:41 mic Exp $
  * @link       http://pear.php.net/package/Text_Wiki
  */
 
@@ -94,7 +94,7 @@ class Text_Wiki_Render_Xhtml_Url extends Text_Wiki_Render {
             $css = $this->formatConf(' class="%s"', "css_$type");
             $start = "<a$css href=\"$href\"";
 
-            if ($target) {
+            if ($target && $target != '_self') {
                 // use a "popup" window.  this is XHTML compliant, suggested by
                 // Aaron Kalin.  uses the $target as the new window name.
                 $target = $this->textEncode($target);
