@@ -122,8 +122,11 @@ class TIP_Comments extends TIP_Content
                 return false;
             }
             $options['defaults'][$this->parent_field] = $parent_id;
+        } else {
+            $parent_id = $options['defaults'][$this->parent_field];
         }
 
+        isset($options['follower']) || $options['follower'] = TIP::getScriptURI() . '?module=' . $this->id . '&action=browse&' .$this->parent_field . '=' . $parent_id;
         return parent::actionAdd($options);
     }
 

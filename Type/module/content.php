@@ -688,7 +688,7 @@ class TIP_Content extends TIP_Module
      * specified in the $params argument as a comma-separated list of field ids
      * in the following sequence:
      *
-     * date_field,title_field,tooltip_field,count_field
+     * date_field,title_field,tooltip_field,count_field,base_action
      *
      * All the fields are optionals, in which case the TIP_Cronology default
      * value is used.
@@ -705,7 +705,8 @@ class TIP_Content extends TIP_Module
             $options['date_field'],
             $options['title_field'],
             $options['tooltip_field'],
-            $options['count_field']
+            $options['count_field'],
+            $options['base_action']
         ) = explode(',', $params);
         echo TIP_Type::singleton($options)->toHtml();
         return true;

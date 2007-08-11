@@ -12,7 +12,7 @@
  *
  * @package TIP
  */
-class TIP_Cronology extends TIP_Module
+class TIP_Cronology extends TIP_Type
 {
     //{{{ Properties
 
@@ -56,6 +56,12 @@ class TIP_Cronology extends TIP_Module
      * @var string
      */
     protected $count_field = '_count';
+
+    /**
+     * The base action for this cronology
+     * @var string
+     */
+    protected $base_action = null;
 
     //}}}
     //{{{ Construction/destruction
@@ -140,14 +146,10 @@ class TIP_Cronology extends TIP_Module
             return true;
         }
 
-        $base_action = TIP::getScriptURI();
-        $action = $this->getOption('action');
-        if ($action) {
-            // Action specified: prepend the root URL
-            $action = TIP::buildUrl($action);
-        } else {
+        $action = $this->base_action;
+        if (empty($action)) {
             // No action specified: construct the default cronology action (view)
-            $action = $base_action . '?module=' . $this->master . '&amp;action=view&amp;id=';
+            $action = TIP::getScriptURI() . '?module=' . $this->master . '&amp;action=view&amp;id=';
         }
 
         $tree = array();
