@@ -95,7 +95,7 @@ class TIP_Application extends TIP_Module
      * The url to redirect the browse on fatal errors
      * @var string
      */
-    protected $fatal_url = 'index.php?module=application&action=fatal';
+    protected $fatal_url = null;
 
     /**
      * The file to run to notify errors
@@ -145,6 +145,7 @@ class TIP_Application extends TIP_Module
             return false;
         }
 
+        isset($options['fatal_url']) || $options['fatal_url'] = TIP::getScriptURI() . '?module=' . $options['id'] . '&action=fatal';
         isset($options['anonymous_privilege']) || $options['anonymous_privilege'] = TIP_PRIVILEGE_NONE;
         isset($options['default_privilege']) || $options['default_privilege'] = TIP_PRIVILEGE_NONE;
         return true;
@@ -400,7 +401,7 @@ class TIP_Application extends TIP_Module
 
         // Executes the action
         if ($this->_request['module'] && $this->_request['action']) {
-            if (is_null($module =& TIP_Type::getInstance($this->_request['module']))) {
+            if (is_null($module =& TIP_Type::getInstance($this->_request['module'], false))) {
                 TIP::notifyError('module');
             } elseif (is_null($module->callAction($this->_request['action']))) {
                 TIP::notifyError(is_null(TIP::getUserId()) ? 'reserved' : 'denied');
