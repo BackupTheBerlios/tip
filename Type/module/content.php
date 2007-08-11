@@ -682,6 +682,35 @@ class TIP_Content extends TIP_Module
     }
 
     /**
+     * Get a partial content of a wiki field
+     *
+     * $params must be a string in the form "field_id,chars", where field_id is the
+     * id of the wiki field while chars is the number of characters to be
+     * echoed. If chars is omitted, 100 is used.
+     *
+     * @param  string $params Tag parameters
+     * @return bool           true on success or false on errors
+     */
+    protected function tagPartialWiki($params)
+    {
+        @list($field_id, $chars) = explode(',', $params);
+        $value = $this->getField($field_id);
+        if (is_null($value)) {
+            TIP::error("no field found ($params)");
+            return false;
+        }
+
+        $chars > 0 || $chars = 100;
+        $fields =& $this->data->getFields();
+        $field =& $fields[$field_id];
+        $rules = isset($field['wiki_rules']) ? explode(',', $field['wiki_rules']) : null;
+        $text = TIP_Renderer::getWiki($rules)->transform($value, 'Plain');
+
+        echo substr($text, 0, $chars);
+        return true;
+    }
+
+    /**
      * Browse the content throught a cronology interface
      *
      * Renders the whole data content in a cronology tree. The options must be
