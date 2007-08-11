@@ -168,6 +168,12 @@ class TIP_Application extends TIP_Module
     {
         parent::postConstructor();
 
+        $this->keys['TODAY'] = TIP::formatDate('date_iso8601');
+        $this->keys['NOW'] = TIP::formatDate('datetime_iso8601');
+        $this->keys['BASE_URL'] = TIP::getBaseURL();
+        $this->keys['SCRIPT'] = TIP::getScriptURI();
+        $this->keys['REFERER'] = '';
+
         // Set $_request
         $module = TIP::getGet('module', 'string');
         if ($module) {
@@ -183,12 +189,17 @@ class TIP_Application extends TIP_Module
             'action' => @strtolower($action)
         );
 
+        $this->keys['REQUEST'] = $this->_request['uri'];
+        $this->keys['MODULE'] = $this->_request['module'];
+        $this->keys['ACTION'] = $this->_request['action'];
+
         if ($this->_request['module'] == $this->id && $this->_request['action'] == 'backup') {
             return;
         }
 
         // Start the session
         TIP::startSession();
+        $this->_session_started = true;
 
         // Set $_referer
         $request = HTTP_Session2::get('request');
@@ -217,18 +228,11 @@ class TIP_Application extends TIP_Module
             $this->_referer['action'] = null;
         }
 
+        $this->keys['REFERER'] = $this->_referer['uri'];
+
         // Store request and referer
         HTTP_Session2::set('referer', $this->_referer);
         HTTP_Session2::set('request', $this->_request);
-
-        $this->keys['TODAY'] = TIP::formatDate('date_iso8601');
-        $this->keys['NOW'] = TIP::formatDate('datetime_iso8601');
-        $this->keys['BASE_URL'] = TIP::getBaseURL();
-        $this->keys['SCRIPT'] = TIP::getScriptURI();
-        $this->keys['REFERER'] = $this->_referer['uri'];
-        $this->keys['REQUEST'] = $this->_request['uri'];
-        $this->keys['MODULE'] = $this->_request['module'];
-        $this->keys['ACTION'] = $this->_request['action'];
 
         if ($this->keys['IS_ADMIN']) {
             require_once 'Benchmark/Profiler.php';
@@ -415,7 +419,7 @@ class TIP_Application extends TIP_Module
         // Generates the page
         $this->tagRun($main_source);
 
-        HTTP_Session2::pause();
+        $this->_session_started && HTTP_Session2::pause();
     }
 
     //}}}
@@ -511,8 +515,8 @@ class TIP_Application extends TIP_Module
             include_once 'Archive/Tar.php';
 
             if (!$this->data_engine->dump(TIP::buildUploadPath('dump'))) {
-                echo "Error!";
-                die();
+                TIP::notifyError('backup');
+                return false;
             }
 
             $tar_file = TIP::buildCachePath($this->id . '-' . TIP::formatDate('date_sql') . '.tar.gz');
@@ -580,6 +584,13 @@ class TIP_Application extends TIP_Module
      * @internal
      */
     private $_queue = array();
+
+    /**
+     * Session started flag
+     * @var boolean
+     * @internal
+     */
+    private $_session_started = false;
 
     //}}}
     //{{{ Internal methods
