@@ -18,6 +18,12 @@ class TIP_Advertisement extends TIP_Content
     //{{{ Properties
 
     /**
+     * The field with the boolean public flag
+     * @var string
+     */
+    protected $public_field = '_public';
+
+    /**
      * The field owning the expiration time
      * @var string
      */
@@ -172,6 +178,7 @@ class TIP_Advertisement extends TIP_Content
     {
         if (isset($this->expiration_field, $this->expiration) && ($expiration = strtotime($this->expiration)) !== false) {
             $row[$this->expiration_field] = TIP::formatDate('datetime_iso8601', $expiration);
+            $row[$this->public_field] = 'yes';
             if (!$this->data->updateRow($row, $old_row)) {
                 TIP::notifyError('update');
                 TIP::warning("unable to update a row ($id)");
@@ -184,32 +191,6 @@ class TIP_Advertisement extends TIP_Content
 
     //}}}
     //{{{ Actions
-
-    /**
-     * Perform a browse action
-     *
-     * Overrides the default browse action, filtering out the expired
-     * advertisements and sorting the result in reverse creation order.
-     *
-     * @param  string|array $filter The filter to use
-     * @return bool                 true on success or false on errors
-     */
-    protected function actionBrowse($filter)
-    {
-        is_array($filter) && $filter = implode(' AND ', $filter);
-
-        // If not administrator, filter out the expired advertisement and
-        // update the browsed rows counter
-        $update_browsed_rows = $this->privilege < TIP_PRIVILEGE_ADMIN;
-        if ($update_browsed_rows) {
-            $filter .= $this->data->addFilter('AND', $this->expiration_field, TIP::formatDate('datetime_iso8601'), '>');
-        }
-
-        // Force a descending order on the creation field
-        $filter .= $this->data->order($this->creation_field, TIP_DESCENDING);
-
-        return parent::actionBrowse($filter, $update_browsed_rows);
-    }
 
     protected function actionCheck($id, $options = null)
     {

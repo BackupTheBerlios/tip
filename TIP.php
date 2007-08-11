@@ -814,6 +814,17 @@ class TIP
     }
 
     /**
+     * Function wrapper of the 'echo' construct
+     *
+     * @param mixed $buffer The buffer to echo
+     */
+    public static function echo_wrapper($buffer)
+    {
+        echo $buffer;
+    }
+
+
+    /**
      * Strip the TIP prefix
      *
      * Removes the TIP prefix, defined in the TIP_PREFIX constant, from a

@@ -10,12 +10,12 @@
 /**
  * Ascending order, used by TIP_Data::order()
  */
-define('TIP_ASCENDING', false);
+define('TIP_ORDER_ASCENDING', false);
 
 /**
  * Descending order, used by TIP_Data::order()
  */
-define('TIP_DESCENDING', true);
+define('TIP_ORDER_DESCENDING', true);
 
 
 /**
@@ -192,13 +192,30 @@ class TIP_Data extends TIP_Type
      *
      * @param  string $name       A field id
      * @param  bool   $descending true for descending order
-     * @return string             The order clause in the proper engine format
+     * @return string             The order clause
      */
     public function order($name, $descending = false)
     {
         $name = $this->engine->preparedName($name);
         $tail = $descending ? ' DESC' : '';
         return ' ORDER BY ' . $name . $tail;
+    }
+
+    /**
+     * Create a limit clause
+     *
+     * Builds a limit clause (in the proper engine format).
+     *
+     * @param  int      $count  Maximum number of rows
+     * @param  int|null $offset Starting row (starting from 0)
+     * @return string           The limit clause
+     */
+    public function limit($count, $offset = null)
+    {
+        $limit = ' LIMIT ';
+        isset($offset) && $limit .= (int) $offset . ',';
+        $limit .= (int) $count;
+        return $limit;
     }
 
     /**

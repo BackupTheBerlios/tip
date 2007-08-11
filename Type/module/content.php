@@ -39,6 +39,12 @@ class TIP_Content extends TIP_Module
     protected $browse_source = 'browse.src';
 
     /**
+     * The file to run for every row on the 'pager' tag
+     * @var string
+     */
+    protected $row_source = 'row.src';
+
+    /**
      * The field containing the creation datetime
      * @var string
      */
@@ -281,9 +287,16 @@ class TIP_Content extends TIP_Module
             $file = $this->buildSourcePath($this->id, $file);
         }
 
+        ob_start();
+        $this->run($file);
+        $buffer = ob_get_clean();
+        TIP_Application::appendCallback(array('TIP', 'echo_wrapper'), array(&$buffer));
+
+        /*
         TIP_Application::appendCallback(array(&$this, 'push'), array(&$this->_view, false));
         TIP_Application::appendCallback(array(&$this, 'run'),  array($file));
         TIP_Application::appendCallback(array(&$this, 'pop'));
+         */
         return true;
     }
 
@@ -625,23 +638,14 @@ class TIP_Content extends TIP_Module
         return $this->data->filter($this->owner_field, $user);
     }
 
-    /**
-     * Get the number of browsed rows
-     * @return int The number of browsed row or null
-     */
-    public function getBrowsedRows()
-    {
-        return $this->_browsed_rows;
-    }
-
     //}}}
     //{{{ Tags
 
     /**
      * Fields to use in the next queries
      *
-     * Changes the field subset in SELECT queries. If $params is empty, all the
-     * fields are used.
+     * Changes the field subset in SELECT queries. If $params is empty, the
+     * default fieldset will be used.
      *
      * @param  string $params A comma separated list of field ids
      * @return bool           true on success or false on errors
@@ -680,10 +684,16 @@ class TIP_Content extends TIP_Module
     /**
      * Browse the content throught a cronology interface
      *
-     * The value is parsed and rendered by the Text_Wiki renderer accordling to
-     * the wiki rules defined in the 'wiki_rules' option of the field.
+     * Renders the whole data content in a cronology tree. The options must be
+     * specified in the $params argument as a comma-separated list of field ids
+     * in the following sequence:
      *
-     * @param  string $params Cronology options, in the form 'date_field,title_field,tooltip_field'
+     * date_field,title_field,tooltip_field,count_field
+     *
+     * All the fields are optionals, in which case the TIP_Cronology default
+     * value is used.
+     *
+     * @param  string $params Cronology options
      * @return bool           true on success or false on errors
      */
     protected function tagCronology($params)
@@ -698,6 +708,102 @@ class TIP_Content extends TIP_Module
             $options['count_field']
         ) = explode(',', $params);
         echo TIP_Type::singleton($options)->toHtml();
+        return true;
+    }
+
+    /**
+     * Perform the browse query throught a pager
+     *
+     * $params is a string in the form "quanto,query_adds".
+     *
+     * The quanto is the number of rows per page: leave it undefined to disable
+     * the pager. In query_adds you can specify additional SQL commands to
+     * append to the query, such as ORDER clauses.
+     *
+     * This function checks if there is a row more than what specified in the
+     * quanto: this provides a simple way to know whether the 'NEXT' button
+     * must be rendered or not.
+     *
+     * @param  string $params Parameters of the tag
+     * @return bool           true on success or false on errors
+     */
+    protected function tagPager($params)
+    {
+        if (is_null($this->_browse_conditions)) {
+            TIP::error('no active browse action');
+            return false;
+        }
+
+        @list($quanto, $query_adds) = explode(',', $params);
+        $quanto = (int) $quanto;
+        $pager = $quanto > 0;
+
+        if (empty($this->_browse_conditions)) {
+            $filter = '';
+        } else {
+            $conditions = array();
+            foreach ($this->_browse_conditions as $id => $value) {
+                $conditions[] = $this->data->addFilter('', $id, $value);
+            }
+            $filter = 'WHERE ' . implode(' AND ', $conditions) . ' ';
+        }
+
+        $filter .= $query_adds;
+
+        if ($pager) {
+            $offset = TIP::getGet('pg_offset', 'int');
+            $offset > 0 || $offset = 0;
+            $filter .= $this->data->limit($quanto+1, $offset);
+        } else {
+            $offset = 0;
+        }
+
+        if (is_null($view = $this->startDataView($filter))) {
+            TIP::notifyError('select');
+            return false;
+        }
+
+        if ($view->isValid()) {
+            $partial = $pager && $view->nRows() == $quanto+1;
+            if ($partial) {
+                // Remove the trailing row from the view
+                $rows =& $view->getProperty('rows');
+                array_splice($rows, $quanto);
+            }
+
+            if ($pager) {
+                $gets = $_GET;
+                if ($offset > 0) {
+                    $gets['pg_offset'] = $offset-$quanto > 0 ? $offset-$quanto : 0;
+                    $this->keys['PREV'] = TIP::getScriptURI() . '?' . http_build_query($gets);
+                }
+                if ($partial) {
+                    $gets['pg_offset'] = $offset+$quanto;
+                    $this->keys['NEXT'] = TIP::getScriptURI() . '?' . http_build_query($gets);
+                }
+                $pager = isset($this->keys['PREV']) || isset($this->keys['NEXT']);
+            }
+
+            if ($pager) {
+                // Pager rendering BEFORE the rows
+                $file = $this->buildSourcePath('shared', 'pager_before.src');
+                is_readable($file) && $this->run($file);
+            }
+
+            // Rows rendering
+            $file = $this->buildSourcePath($this->id, $this->row_source);
+            foreach ($view as $row) {
+                $this->run($file);
+            }
+
+            if ($pager) {
+                // Pager rendering AFTER the rows
+                $file = $this->buildSourcePath('shared', 'pager_after.src');
+                is_readable($file) && $this->run($file);
+            }
+        }
+
+        $this->endView();
         return true;
     }
 
@@ -807,31 +913,17 @@ class TIP_Content extends TIP_Module
     /**
      * Perform a browse action
      *
-     * Runs the file identified by the 'browse_source' property for the rows
-     * that match the specified $filter.
+     * In $conditions, you must specify an associative array of
+     * 'field_id' => 'value' to impose for this browse action. Only equal
+     * conditions are allowed.
      *
-     * The rendered result is appended to the page.
-     *
-     * @param  string|array $filter              The filter to use
-     * @param  bool         $update_browsed_rows Update the internal '_browsed_rows' property
-     * @return bool                              true on success or false on errors
+     * @param  array &$conditions The browse conditions
+     * @return bool               true on success or false on errors
      */
-    protected function actionBrowse($filter, $update_browsed_rows = true)
+    protected function actionBrowse(&$conditions)
     {
-        is_array($filter) && $filter = implode(' AND ', $filter);
-        if (is_null($view = $this->startDataView($filter))) {
-            TIP::notifyError('select');
-            return false;
-        }
-
-        if ($update_browsed_rows) {
-            // Store the number of rows of this browse action to let the children
-            // modules check or update their counters
-            $this->_browsed_rows = $view->nRows();
-        }
-
+        $this->_browse_conditions = &$conditions;
         $this->appendToPage($this->browse_source);
-        $this->endView();
         return true;
     }
 
@@ -918,7 +1010,7 @@ class TIP_Content extends TIP_Module
             foreach ($browsable as $id) {
                 if (array_key_exists($id, $fields) &&
                     !is_null($value = TIP::getGet($id, $fields[$id]['type']))) {
-                    $conditions[] = $this->data->filter($id, $value);
+                    $conditions[$id] = $value;
                 }
             }
 
@@ -929,7 +1021,7 @@ class TIP_Content extends TIP_Module
                 return false;
             }
 
-            return $this->actionBrowse($conditions);
+            return $this->actionBrowse(&$conditions);
         }
 
         return null;
@@ -960,11 +1052,11 @@ class TIP_Content extends TIP_Module
     private $_view = null;
 
     /**
-     * The number of browsed rows
-     * @var int
+     * The browse conditions, as specified in actionBrowse()
+     * @var array
      * @internal
      */
-    private $_browsed_rows = null;
+    private $_browse_conditions = null;
 
     //}}}
     //{{{ Callbacks
