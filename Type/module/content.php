@@ -728,15 +728,17 @@ class TIP_Content extends TIP_Module
     protected function tagCronology($params)
     {
         $options['type'] = array('cronology');
-        $options['id'] = $this->id . '(' . $params . ')';
         $options['master'] =& $this;
         @list(
-            $options['date_field'],
+            $date_field,
             $options['title_field'],
             $options['tooltip_field'],
             $options['count_field'],
             $options['base_action']
         ) = explode(',', $params);
+
+        empty($date_field) || $options['date_field'] = $date_field;
+        $options['id'] = $this->id . '_cronology' . $date_field;
         echo TIP_Type::singleton($options)->toHtml();
         return true;
     }
