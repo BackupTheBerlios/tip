@@ -329,8 +329,8 @@ abstract class TIP_Module extends TIP_Type
     protected function buildSourceURL()
     {
         $pieces = func_get_args();
-        $url = TIP::buildSourceURL($pieces);
-        return is_readable($url) ? $url : TIP::buildFallbackURL($pieces);
+        return file_exists(TIP::buildSourcePath($pieces)) ? 
+            TIP::buildSourceURL($pieces) : TIP::buildFallbackURL($pieces);
     }
 
     /**
