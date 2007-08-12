@@ -78,7 +78,7 @@ class TIP_Advertisement extends TIP_Content
      */
     public function _onDataRow(&$row)
     {
-        $row['EXPIRED'] = TIP::getTimestamp($row[$this->expiration_field], 'iso8601') > time();
+        $row['EXPIRED'] = TIP::getTimestamp($row[$this->expiration_field], 'iso8601') < time();
         return true;
     }
 
