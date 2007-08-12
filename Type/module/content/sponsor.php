@@ -80,7 +80,7 @@ class TIP_Sponsor extends TIP_Content
         parent::postConstructor();
 
         $filter = $this->data->order($this->count_field) . ' LIMIT 1';
-        if (!is_null($view = $this->startDataView($filter))) {
+        if (!is_null($view = $this->startDataView($filter)) && $view->rewind()) {
             $this->_row = $this->_old_row = $view->current();
             // Increment count field
             ++ $this->_row[$this->count_field];
