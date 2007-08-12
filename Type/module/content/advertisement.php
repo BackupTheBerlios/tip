@@ -79,6 +79,13 @@ class TIP_Advertisement extends TIP_Content
     public function _onDataRow(&$row)
     {
         $row['EXPIRED'] = TIP::getTimestamp($row[$this->expiration_field], 'iso8601') < time();
+        if ($row['EXPIRED'] && @$row[$this->public_field] == 'yes') {
+            // The advertisement is expired: update accordling
+            $new_row = array($this->public_field => 'no');
+            if ($this->_onDbAction('Edit', $new_row, $row) && !$this->data->updateRow($new_row, $row)) {
+                TIP::notifyError('update');
+            }
+        }
         return true;
     }
 
@@ -176,12 +183,15 @@ class TIP_Advertisement extends TIP_Content
 
     public function _onRefresh(&$old_row)
     {
-        if (isset($this->expiration_field, $this->expiration) && ($expiration = strtotime($this->expiration)) !== false) {
+        if (isset($this->expiration_field, $this->expiration)) {
+            $expiration = strtotime($this->expiration);
+            if ($expiration === false) {
+                return false;
+            }
             $row[$this->expiration_field] = TIP::formatDate('datetime_iso8601', $expiration);
-            $row[$this->public_field] = 'yes';
-            if (!$this->data->updateRow($row, $old_row)) {
+            isset($this->public_field) && $row[$this->public_field] = 'yes';
+            if ($this->_onDbAction('Edit', $row, $old_row) && !$this->data->updateRow($row, $old_row)) {
                 TIP::notifyError('update');
-                TIP::warning("unable to update a row ($id)");
                 return false;
             }
         }
@@ -191,6 +201,23 @@ class TIP_Advertisement extends TIP_Content
 
     //}}}
     //{{{ Actions
+
+    /**
+     * Perform a browse action
+     *
+     * Overrides the default browse action, imposing the browsing of only
+     * public advertisement for non-admin users.
+     *
+     * @param  array &$conditions The browse conditions
+     * @return bool               true on success or false on errors
+     */
+    protected function actionBrowse(&$conditions)
+    {
+        if ($this->privilege < TIP_PRIVILEGE_ADMIN && !isset($conditions[$this->public_field])) {
+            $conditions[$this->public_field] = 'yes';
+        }
+        return parent::actionBrowse($conditions);
+    }
 
     protected function actionCheck($id, $options = null)
     {

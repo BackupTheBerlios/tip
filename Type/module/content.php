@@ -1101,7 +1101,7 @@ class TIP_Content extends TIP_Module
      * module that has this module as 'master' and updates 'creation_field'
      * and 'owner_field', if they exists.
      *
-     * @param  array &$row The data row to add
+     * @param  array &$row The subject row
      * @return bool        true on success, false on errors
      */
     public function _onAdd(&$row)
@@ -1115,7 +1115,7 @@ class TIP_Content extends TIP_Module
             empty($row[$this->owner_field]) &&
             $row[$this->owner_field] = TIP::getUserId();
 
-        return $this->_onDbAction('Add', $row);
+        return $this->_onDbAction('Add', $row, $row);
     }
 
     /**
@@ -1126,10 +1126,11 @@ class TIP_Content extends TIP_Module
      * module that has this module as 'master' and updates 'editor_field',
      * 'last_edit_field' and 'edit_count', if they exist.
      *
-     * @param  array &$row The modified data row
-     * @return bool        true on success, false on errors
+     * @param  array &$row     The subject row
+     * @param  array  $old_row The old row
+     * @return bool            true on success, false on errors
      */
-    public function _onEdit(&$row)
+    public function _onEdit(&$row, $old_row = null)
     {
         isset($this->last_edit_field) &&
             array_key_exists($this->last_edit_field, $row) &&
@@ -1141,7 +1142,7 @@ class TIP_Content extends TIP_Module
             array_key_exists($this->edits_field, $row) &&
             ++ $row[$this->edits_field];
 
-        return $this->_onDbAction('Edit', $row);
+        return $this->_onDbAction('Edit', $row, $old_row);
     }
 
     /**
@@ -1151,12 +1152,12 @@ class TIP_Content extends TIP_Module
      * The default handler calls the _onMasterDelete signal for every configured
      * module that has this module as 'master'.
      *
-     * @param  array &$row The deleted data row
+     * @param  array &$row The subject row
      * @return bool        true on success, false on errors
      */
     public function _onDelete(&$row)
     {
-        return $this->_onDbAction('Delete', $row);
+        return $this->_onDbAction('Delete', $row, $row);
     }
 
     /**
@@ -1198,10 +1199,11 @@ class TIP_Content extends TIP_Module
      *
      * @param  string $action 'Add', 'Edit' or 'Delete'
      * @param  array &$row    The subject row
+     * @param  array &$data   Additional data to pass to the callbacks
      * @return bool           true on success or false on errors
      * @internal
      */
-    private function _onDbAction($action, &$row)
+    protected function _onDbAction($action, &$row, &$data)
     {
         // Dispatch the signal to all children modules
         $callback = create_function('$a', 'return @$a[\'master\'] == \'' . $this->id . '\';');
@@ -1210,7 +1212,7 @@ class TIP_Content extends TIP_Module
             foreach (array_keys($children) as $child_id) {
                 $child = TIP_Type::getInstance($child_id);
                 if (method_exists($child, $method) &&
-                    !$child->$method($row)) {
+                    !$child->$method($row, $data)) {
                     return false;
                 }
             }

@@ -158,17 +158,44 @@ class TIP_Hierarchy extends TIP_Content
 
     public function _onMasterAdd(&$row)
     {
-        return $this->_updateCount($row[$this->master_field], +1);
+        // Update the counter only if the public flag is on (or does not exist)
+        $public = $this->master->getProperty('public_field');
+        if (!isset($public, $row[$public]) || stripos($row[$public], 'yes') !== false) {
+            $this->_updateCount($row[$this->master_field], +1);
+        }
+        return true;
     }
 
     public function _onMasterDelete(&$row)
     {
-        return $this->_updateCount($row[$this->master_field], -1);
+        // Update the counter only if the public flag is on (or does not exist)
+        $public = $this->master->getProperty('public_field');
+        if (!isset($public, $row[$public]) || stripos($row[$public], 'yes') !== false) {
+            $this->_updateCount($row[$this->master_field], -1);
+        }
+        return true;
     }
 
-    public function _onMasterEdit(&$row)
+    public function _onMasterEdit(&$row, &$old_row)
     {
-        // TODO: how to catch a reparent to update the counters?
+        if (is_array($old_row)) {
+            // Check for the public flag
+            $public = $this->master->getProperty('public_field');
+            $old_public = !isset($public, $old_row[$public]) || $old_row[$public] == 'yes';
+            $new_public = isset($row, $row[$public]) ? $row[$public] == 'yes' : $old_public;
+
+            // Check for the parent
+            $parent = $this->master_field;
+            $old_parent = @$old_row[$parent];
+            $new_parent = isset($row[$parent]) ? $row[$parent] : $old_parent;
+
+            // If something rilevant has changed, update the counters
+            if ($old_public != $new_public || $old_parent != $new_parent) {
+                $old_public && $this->_updateCount($old_parent, -1);
+                $new_public && $this->_updateCount($new_parent, +1);
+            }
+        }
+
         return true;
     }
 
@@ -325,13 +352,14 @@ class TIP_Hierarchy extends TIP_Content
             return false;
         }
 
-        $old_row = $rows[$id];
+        $old_row =& $rows[$id];
         $row[$this->count_field] = $old_row[$this->count_field] + $offset;
         if (!$this->data->updateRow($row, $old_row)) {
             TIP::notifyError('update');
             return false;
         }
 
+        $old_row[$this->count_field] += $offset;
         return true;
     }
 

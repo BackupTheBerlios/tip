@@ -214,9 +214,10 @@ class TIP_Mysql extends TIP_Data_Engine
         }
 
         $this->_tryFillFields($data, $result);
+        $primary_key = $data->getProperty('primary_key');
         $rows = array();
         while ($row = mysql_fetch_assoc($result)) {
-            $rows[$row[$data->getProperty('primary_key')]] =& $row;
+            $rows[$row[$primary_key]] =& $row;
             unset($row);
         }
 

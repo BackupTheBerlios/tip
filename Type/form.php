@@ -601,7 +601,7 @@ class TIP_Form extends TIP_Module
     {
         $processed = false;
 
-        if (is_null($this->on_process) || call_user_func_array($this->on_process, array(&$row))) {
+        if (is_null($this->on_process) || call_user_func_array($this->on_process, array(&$row, &$this->defaults))) {
             switch ($this->action) {
 
             case TIP_FORM_ACTION_ADD:
