@@ -408,7 +408,7 @@ class TIP_User extends TIP_Content
      */
     public function _onDataRow(&$row)
     {
-        $row['OA'] = $row['sex'] == 'female' ? 'a' : 'o';
+        array_key_exists('sex', $row) && $row['OA'] = $row['sex'] == 'female' ? 'a' : 'o';
         return true;
     }
 
