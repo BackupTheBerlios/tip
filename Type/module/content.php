@@ -1053,7 +1053,7 @@ class TIP_Content extends TIP_Module
                 return false;
             }
 
-            return $this->actionBrowse(&$conditions);
+            return $this->actionBrowse($conditions);
         }
 
         return null;
