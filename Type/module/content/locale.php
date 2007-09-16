@@ -123,7 +123,7 @@ class TIP_Locale extends TIP_Content
             }
         }
 
-        $text = @$row[$this->locale];
+        $text = $row[$this->locale];
         if (is_null($context) || strpos($text, '|') === false) {
             return $text;
         }
@@ -133,7 +133,7 @@ class TIP_Locale extends TIP_Content
         foreach ($token as $n => $value) {
             // Odd tokens are keys
             if ($n & 1) {
-                $token[$n] = @$context[$value];
+                $token[$n] = array_key_exists($value, $context) ? $context[$value] : '';
             }
         }
         return implode($token);

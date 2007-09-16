@@ -149,6 +149,7 @@ class TIP_Form extends TIP_Module
 
         // Default values
         $options['id'] = $options['master']->getProperty('id');
+        $options['locale_prefix'] = 'form';
         isset($options['action_id']) || $options['action_id'] = $options['action'];
         isset($options['referer']) || $options['referer'] = TIP::getRefererURI();
         isset($options['follower']) || $options['follower'] = $options['referer'];
@@ -192,27 +193,6 @@ class TIP_Form extends TIP_Module
 
     //}}}
     //{{{ Methods
-
-    /**
-     * Get a localized text
-     *
-     * Gets a localized text using 'form' as prefix. Furthermore, it logs a
-     * warning message if the label is not found.
-     *
-     * @param  string $id      The identifier
-     * @param  array  $context A context associative array
-     * @param  bool   $cached  Whether to perform or not a cached read
-     * @return string          The requested localized text
-     */
-    protected function getLocale($id, $context = null, $cached = true)
-    {
-        if (is_null($text = TIP::getLocale($id, 'form', $context, $cached))) {
-            TIP::warning("localized text not found (form.$id)");
-            $text = '';
-        }
-
-        return $text;
-    }
 
     /**
      * Run the form
@@ -681,8 +661,12 @@ class TIP_Form extends TIP_Module
     {
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
-        $items = array_flip($field['choices']);
-        array_walk($items, array(&$this, 'localize'), array('label.', ''));
+        foreach ($field['choices'] as $id) {
+            $items[$id] = $this->getLocale('label.' . $id);
+        }
+
+        //ntd $items = array_flip($field['choices']);
+        //array_walk($items, array(&$this, 'localize'), array('label.', ''));
 
         if (count($field['choices']) > 3) {
             // On lot of available choices, use a select menu
@@ -706,9 +690,10 @@ class TIP_Form extends TIP_Module
     {
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
-        $items = array_flip($field['choices']);
         $default = @explode(',', $this->defaults[$id]);
-        array_walk($items, array(&$this, 'localize'), array('label.', ''));
+        foreach ($field['choices'] as $id) {
+            $items[$id] = $this->getLocale('label.' . $id);
+        }
 
         // Reset the defaults (a comma separated list of flags that are set):
         // the $this->defaults[$id] variable will be defined in the foreach

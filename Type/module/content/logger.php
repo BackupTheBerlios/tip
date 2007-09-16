@@ -45,7 +45,7 @@ class TIP_Logger extends TIP_Content
      *
      * Stores the cache content in once, if $_cache is an array.
      */
-    function _destruct()
+    function __destruct()
     {
         if (is_array($this->_cache)) {
             $this->data->putRows($this->_cache);
@@ -59,14 +59,11 @@ class TIP_Logger extends TIP_Content
      * Append a log
      *
      * Appends a log message to the data source of the logger object.
-     * To get a properly formatted log, you must generate the backtrace in
-     * the method immediately following the source point to log.
      *
      * @param string  $severity  The text of the log
      * @param string  $message   A custom message
-     * @param array  &$backtrace The backtrace array
      */
-    public function log($severity, $message, &$backtrace)
+    public function log($severity, $message)
     {
         static $running = false;
 
@@ -77,77 +74,77 @@ class TIP_Logger extends TIP_Content
             $running = true;
         }
 
+        // Generate the backtrace
+        $bt = debug_backtrace();
+
         // Carefully scans the backtrace to find useful informations
-        // and store them in the $context array
-        $context = array();
-        foreach ($backtrace as $n => $trace) {
-            if ($n == 0) {
-                $file = @$trace['file'];
-                $line = @$trace['line'];
-                $context['origin'] = "$file on line $line";
-                continue;
-            } elseif (@$trace['type'] != '->') {
-                continue;
+        // and store them in the $code array
+        $code = array();
+        foreach ($bt as $n => $trace) {
+            $function = isset($trace['function']) ? strtolower($trace['function']) : '';
+
+            if (!isset($code['origin'])) {
+                // Skip the log wrappers
+                if ($function == 'log' || $function == 'warning' || $function == 'error' || $function == 'fatal') {
+                    continue;
+                }
+                $code['origin'] = "$trace[file] on line $trace[line]";
             }
 
-            $function = @strtolower($trace['function']);
             if ($function == 'calltag') {
-                if (!array_key_exists('command', $context)) {
-                    $module  = @$trace['class'];
-                    $name = @$trace['args'][0];
-                    $params  = @$trace['args'][1];
+                if (!array_key_exists('tag', $code)) {
+                    $module  = $trace['class'];
+                    $name = $trace['args'][0];
+                    $params  = $trace['args'][1];
                     if (strlen($params) > 80) {
                         $params = substr($params, 0, 77) . '...';
                     }
-                    $context['command'] = "$module::callTag($name, $params)";
+                    $code['tag'] = "$module::callTag($name, $params)";
                 }
                 continue;
             } elseif ($function == 'callaction') {
-                if (!array_key_exists('action', $context)) {
-                    $module = @$trace['class'];
-                    $action = @$trace['args'][0];
-                    $context['action'] = "$module::callAction($action)";
+                if (!array_key_exists('action', $code)) {
+                    $module = $trace['class'];
+                    $action = $trace['args'][0];
+                    $code['action'] = "$module::callAction($action)";
                 }
                 continue;
             }
 
-            $class = @strtolower($trace['class']);
+            $class = isset($trace['class']) ? strtolower($trace['class']) : '';
             if ($class == 'tip_source') {
-                if ($n > 0 && !array_key_exists('source', $context)) {
-                    $last =& $backtrace[$n-1];
+                if (!array_key_exists('source', $code)) {
+                    $last =& $bt[$n-1];
                     if (is_object($last['args'][0])) {
                         $source =& $last['args'][0];
                         $method =  $last['function'];
-                        $context['source'] = "$source on method $method";
+                        $code['source'] = "$source on method $method";
                     }
                 }
                 continue;
             } elseif ($class == 'tip_data') {
-                if ($n > 0 && !array_key_exists('data', $context)) {
-                    $last =& $backtrace[$n-1];
+                if (!array_key_exists('data', $code)) {
+                    $last =& $bt[$n-1];
                     if (is_object($last['args'][0])) {
                         $data   =& $last['args'][0];
                         $method =  $last['function'];
-                        $context['data'] = "$data on method $method";
+                        $code['data'] = "$data on method $method";
                     }
                 }
                 continue;
             }
         }
 
-        $row['user']     = TIP::getUserId();
-        $row['when']     = TIP::formatDate('datetime_iso8601');
-        $row['severity'] = $severity;
-        $row['message']  = $message;
+        unset($bt);
 
-        $fields =& $this->data->getFields(false);
-        foreach (array_keys($context) as $key) {
-            if (array_key_exists($key, $fields)) {
-                $row[$key] = $context[$key];
-            }
-        }
+        $context = array(
+            'user'     => TIP::getUserId(),
+            'when'     => TIP::formatDate('datetime_iso8601'),
+            'severity' => $severity,
+            'message'  => $message
+        );
 
-        $this->_cache[] =& $row;
+        $this->_cache[] = array_merge($context, $code);
         $running = false;
         return true;
     }

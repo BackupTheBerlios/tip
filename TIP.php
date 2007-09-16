@@ -180,7 +180,7 @@ class TIP
             $locale =& TIP_Application::getSharedModule('locale');
         }
 
-        return @$locale->get($id, $prefix, $context, $cached);
+        return $locale->get($id, $prefix, $context, $cached);
     }
 
     /**
@@ -448,16 +448,17 @@ class TIP
      *
      * The parameters are passed throught: this is merely a shortcut.
      *
-     * @param string  $severity  The text of the log
-     * @param string  $message   A custom message
-     * @param array  &$backtrace The backtrace array
+     * @param string $severity  The text of the log
+     * @param string $message   A custom message
      */
-    static public function log($severity, $message, &$backtrace)
+    static public function log($severity, $message)
     {
-        $logger =& TIP_Application::getSharedModule('logger');
-        if (is_object($logger)) {
-            $logger->log($severity, $message, $backtrace);
+        static $logger = false;
+        if ($logger === false) {
+            $logger =& TIP_Application::getSharedModule('logger');
         }
+
+        is_object($logger) && $logger->log($severity, $message);
     }
 
     /**
@@ -473,8 +474,7 @@ class TIP
      */
     static public function warning($message)
     {
-        $backtrace = debug_backtrace();
-        TIP::log('WARNING', $message, $backtrace);
+        TIP::log('WARNING', $message);
     }
 
     /**
@@ -490,8 +490,7 @@ class TIP
      */
     static public function error($message)
     {
-        $backtrace = debug_backtrace();
-        TIP::log('ERROR', $message, $backtrace);
+        TIP::log('ERROR', $message);
         TIP::notifyError();
     }
 
@@ -505,10 +504,9 @@ class TIP
      */
     static public function fatal($message)
     {
-        $backtrace = debug_backtrace();
-        TIP::log('FATAL', $message, $backtrace);
+        TIP::log('FATAL', $message);
         $fatal_uri = HTTP::absoluteURI(TIP_Application::getGlobal('fatal_url'));
-        if ($fatal_uri == @$_SERVER['REQUEST_URI']) {
+        if ($fatal_uri == $_SERVER['REQUEST_URI']) {
             // This is a recursive redirection
             HTTP::redirect('/fatal.html');
         } else {
