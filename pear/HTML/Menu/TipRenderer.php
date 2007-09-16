@@ -42,11 +42,25 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
     var $_rows = array();
 
     /**
-     * Partial render state of the current entry
+     * Row id
+     * @var int
+     * @internal
+     */
+    var $_row_id = 0;
+
+    /**
+     * Internal name stack
      * @var array
      * @internal
      */
-    var $_row = array();
+    var $_name_stack = array();
+
+    /**
+     * Internal id stack
+     * @var array
+     * @internal
+     */
+    var $_id_stack = array();
 
 
     function setId($id)
@@ -71,11 +85,15 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
 
     function setMenuType($type)
     {
+        static $dummy_id = 0;
+
         if ('tree' == $type || 'sitemap' == $type || 'rows' == $type) {
             $this->_menuType = $type;
             $this->_html = '';
-            $this->_row = array();
             $this->_rows = array();
+            $this->_name_stack = array();
+            $this->_id_stack = array();
+            isset($this->_id) || $this->_id = $type . (++ $dummy_id);
         } else {
             require_once 'PEAR.php';
             return PEAR::raiseError("HTML_Menu_TipRenderer: unable to render '$type' type menu");
@@ -86,16 +104,18 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
     {
         $is_active = $type != HTML_MENU_ENTRY_INACTIVE;
         $is_container = array_key_exists('sub', $node);
-        $this->_row[$level] = $node['title'];
-        $name = implode($this->_glue, $this->_row);
+        $this->_row_id = isset($node['id']) ? $node['id'] : $this->_row_id+1;
+        $this->_name_stack[$level] = $node['title'];
+        $this->_id_stack[$level] = $this->_row_id;
+        $name = implode($this->_glue, $this->_name_stack);
 
         if ($is_container) {
             $class = $is_active ? 'folder_active_open' : 'folder';
-            $href = 'javascript:switchHierarchy(\'' . $name . '\')';
+            $href = 'javascript:switchHierarchy(\'' . $this->_id . '_' . $this->_row_id . '\')';
         } else {
             $class = $is_active ? 'active' : null;
             $href = $node['url'];
-            $this->_rows[$node['id']] =& $name;
+            $this->_rows[$this->_row_id] =& $name;
         }
 
         $content = "\n" . str_repeat('  ', $level) . '<a ';
@@ -128,20 +148,17 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         $is_active = $this->_html[$level]['active'];
         $content = $this->_html[$level]['content'];
         unset($this->_html[$level]);
-        unset($this->_row[$level]);
+        unset($this->_name_stack[$level]);
+        unset($this->_id_stack[$level]);
 
         if ($level > 0) {
-            $name = implode($this->_glue, $this->_row);
-            $attributes = 'id="' . $name . '"';
+            $attributes = 'id="' . $this->_id . '_' . end($this->_id_stack) . '"';
             if ($is_active) {
                 $attributes .= ' class="active"';
             }
             $this->_html[$level-1]['content'] .= "<div $attributes>$content\n</div>";
         } else {
-            $attributes = 'class="hierarchy"';
-            if (isset($this->_id)) {
-                $attributes .= ' id="' . $this->_id . '"';
-            }
+            $attributes = 'class="hierarchy" id="' . $this->_id . '"';
             $this->_html = "<div $attributes>$content\n</div>";
         }
     }
