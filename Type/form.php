@@ -661,14 +661,12 @@ class TIP_Form extends TIP_Module
     {
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
-        foreach ($field['choices'] as $id) {
-            $items[$id] = $this->getLocale('label.' . $id);
+        $items = array();
+        foreach ($field['choices'] as $choice) {
+            $items[$choice] = $this->getLocale('label.' . $choice);
         }
 
-        //ntd $items = array_flip($field['choices']);
-        //array_walk($items, array(&$this, 'localize'), array('label.', ''));
-
-        if (count($field['choices']) > 3) {
+        if (count($items) > 3) {
             // On lot of available choices, use a select menu
             $element =& $this->_form->addElement('select', $id, $label, $items);
             $element->setAttribute('class', 'expand');
@@ -691,8 +689,9 @@ class TIP_Form extends TIP_Module
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
         $default = @explode(',', $this->defaults[$id]);
-        foreach ($field['choices'] as $id) {
-            $items[$id] = $this->getLocale('label.' . $id);
+        $items = array();
+        foreach ($field['choices'] as $choice) {
+            $items[$choice] = $this->getLocale('label.' . $choice);
         }
 
         // Reset the defaults (a comma separated list of flags that are set):
