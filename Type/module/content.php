@@ -595,7 +595,7 @@ class TIP_Content extends TIP_Module
             return false;
         }
 
-        if ($row[$this->owner_field] != TIP::getUserId()) {
+        if (isset($row[$this->owner_field]) && $row[$this->owner_field] != TIP::getUserId()) {
             TIP::warning("not an owned row ($id)");
             TIP::notifyError('denied');
             return false;
@@ -619,7 +619,7 @@ class TIP_Content extends TIP_Module
             return false;
         }
 
-        if ($row[$this->owner_field] == TIP::getUserId()) {
+        if (isset($row[$this->owner_field]) && $row[$this->owner_field] == TIP::getUserId()) {
             TIP::warning("owned row ($id)");
             TIP::notifyError('denied');
             return false;
