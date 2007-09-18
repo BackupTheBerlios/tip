@@ -285,7 +285,11 @@ abstract class TIP_Module extends TIP_Type
             return $this->getLocale($id);
 
         case 'label':
-            return $this->getLocale('label.' . $id);
+            if (strpos('.', $id) > 0) {
+                return TIP::getLocale($id);
+            } else {
+                return $this->getLocale('label.' . $id);
+            }
         }
 
         return null;
@@ -595,6 +599,27 @@ abstract class TIP_Module extends TIP_Type
         $requests = explode(',', $params);
         $value = $this->getValidRequest($requests);
         echo TIP::toHtml($value);
+        return true;
+    }
+
+    /**
+     * Localized label
+     *
+     * $params is the id of the string to localize. If there are no dots,
+     * the current module id and '.label.' are prepended to $params.
+     *
+     * Output a properly localized string.
+     */
+    protected function tagLocalized($params)
+    {
+        if (strpos($params, '.') !== false) {
+            list($prefix, $id) = explode('.', $params, 2);
+        } else {
+            $prefix = $this->locale_prefix;
+            $id = 'label.' . $params;
+        }
+
+        echo TIP::getLocale($id, $prefix);
         return true;
     }
 

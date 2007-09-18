@@ -361,10 +361,8 @@ class TIP_Rcbt_Tag
             $text = substr ($text, 0, $params_pos-1);
         }
 
-        $token = explode('.', trim($text));
-        switch (count ($token))
-        {
-        case 1:
+        $token = explode('.', trim($text), 2);
+        if (count($token) == 1) {
             $this->module_name = null;
             if ($this->params === false) {
                 $this->tag_name = 'html';
@@ -374,16 +372,9 @@ class TIP_Rcbt_Tag
             } else {
                 $this->tag_name = strtolower($token[0]);
             }
-            break;
-        case 2:
+        } else {
             $this->module_name = $token[0];
             $this->tag_name = strtolower($token[1]);
-            break;
-        default:
-            if (strlen($text) > 20)
-                $text = substr($text, 0, 17) . '...';
-            $parser->error("malformed tag ($text)");
-            return false;
         }
 
         return true;
