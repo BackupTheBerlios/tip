@@ -102,9 +102,10 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
 
     function renderEntry($node, $level, $type)
     {
+        static $dummy_id = 0;
         $is_active = $type != HTML_MENU_ENTRY_INACTIVE;
         $is_container = array_key_exists('sub', $node);
-        $this->_row_id = isset($node['id']) ? $node['id'] : $this->_row_id+1;
+        $this->_row_id = isset($node['id']) ? $node['id'] : 'd' . ++$dummy_id;
         $this->_name_stack[$level] = $node['title'];
         $this->_id_stack[$level] = $this->_row_id;
         $name = implode($this->_glue, $this->_name_stack);
