@@ -171,6 +171,7 @@ class TIP_Application extends TIP_Module
         $this->keys['TODAY'] = TIP::formatDate('date_iso8601');
         $this->keys['NOW'] = TIP::formatDate('datetime_iso8601');
         $this->keys['BASE_URL'] = TIP::getBaseURL();
+        $this->keys['DOMAIN'] = rtrim($this->keys['BASE_URL'], '/');
         $this->keys['SCRIPT'] = TIP::getScriptURI();
         $this->keys['REFERER'] = '';
 
