@@ -684,29 +684,48 @@ class TIP_Content extends TIP_Module
     /**
      * Get a partial content of a wiki field
      *
-     * $params must be a string in the form "field_id,chars", where field_id is the
-     * id of the wiki field while chars is the number of characters to be
-     * echoed. If chars is omitted, 100 is used.
+     * $params must be a string in the form "field_id,len,wordlen", where
+     * id is the id of a wiki field, len is the number of characters to be
+     * echoed and wordlen is the maximum length of a single word.
+     * len defaults to 100 while wordlen defaults to 25.
      *
      * @param  string $params Tag parameters
      * @return bool           true on success or false on errors
      */
     protected function tagPartialWiki($params)
     {
-        @list($field_id, $chars) = explode(',', $params);
-        $value = $this->getField($field_id);
-        if (is_null($value)) {
-            TIP::error("no field found ($params)");
+        @list($field_id, $len, $wordlen) = explode(',', $params);
+        if (empty($field_id) || is_null($value = $this->getField($field_id))) {
+            TIP::error("no valid field found ($params)");
             return false;
         }
 
-        $chars > 0 || $chars = 100;
+        $len > 0 || $len = 100;
+        $wordlen > 0 || $wordlen = 25;
         $fields =& $this->data->getFields();
         $field =& $fields[$field_id];
         $rules = isset($field['wiki_rules']) ? explode(',', $field['wiki_rules']) : null;
         $text = TIP_Renderer::getWiki($rules)->transform($value, 'Plain');
 
-        echo substr($text, 0, $chars);
+        // Ellipsize the words too big
+        $text_len = -1; // Do not consider the first space delimiter
+        $token_list = array();
+        $token = strtok($text, " \n\t");
+        while ($text_len < $len && $token !== false) {
+            $token_len = strlen($token);
+            if ($token_len > $wordlen) {
+                $token = substr_replace($token, '...', $wordlen-3);
+                $token_len = $wordlen;
+            }
+
+            $text_len += $token_len+1;
+            $token_list[] = $token;
+            $token = strtok(" \n\t");
+        }
+
+        $text_len > 0 || $text_len = 0;
+        $text = implode(' ', $token_list);
+        echo $text_len > $len ? substr_replace($text, '...', $len-3) : $text;
         return true;
     }
 
