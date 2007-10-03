@@ -677,7 +677,9 @@ class TIP_Content extends TIP_Module
         $field =& $fields[$params];
         $rules = isset($field['wiki_rules']) ? explode(',', $field['wiki_rules']) : null;
 
-        echo TIP_Renderer::getWiki($rules)->transform($value);
+        $renderer =& TIP_Renderer::getWiki($rules);
+        $renderer->setRenderConf('Xhtml', 'Image', 'base', TIP::buildUploadURL($this->id, ''));
+        echo $renderer->transform($value);
         return true;
     }
 
