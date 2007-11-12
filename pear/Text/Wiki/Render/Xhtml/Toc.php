@@ -30,6 +30,8 @@ class Text_Wiki_Render_Xhtml_Toc extends Text_Wiki_Render {
         'css_item' => null,
         'title' => '<strong>Table of Contents</strong>',
         'div_id' => 'toc',
+        'use_ul' => false,
+        'base_url' => '',
         'collapse' => true
     );
 
@@ -50,13 +52,17 @@ class Text_Wiki_Render_Xhtml_Toc extends Text_Wiki_Render {
 
     function token($options)
     {
+        // Keep track of the last level for <ul> nesting
+        static $last_level = -1;
+
         // type, id, level, count, attr
         extract($options);
+
+        $use_ul = $this->getConf('use_ul');
 
         switch ($type) {
 
         case 'list_start':
-
             $css = $this->getConf('css_list');
             $html = '';
 
@@ -80,36 +86,75 @@ class Text_Wiki_Render_Xhtml_Toc extends Text_Wiki_Render {
             // add the title, and done
             $html .= '>';
             $html .= $this->getConf('title');
-            return $html;
+
+            $level = $this->min-1;
             break;
 
         case 'list_end':
-        	if ($this->getConf('collapse')) {
-        	    return "\n</div>\n</td></tr></table>\n\n";
-        	} else {
-                return "\n</div>\n\n";
+            $html = '';
+            if ($use_ul) {
+                // Close all pending levels
+                $last_level >= $this->min && $html .= '</li>';
+                for ($l = $last_level; $l >= $this->min; --$l) {
+                    $l_indent = str_repeat('    ', $l-$this->min);
+                    $html .= "\n$l_indent  </ul>";
+                    $l > $this->min && $html .= "\n$l_indent</li>";
+                }
+
             }
+
+            $html .= "\n</div>";
+
+            if ($this->getConf('collapse')) {
+                $html .= "\n</td></tr></table>";
+            }
+
+            $html .= "\n\n";
             break;
 
         case 'item_start':
-            $html = "\n\t<div";
+            $indent = str_repeat('    ', $level-$this->min+1);
 
-            $css = $this->getConf('css_item');
-            if ($css) {
-                $html .= " class=\"$css\"";
+            if ($use_ul) {
+                $html = '';
+                if ($level > $last_level) {
+                    // Nesting
+                    for ($l = $last_level; $l < $level; ++$l) {
+                        $l_indent = str_repeat('    ', $l-$this->min+1);
+                        $html .= "\n$l_indent  <ul>\n$l_indent    <li>";
+                    }
+                } elseif ($level < $last_level) {
+                    // Unnesting
+                    $html .= '</li>';
+                    for ($l = $last_level; $l > $level; --$l) {
+                        $l_indent = str_repeat('    ', $l-$this->min);
+                        $html .= "\n$l_indent  </ul>\n$l_indent</li>";
+                    }
+                    $html .= "\n$indent<li>";
+                } else {
+                    // Same level
+                    $html .= "</li>\n$indent<li>";
+                }
+            } else {
+                $css = $this->getConf('css_item');
+                $pad = ($level-$this->min);
+
+                $html = "\n$indent<div";
+                isset($css) && $html .= ' class="' . $css . '"';
+                $html .= ' style="margin-left: ' . $pad . 'em;">';
             }
 
-            $pad = ($level - $this->min);
-            $html .= " style=\"margin-left: {$pad}em;\">";
-
-            $html .= '<a href="' . $_SERVER['REQUEST_URI'] . '#' . $id . '">';
-            return $html;
+            $html .= '<a href="' . $this->getConf('base_url') . '#' . $id . '">';
             break;
 
         case 'item_end':
-            return "</a></div>";
+            $html = '</a>';
+            $use_ul || $html .= '</div>';
             break;
         }
+
+        $last_level = $level;
+        return $html;
     }
 }
 ?>
