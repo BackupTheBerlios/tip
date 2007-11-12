@@ -102,36 +102,30 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
 
     function renderEntry($node, $level, $type)
     {
-        static $dummy_id = 0;
-        $is_active = $type != HTML_MENU_ENTRY_INACTIVE;
-        $is_container = array_key_exists('sub', $node);
-        $this->_row_id = isset($node['id']) ? $node['id'] : 'd' . ++$dummy_id;
         $this->_name_stack[$level] = $node['title'];
-        $this->_id_stack[$level] = $this->_row_id;
         $name = implode($this->_glue, $this->_name_stack);
+        $is_active = $type != HTML_MENU_ENTRY_INACTIVE;
 
-        if ($is_container) {
-            $class = $is_active ? 'folder_active_open' : 'folder';
-            $href = 'javascript:switchHierarchy(\'' . $this->_id . '_' . $this->_row_id . '\')';
-        } else {
-            $class = $is_active ? 'active' : null;
-            $href = $node['url'];
-            $this->_rows[$this->_row_id] =& $name;
-        }
-
-        $content = "\n" . str_repeat('  ', $level) . '<a ';
-        if (isset($class)) {
-            $content .= 'class="' . $class .'" ';
-        }
-        $content .= 'href="' . $href .'">';
-        if (isset($node['COUNT'])) {
-            $content .= '<var>' . $node['COUNT'] . '</var>';
-        }
-        $content .= $node['title'];
+        $content = $node['title'];
         if (isset($node['ITEMS'])) {
             $content .= ' (' . $node['ITEMS'] . ')';
         }
-        $content .= '</a>';
+        if (isset($node['COUNT'])) {
+            $content .= ' <var>' . $node['COUNT'] . '</var>';
+        }
+
+        if ($is_active) {
+            $content = '<strong>' . $content . '</strong>';
+        }
+
+        if (array_key_exists('sub', $node)) {
+            // Cointainer node
+            $ul = $is_active ? '<ul class="opened">' : '<ul>';
+            $content = '<li><em>' . $content . '</em>' . $ul;
+        } else {
+            // Leaf node
+            $content = '<li><a href="' . $node['url'] . '">' . $content . '</a></li>';
+        }
 
         if (isset($this->_html[$level])) {
             $this->_html[$level]['active'] = $this->_html[$level]['active'] || $is_active;
@@ -153,14 +147,9 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         unset($this->_id_stack[$level]);
 
         if ($level > 0) {
-            $attributes = 'id="' . $this->_id . '_' . end($this->_id_stack) . '"';
-            if ($is_active) {
-                $attributes .= ' class="active"';
-            }
-            $this->_html[$level-1]['content'] .= "<div $attributes>$content\n</div>";
+            $this->_html[$level-1]['content'] .= $content . '</ul></li>';
         } else {
-            $attributes = 'class="hierarchy" id="' . $this->_id . '"';
-            $this->_html = "<div $attributes>$content\n</div>";
+            $this->_html =& $content;
         }
     }
 
