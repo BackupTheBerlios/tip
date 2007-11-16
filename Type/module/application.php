@@ -471,6 +471,8 @@ class TIP_Application extends TIP_Module
             // Display profiling informations
             global $_tip_profiler;
             if (is_object($_tip_profiler)) {
+                echo "<h1>Profiler</h1>\n";
+
                 // Leave itsself, that is the tagDebug section
                 $_tip_profiler->leaveSection('debug');
 
@@ -484,9 +486,9 @@ class TIP_Application extends TIP_Module
 
         if ($this->keys['IS_MANAGER']) {
             // Dump the singleton register content
-            echo '<pre style="font-family: monospace">';
+            echo "<h1>Register content</h1>\n<pre>\n";
             self::_dumpRegister(TIP_Type::singleton(), '  ');
-            echo "</pre>";
+            echo "</pre>\n";
         }
 
         return true;
