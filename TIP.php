@@ -23,6 +23,13 @@
  */
 error_reporting(E_ALL);
 
+/**
+ * Set the internal encoding
+ *
+ * Default encoding for TIP based sites is utf8.
+ */
+mb_internal_encoding('UTF-8');
+
 require_once 'Defs.php';
 require_once './config.php';
 require_once 'Renderer.php';
