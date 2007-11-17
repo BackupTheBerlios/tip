@@ -103,6 +103,7 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
     function renderEntry($node, $level, $type)
     {
         $this->_name_stack[$level] = $node['title'];
+        $indent = str_repeat('    ', $level);
         $name = implode($this->_glue, $this->_name_stack);
         $is_active = $type != HTML_MENU_ENTRY_INACTIVE;
 
@@ -121,11 +122,13 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         if (array_key_exists('sub', $node)) {
             // Cointainer node
             $ul = $is_active ? '<ul class="opened">' : '<ul>';
-            $content = '<li><em>' . $content . '</em>' . $ul;
+            $content = "<li><em>$content</em>\n$indent    $ul";
         } else {
             // Leaf node
             $content = '<li><a href="' . $node['url'] . '">' . $content . '</a></li>';
         }
+
+        $content = "\n$indent  $content";
 
         if (isset($this->_html[$level])) {
             $this->_html[$level]['active'] = $this->_html[$level]['active'] || $is_active;
@@ -147,7 +150,8 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         unset($this->_id_stack[$level]);
 
         if ($level > 0) {
-            $this->_html[$level-1]['content'] .= $content . '</ul></li>';
+            $indent = str_repeat('    ', $level-1);
+            $this->_html[$level-1]['content'] .= "$content\n$indent    </ul>\n$indent  </li>";
         } else {
             $this->_html =& $content;
         }
