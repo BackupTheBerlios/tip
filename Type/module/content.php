@@ -696,14 +696,14 @@ class TIP_Content extends TIP_Module
      */
     protected function tagPartialWiki($params)
     {
-        @list($field_id, $len, $wordlen) = explode(',', $params);
+        @list($field_id, $max, $max_word) = explode(',', $params);
         if (empty($field_id) || is_null($value = $this->getField($field_id))) {
             TIP::error("no valid field found ($params)");
             return false;
         }
 
-        $len > 0 || $len = 100;
-        $wordlen > 0 || $wordlen = 25;
+        $max > 0 || $max = 100;
+        $max_word > 0 || $max_word = 25;
         $fields =& $this->data->getFields();
         $field =& $fields[$field_id];
         $rules = isset($field['wiki_rules']) ? explode(',', $field['wiki_rules']) : null;
@@ -713,11 +713,11 @@ class TIP_Content extends TIP_Module
         $text_len = -1; // Do not consider the first space delimiter
         $token_list = array();
         $token = strtok($text, " \n\t");
-        while ($text_len < $len && $token !== false) {
-            $token_len = strlen($token);
-            if ($token_len > $wordlen) {
-                $token = substr_replace($token, '...', $wordlen-3);
-                $token_len = $wordlen;
+        while ($text_len < $max && $token !== false) {
+            $token_len = mb_strlen($token);
+            if ($token_len > $max_word) {
+                $token = mb_substr($token, 0, $max_word-3) . '...';
+                $token_len = $max_word;
             }
 
             $text_len += $token_len+1;
@@ -727,7 +727,8 @@ class TIP_Content extends TIP_Module
 
         $text_len > 0 || $text_len = 0;
         $text = implode(' ', $token_list);
-        echo $text_len > $len ? substr_replace($text, '...', $len-3) : $text;
+        $text_len < $max || $text = mb_substr($text, 0, $max-3) . '...';
+        echo TIP::toHtml($text);
         return true;
     }
 

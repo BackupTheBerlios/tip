@@ -216,7 +216,7 @@ class TIP_Form extends TIP_Module
 
         // Create the interface
         require_once 'HTML/QuickForm/DHTMLRulesTableless.php';
-        $this->_form =& new HTML_QuickForm_DHTMLRulesTableless($this->id);
+        $this->_form =& new HTML_QuickForm_DHTMLRulesTableless('_form_' . $this->id);
 
         // XHTML compliance
         $this->_form->removeAttribute('name');
@@ -275,36 +275,48 @@ class TIP_Form extends TIP_Module
         }
 
         // Define buttons if $this->buttons is not set
-        if (!isset($buttons)) {
-            $buttons = $this->buttons;
-        }
+        isset($buttons) || $buttons = $this->buttons;
 
         // Add buttons
         $group = array();
         if ($buttons & TIP_FORM_BUTTON_SUBMIT) {
-            $group[] =& $this->_form->createElement('submit', null, $this->getLocale('button.submit'), array('class' => 'ok'));
+            $element =& $this->_form->createElement('submit', null, $this->getLocale('button.submit'), array('class' => 'ok'));
+            $element->removeAttribute('name');
+            $group[] =& $element;
         }
         if ($buttons & TIP_FORM_BUTTON_RESET) {
-            $group[] =& $this->_form->createElement('reset', null, $this->getLocale('button.reset'), array('class' => 'restore'));
+            $element =& $this->_form->createElement('reset', null, $this->getLocale('button.reset'), array('class' => 'restore'));
+            $element->removeAttribute('name');
+            $group[] =& $element;
         }
         if ($buttons & TIP_FORM_BUTTON_OK) {
-            $group[] =& $this->_form->createElement('link', 'ok', null, $_SERVER['REQUEST_URI'] . '&process=1', $this->getLocale('button.ok'), array('class' => 'ok'));
+            $element =& $this->_form->createElement('link', 'ok', null, $_SERVER['REQUEST_URI'] . '&process=1', $this->getLocale('button.ok'), array('class' => 'ok'));
+            $element->removeAttribute('name');
+            $group[] =& $element;
         }
         if ($buttons & TIP_FORM_BUTTON_DELETE && $this->action_id == TIP_FORM_ACTION_DELETE) {
-            $group[] =& $this->_form->createElement('link', 'delete', null, $_SERVER['REQUEST_URI'] . '&process=1', $this->getLocale('button.delete'), array('class' => 'delete'));
+            $element =& $this->_form->createElement('link', 'delete', null, $_SERVER['REQUEST_URI'] . '&process=1', $this->getLocale('button.delete'), array('class' => 'delete'));
+            $element->removeAttribute('name');
+            $group[] =& $element;
         }
         if ($buttons & TIP_FORM_BUTTON_CANCEL) {
-            $group[] =& $this->_form->createElement('link', 'cancel', null, $this->referer, $this->getLocale('button.cancel'), array('class' => 'cancel'));
+            $element =& $this->_form->createElement('link', 'cancel', null, $this->referer, $this->getLocale('button.cancel'), array('class' => 'cancel'));
+            $element->removeAttribute('name');
+            $group[] =& $element;
         }
         if ($buttons & TIP_FORM_BUTTON_CLOSE) {
-            $group[] =& $this->_form->createElement('link', 'close', null, $this->follower, $this->getLocale('button.close'), array('class' => 'close'));
+            $element =& $this->_form->createElement('link', 'close', null, $this->follower, $this->getLocale('button.close'), array('class' => 'close'));
+            $element->removeAttribute('name');
+            $group[] =& $element;
         }
         if ($buttons & TIP_FORM_BUTTON_DELETE && $this->action_id != TIP_FORM_ACTION_DELETE) {
             $primary_key = $this->_data->getProperty('primary_key');
             $url = TIP::getScriptURI() . '?module=' . $this->id .
                 '&action=delete&' .
                 $primary_key . '=' . urlencode($this->_form->getElementValue($primary_key));
-            $group[] =& $this->_form->createElement('link', 'delete', null, $url, $this->getLocale('button.delete'), array('class' => 'delete'));
+            $element =& $this->_form->createElement('link', 'delete', null, $url, $this->getLocale('button.delete'), array('class' => 'delete'));
+            $element->removeAttribute('name');
+            $group[] =& $element;
         }
 
         // Add the tabindex property to the buttons
@@ -314,7 +326,7 @@ class TIP_Form extends TIP_Module
         }
 
         // Add the group of buttons to the form
-        $element =& $this->_form->addElement('group', 'buttons', null, $group, ' ');
+        $element =& $this->_form->addElement('group', 'buttons', null, $group, ' ', false);
 
         // Rendering
         if ($render == TIP_FORM_RENDER_HERE) {
@@ -724,6 +736,7 @@ class TIP_Form extends TIP_Module
             $rules = null;
         }
         $element->setWiki(TIP_Renderer::getWiki($rules));
+        $element->setCols('30');
         $element->setRows('10');
 
         return $element;
