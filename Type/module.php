@@ -189,6 +189,28 @@ abstract class TIP_Module extends TIP_Type
     }
 
     /**
+     * Try to get a localized text
+     *
+     * Similar to getLocale(), but does not raise any warning and returns an
+     * empty string on no matching id.
+     *
+     * @param  string $id      The identifier
+     * @param  array  $context A context associative array
+     * @param  bool   $cached  Whether to perform or not a cached read
+     * @return string          The requested localized text
+     */
+    protected function tryLocale($id, $context = null, $cached = true)
+    {
+        $text = TIP::getLocale($id, $this->locale_prefix, $context, $cached);
+        if (empty($text)) {
+            $text = $this->locale_prefix . '.' . $id;
+            TIP::warning("localized text not found ($text)");
+        }
+
+        return $text;
+    }
+
+    /**
      * Localize an id
      *
      * Similar to getLocale() but the result is stored in $dst instead of

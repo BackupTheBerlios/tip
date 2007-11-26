@@ -73,7 +73,7 @@ class TIP_Form extends TIP_Module
      * Validation type, as described in HTML_QuickForm
      * @var string
      */
-    protected $validation = 'client';
+    protected $validation = 'server';
 
     /**
      * Validation callback
@@ -216,15 +216,15 @@ class TIP_Form extends TIP_Module
 
         // Create the interface
         require_once 'HTML/QuickForm/DHTMLRulesTableless.php';
-        $this->_form =& new HTML_QuickForm_DHTMLRulesTableless('_form_' . $this->id);
+        $this->_form =& new HTML_QuickForm_DHTMLRulesTableless('__form_' . $this->id);
 
         // XHTML compliance
         $this->_form->removeAttribute('name');
 
-        // The label element (default header object) is buggy at least on
-        // Firefox, so I provide a decent alternative (a static <h1> element)
+        // The legend element (default header object) is unstyleable,
+        // so I provide a decent alternative with a static <h1> element
         $this->_form->addElement('html', '<h1>' . $header_label . '</h1>');
-        $this->_form->addElement('header', 'header.' . $this->action_id, $header_label);
+        $this->_form->addElement('header', '__set_' . $this->id, $header_label);
         $this->_form->addElement('hidden', 'module', $this->id);
         $this->_form->addElement('hidden', 'action', $this->action_id);
         array_walk(array_keys($this->fields), array(&$this, '_addWidget'));
@@ -322,7 +322,7 @@ class TIP_Form extends TIP_Module
         // Add the tabindex property to the buttons
         foreach (array_keys($group) as $id) {
             ++ $this->_tabindex;
-            $group[$id]->setAttribute ('tabindex', $this->_tabindex);
+            $group[$id]->setAttribute('tabindex', $this->_tabindex);
         }
 
         // Add the group of buttons to the form
@@ -476,7 +476,11 @@ class TIP_Form extends TIP_Module
         if ($class) {
             $attributes['class'] = $class;
         }
-        return $this->_form->addElement($type, $id, $label, $attributes);
+
+        $element =& $this->_form->createElement($type, $id, $label, $attributes);
+        $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
+        $element->setComment($comment);
+        return $this->_form->addElement($element);
     }
 
     private function _addWidget($id)

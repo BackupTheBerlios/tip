@@ -106,8 +106,8 @@ class TIP_Renderer
         static $renderer = null;
 
         if (is_null($renderer)) {
-            require_once 'HTML/QuickForm/Renderer/Tableless.php';
-            $renderer =& new HTML_QuickForm_Renderer_Tableless();
+            require_once 'HTML/QuickForm/Renderer/Tip.php';
+            $renderer =& new HTML_QuickForm_Renderer_Tip();
         }
 
         return $renderer;
