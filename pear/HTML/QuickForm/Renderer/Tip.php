@@ -36,7 +36,7 @@ class HTML_QuickForm_Renderer_Tip extends HTML_QuickForm_Renderer
      * @var      string
      * @access   private
      */
-    var $_elementTemplate = "\n  <div<!-- BEGIN error --> class=\"error\"<!-- END error -->>\n<!-- BEGIN label -->    <label><!-- BEGIN required --><strong><!-- END required -->{label}<!-- BEGIN required --></strong><!-- END required --></label><!-- END label --><!-- BEGIN error --><em>{error}</em><!-- END error -->\n    <div<!-- BEGIN required --> class=\"required\"<!-- END required -->>{element}</div>\n<!-- BEGIN comment -->    <small>{comment}</small>\n<!-- END comment -->  </div>";
+    var $_elementTemplate = "\n  <div<!-- BEGIN error --> class=\"error\"<!-- END error -->>\n<!-- BEGIN label -->    <label><!-- BEGIN required --><strong><!-- END required -->{label}<!-- BEGIN required --></strong><!-- END required --></label><!-- END label --><!-- BEGIN error --><em>{error}</em><!-- END error -->\n    <div{required}>{element}</div>\n<!-- BEGIN comment -->    <small>{comment}</small>\n<!-- END comment -->  </div>";
 
     /**
      * Form template string
@@ -265,51 +265,48 @@ class HTML_QuickForm_Renderer_Tip extends HTML_QuickForm_Renderer
         ++ $this->_fieldsetsOpen;
     } // end func renderHeader
 
-   /**
-    * Renders an element Html
-    * Called when visiting an element
-    *
-    * @param object     An HTML_QuickForm_element object being visited
-    * @param bool       Whether an element is required
-    * @param string     An error message associated with an element
-    * @access public
-    * @return void
-    */
+    /**
+     * Renders an element Html
+     * Called when visiting an element
+     *
+     * @param object     An HTML_QuickForm_element object being visited
+     * @param bool       Whether an element is required
+     * @param string     An error message associated with an element
+     * @access public
+     * @return void
+     */
     function renderElement(&$element, $required, $error)
     {
         $name = $element->getName();
+        // Instead of having a useless boolean, better to have something more
+        $required = $required ? ' class="required"' : null;
+
         $this->_handleStopFieldsetElements($name);
+
         if (!$this->_inGroup) {
-            if ($element->getType() == 'group') {
-                $name = '';
-            } else {
-                $element->setAttribute('id', $name);
-            }
-            $html = $this->_prepareTemplate($name, $element->getLabel(), $required, $error, $element->getComment());
+            $html = $this->_elementExpansion($element, $required, $error);
             $this->_html .= str_replace('{element}', $element->toHtml(), $html);
         } elseif (!empty($this->_groupElementTemplate)) {
-            $html = str_replace('{label}', $element->getLabel(), $this->_groupElementTemplate);
-            if ($required) {
-                $html = str_replace('<!-- BEGIN required -->', '', $html);
-                $html = str_replace('<!-- END required -->', '', $html);
-            } else {
-                $html = preg_replace('/<!-- BEGIN required -->.*<!-- END required -->/isU', '', $html);
-            }
+            $html = $this->_tagExpansion(
+                $this->_groupElementTemplate,
+                array(
+                    'label'    => $element->getLabel(),
+                    'required' => $required
+                ));
             $this->_groupElements[] = str_replace('{element}', $element->toHtml(), $html);
-
         } else {
             $this->_groupElements[] = $element->toHtml();
         }
     } // end func renderElement
 
-   /**
-    * Renders an hidden element
-    * Called when visiting a hidden element
-    * 
-    * @param object     An HTML_QuickForm_hidden object being visited
-    * @access public
-    * @return void
-    */
+    /**
+     * Renders an hidden element
+     * Called when visiting a hidden element
+     * 
+     * @param object     An HTML_QuickForm_hidden object being visited
+     * @access public
+     * @return void
+     */
     function renderHidden(&$element)
     {
         if (!is_null($element->getAttribute('id'))) {
@@ -351,7 +348,7 @@ class HTML_QuickForm_Renderer_Tip extends HTML_QuickForm_Renderer
     {
         $name = $group->getName();
         $this->_handleStopFieldsetElements($name);
-        $this->_groupTemplate        = $this->_prepareTemplate(null, $group->getLabel(), $required, $error);
+        $this->_groupTemplate        = $this->_elementExpansion($group, null, $error);
         $this->_groupElementTemplate = empty($this->_groupTemplates[$name])? '': $this->_groupTemplates[$name];
         $this->_groupWrap            = empty($this->_groupWraps[$name])? '': $this->_groupWraps[$name];
         $this->_groupElements        = array();
@@ -556,57 +553,72 @@ class HTML_QuickForm_Renderer_Tip extends HTML_QuickForm_Renderer
         }
     } // end func addStopFieldsetElements
 
-   /**
-    * Helper method for renderElement
-    *
-    * @param    string      Element name
-    * @param    mixed       Element label (if using an array of labels, you should set the appropriate template)
-    * @param    bool        Whether an element is required
-    * @param    string      Error message associated with the element
-    * @access   private
-    * @see      renderElement()
-    * @return   string      Html for element
-    */
-    function _prepareTemplate($name, $labels, $required, $error, $comment = null)
+    /**
+     * Expands a whole element template
+     *
+     * @param  object &$element  An HTML_QuickForm_element object being visited
+     * @param  string  $required The substitution of {required} or null
+     * @param  string  $error    An error message associated with an element
+     * @return string            Html for $element
+     * @access private
+     */
+    function _elementExpansion(&$element, $required, $error)
     {
-        $label = is_array($labels) ? array_shift($labels) : $labels;
+        $name = $element->getName();
+        $labels = $element->getLabel();
         $html = isset($this->_templates[$name]) ? $this->_templates[$name] : $this->_elementTemplate;
 
-        foreach (array('label', 'required', 'error', 'comment') as $tag) {
-            if (empty($$tag)) {
-                $preg_needles[] = "/<!-- BEGIN $tag -->.*<!-- END $tag -->/isU";
-                $preg_replaces[] = '';
-            } else {
-                $str_needles[] = "<!-- BEGIN $tag -->";
-                $str_replaces[] = '';
-                $str_needles[] = "<!-- END $tag -->";
-                $str_replaces[] = '';
-                $str_needles[] = '{' . $tag . '}';
-                $str_replaces[] = $$tag;
-            }
-        }
-
-        if (!empty($name)) {
-            $str_needles[] = '<label';
-            $str_replaces[] = '<label for="' . $name . '"';
-        }
-
         if (is_array($labels)) {
-            foreach($labels as $key => $text) {
-                $key  = is_int($key)? $key + 2: $key;
-                $html = str_replace("{label_$key}", $text, $html);
-                $html = str_replace("<!-- BEGIN label_{$key} -->", '', $html);
-                $html = str_replace("<!-- END label_{$key} -->", '', $html);
+            $label = array_shift($labels);
+            foreach($labels as $key => $value) {
+                $tags["label_$key"] = $value;
             }
-        }
-        if (strpos($html, '{label_')) {
-            $html = preg_replace('/<!-- BEGIN label_.*-->.*<!-- END label_.*-->/isU', '', $html);
+        } else {
+            $label = $labels;
+            $tags = array();
         }
 
-        isset($preg_needles) && $html = preg_replace($preg_needles, $preg_replaces, $html);
-        isset($str_needles) && $html = str_replace($str_needles, $str_replaces, $html);
+        $tags += array(
+            'label'    => $label,
+            'required' => $required,
+            'error'    => $error,
+            'comment'  => $element->getComment()
+        );
+
+        return $this->_tagExpansion(
+            isset($this->_templates[$name]) ? $this->_templates[$name] : $this->_elementTemplate,
+            $tags);
+    } // end func _elementExpansion
+
+    /**
+     * Low level expansion method
+     *
+     * @param  string $html Template html
+     * @param  array  $tags Array of Tag => Value to substitute
+     * @return string       Html for element
+     * @access private
+     */
+    function _tagExpansion($html, $tags)
+    {
+        foreach ($tags as $tag => $value) {
+            $str_needle[] = '{' . $tag . '}';
+            if (is_null($value)) {
+                $str_value[] = '';
+                $preg_needle[] = "/<!-- BEGIN $tag -->.*<!-- END $tag -->/isU";
+                $preg_value[] = '';
+            } else {
+                $str_value[] = $value;
+                $str_needle[] = "<!-- BEGIN $tag -->";
+                $str_value[] = '';
+                $str_needle[] = "<!-- END $tag -->";
+                $str_value[] = '';
+            }
+        }
+
+        isset($preg_needle) && $html = preg_replace($preg_needle, $preg_value, $html);
+        isset($str_needle) && $html = str_replace($str_needle, $str_value, $html);
         return $html;
-    } // end func _prepareTemplate
+    } // end func _tagExpansion
 
     /**
      * Handle element/group names that indicate the end of a group

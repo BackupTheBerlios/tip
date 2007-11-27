@@ -471,16 +471,13 @@ class TIP_Form extends TIP_Module
     private function& _addElement($type, $id, $class = false)
     {
         $label = $this->getLocale('label.' . $id);
-        ++ $this->_tabindex;
-        $attributes['tabindex'] = $this->_tabindex;
-        if ($class) {
-            $attributes['class'] = $class;
-        }
-
-        $element =& $this->_form->createElement($type, $id, $label, $attributes);
         $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
+        $attributes['tabindex'] = ++ $this->_tabindex;
+        $class && $attributes['class'] = $class;
+
+        $element =& $this->_form->addElement($type, $id, $label, $attributes);
         $element->setComment($comment);
-        return $this->_form->addElement($element);
+        return $element;
     }
 
     private function _addWidget($id)
@@ -677,6 +674,7 @@ class TIP_Form extends TIP_Module
     {
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
+        $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
         $items = array();
         foreach ($field['choices'] as $choice) {
             $items[$choice] = $this->getLocale('label.' . $choice);
@@ -697,6 +695,7 @@ class TIP_Form extends TIP_Module
             $element =& $this->_form->addElement('group', $id, $label, $group, null, false);
         }
 
+        $element->setComment($comment);
         return $element;
     }
 
@@ -704,6 +703,7 @@ class TIP_Form extends TIP_Module
     {
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
+        $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
         $default = @explode(',', $this->defaults[$id]);
         $items = array();
         foreach ($field['choices'] as $choice) {
@@ -724,7 +724,9 @@ class TIP_Form extends TIP_Module
         }
 
         $this->_addConverter($id, 'set');
-        return $this->_form->addElement('group', $id, $label, $group);
+        $element =& $this->_form->addElement('group', $id, $label, $group);
+        $element->setComment($comment);
+        return $element;
     }
 
     private function &_widgetTextArea(&$field)
@@ -752,6 +754,7 @@ class TIP_Form extends TIP_Module
 
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
+        $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
 
         // Set the date in a format suitable for HTML_QuickForm_date
         $iso8601 = @$this->defaults[$id];
@@ -772,6 +775,7 @@ class TIP_Form extends TIP_Module
 
         ++ $this->_tabindex;
         $element =& $this->_form->addElement('date', $id, $label, $options, array('tabindex' => $this->_tabindex));
+        $element->setComment($comment);
         $this->_addRule($id, 'date');
         $this->_addConverter($id, 'ISO8601');
         return $element;
@@ -804,6 +808,7 @@ class TIP_Form extends TIP_Module
     {
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
+        $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
         $hierarchy_id = $this->id . '_hierarchy';
         $hierarchy =& TIP_Type::getInstance($hierarchy_id);
 
@@ -811,7 +816,9 @@ class TIP_Form extends TIP_Module
         $items = array(' ' => '&#160;') + $hierarchy->toRows();
 
         ++ $this->_tabindex;
-        return $this->_form->addElement('select', $id, $label, $items, array('tabindex' => $this->_tabindex, 'class' => 'expand'));
+        $element =& $this->_form->addElement('select', $id, $label, $items, array('tabindex' => $this->_tabindex, 'class' => 'expand'));
+        $element->setComment($element);
+        return $element;
     }
 
     //}}}
