@@ -149,9 +149,29 @@ class TIP_Logger extends TIP_Content
         return true;
     }
 
+    /**
+     * Get the log array
+     *
+     * Gets the internal log cache.
+     *
+     * @return array The logs
+     */
     public function &getLogs()
     {
         return $this->_cache;
+    }
+
+    /**
+     * Echo the log list
+     *
+     * Dumps the log messages to the standard output, if the log cache
+     * is not empty.
+     */
+    public function dumpLogs()
+    {
+        if (!empty($this->_cache)) {
+            $this->tagRun($this->browse_source);
+        }
     }
 
     //}}}
