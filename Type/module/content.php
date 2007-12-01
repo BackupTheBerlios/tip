@@ -341,7 +341,7 @@ class TIP_Content extends TIP_Module
             }
         }
 
-        $options['type']   = array('form');
+        $options['type']   = array('module', 'form');
         $options['master'] =& $this;
         $options['action'] = $action;
         return TIP_Type::singleton($options)->run();
