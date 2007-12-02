@@ -17,17 +17,22 @@ require_once 'HTML/Menu/Renderer.php';
  */
 class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
 {
-    /**
-     * Menu identifier
-     * @var string
-     */
-    var $_id = null;
+    //{{{ properties
 
     /**
      * Text to use to connect different levels in row rendering
      * @var array
      */
     var $_glue = '::';
+
+    /**
+     * Rows render mode
+     *
+     * How to render in rows (it works only for toArray() method).
+     *
+     * @var int
+     */
+    var $_array_mode = 2;
 
     /**
      * Generated HTML for the menu
@@ -42,58 +47,86 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
     var $_rows = array();
 
     /**
-     * Row id
-     * @var int
-     * @internal
-     */
-    var $_row_id = 0;
-
-    /**
      * Internal name stack
      * @var array
      * @internal
      */
     var $_name_stack = array();
 
+    //}}}
+    //{{{ setGlue()
+
     /**
-     * Internal id stack
-     * @var array
-     * @internal
+     * Set the glue used in rendering toArray()
+     *
+     * @param  string $glue The new glue
+     * @access public
      */
-    var $_id_stack = array();
-
-
-    function setId($id)
-    {
-        $this->_id = $id;
-    }
-
-    function getId()
-    {
-        return $this->_id;
-    }
-
     function setGlue($glue)
     {
         $this->_glue = $glue;
-    }
+    } // end func setGlue
 
+    //}}}
+    //{{{ getGlue()
+
+    /**
+     * Get the glue used in rendering toArray()
+     *
+     * @return string The current glue
+     * @access public
+     */
     function getGlue()
     {
         return $this->_glue;
-    }
+    } // end func getGlue
+
+    //}}}
+    //{{{ setArrayMode()
+
+    /**
+     * Set the renderer mode of toArray()
+     *
+     * Available modes are:
+     *
+     * 0 = render none
+     * 1 = render only container nodes
+     * 2 = render only leaf nodes
+     * 3 = render every node
+     *
+     * @param  int    $mode The new array mode
+     * @access public
+     */
+    function setArrayMode($mode)
+    {
+        $this->_array_mode = $mode;
+    } // end func setArrayMode
+
+    //}}}
+    //{{{ getArrayMode()
+
+    /**
+     * Get the current renderer mode of toArray()
+     *
+     * @return int    The current array mode
+     * @access public
+     */
+
+    function getArrayMode()
+    {
+        return $this->_array_mode;
+    } // end func getArrayMode
+
+    //}}}
+    //{{{ overriden virtual functions
 
     function setMenuType($type)
     {
-        static $dummy_id = 0;
-
         if ('tree' == $type || 'sitemap' == $type || 'rows' == $type) {
             $this->_menuType = $type;
             $this->_html = '';
             $this->_rows = array();
             $this->_name_stack = array();
-            $this->_id_stack = array();
-            isset($this->_id) || $this->_id = $type . (++ $dummy_id);
         } else {
             require_once 'PEAR.php';
             return PEAR::raiseError("HTML_Menu_TipRenderer: unable to render '$type' type menu");
@@ -106,6 +139,12 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         $indent = str_repeat('    ', $level);
         $name = implode($this->_glue, $this->_name_stack);
         $is_active = $type != HTML_MENU_ENTRY_INACTIVE;
+        $is_container = array_key_exists('sub', $node);
+
+        if ($is_container && ($this->_array_mode & 1) ||
+            !$is_container && ($this->_array_mode & 2)) {
+            $this->_rows[] = $name;
+        }
 
         $content = $node['title'];
         if (isset($node['ITEMS'])) {
@@ -119,12 +158,10 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
             $content = '<strong>' . $content . '</strong>';
         }
 
-        if (array_key_exists('sub', $node)) {
-            // Cointainer node
+        if ($is_container) {
             $ul = $is_active ? '<ul class="opened">' : '<ul>';
             $content = "<li><em>$content</em>\n$indent    $ul";
         } else {
-            // Leaf node
             $content = '<li><a href="' . $node['url'] . '">' . $content . '</a></li>';
         }
 
@@ -147,7 +184,6 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         $content = $this->_html[$level]['content'];
         unset($this->_html[$level]);
         unset($this->_name_stack[$level]);
-        unset($this->_id_stack[$level]);
 
         if ($level > 0) {
             $indent = str_repeat('    ', $level-1);
@@ -157,26 +193,16 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         }
     }
 
-   /**
-    * Returns the HTML generated for the menu
-    *
-    * @access public
-    * @return string
-    */
     function toHtml()
     {
         return $this->_html;
     }
 
-   /**
-    * Returns the array of rows generated for the menu
-    *
-    * @access public
-    * @return array
-    */
     function toArray()
     {
         return $this->_rows;
     }
+
+    //}}}
 }
 ?>
