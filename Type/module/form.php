@@ -817,7 +817,7 @@ class TIP_Form extends TIP_Module
 
         ++ $this->_tabindex;
         $element =& $this->_form->addElement('select', $id, $label, $items, array('tabindex' => $this->_tabindex, 'class' => 'expand'));
-        $element->setComment($element);
+        $element->setComment($comment);
         return $element;
     }
 
