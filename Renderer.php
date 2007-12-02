@@ -33,10 +33,6 @@ class TIP_Renderer
             $renderer =& new HTML_Menu_TipRenderer();
         }
 
-        if (isset($id)) {
-            $renderer->setId($id);
-        }
-
         return $renderer;
     }
 

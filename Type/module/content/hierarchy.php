@@ -61,6 +61,7 @@ class TIP_Hierarchy extends TIP_Content
             $options['master'] =& TIP_Type::singleton($options['master']);
         }
 
+        isset($options['view_source']) || $options['view_source'] = null;
         return $options['master'] instanceof TIP_Content;
     }
 

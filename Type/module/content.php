@@ -955,6 +955,11 @@ class TIP_Content extends TIP_Module
      */
     protected function actionView($id)
     {
+        // If no view source defined, simply does nothing (without errors)
+        if (empty($this->view_source)) {
+            return true;
+        }
+
         if (is_null($row =& $this->fromRow($id, false)) || !$this->_onView($row)) {
             return false;
         }
@@ -976,6 +981,11 @@ class TIP_Content extends TIP_Module
      */
     protected function actionBrowse(&$conditions)
     {
+        // If no browse source defined, simply does nothing (without errors)
+        if (empty($this->browse_source)) {
+            return true;
+        }
+
         $this->_browse_conditions = &$conditions;
         $this->appendToPage($this->browse_source);
         return true;
