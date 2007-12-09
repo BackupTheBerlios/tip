@@ -21,10 +21,10 @@ class TIP_Renderer
      * Singleton to get the HTML_Menu_Renderer instance properly configured for
      * the TIP system.
      *
-     * @param  string             $id The menu identifier
-     * @return HTML_Menu_Renderer     The renderer
+     * @param  int                $levels Number of levels to keep online
+     * @return HTML_Menu_Renderer         The renderer
      */
-    static public function &getMenu($id = null)
+    static public function &getMenu($levels = null)
     {
         static $renderer = null;
 
@@ -33,6 +33,7 @@ class TIP_Renderer
             $renderer =& new HTML_Menu_TipRenderer();
         }
 
+        $renderer->setLevels($levels);
         return $renderer;
     }
 

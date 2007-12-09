@@ -117,11 +117,12 @@ abstract class TIP_View extends TIP_Type implements Iterator
     protected function __construct($options)
     {
         parent::__construct($options);
+        is_null($this->rows) && $this->fillRows();
     }
 
     protected function postConstructor()
     {
-        if (is_null($this->rows) && !$this->fillRows() || !is_array($this->rows)) {
+        if (!is_array($this->rows)) {
             return;
         }
 

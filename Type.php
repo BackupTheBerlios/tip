@@ -178,7 +178,7 @@ abstract class TIP_Type
 
             // postConstructor() call: must be done after the registration
             // to avoid circular dependency
-            $list[$id]->postConstructor();
+            isset($GLOBALS[TIP_FLAG_AVOID_PC]) || $list[$id]->postConstructor();
         }
 
         return $list[$id];

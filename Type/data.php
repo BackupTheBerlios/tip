@@ -83,13 +83,27 @@ class TIP_Data extends TIP_Type
             return false;
         }
 
-        isset($options['engine']) || $options['engine'] =& TIP_Application::getGlobal('data_engine');
+        TIP::requiredOption($options, 'data_engine');
+
+        if (is_string($options['data_engine'])) {
+            $options['engine'] =& TIP_Type::singleton(array(
+                'type' => array('data_engine', $options['data_engine'])
+            ));
+        } elseif (is_array($options['data_engine'])) {
+            $options['engine'] =& TIP_Type::singleton($options['data_engine']);
+        } else {
+            $options['engine'] =& $options['data_engine'];
+        }
+
+        unset($options['data_engine']);
+
+        if (!$options['engine'] instanceof TIP_Data_Engine) {
+            return false;
+        }
 
         // Forced overriding of the default id ('data')
         $options['id'] = $options['engine']->getProperty('id') . ':' . $options['path'];
-        if (isset($options['fieldset'])) {
-            $options['id'] .= '(' . implode(',', $options['fieldset']) . ')';
-        }
+        isset($options['fieldset']) && $options['id'] .= '(' . implode(',', $options['fieldset']) . ')';
 
         return true;
     }

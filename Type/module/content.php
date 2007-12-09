@@ -127,11 +127,11 @@ class TIP_Content extends TIP_Module
         if (is_string($options['data'])) {
             $options['data'] =& TIP_Type::singleton(array(
                 'type' => array('data'),
-                'path' => TIP_Application::getGlobal('data_prefix') . $options['data']
+                'path' => $options['data']
             ));
         } elseif (is_array($options['data'])) {
             isset($options['data']['type']) || $options['data']['type'] = array('data');
-            isset($options['data']['path']) || $options['data']['path'] = TIP_Application::getGlobal('data_prefix') . $options['id'];
+            isset($options['data']['path']) || $options['data']['path'] = $options['id'];
             $options['data'] =& TIP_Type::singleton($options['data']);
         }
 
@@ -291,12 +291,6 @@ class TIP_Content extends TIP_Module
         $this->run($file);
         $buffer = ob_get_clean();
         TIP_Application::appendCallback(array('TIP', 'echo_wrapper'), array(&$buffer));
-
-        /*
-        TIP_Application::appendCallback(array(&$this, 'push'), array(&$this->_view, false));
-        TIP_Application::appendCallback(array(&$this, 'run'),  array($file));
-        TIP_Application::appendCallback(array(&$this, 'pop'));
-         */
         return true;
     }
 
@@ -749,18 +743,33 @@ class TIP_Content extends TIP_Module
      */
     protected function tagCronology($params)
     {
-        $options['type'] = array('cronology');
-        $options['master'] =& $this;
         @list(
-            $date_field,
+            $options['date_field'],
             $options['title_field'],
             $options['tooltip_field'],
             $options['count_field'],
-            $options['base_action']
+            $options['base_action'],
+            $options['levels']
         ) = explode(',', $params);
 
-        empty($date_field) || $options['date_field'] = $date_field;
-        $options['id'] = $this->id . '_cronology' . $date_field;
+        // Delete null values
+        $options = array_filter($options, 'is_string');
+        $id = $this->id . '_cronology';
+        if (empty($options['date_field'])) {
+            unset($options['date_field']);
+        } else {
+            $id .= $options['date_field'];
+        }
+
+        // Merge with the configuration options
+        $options['id'] = $id;
+        isset($GLOBALS['cfg'][$id]) && $options += $GLOBALS['cfg'][$id];
+
+        // Set required defaults
+        isset($options['type']) || $options['type'] = array('cronology');
+        isset($options['master']) || $options['master'] =& $this;
+        isset($options['date_field']) || $options['date_field'] = $this->creation_field;
+
         echo TIP_Type::singleton($options)->toHtml();
         return true;
     }

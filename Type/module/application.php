@@ -146,8 +146,6 @@ class TIP_Application extends TIP_Module
         }
 
         isset($options['fatal_url']) || $options['fatal_url'] = TIP::getScriptURI() . '?module=' . $options['id'] . '&action=fatal';
-        isset($options['anonymous_privilege']) || $options['anonymous_privilege'] = TIP_PRIVILEGE_NONE;
-        isset($options['default_privilege']) || $options['default_privilege'] = TIP_PRIVILEGE_NONE;
         return true;
     }
 
@@ -177,9 +175,9 @@ class TIP_Application extends TIP_Module
 
         // Set $_request
         $module = TIP::getGet('module', 'string');
-        if ($module) {
-            $action = TIP::getGet('action', 'string');
-        } else {
+        $action = TIP::getGet('action', 'string');
+
+        if (!$action) {
             $module = TIP::getPost('module', 'string');
             $action = TIP::getPost('action', 'string');
         }

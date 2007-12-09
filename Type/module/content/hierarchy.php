@@ -46,6 +46,12 @@ class TIP_Hierarchy extends TIP_Content
      */
     protected $count_field = '_count';
 
+    /**
+     * Maximum number of levels to keep online
+     * @var int
+     */
+    protected $levels = null;
+
     //}}}
     //{{{ Construction/destruction
 
@@ -150,7 +156,7 @@ class TIP_Hierarchy extends TIP_Content
         require_once 'HTML/Menu.php';
         $model =& new HTML_Menu($tree);
         $model->forceCurrentUrl(htmlspecialchars(TIP::getRequestURI()));
-        $renderer =& TIP_Renderer::getMenu($this->id);
+        $renderer =& TIP_Renderer::getMenu($this->levels);
         $model->render($renderer, 'sitemap');
         $this->_html = $renderer->toHtml();
         $this->_rows = $renderer->toArray();

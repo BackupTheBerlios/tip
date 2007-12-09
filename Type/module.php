@@ -75,22 +75,23 @@ abstract class TIP_Module extends TIP_Type
             return false;
         }
 
-        if (!isset($options['engine'])) {
-            $options['engine'] =& TIP_Application::getGlobal('engine');
-        } elseif (is_string($options['engine'])) {
+        TIP::requiredOption($options, 'engine');
+        TIP::requiredOption($options, 'anonymous_privilege', TIP_PRIVILEGE_NONE);
+        TIP::requiredOption($options, 'default_privilege', TIP_PRIVILEGE_NONE);
+
+        if (is_string($options['engine'])) {
             $options['engine'] =& TIP_Type::singleton(array(
                 'type' => array('source_engine', $options['engine'])
             ));
         } elseif (is_array($options['engine'])) {
             $options['engine'] =& TIP_Type::singleton($options['engine']);
         }
+
         if (!$options['engine'] instanceof TIP_Source_Engine) {
             return false;
         }
 
         isset($options['locale_prefix']) || $options['locale_prefix'] = end($options['type']);
-        isset($options['anonymous_privilege']) || $options['anonymous_privilege'] = TIP_Application::getGlobal('anonymous_privilege');
-        isset($options['default_privilege']) || $options['default_privilege'] = TIP_Application::getGlobal('default_privilege');
         return true;
     }
 

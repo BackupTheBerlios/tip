@@ -126,7 +126,7 @@ class TIP
     }
 
     /**
-     * Gets an option
+     * Get an option
      *
      * Gets a configuration option for a specified type. All the option values
      * are defined in the config file.
@@ -142,6 +142,48 @@ class TIP
             TIP::fatal("Required option not defined (\$cfg['$type']['$option'])");
         }
         return $value;
+    }
+
+    /**
+     * Define a required option
+     *
+     * If $option is not defined in the $options array, try to guess the
+     * default value by inspecting the configuration options of the first
+     * 'application' module found in the global $cfg array.
+     *
+     * If yet not found, the $fallback value is used.
+     *
+     * @param  array  &$options  Array of options
+     * @param  string  $option   The option to set
+     * @param  mixed   $fallback The fallback value
+     */
+    static public function requiredOption(&$options, $option, $fallback = null)
+    {
+        if (isset($options[$option])) {
+            return;
+        } elseif (isset($GLOBALS[TIP_MAIN])) {
+            $options[$option] =& TIP_Application::getGlobal($option);
+        } else {
+            static $main_cfg = null;
+
+            if (is_null($main_cfg)) {
+                // Search for the first application module
+                global $cfg;
+                $main_cfg = false;
+                foreach (array_keys($cfg) as $id) {
+                    if (end($cfg[$id]['type']) == 'application') {
+                        $main_cfg = $cfg[$id];
+                        break;
+                    }
+                }
+            }
+
+            if ($main_cfg && isset($main_cfg[$option])) {
+                $options[$option] = $main_cfg[$option];
+            } else {
+                $options[$option] = $fallback;
+            }
+        }
     }
 
     /**
@@ -461,7 +503,7 @@ class TIP
     static public function log($severity, $message)
     {
         static $logger = false;
-        if ($logger === false) {
+        if ($logger === false && isset($GLOBALS[TIP_MAIN])) {
             $logger =& TIP_Application::getSharedModule('logger');
         }
 
@@ -511,6 +553,8 @@ class TIP
      */
     static public function fatal($message)
     {
+        debug_print_backtrace();
+        flush();
         TIP::log('FATAL', $message);
         $fatal_uri = HTTP::absoluteURI(TIP_Application::getGlobal('fatal_url'));
         if ($fatal_uri == $_SERVER['REQUEST_URI']) {

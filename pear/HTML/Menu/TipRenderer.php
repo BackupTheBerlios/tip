@@ -21,9 +21,15 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
 
     /**
      * Text to use to connect different levels in row rendering
-     * @var array
+     * @var string
      */
     var $_glue = '::';
+
+    /**
+     * Number of indentation levels to keep online (null for all)
+     * @var int
+     */
+    var $_levels = null;
 
     /**
      * Rows render mode
@@ -82,6 +88,34 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
     } // end func getGlue
 
     //}}}
+    //{{{ setLevels()
+
+    /**
+     * Set the levels to keep online
+     *
+     * @param  string $levels The level number
+     * @access public
+     */
+    function setLevels($levels)
+    {
+        $this->_levels = $levels;
+    } // end func setLevels
+
+    //}}}
+    //{{{ getLevels()
+
+    /**
+     * Get the levels to keep online
+     *
+     * @return string The current levels
+     * @access public
+     */
+    function getLevels()
+    {
+        return $this->_levels;
+    } // end func getLevels
+
+    //}}}
     //{{{ setArrayMode()
 
     /**
@@ -136,43 +170,51 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
     function renderEntry($node, $level, $type)
     {
         $this->_name_stack[$level] = $node['title'];
-        $indent = str_repeat('    ', $level);
         $name = implode($this->_glue, $this->_name_stack);
-        $is_active = $type != HTML_MENU_ENTRY_INACTIVE;
         $is_container = array_key_exists('sub', $node);
 
+        // Array rendering
         if ($is_container && ($this->_array_mode & 1) ||
             !$is_container && ($this->_array_mode & 2)) {
             $this->_rows[] = $name;
         }
 
-        $content = $node['title'];
-        if (isset($node['ITEMS'])) {
-            $content .= ' (' . $node['ITEMS'] . ')';
-        }
-        if (isset($node['COUNT'])) {
-            $content .= ' <var>' . $node['COUNT'] . '</var>';
+        // Check for maximum level
+        $is_deep = isset($this->_levels) && $level >= $this->_levels;
+        $is_active = $type != HTML_MENU_ENTRY_INACTIVE;
+        if ($is_deep && $level > $this->_levels+1 ||
+            $is_deep && $level > $this->_levels && !$is_active &&
+            !end($this->_html[$level-1]['active'])) {
+            return;
         }
 
-        if ($is_active) {
-            $content = '<strong>' . $content . '</strong>';
-        }
+        // Generate the XHTML content
+        $content = $node['title'];
+        $indent = str_repeat('    ', $level);
+        isset($node['ITEMS']) && $content .= ' (' . $node['ITEMS'] . ')';
+        isset($node['COUNT']) && $content .= ' <var>' . $node['COUNT'] . '</var>';
+        $is_active && $content = '<strong>' . $content . '</strong>';
 
         if ($is_container) {
-            $ul = $is_active ? '<ul class="opened">' : '<ul>';
-            $content = "<li><em>$content</em>\n$indent    $ul";
+            // <em> for containers
+            $content = '<em>' . $content . '</em>';
+            $is_deep && !$is_active && $content = '<a href="' . $node['url'] . '">' . $content . '</a>';
         } else {
-            $content = '<li><a href="' . $node['url'] . '">' . $content . '</a></li>';
+            // <span> for normal entries
+            $content = '<a href="' . $node['url'] . '"><span>' . $content . '</span></a>';
         }
 
-        $content = "\n$indent  $content";
+        $content = "\n$indent  <li>$content";
+
+        // Close previous <li> for non-starting entries
+        isset($this->_html[$level]) && $content = '</li>' . $content;
 
         if (isset($this->_html[$level])) {
-            $this->_html[$level]['active'] = $this->_html[$level]['active'] || $is_active;
+            $this->_html[$level]['active'][] = $is_active;
             $this->_html[$level]['content'] .= $content;
         } else {
             $this->_html[$level] = array(
-                'active'  => $is_active,
+                'active'  => array($is_active),
                 'content' => $content
             );
         }
@@ -180,14 +222,26 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
 
     function finishLevel($level)
     {
-        $is_active = $this->_html[$level]['active'];
-        $content = $this->_html[$level]['content'];
-        unset($this->_html[$level]);
+        if (isset($this->_html[$level])) {
+            $is_active = in_array(true, $this->_html[$level]['active']);
+            $content =& $this->_html[$level]['content'];
+            unset($this->_html[$level]);
+        } else {
+            $content = '';
+        }
+
         unset($this->_name_stack[$level]);
+        if (empty($content)) {
+            return;
+        }
+
+        // Close the last <li>
+        $content .= '</li>';
 
         if ($level > 0) {
             $indent = str_repeat('    ', $level-1);
-            $this->_html[$level-1]['content'] .= "$content\n$indent    </ul>\n$indent  </li>";
+            $ul = $is_active ? '<ul class="opened">' : '<ul>';
+            $this->_html[$level-1]['content'] .= "\n$indent    $ul$content\n$indent    </ul>\n$indent  ";
         } else {
             $this->_html =& $content;
         }

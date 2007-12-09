@@ -86,19 +86,6 @@ class TIP_Mysql extends TIP_Data_Engine
     protected function __construct($options)
     {
         parent::__construct($options);
-    }
-
-    /**
-     * Overridable post construction method
-     *
-     * Called after the construction happened. This can be overriden to do some
-     * other post costruction operation.
-     *
-     * In TIP_Mysql, the postConstructor() method initializes the database
-     * connection.
-     */
-    protected function postConstructor()
-    {
         $this->_connection = mysql_pconnect($this->server, $this->user, $this->password);
 
         if (!$this->_connection || !mysql_select_db($this->database, $this->_connection)) {

@@ -63,6 +63,12 @@ class TIP_Cronology extends TIP_Type
      */
     protected $base_action = null;
 
+    /**
+     * Maximum number of levels to keep online
+     * @var int
+     */
+    protected $levels = null;
+
     //}}}
     //{{{ Construction/destruction
 
@@ -92,24 +98,62 @@ class TIP_Cronology extends TIP_Type
     //{{{ Methods
 
     /**
-     * Render this cronology in a DHTML format
+     * Render this cronology in XHTML format
      * @return string The rendered html
      */
-    public function &toHtml()
+    public function toHtml()
     {
-        $this->_render();
-        return $this->_html;
+        if (!$this->_render()) {
+            return '';
+        }
+
+        require_once 'HTML/Menu.php';
+        $model =& new HTML_Menu($this->_tree);
+        $model->forceCurrentUrl(htmlspecialchars(TIP::getRequestURI()));
+
+        $renderer =& TIP_Renderer::getMenu($this->levels);
+        $model->render($renderer, 'sitemap');
+        return $renderer->toHtml();
+    }
+
+    public function ajax($id)
+    {
+        sscanf($id, '%04s%02s', $year, $month);
+
+        if (!$year || !$this->_render()) {
+            return false;
+        }
+
+        if (array_key_exists($year, $this->_tree)) {
+            $tree =& $this->_tree[$year]['sub'];
+        } else {
+            return true;
+        }
+
+        if (array_key_exists($id, $tree)) {
+            $tree =& $tree[$id]['sub'];
+        } elseif (isset($month)) {
+            return true;
+        }
+        
+        require_once 'HTML/Menu.php';
+        $model =& new HTML_Menu($tree);
+
+        $renderer =& TIP_Renderer::getMenu(0);
+        $model->render($renderer, 'sitemap');
+        echo $renderer->toHtml();
+        return true;
     }
 
     //}}}
     //{{{ Internal properties
 
     /**
-     * The cached buffer containing the rendered tree
-     * @var string
+     * The cached tree in HTML_Menu format
+     * @var array
      * @internal
      */
-    private $_html = null;
+    private $_tree = array();
 
     //}}}
     //{{{ Internal methods
@@ -130,7 +174,7 @@ class TIP_Cronology extends TIP_Type
 
     private function _render()
     {
-        if (isset($this->_html)) {
+        if (!empty($this->_tree)) {
             return true;
         }
 
@@ -141,7 +185,7 @@ class TIP_Cronology extends TIP_Type
 
         $rows =& $view->getProperty('rows');
         if (empty($rows)) {
-            $this->_html = '';
+            $this->_tree = array();
             $this->master->endView();
             return true;
         }
@@ -152,9 +196,8 @@ class TIP_Cronology extends TIP_Type
             $action = TIP::getScriptURI() . '?module=' . $this->master . '&amp;action=view&amp;id=';
         }
 
-        $tree = array();
+        $tree =& $this->_tree;
         foreach ($rows as $id => &$row) {
-            $row['CLASS'] = 'item';
             $row['url'] = $action . $id;
             $row['title'] = $this->_renderField($this->title_field, $row);
 
@@ -163,12 +206,14 @@ class TIP_Cronology extends TIP_Type
             list($y, $m, $day) = sscanf($date, "%d-%d-%d");
 
             // Compute the year
-            $year = (string) $y;
+            $year = sprintf('%04d', $y);
             if (!array_key_exists($year, $tree)) {
+                $gets = $_GET;
+                $gets[$this->id] = $year;
+                $url = TIP::getScriptURI() . '?' . http_build_query($gets, '', '&amp;');
                 $tree[$year] = array(
                     'title' => $year,
-                    'url'   => 'unused',
-                    'CLASS' => 'folder',
+                    'url'   => $url,
                     'sub'   => array(),
                     'ITEMS' => 0
                 );
@@ -180,12 +225,14 @@ class TIP_Cronology extends TIP_Type
             // Compute the month
             $months =& $tree[$year]['sub'];
             $month = strftime('%B', mktime(0, 0, 0, $m, $day, $year));
-            $month_id = $year . '-' . $month;
+            $month_id = $year . sprintf('%02d', $m);
             if (!array_key_exists($month_id, $months)) {
+                $gets = $_GET;
+                $gets[$this->id] = $month_id;
+                $url = TIP::getScriptURI() . '?' . http_build_query($gets, '', '&amp;');
                 $months[$month_id] = array(
                     'title' => $month,
-                    'url'   => 'unused',
-                    'CLASS' => 'folder',
+                    'url'   => $url,
                     'sub'   => array(),
                     'ITEMS' => 0
                 );
@@ -198,13 +245,6 @@ class TIP_Cronology extends TIP_Type
             isset($this->count_field) && $row['COUNT'] = $row[$this->count_field];
         }
 
-        require_once 'HTML/Menu.php';
-        $model =& new HTML_Menu($tree);
-        $model->forceCurrentUrl(htmlspecialchars(TIP::getRequestURI()));
-
-        $renderer =& TIP_Renderer::getMenu($this->id);
-        $model->render($renderer, 'sitemap');
-        $this->_html = $renderer->toHtml();
         return true;
     }
 
