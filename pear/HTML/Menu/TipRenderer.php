@@ -192,7 +192,7 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         $content = $node['title'];
         $indent = str_repeat('    ', $level);
         isset($node['ITEMS']) && $content .= ' (' . $node['ITEMS'] . ')';
-        isset($node['COUNT']) && $content .= ' <var>' . $node['COUNT'] . '</var>';
+        isset($node['COUNT']) && $content = ' <var>' . $node['COUNT'] . ' </var>' . $content;
         $is_active && $content = '<strong>' . $content . '</strong>';
 
         if ($is_container) {
