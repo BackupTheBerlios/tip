@@ -57,17 +57,140 @@ class TIP_RcbtNG_Instance
         }
 
         $this->_mode = 0;
-        $last = 0;
-        if (!$this->_renderer($this->_tree, $module, $last)) {
+        $this->_pos = 0;
+        $this->_branch =& $this->_tree;
+        if (!$this->_renderer($module)) {
             return false;
         }
 
-        /*if ($last < count($source->_implementation)) {
+        /*if ($this->_pos < count($source->_implementation)) {
             return $this->_catchError($source->_implementation);
         }*/
 
         return true;
     }
+
+    //}}}
+    //{{{ Predefined tags
+
+    /**#@+
+     * @param      TIP_Module   &$module The module to use
+     * @param      string       &$params Parameters of the tag
+     * @return     bool                  true on success or false on errors
+     * @subpackage SourceEngine
+     */
+
+    protected function tagIf(&$module, &$params)
+    {
+        ++ $this->_pos;
+        $old_mode = $this->_mode;
+        if ($this->_mode & self::SKIP_TAGS) {
+            $this->_mode |= self::SKIP_ELSE;
+        } elseif (!eval("return $params;")) {
+            $this->_mode |= self::SKIP_TEXT|self::SKIP_TAGS;
+        }
+        $done = $this->_renderer($module);
+        $this->_mode = $old_mode;
+        return $done;
+    }
+
+    protected function tagElse(&$module, &$params)
+    {
+        if (!($this->_mode & self::SKIP_ELSE)) {
+            $this->_mode ^= self::SKIP_TEXT|self::SKIP_TAGS;
+        }
+        return true;
+    }
+
+    protected function tagSelect(&$module, &$params)
+    {
+        ++ $this->_pos;
+        $old_mode = $this->_mode;
+        $view =& $this->_startDataView($module, $params);
+        $done = $this->_renderer($module);
+        $this->_mode = $old_mode;
+        $view && $module->endView();
+        return $done;
+    }
+
+    protected function tagSelectRow(&$module, &$params)
+    {
+        ++ $this->_pos;
+        $old_mode = $this->_mode;
+        $view =& $this->_startDataView($module, $module->getProperty('data')->rowFilter($params));
+        $done = $this->_renderer($module);
+        $this->_mode = $old_mode;
+        $view && $module->endView();
+        return $done;
+    }
+
+    protected function tagForSelect(&$module, &$params)
+    {
+        ++ $this->_pos;
+        $old_mode = $this->_mode;
+        $view =& $this->_startDataView($module, $params);
+        $start_pos = $this->_pos;
+
+        do {
+            $this->_pos = $start_pos;
+            $done = $this->_renderer($module);
+        } while ($done && $view && $view->next());
+
+        $this->_mode = $old_mode;
+        $view && $module->endView();
+        return $done;
+    }
+
+    protected function tagForEach(&$module, &$params)
+    {
+        ++ $this->_pos;
+        $old_mode = $this->_mode;
+        $view = null;
+
+        if ($this->_mode & self::SKIP_TAGS) {
+            $this->_mode |= self::SKIP_ELSE;
+            $done = $this->_renderer($module);
+        } elseif ($params == '') {
+            $view =& $module->getCurrentView();
+            if (!$view || !$view->isValid() || !$view->rewind()) {
+                $this->_mode |= self::SKIP_TAGS|self::SKIP_TEXT;
+                $done = $this->_renderer($module);
+            } else {
+                $start_pos = $this->_pos;
+                do {
+                    $this->_pos = $start_pos;
+                    $done = $this->_renderer($module);
+                } while ($done && $view->next());
+            }
+        } elseif ($params > 0) {
+            $start_pos = $this->_pos;
+            for ($module->keys['CNT'] = 1; $module->keys['CNT'] <= $params; ++ $module->keys['CNT']) {
+                $this->_pos = $start_pos;
+                $done = $this->_renderer($module);
+                if (!$done) {
+                    break;
+                }
+            }
+        } else {
+            $view =& $module->startView($params);
+            if (!$view || !$view->isValid() || !$view->rewind()) {
+                $this->_mode |= self::SKIP_TAGS|self::SKIP_TEXT;
+                $done = $this->_renderer($module);
+            } else {
+                $start_pos = $this->_pos;
+                do {
+                    $this->_pos = $start_pos;
+                    $done = $this->_renderer($module);
+                } while ($done && $view->next());
+            }
+        }
+
+        $this->_mode = $old_mode;
+        $view && $module->endView();
+        return $done;
+    }
+
+    /**#@-*/
 
     //}}}
     //{{{ Private properties
@@ -80,6 +203,7 @@ class TIP_RcbtNG_Instance
     private $_close = null;
 
     private $_tree = array();
+    private $_branch = null;
 
     /**
      * Skip level, 0 = pen down, > 0 skip content
@@ -210,200 +334,86 @@ class TIP_RcbtNG_Instance
     /**
      * Render the specified tree
      *
-     * @param  array  &$tree   The tree to render
      * @param  object &$caller The caller TIP_Module
-     * @param  int    &$i      The starting tree element to render
      * @return                 true on success, false on errors
      */
-    private function _renderer(&$tree, &$caller, &$i)
+    private function _renderer(&$caller)
     {
-        while (isset($tree[$i])) {
-            if (is_string($tree[$i])) {
+        while (isset($this->_branch[$this->_pos])) {
+            $tag =& $this->_branch[$this->_pos];
+
+            if (is_string($tag)) {
                 if (!($this->_mode & self::SKIP_TEXT)) {
-                    echo $tree[$i];
+                    echo $tag;
                 }
             } else {
-                $done = $this->_render($tree, $caller, $i);
-                if (is_null($done)) {
+                if (!array_key_exists('name', $tag)) {
+                    // Tag recursion
+                    ob_start();
+                    $old_pos = $this->_pos;
+                    $old_mode = $this->_mode;
+                    $old_branch =& $this->_branch;
+                    $this->_pos = 0;
+                    $this->_mode &= ~self::SKIP_TEXT;
+                    $this->_branch =& $tag;
+                    if (!$this->_renderer($caller)) {
+                        ob_clean();
+                        return false;
+                    }
+                    $this->_pos = $old_pos;
+                    $this->_mode = $old_mode;
+                    $this->_branch =& $old_branch;
+                    $data[0] = ob_get_clean();
+                    if (!$this->_parse($data)) {
+                        return false;
+                    }
+                    $module =& $data['module'];
+                    $name   =& $data['name'];
+                    $params =& $data['params'];
+                    unset($data);
+                } else {
+                    $module =& $tag['module'];
+                    $name   =& $tag['name'];
+                    $params =& $tag['params'];
+                }
+
+                if (is_null($name)) {
                     break;
-                } elseif ($done === false) {
-                    return false;
+                }
+
+                isset($module) || $module =& $caller;
+
+                if (method_exists($this, 'tag' . $name)) {
+                    // Call a predefined tag (a tag defined in this source engine)
+                    if (!$this->{'tag' . $name}($module, $params)) {
+                        return false;
+                    }
+                } elseif (!($this->_mode & self::SKIP_TAGS)) {
+                    // Call a module tag
+                    $module->callTag($name, $params);
                 }
             }
-            ++ $i;
+
+            ++ $this->_pos;
         }
 
         return true;
     }
 
-    private function _render(&$tree, &$caller, &$i)
+    private function& _startDataView(&$module, $query)
     {
-        $tag =& $tree[$i];
+        $view = null;
 
-        if (!array_key_exists('name', $tag)) {
-            ob_start();
-            $old_mode = $this->_mode;
-            $this->_mode &= ~self::SKIP_TEXT;
-            $dummy = 0;
-            $done = $this->_renderer($tag, $caller, $dummy);
-            $this->_mode = $old_mode;
-            if (!$done) {
-                ob_clean();
-                return false;
-            }
-            $data[0] = ob_get_clean();
-            if (!$this->_parse($data)) {
-                return false;
-            }
-            $tag_module =& $data['module'];
-            $name       =& $data['name'];
-            $params     =& $data['params'];
+        if ($this->_mode & self::SKIP_TAGS) {
+            $this->_mode |= self::SKIP_ELSE;
         } else {
-            $tag_module =& $tag['module'];
-            $name       =& $tag['name'];
-            $params     =& $tag['params'];
+            $view =& $module->startDataView($query);
+            if (!$view || !$view->isValid() || !$view->rewind()) {
+                $this->_mode |= self::SKIP_TAGS|self::SKIP_TEXT;
+            }
         }
 
-        if (is_null($name)) {
-            return null;
-        }
-
-        if (is_null($tag_module)) {
-            $module =& $caller;
-        } else {
-            $module =& $tag_module;
-        }
-
-        switch (strtolower($name)) {
-        case 'if':
-            ++ $i;
-            $old_mode = $this->_mode;
-            if ($this->_mode & self::SKIP_TAGS) {
-                $this->_mode |= self::SKIP_ELSE;
-            } elseif (!eval("return $params;")) {
-                $this->_mode |= self::SKIP_TEXT|self::SKIP_TAGS;
-            }
-            $done = $this->_renderer($tree, $module, $i);
-            $this->_mode = $old_mode;
-            return $done;
-
-        case 'else':
-            if (!($this->_mode & self::SKIP_ELSE)) {
-                $this->_mode ^= self::SKIP_TEXT|self::SKIP_TAGS;
-            }
-            return true;
-
-        case 'select':
-            ++ $i;
-            $old_mode = $this->_mode;
-            $view = null;
-            if ($this->_mode & self::SKIP_TAGS) {
-                $this->_mode |= self::SKIP_ELSE;
-            } else {
-                $view =& $module->startDataView($params);
-                if (!$view || !$view->isValid() || !$view->rewind()) {
-                    $this->_mode |= self::SKIP_TAGS|self::SKIP_TEXT;
-                }
-            }
-            $done = $this->_renderer($tree, $module, $i);
-            $this->_mode = $old_mode;
-            $view && $module->endView();
-            return $done;
-
-        case 'selectrow':
-            ++ $i;
-            $old_mode = $this->_mode;
-            $view = null;
-            if ($this->_mode & self::SKIP_TAGS) {
-                $this->_mode |= self::SKIP_ELSE;
-            } else {
-                $view =& $module->startDataView($module->getProperty('data')->rowFilter($params));
-                if (!$view || !$view->isValid() || !$view->rewind()) {
-                    $this->_mode |= self::SKIP_TAGS|self::SKIP_TEXT;
-                }
-            }
-            $done = $this->_renderer($tree, $module, $i);
-            $this->_mode = $old_mode;
-            $view && $module->endView();
-            return $done;
-
-        case 'forselect':
-            ++ $i;
-            $old_mode = $this->_mode;
-            $view = null;
-            if ($this->_mode & self::SKIP_TAGS) {
-                $this->_mode |= self::SKIP_ELSE;
-                $done = $this->_renderer($tree, $module, $i);
-            } else {
-                $view =& $module->startDataView($params);
-                if (!$view || !$view->isValid() || !$view->rewind()) {
-                    $this->_mode |= self::SKIP_TAGS|self::SKIP_TEXT;
-                    $done = $this->_renderer($tree, $module, $i);
-                } else {
-                    $first_i = $i;
-                    do {
-                        $i = $first_i;
-                        $done = $this->_renderer($tree, $module, $i);
-                    } while ($done && $view->next());
-                }
-            }
-            $this->_mode = $old_mode;
-            $view && $module->endView();
-            return $done;
-
-        case 'foreach':
-            ++ $i;
-            $old_mode = $this->_mode;
-            $view = null;
-
-            if ($this->_mode & self::SKIP_TAGS) {
-                $this->_mode |= self::SKIP_ELSE;
-                $done = $this->_renderer($tree, $module, $i);
-            } elseif ($params == '') {
-                $view =& $module->getCurrentView();
-                if (!$view || !$view->isValid() || !$view->rewind()) {
-                    $this->_mode |= self::SKIP_TAGS|self::SKIP_TEXT;
-                    $done = $this->_renderer($tree, $module, $i);
-                } else {
-                    $first_i = $i;
-                    do {
-                        $i = $first_i;
-                        $done = $this->_renderer($tree, $module, $i);
-                    } while ($done && $view->next());
-                }
-            } elseif ($params > 0) {
-                $first_i = $i;
-                for ($module->keys['CNT'] = 1; $module->keys['CNT'] <= $params; ++ $module->keys['CNT']) {
-                    $i = $first_i;
-                    $done = $this->_renderer($tree, $module, $i);
-                    if (!$done) {
-                        break;
-                    }
-                }
-            } else {
-                $view =& $module->startView($params);
-                if (!$view || !$view->isValid() || !$view->rewind()) {
-                    $this->_mode |= self::SKIP_TAGS|self::SKIP_TEXT;
-                    $done = $this->_renderer($tree, $module, $i);
-                } else {
-                    $first_i = $i;
-                    do {
-                        $i = $first_i;
-                        $done = $this->_renderer($tree, $module, $i);
-                    } while ($done && $view->next());
-                }
-            }
-
-            $this->_mode = $old_mode;
-            $view && $module->endView();
-            return $done;
-        }
-
-        if (!($this->_mode & self::SKIP_TAGS)) {
-            $module->callTag($name, $params);
-        }
-
-        return true;
+        return $view;
     }
 
     //}}}
