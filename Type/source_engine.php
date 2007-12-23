@@ -16,18 +16,76 @@
  */
 abstract class TIP_Source_Engine extends TIP_Type
 {
+    //{{{ Properties
+
+    /**
+     * The source base url
+     * @var array
+     */
+    protected $source_root = array('style');
+
+    /**
+     * The fallback base url
+     * @var array
+     */
+    protected $fallback_root = null;
+
+    /**
+     * The cache base url
+     * @var array
+     */
+    protected $cache_root = null;
+
+    /**
+     * The compiled base url
+     * @var array
+     */
+    protected $compiled_root = null;
+
+    //}}}
     //{{{ Interface
 
     /**
-     * Execute a source/template file
+     * Execute a source/template buffer
      *
-     * Parses and executes the specified source.
+     * Parses and executes the specified buffer.
      *
-     * @param  TIP_Source &$source The source instance
-     * @param  TIP_Module &$module The caller module
+     * @param  mixed      &$instance An engine-dependent instance
+     * @param  string     &$buffer   The buffer to run
+     * @param  TIP_Module &$caller   The caller module
+     * @return bool                  true on success or false on errors
+     */
+    abstract public function runBuffer(&$instance, &$buffer, &$caller);
+
+    //}}}
+    //{{{ Methods
+
+    /**
+     * Execute a source file
+     *
+     * Parses and executes a source.
+     *
+     * @param  TIP_Source &$source The source to run
+     * @param  TIP_Module &$caller The caller module
      * @return bool                true on success or false on errors
      */
-    abstract public function run(&$source, &$module);
+    public function run(&$source, &$caller)
+    {
+        if (is_null($source->_buffer)) {
+            $path =& $source->getProperty('path');
+            $file = TIP::buildSourcePath($path);
+            is_readable($file) || $file = TIP::buildFallbackPath($path);
+            $source->_buffer = file_get_contents($file);
+        }
+
+        // Check for reading errors
+        if ($source->_buffer === false) {
+            TIP::error("error in reading file ($file)");
+            return false;
+        }
+
+        return $this->runBuffer($source->_instance, $source->_buffer, $caller);
+    }
 
     //}}}
 }

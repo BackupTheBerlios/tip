@@ -359,12 +359,12 @@ abstract class TIP_Module extends TIP_Type
      *
      * Parses and executes the specified file.
      *
-     * @param string $file The file to run
-     * @return bool true on success or false on errors
+     * @param  array $path The file path to run
+     * @return bool        true on success or false on errors
      */
-    public function run($file)
+    public function run($path)
     {
-        $options = array('type' => array('source'), 'id' => $file);
+        $options = array('type' => array('source'), 'path' => $path);
         return TIP_Type::singleton($options)->run($this);
     }
 

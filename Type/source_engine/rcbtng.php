@@ -50,7 +50,7 @@ class TIP_RcbtNG_Instance
     //}}}
     //{{{ Public methods
  
-    public function run(&$module)
+    public function run(&$caller)
     {
         if (isset($this->error) || !$this->_init()) {
             return false;
@@ -59,13 +59,9 @@ class TIP_RcbtNG_Instance
         $this->_mode = 0;
         $this->_pos = 0;
         $this->_branch =& $this->_tree;
-        if (!$this->_renderer($module)) {
+        if (!$this->_renderer($caller)) {
             return false;
         }
-
-        /*if ($this->_pos < count($source->_implementation)) {
-            return $this->_catchError($source->_implementation);
-        }*/
 
         return true;
     }
@@ -448,14 +444,12 @@ class TIP_RcbtNG extends TIP_Source_Engine
     //}}}
     //{{{ TIP_Source_Engine implementation
  
-    public function run(&$source, &$module)
+    public function runBuffer(&$instance, &$buffer, &$caller)
     {
-        if (is_null($source->_implementation)) {
-            $source->_implementation =& new TIP_RcbtNG_Instance($source->_buffer);
-        }
+        isset($instance) || $instance =& new TIP_RcbtNG_Instance($buffer);
 
-        if (!$source->_implementation->run($module)) {
-            die('Errore: ' . $source->_implementation->error);
+        if (!$instance->run($caller)) {
+            TIP::error($instance->error);
             return false;
         }
 

@@ -97,7 +97,7 @@ class TIP_Rcbt_Parser
 
     function _getLine()
     {
-        return substr_count(substr($this->source->_buffer, 0, $this->pos), "\n") + 1;
+        return substr_count(substr($this->_buffer, 0, $this->pos), "\n") + 1;
     }
 
     /**#@-*/
@@ -120,16 +120,16 @@ class TIP_Rcbt_Parser
 
     /**#@+ @access public */
 
-    var $source = null;
+    var $buffer = null;
     var $context = null;
     var $nested_text = false;
     var $pos = 0;
     var $tp = 0;
 
 
-    function __construct(&$source)
+    function __construct(&$buffer)
     {
-        $this->source =& $source;
+        $this->buffer =& $buffer;
     }
 
     function parse()
@@ -214,7 +214,7 @@ class TIP_Rcbt_Parser
 
     function beginParse(&$tag)
     {
-        $buffer =& $this->source->_buffer;
+        $buffer =& $this->buffer;
         echo substr($buffer, $this->pos, $tag->start-$this->pos);
         $this->pos = $tag->start;
         if (count($this->_tp_stack) > 0) {
@@ -224,7 +224,7 @@ class TIP_Rcbt_Parser
 
     function endParse(&$tag)
     {
-        $buffer =& $this->source->_buffer;
+        $buffer =& $this->buffer;
 
         if ($tag->end === false) {
             echo substr($buffer, $this->pos);
@@ -281,7 +281,7 @@ class TIP_Rcbt_Tag
 
     function buildTag(&$parser, $unclosed_tag = false)
     {
-        $buffer =& $parser->source->_buffer;
+        $buffer =& $parser->buffer;
 
         $this->start = $parser->pos;
         if (! $unclosed_tag)
@@ -519,15 +519,14 @@ class TIP_Rcbt extends TIP_Source_Engine
     //}}}
     //{{{ TIP_Source_Engine implementation
  
-    function run(&$source, &$module)
+    function runBuffer(&$instance, &$buffer, &$caller)
     {
-        if (is_null($parser =& $source->_implementation)) {
-            $parser =& new TIP_Rcbt_Parser($source);
-            $source->_implementation =& $parser;
-            $parser->parse();
+        if (is_null($instance)) {
+            $instance =& new TIP_Rcbt_Parser($buffer);
+            $instance->parse();
         }
 
-        return $parser->run($module);
+        return $instance->run($caller);
     }
 
     //}}}

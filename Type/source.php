@@ -13,24 +13,40 @@
  */
 class TIP_Source extends TIP_Type
 {
-    //{{{ Internal properties
+    //{{{ Properties
 
     /**
-     * The content of the source file
-     * @var string|false
-     * @internal
+     * The path to the source file
+     * @var array
      */
-    public $_buffer = null;
-
-    /**
-     * A custom property to be used by the source engine
-     * @var mixed
-     * @internal
-     */
-    public $_implementation = null;
+    protected $path = null;
 
     //}}}
     //{{{ Constructor/destructor
+
+    /**
+     * Check the options
+     *
+     * Builds an unique 'id' from the 'path' option (required).
+     *
+     * @param  array &$options Properties values
+     * @return bool            true on success or false on error
+     */
+    static protected function checkOptions(&$options)
+    {
+        if (!isset($options['path'])) {
+            return false;
+        } elseif (!isset($options['id'])) {
+            if (is_array($options['path'])) {
+                $options['id'] = implode(DIRECTORY_SEPARATOR, $options['path']);
+            } else {
+                $options['id'] = $options['path'];
+                $options['path'] = array($options['path']);
+            }
+        }
+
+        return parent::checkOptions($options);
+    }
 
     /**
      * Constructor
@@ -52,19 +68,30 @@ class TIP_Source extends TIP_Type
      *
      * Parses and executes this source.
      *
-     * @param  TIP_Module &$module The caller module
+     * @param  TIP_Module &$caller The caller module
      * @return bool                true on success or false on errors
      */
-    public function run(&$module)
+    public function run(&$caller)
     {
-        if (is_null($this->_buffer)) {
-            $this->_buffer = file_get_contents($this->id, false);
-            if ($this->_buffer === false) {
-                TIP::error("error in reading file ($this->id)");
-            }
-        }
-        return $this->_buffer !== false && $module->getProperty('engine')->run($this, $module);
+        return $caller->getProperty('engine')->run($this, $caller);
     }
+
+    //}}}
+    //{{{ Internal properties
+
+    /**
+     * The content of the source file
+     * @var string
+     * @internal
+     */
+    public $_buffer = null;
+
+    /**
+     * A custom property to be used by the source engine
+     * @var mixed
+     * @internal
+     */
+    public $_instance = null;
 
     //}}}
 }
