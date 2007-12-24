@@ -641,17 +641,14 @@ class TIP
     static public function buildSourcePath()
     {
         static $source_path = null;
-        if (!$source_path) {
-            $source_path = TIP::buildPath(TIP_Application::getGlobal('source_root'));
-        }
-
+        $source_path || $source_path = TIP::buildPath(TIP_Application::getGlobal('source_root'));
         return TIP::deepImplode(array($source_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
 
     /**
      * Build a source fallback path
      *
-     * Shortcut for building a path prepending the application 'source_fallback'.
+     * Shortcut for building a path prepending the application 'fallback_root'.
      *
      * @param  string|array $subpath,... A list of partial paths
      * @return string                    The constructed path
@@ -659,10 +656,7 @@ class TIP
     static public function buildFallbackPath()
     {
         static $fallback_path = null;
-        if (!$fallback_path) {
-            $fallback_path = TIP::buildPath(TIP_Application::getGlobal('source_fallback'));
-        }
-
+        $fallback_path || $fallback_path = TIP::buildPath(TIP_Application::getGlobal('fallback_root'));
         return TIP::deepImplode(array($fallback_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
 
@@ -677,10 +671,7 @@ class TIP
     static public function buildUploadPath()
     {
         static $upload_path = null;
-        if (!$upload_path) {
-            $upload_path = TIP::buildPath(TIP_Application::getGlobal('upload_root'));
-        }
-
+        $upload_path || $upload_path = TIP::buildPath(TIP_Application::getGlobal('upload_root'));
         return TIP::deepImplode(array($upload_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
 
@@ -695,10 +686,7 @@ class TIP
     static public function buildCachePath()
     {
         static $cache_path = null;
-        if (!$cache_path) {
-            $cache_path = TIP::buildPath(TIP_Application::getGlobal('cache_root'));
-        }
-
+        $cache_path || $cache_path = TIP::buildPath(TIP_Application::getGlobal('cache_root'));
         return TIP::deepImplode(array($cache_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
 
@@ -733,17 +721,14 @@ class TIP
     static public function buildSourceURL()
     {
         static $source_url = null;
-        if (!$source_url) {
-            $source_url = TIP::buildURL(TIP_Application::getGlobal('source_root'));
-        }
-
+        $source_url || $source_url = TIP::buildURL(TIP_Application::getGlobal('source_root'));
         return TIP::deepImplode(array($source_url, func_get_args()), '/');
     }
 
     /**
      * Build a source fallback URL
      *
-     * Shortcut for building a URL prepending the application 'source_fallback'.
+     * Shortcut for building a URL prepending the application 'fallback_root'.
      *
      * @param  string|array $suburl,... A list of partial URLs
      * @return string                   The constructed URL
@@ -751,10 +736,7 @@ class TIP
     static public function buildFallbackURL()
     {
         static $fallback_url = null;
-        if (!$fallback_url) {
-            $fallback_url = TIP::buildURL(TIP_Application::getGlobal('source_fallback'));
-        }
-
+        $fallback_url || $fallback_url = TIP::buildURL(TIP_Application::getGlobal('fallback_root'));
         return TIP::deepImplode(array($fallback_url, func_get_args()), '/');
     }
 
@@ -769,10 +751,7 @@ class TIP
     static public function buildUploadURL()
     {
         static $upload_url = null;
-        if (!$upload_url) {
-            $upload_url = TIP::buildURL(TIP_Application::getGlobal('upload_root'));
-        }
-
+        $upload_url || $upload_url = TIP::buildURL(TIP_Application::getGlobal('upload_root'));
         return TIP::deepImplode(array($upload_url, func_get_args()), '/');
     }
 
@@ -786,9 +765,7 @@ class TIP
     static public function getBaseURL()
     {
         static $base_url = null;
-        if (!$base_url) {
-            $base_url = HTTP::absoluteURI(TIP::buildURL());
-        }
+        $base_url || $base_url = HTTP::absoluteURI(TIP::buildURL());
         return $base_url;
     }
 
@@ -800,9 +777,7 @@ class TIP
     static public function getScriptURI()
     {
         static $script = null;
-        if (!$script) {
-            ($script = @$_SERVER['SCRIPT_NAME']) || ($script = @$_SERVER['PHP_SELF']);
-        }
+        $script || ($script = @$_SERVER['SCRIPT_NAME']) || ($script = @$_SERVER['PHP_SELF']);
         return $script;
     }
 

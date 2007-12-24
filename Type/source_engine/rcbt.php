@@ -112,7 +112,7 @@ class TIP_Rcbt_Parser
 
     function error($text)
     {
-        TIP::error($text . ' on line ' . $this->_getLine());
+        $this->error = $text . ' on line ' . $this->_getLine();
     }
 
     /**#@-*/
@@ -122,6 +122,7 @@ class TIP_Rcbt_Parser
 
     var $buffer = null;
     var $context = null;
+    var $error = 'undefined error';
     var $nested_text = false;
     var $pos = 0;
     var $tp = 0;
@@ -146,13 +147,13 @@ class TIP_Rcbt_Parser
     function run(&$module)
     {
         if (!$this->_main_tag) {
-            return false;
+            return $this->error;
         }
 
         $this->context =& new TIP_Rcbt_Context($module);
         if (!$this->_main_tag->recurseTag($this) || !$this->reset()) {
             $this->_main_tag = false;
-            return false;
+            return $this->error;
         }
 
         return true;
@@ -396,6 +397,11 @@ class TIP_Rcbt_Tag
         }
 
         switch ($this->tag_name) {
+        
+        case 'cache':
+            // Reserved words for the RcbtNG engine
+            return true;
+
         case 'if':
             if ($context =& $this->createContext($parser, $module)) {
                 $condition = @create_function('', "return $this->params;");

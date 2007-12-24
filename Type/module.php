@@ -355,52 +355,71 @@ abstract class TIP_Module extends TIP_Type
     }
 
     /**
+     * Try to execute a source file
+     *
+     * Parses and executes the specified file. Similar to run(),
+     * but it does not raise any warning/error if $path is not found.
+     *
+     * @param  array|string $path The file path to run
+     * @return bool               true on success or false on errors
+     */
+    public function tryRun($path)
+    {
+        $options = array(
+            'type' => array('source'),
+            'path' => is_string($path) ? array($this->id, $path) : $path
+        );
+        $source =& TIP_Type::singleton($options);
+        return $source && $source->run($this);
+    }
+
+    /**
      * Execute a source file
      *
-     * Parses and executes the specified file.
+     * Parses and executes the specified file. If $path is a string,
+     * the module id is prepended to the real path.
      *
-     * @param  array $path The file path to run
-     * @return bool        true on success or false on errors
+     * @param  array|string $path The file path to run
+     * @return bool               true on success or false on errors
      */
     public function run($path)
     {
-        $options = array('type' => array('source'), 'path' => $path);
-        return TIP_Type::singleton($options)->run($this);
+        if (!$this->tryRun($path)) {
+            $file = implode(DIRECTORY_SEPARATOR, $path);
+            TIP::error("Unable to find a readable file ($file)");
+            return false;
+        }
+
+        return true;
     }
 
     /**
      * Prepend a source file to the page
      *
-     * Runs $file using the current source engine and puts the result at the
-     * beginning of the page.
+     * Runs the $path source using the current source engine and puts
+     * the result at the beginning of the page.
      *
-     * @param  string $file The source file
-     * @return bool         true on success or false on errors
+     * @param  array|string $path The file path to run
+     * @return bool               true on success or false on errors
      */
-    protected function insertInPage($file)
+    protected function insertInPage($path)
     {
-        if (strpos($file, DIRECTORY_SEPARATOR) === false) {
-            $file = $this->buildSourcePath($this->id, $file);
-        }
-        TIP_Application::prependCallback(array(&$this, 'run'), array($file));
+        TIP_Application::prependCallback(array(&$this, 'run'), array(&$path));
         return true;
     }
 
     /**
      * Append a source file to the page
      *
-     * Runs $file using the current source engine and puts the result at the
-     * end of the page.
+     * Runs the $path source using the current source engine and puts
+     * the result at the end of the page.
      *
-     * @param  string $file The source file
-     * @return bool         true on success or false on errors
+     * @param  array|string $path The file path to run
+     * @return bool               true on success or false on errors
      */
-    protected function appendToPage($file)
+    protected function appendToPage($path)
     {
-        if (strpos($file, DIRECTORY_SEPARATOR) === false) {
-            $file = $this->buildSourcePath($this->id, $file);
-        }
-        TIP_Application::appendCallback(array(&$this, 'run'), array($file));
+        TIP_Application::appendCallback(array(&$this, 'run'), array(&$path));
         return true;
     }
 
@@ -738,7 +757,7 @@ abstract class TIP_Module extends TIP_Type
      */
     protected function tagRun($params)
     {
-        return $this->run($this->buildSourcePath($this->id, $params));
+        return $this->run($params);
     }
 
     /**
@@ -749,7 +768,9 @@ abstract class TIP_Module extends TIP_Type
      */
     protected function tagRunShared($params)
     {
-        return $this->run($this->buildSourcePath('shared', $params));
+        $path = explode(',', $params);
+        array_unshift($path, 'shared');
+        return $this->run($path);
     }
 
     /**

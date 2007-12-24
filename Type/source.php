@@ -28,6 +28,7 @@ class TIP_Source extends TIP_Type
      * Check the options
      *
      * Builds an unique 'id' from the 'path' option (required).
+     * It also checks for the source existence.
      *
      * @param  array &$options Properties values
      * @return bool            true on success or false on error
@@ -36,15 +37,21 @@ class TIP_Source extends TIP_Type
     {
         if (!isset($options['path'])) {
             return false;
-        } elseif (!isset($options['id'])) {
-            if (is_array($options['path'])) {
-                $options['id'] = implode(DIRECTORY_SEPARATOR, $options['path']);
-            } else {
-                $options['id'] = $options['path'];
-                $options['path'] = array($options['path']);
-            }
         }
 
+        $path =& $options['path'];
+        if (is_readable($file = TIP::buildSourcePath($path))) {
+            // Found the source in the default path
+            $path = array_merge(TIP_Application::getGlobal('source_root'), $path);
+        } elseif (is_readable($file = TIP::buildFallbackPath($path))) {
+            // Found the source in the fallback path
+            $path = array_merge(TIP_Application::getGlobal('fallback_root'), $path);
+        } else {
+            // Source not found
+            return false;
+        }
+
+        $options['id'] = $file;
         return parent::checkOptions($options);
     }
 

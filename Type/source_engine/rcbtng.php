@@ -31,6 +31,8 @@ class TIP_RcbtNG_Instance
 
     public $error = null;
 
+    public $cache = false;
+
     //}}}
     //{{{ Constructor/destructor
 
@@ -75,6 +77,12 @@ class TIP_RcbtNG_Instance
      * @return     bool                  true on success or false on errors
      * @subpackage SourceEngine
      */
+
+    protected function tagCache(&$module, &$params)
+    {
+        $this->cache = true;
+        return true;
+    }
 
     protected function tagIf(&$module, &$params)
     {
@@ -449,11 +457,10 @@ class TIP_RcbtNG extends TIP_Source_Engine
         isset($instance) || $instance =& new TIP_RcbtNG_Instance($buffer);
 
         if (!$instance->run($caller)) {
-            TIP::error($instance->error);
-            return false;
+            return $instance->error;
         }
 
-        return true;
+        return !$instance->cache;
     }
 
     //}}}

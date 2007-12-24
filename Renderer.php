@@ -54,7 +54,7 @@ class TIP_Renderer
             'Prefilter', 'Delimiter', 'Code', 'Function', 'Html', 'Raw',
             'Include', 'Embed', 'Anchor', 'Heading', 'Toc', 'Horiz', 'Break',
             'Blockquote', 'List', 'Deflist', 'Table', 'Image', 'Phplookup',
-            'Center', 'Newline', 'Paragraph', 'Url', 'Freelink', 'Interwiki',
+            'Center', 'Paragraph', 'Url', 'Freelink', 'Interwiki',
             'Wikilink', 'Colortext', 'Strong', 'Bold', 'Emphasis', 'Italic',
             'Underline', 'Tt', 'Superscript', 'Subscript', 'Revise', 'Tighten'
         );

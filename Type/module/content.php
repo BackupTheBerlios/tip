@@ -39,10 +39,22 @@ class TIP_Content extends TIP_Module
     protected $browse_source = 'browse.src';
 
     /**
+     * The file to run at the beginning of a 'pager' tag
+     * @var string
+     */
+    protected $pager_pre_source = 'pager_before.src';
+
+    /**
      * The file to run for every row on the 'pager' tag
      * @var string
      */
-    protected $row_source = 'row.src';
+    protected $pager_source = 'row.src';
+
+    /**
+     * The file to run at the end of a 'pager' tag
+     * @var string
+     */
+    protected $pager_post_source = 'pager_after.src';
 
     /**
      * The field containing the creation datetime
@@ -249,21 +261,17 @@ class TIP_Content extends TIP_Module
      * Overrides TIP_Module::insertInPage() storing also the current view (if
      * present) in the callback.
      *
-     * @param  string $file The source file
-     * @return bool         true on success or false on errors
+     * @param  array|string $path The file path to run
+     * @return bool               true on success or false on errors
      */
-    protected function insertInPage($file)
+    protected function insertInPage($path)
     {
         if (empty($this->_view)) {
-            return parent::insertInPage($file);
-        }
-
-        if (strpos($file, DIRECTORY_SEPARATOR) === false) {
-            $file = $this->buildSourcePath($this->id, $file);
+            return parent::insertInPage($path);
         }
 
         TIP_Application::prependCallback(array(&$this, 'pop'));
-        TIP_Application::prependCallback(array(&$this, 'run'),  array($file));
+        TIP_Application::prependCallback(array(&$this, 'run'),  array(&$path));
         TIP_Application::prependCallback(array(&$this, 'push'), array(&$this->_view, false));
         return true;
     }
@@ -274,23 +282,18 @@ class TIP_Content extends TIP_Module
      * Overrides TIP_Module::appendToPage() storing also the current view (if
      * present) in the callback.
      *
-     * @param  string $file The source file
-     * @return bool         true on success or false on errors
+     * @param  array|string $path The file path to run
+     * @return bool               true on success or false on errors
      */
-    protected function appendToPage($file)
+    protected function appendToPage($path)
     {
         if (empty($this->_view)) {
-            return parent::appendToPage($file);
+            return parent::appendToPage($path);
         }
 
-        if (strpos($file, DIRECTORY_SEPARATOR) === false) {
-            $file = $this->buildSourcePath($this->id, $file);
-        }
-
-        ob_start();
-        $this->run($file);
-        $buffer = ob_get_clean();
-        TIP_Application::appendCallback(array('TIP', 'echo_wrapper'), array(&$buffer));
+        TIP_Application::appendCallback(array(&$this, 'push'), array(&$this->_view, false));
+        TIP_Application::appendCallback(array(&$this, 'run'),  array(&$path));
+        TIP_Application::appendCallback(array(&$this, 'pop'));
         return true;
     }
 
@@ -847,23 +850,17 @@ class TIP_Content extends TIP_Module
                 $pager = isset($this->keys['PREV']) || isset($this->keys['NEXT']);
             }
 
-            if ($pager) {
-                // Pager rendering BEFORE the rows
-                $file = $this->buildSourcePath('shared', 'pager_before.src');
-                is_readable($file) && $this->run($file);
-            }
+            // Pager rendering BEFORE the rows
+            $pager && $this->tryRun(array('shared', $this->pager_pre_source));
 
             // Rows rendering
-            $file = $this->buildSourcePath($this->id, $this->row_source);
+            $path = array($this->id, $this->pager_source);
             foreach ($view as $row) {
-                $this->run($file);
+                $this->run($path);
             }
 
-            if ($pager) {
-                // Pager rendering AFTER the rows
-                $file = $this->buildSourcePath('shared', 'pager_after.src');
-                is_readable($file) && $this->run($file);
-            }
+            // Pager rendering AFTER the rows
+            $pager && $this->tryRun(array('shared', $this->pager_post_source));
         }
 
         $this->endView();

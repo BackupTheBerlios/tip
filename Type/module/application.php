@@ -49,25 +49,25 @@ class TIP_Application extends TIP_Module
      * The source root path
      * @var string
      */
-    protected $source_root = null;
+    protected $source_root = array('style');
 
     /**
      * The source fallback path
      * @var string
      */
-    protected $source_fallback = 'style';
+    protected $fallback_root = array('style');
 
     /**
      * The upload root path
      * @var string
      */
-    protected $upload_root = 'upload';
+    protected $upload_root = array('upload');
 
     /**
      * The cache root path
      * @var string
      */
-    protected $cache_root = 'cache';
+    protected $cache_root = array('cache');
 
     /**
      * The shared modules interface

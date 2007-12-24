@@ -19,18 +19,6 @@ abstract class TIP_Source_Engine extends TIP_Type
     //{{{ Properties
 
     /**
-     * The source base url
-     * @var array
-     */
-    protected $source_root = array('style');
-
-    /**
-     * The fallback base url
-     * @var array
-     */
-    protected $fallback_root = null;
-
-    /**
      * The cache base url
      * @var array
      */
@@ -53,7 +41,9 @@ abstract class TIP_Source_Engine extends TIP_Type
      * @param  mixed      &$instance An engine-dependent instance
      * @param  string     &$buffer   The buffer to run
      * @param  TIP_Module &$caller   The caller module
-     * @return bool                  true on success or false on errors
+     * @return bool|string           true on success,
+     *                               false if the result must be cached or
+     *                               a message string on errors
      */
     abstract public function runBuffer(&$instance, &$buffer, &$caller);
 
@@ -71,20 +61,51 @@ abstract class TIP_Source_Engine extends TIP_Type
      */
     public function run(&$source, &$caller)
     {
-        if (is_null($source->_buffer)) {
-            $path =& $source->getProperty('path');
-            $file = TIP::buildSourcePath($path);
-            is_readable($file) || $file = TIP::buildFallbackPath($path);
-            $source->_buffer = file_get_contents($file);
+        $path =& $source->getProperty('path');
+
+        // Check for cached result
+        if (is_array($this->cache_root)) {
+            $file = implode(DIRECTORY_SEPARATOR, array_merge($this->cache_root, $path));
+            if (is_readable($file)) {
+                return readfile($file) !== false;
+            }
         }
 
-        // Check for reading errors
+        // Check for compiled file
+        if (is_array($this->compiled_root)) {
+            $file = implode(DIRECTORY_SEPARATOR, array_merge($this->compiled_root, $path));
+            if (is_readable($file)) {
+                return include($file) !== false;
+            }
+        }
+ 
+        // No cache or compiled file found: parse and run this source
+        if (is_null($source->_buffer)) {
+            $source->_buffer = file_get_contents($source->getProperty('id'));
+        }
+
         if ($source->_buffer === false) {
-            TIP::error("error in reading file ($file)");
+            TIP::error("unable to read file ($file)");
             return false;
         }
 
-        return $this->runBuffer($source->_instance, $source->_buffer, $caller);
+        ob_start();
+        $result = $this->runBuffer($source->_instance, $source->_buffer, $caller);
+        if (is_string($result)) {
+            ob_end_clean();
+            TIP::error($instance->error);
+            return false;
+        } elseif (!$result && is_array($this->cache_root)) {
+            // false returned: cache the result
+            $file = implode(DIRECTORY_SEPARATOR, array_merge($this->cache_root, $path));
+            $dir = dirname($file);
+            if (is_dir($dir) || mkdir($dir, 0777, true)) {
+                file_put_contents($file, ob_get_contents(), LOCK_EX);
+            }
+        }
+
+        ob_end_flush();
+        return true;
     }
 
     //}}}
