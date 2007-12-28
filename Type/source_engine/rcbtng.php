@@ -20,13 +20,6 @@
  */
 class TIP_RcbtNG_Instance
 {
-    //{{{ Constants
-
-    const SKIP_TEXT = 1;
-    const SKIP_TAGS = 2;
-    const SKIP_ELSE = 4;
-
-    //}}}
     //{{{ Public properties
 
     public $error = null;
@@ -58,140 +51,118 @@ class TIP_RcbtNG_Instance
             return false;
         }
 
-        $this->_mode = 0;
-        $this->_pos = 0;
-        $this->_branch =& $this->_tree;
-        if (!$this->_renderer($caller)) {
+        eval($this->_code);
+        return true;
+    }
+
+    public function compile(&$caller)
+    {
+        if (isset($this->error) || !$this->_init()) {
             return false;
         }
 
+        echo "<?php\n\n" . $this->_code . "\n?>";
         return true;
     }
 
     //}}}
     //{{{ Predefined tags
 
+    /**
+     * Special closing tag
+     * @return     bool         true on success or false on errors
+     * @subpackage SourceEngine
+     */
+    protected function tag()
+    {
+        $this->_code .= "}\n";
+        if (!$this->_popModule()) {
+            $this->error = 'unmatched closing brace';
+            return false;
+        }
+        return true;
+    }
+
     /**#@+
-     * @param      TIP_Module   &$module The module to use
-     * @param      string       &$params Parameters of the tag
-     * @return     bool                  true on success or false on errors
+     * @param      TIP_Module   $module The module to use
+     * @param      array       &$node   Parameters node
+     * @return     bool                 true on success or false on errors
      * @subpackage SourceEngine
      */
 
-    protected function tagCache(&$module, &$params)
+    protected function tagCache($module, &$node)
     {
         $this->cache = true;
         return true;
     }
 
-    protected function tagIf(&$module, &$params)
+    protected function tagIf(&$module, &$node)
     {
-        ++ $this->_pos;
-        $old_mode = $this->_mode;
-        if ($this->_mode & self::SKIP_TAGS) {
-            $this->_mode |= self::SKIP_ELSE;
-        } elseif (!eval("return $params;")) {
-            $this->_mode |= self::SKIP_TEXT|self::SKIP_TAGS;
+        $params = $this->_expand($node);
+        if (is_null($params)) {
+            $this->_code .= "if (eval('return '.ob_get_clean().';')) {\n";
+        } else {
+            $this->_code .= "if ($params) {\n";
         }
-        $done = $this->_renderer($module);
-        $this->_mode = $old_mode;
-        return $done;
+        return $this->_pushModule($module);
     }
 
-    protected function tagElse(&$module, &$params)
+    protected function tagElse($module, &$node)
     {
-        if (!($this->_mode & self::SKIP_ELSE)) {
-            $this->_mode ^= self::SKIP_TEXT|self::SKIP_TAGS;
-        }
+        $this->_code .= "} else {\n";
         return true;
     }
 
-    protected function tagSelect(&$module, &$params)
+    protected function tagSelect($module, &$node)
     {
-        ++ $this->_pos;
-        $old_mode = $this->_mode;
-        $view =& $this->_startDataView($module, $params);
-        $done = $this->_renderer($module);
-        $this->_mode = $old_mode;
-        $view && $module->endView();
-        return $done;
+        $view = '$view' . count($this->_stack) . '_' . $this->_level;
+        $params = $this->_expand($node);
+        $params = is_null($params) ? 'ob_get_clean()' : $this->_quote($params);
+        $this->_code .= "$view =& {$module}->startDataView($params);\n";
+        $this->_code .= "if ($view && {$view}->rewind()) {\n";
+        return $this->_pushModule($module);
     }
 
-    protected function tagSelectRow(&$module, &$params)
+    protected function tagSelectRow($module, &$node)
     {
-        ++ $this->_pos;
-        $old_mode = $this->_mode;
-        $view =& $this->_startDataView($module, $module->getProperty('data')->rowFilter($params));
-        $done = $this->_renderer($module);
-        $this->_mode = $old_mode;
-        $view && $module->endView();
-        return $done;
+        $view = '$view' . count($this->_stack) . '_' . $this->_level;
+        $params = $this->_expand($node);
+        $params = is_null($params) ? 'ob_get_clean()' : $this->_quote($params);
+        $this->_code .= "$view =& {$module}->startDataView({$module}->getProperty('data')->rowFilter($params));\n";
+        $this->_code .= "if ($view && {$view}->rewind()) {\n";
+        return $this->_pushModule($module);
     }
 
-    protected function tagForSelect(&$module, &$params)
+    protected function tagForSelect($module, &$node)
     {
-        ++ $this->_pos;
-        $old_mode = $this->_mode;
-        $view =& $this->_startDataView($module, $params);
-        $start_pos = $this->_pos;
-
-        do {
-            $this->_pos = $start_pos;
-            $done = $this->_renderer($module);
-        } while ($done && $view && $view->next());
-
-        $this->_mode = $old_mode;
-        $view && $module->endView();
-        return $done;
+        $view = '$view' . count($this->_stack) . '_' . $this->_level;
+        $params = $this->_expand($node);
+        $params = is_null($params) ? 'ob_get_clean()' : $this->_quote($params);
+        $this->_code .= "$view =& {$module}->startDataView($params);\n";
+        $this->_code .= "for ($view && {$view}->rewind(); {$view}->valid(); {$view}->next()) {\n";
+        return $this->_pushModule($module);
     }
 
-    protected function tagForEach(&$module, &$params)
+    protected function tagForEach($module, &$node)
     {
-        ++ $this->_pos;
-        $old_mode = $this->_mode;
-        $view = null;
+        $params = $this->_expand($node);
 
-        if ($this->_mode & self::SKIP_TAGS) {
-            $this->_mode |= self::SKIP_ELSE;
-            $done = $this->_renderer($module);
-        } elseif ($params == '') {
-            $view =& $module->getCurrentView();
-            if (!$view || !$view->isValid() || !$view->rewind()) {
-                $this->_mode |= self::SKIP_TAGS|self::SKIP_TEXT;
-                $done = $this->_renderer($module);
-            } else {
-                $start_pos = $this->_pos;
-                do {
-                    $this->_pos = $start_pos;
-                    $done = $this->_renderer($module);
-                } while ($done && $view->next());
-            }
+        if ($params == '') {
+            $view = '$view' . count($this->_stack) . '_' . $this->_level;
+            $this->_code .= "$view =& {$module}->getCurrentView();\n";
+            $this->_code .= "for ($view && {$view}->rewind(); {$view}->valid(); {$view}->next()) {\n";
         } elseif ($params > 0) {
-            $start_pos = $this->_pos;
-            for ($module->keys['CNT'] = 1; $module->keys['CNT'] <= $params; ++ $module->keys['CNT']) {
-                $this->_pos = $start_pos;
-                $done = $this->_renderer($module);
-                if (!$done) {
-                    break;
-                }
-            }
+            $cnt = '$cnt' . count($this->_stack) . '_' . $this->_level;
+            $this->_code .= "for ($cnt = 1; $cnt < $params; ++ $cnt) {\n";
+            $this->_code .= "{$module}->keys['CNT'] = $cnt;\n";
         } else {
-            $view =& $module->startView($params);
-            if (!$view || !$view->isValid() || !$view->rewind()) {
-                $this->_mode |= self::SKIP_TAGS|self::SKIP_TEXT;
-                $done = $this->_renderer($module);
-            } else {
-                $start_pos = $this->_pos;
-                do {
-                    $this->_pos = $start_pos;
-                    $done = $this->_renderer($module);
-                } while ($done && $view->next());
-            }
+            $params = is_null($params) ? 'ob_get_clean()' : $this->_quote($params);
+            $view = '$view' . count($this->_stack) . '_' . $this->_level;
+            $this->_code .= "$view =& {$module}->startView($params);\n";
+            $this->_code .= "for ($view && {$view}->rewind(); {$view}->valid(); {$view}->next()) {\n";
         }
 
-        $this->_mode = $old_mode;
-        $view && $module->endView();
-        return $done;
+        return $this->_pushModule($module);
     }
 
     /**#@-*/
@@ -202,39 +173,44 @@ class TIP_RcbtNG_Instance
     private $_text = null;
     private $_len = null;
 
+    private $_tree = array();
     private $_pos = 0;
     private $_open = null;
     private $_close = null;
 
-    private $_tree = array();
-    private $_branch = null;
-
-    /**
-     * Skip level, 0 = pen down, > 0 skip content
-     * @var int
-     */
-    private $_mode = 0;
-
+    private $_code = null;
+    private $_modules = array();
+    private $_caller = '$caller';
+    private $_stack = array();
+    private $_level = 0;
 
     //}}}
     //{{{ Private methods
 
     private function _init()
     {
-        if (empty($this->_tree)) {
-            return $this->_tokenizer() && $this->_parser($this->_tree);
+        if (isset($this->_code)) {
+            return true;
         }
-        return true;
+
+        if ($this->_tokenizer() && $this->_parser() && $this->_renderer()) {
+            // Free the most large memory blocks
+            $this->_text = null;
+            unset($this->_text, $this->_tree);
+            return true;
+        }
+
+        return false;
     }
 
     private function _tokenizer()
     {
         $this->_tree =& $this->_tokenize();
         if (is_numeric($this->_open)) {
-            $this->error = 'Opened tag';
+            $this->error = 'Unclosed tag';
             return false;
         } elseif (is_numeric($this->_close)) {
-            $this->error = 'Closing a no existent tag';
+            $this->error = 'Unopened tag';
             return false;
         }
         return true;
@@ -270,15 +246,10 @@ class TIP_RcbtNG_Instance
         return $tree;
     }
 
-    private function _parser(&$tree)
+    private function _parser()
     {
-        foreach ($tree as &$tag) {
-            if (!is_array($tag)) {
-                continue;
-            }
-
-            $done = count($tag) == 1 ? $this->_parse($tag) : $this->_parser($tag);
-            if (!$done) {
+        foreach ($this->_tree as &$tag) {
+            if (is_array($tag) && !$this->_parse($tag)) {
                 return false;
             }
         }
@@ -286,138 +257,174 @@ class TIP_RcbtNG_Instance
         return true;
     }
 
-    private function _parse(&$leaf)
+    private function _parse(&$tag)
     {
-        $token = $leaf[0];
-        if (!is_string($token)) {
-            $this->error = 'malformed token';
-            return false;
-        } else {
-            unset($leaf[0]);
+        $current = array();
+
+        foreach ($tag as &$item) {
+            if (is_array($item)) {
+                $current[] =& $item;
+                $this->_parse($item);
+            } else {
+                $start = 0;
+                $dot = isset($pre) ? false : strpos ($item, '.');
+                $open = isset($post) ? false : strpos ($item, '(');
+
+                if ($dot !== false && ($open === false || $dot < $open)) {
+                    $dot && $current[] = substr($item, 0, $dot);
+                    $start = $dot+1;
+                    $pre =& $current;
+                    unset($current);
+                    $current = array();
+                }
+               
+                if ($open !== false) {
+                    isset($pre) || $pre = array('');
+                    $open > $start && $current[] = substr($item, $start, $open-$start);
+                    $start = $open+1;
+                    $post =& $current;
+                    unset($current);
+                    $current = array();
+                }
+
+                if (substr($item, $start) != '')
+                    $current[] = substr($item, $start);
+            }
         }
 
-        $leaf['params'] = null;
-        $params =& $leaf['params'];
-
-        $open = strpos ($token, '(');
-        if ($open !== false) {
-            $pos = $open+1;
-            $close = strrpos($token, ')');
-            if ($close === false) {
-                $this->error = 'unclosed parameter';
+        if (isset($post)) {
+            // Find matching close brace
+            $last = count($current)-1;
+            if ($last < 0 || substr($current[$last], -1) != ')') {
+                $this->error = 'unclosed argument';
                 return false;
             }
-
-            $params = substr($token, $pos, $close-$pos);
-            isset($params) || $params = '';
-            $token = substr($token, 0, $pos-1);
-        }
-
-        @list($pre, $post) = explode('.', trim($token), 2);
-        if (is_null($post)) {
-            $leaf['module'] = null;
-            if (is_null($params)) {
-                if ($pre == '') {
-                    $leaf['name'] = null;
-                } else {
-                    $leaf['name'] = 'html';
-                    $params = $pre;
-                }
+            if ($current[$last] == ')') {
+                unset($current[$last]);
             } else {
-                $pre == '' && $pre = 'tryHtml';
-                $leaf['name'] = $pre;
+                $current[$last] = substr($current[$last], 0, -1);
             }
+            empty($post) && $post = array('tryHtml');
+        } elseif (empty($current)) {
+            // Unnesting command
+            $tag = array('name' => '');
+            return true;
         } else {
-            $leaf['module'] =& TIP_Type::getInstance($pre, false);
-            $leaf['name'] = $post;
+            isset($pre) || $pre = array('');
+            $post = array('html');
         }
 
+        empty($current) && $current = array('');
+        $tag = array('module' => $pre, 'name' => $post, 'params' => $current);
+        return true;
+    }
+
+    private function _renderer()
+    {
+        foreach ($this->_tree as &$tag) {
+            if (is_string($tag)) {
+                $this->_code .= 'echo ' . $this->_quote($tag) . ";\n";
+            } elseif (!$this->_renderTag($tag)) {
+                return false;
+            }
+        }
+
+        $head = '';
+        foreach (array_keys($this->_modules) as $id) {
+            $head .= "\$$id =& TIP_Type::getInstance('$id', false);\n";
+        }
+
+        $this->_code = $head . "\n" . $this->_code;
+        return true;
+    }
+
+    private function _renderTag(&$tag)
+    {
+        if (empty($tag['name'])) {
+            return $this->tag();
+        }
+
+        // Get the module
+        $module = $this->_expand($tag['module']);
+        if (is_null($module)) {
+            $module = '$module' . $this->_level;
+            $this->_code .= "$module =& TIP_Type::getInstance(ob_get_clean(), false);\n";
+        } else {
+            $module = strtolower($module);
+            if (empty($module)) {
+                $module = $this->_caller;
+            } else {
+                $this->_modules[$module] = true;
+                $module = '$' . $module;
+            }
+        }
+
+        $name = $this->_expand($tag['name']);
+        if (is_null($name)) {
+            $name = '$name' . $this->_level;
+            $this->_code .= "$name = ob_get_clean();\n";
+        } elseif (method_exists($this, 'tag' . $name)) {
+            // Call a predefined tag (a tag defined in this source engine)
+            return $this->{'tag' . $name}($module, $tag['params']);
+        } else {
+            $name = $this->_quote($name);
+        }
+
+        $params = $this->_expand($tag['params'], true);
+        is_null($params) && $params = 'ob_get_clean()';
+
+        $this->_code .= "{$module}->callTag($name, $params);\n";
         return true;
     }
 
     /**
-     * Render the specified tree
-     *
-     * @param  object &$caller The caller TIP_Module
-     * @return                 true on success, false on errors
+     * Expand a node
+     * @param  array      &$node  The node to expand
+     * @param  boolean     $quote Wheter to quote or not the text
+     * @return string|null        The expanded text or null for buffered result
      */
-    private function _renderer(&$caller)
+    private function _expand(&$node, $quote = false)
     {
-        while (isset($this->_branch[$this->_pos])) {
-            $tag =& $this->_branch[$this->_pos];
-
-            if (is_string($tag)) {
-                if (!($this->_mode & self::SKIP_TEXT)) {
-                    echo $tag;
-                }
-            } else {
-                if (!array_key_exists('name', $tag)) {
-                    // Tag recursion
-                    ob_start();
-                    $old_pos = $this->_pos;
-                    $old_mode = $this->_mode;
-                    $old_branch =& $this->_branch;
-                    $this->_pos = 0;
-                    $this->_mode &= ~self::SKIP_TEXT;
-                    $this->_branch =& $tag;
-                    if (!$this->_renderer($caller)) {
-                        ob_clean();
-                        return false;
-                    }
-                    $this->_pos = $old_pos;
-                    $this->_mode = $old_mode;
-                    $this->_branch =& $old_branch;
-                    $data[0] = ob_get_clean();
-                    if (!$this->_parse($data)) {
-                        return false;
-                    }
-                    $module =& $data['module'];
-                    $name   =& $data['name'];
-                    $params =& $data['params'];
-                    unset($data);
-                } else {
-                    $module =& $tag['module'];
-                    $name   =& $tag['name'];
-                    $params =& $tag['params'];
-                }
-
-                if (is_null($name)) {
-                    break;
-                }
-
-                isset($module) || $module =& $caller;
-
-                if (method_exists($this, 'tag' . $name)) {
-                    // Call a predefined tag (a tag defined in this source engine)
-                    if (!$this->{'tag' . $name}($module, $params)) {
-                        return false;
-                    }
-                } elseif (!($this->_mode & self::SKIP_TAGS)) {
-                    // Call a module tag
-                    $module->callTag($name, $params);
-                }
-            }
-
-            ++ $this->_pos;
+        // Simplest case: only one string
+        if (count($node) == 1 && is_string($node[0])) {
+            return $quote ? $this->_quote($node[0]) : $node[0];
         }
 
+        $this->_code .= "ob_start();\n";
+
+        foreach ($node as &$tag) {
+            if (is_string($tag)) {
+                $this->_code .= 'echo ' . $this->_quote($tag) . ";\n";
+            } else {
+                ++ $this->_level;
+                $this->_renderTag($tag);
+                -- $this->_level;
+            }
+        }
+
+        return null;
+    }
+
+    private function _quote($params)
+    {
+        return "'" . addcslashes($params, '\'\\') . "'";
+    }
+
+    private function _pushModule($module)
+    {
+        array_push($this->_stack, $this->_caller);
+        $this->_caller = $module;
         return true;
     }
 
-    private function& _startDataView(&$module, $query)
+    private function _popModule()
     {
-        $view = null;
-
-        if ($this->_mode & self::SKIP_TAGS) {
-            $this->_mode |= self::SKIP_ELSE;
-        } else {
-            $view =& $module->startDataView($query);
-            if (!$view || !$view->isValid() || !$view->rewind()) {
-                $this->_mode |= self::SKIP_TAGS|self::SKIP_TEXT;
-            }
+        $module = array_pop($this->_stack);
+        if (is_null($module)) {
+            return false;
         }
-
-        return $view;
+        $this->_caller = $module;
+        return true;
     }
 
     //}}}
@@ -452,6 +459,17 @@ class TIP_RcbtNG extends TIP_Source_Engine
     //}}}
     //{{{ TIP_Source_Engine implementation
  
+    public function compileBuffer(&$instance, &$buffer, &$caller)
+    {
+        isset($instance) || $instance =& new TIP_RcbtNG_Instance($buffer);
+
+        if (!$instance->compile($caller)) {
+            return $instance->error;
+        }
+
+        return true;
+    }
+
     public function runBuffer(&$instance, &$buffer, &$caller)
     {
         isset($instance) || $instance =& new TIP_RcbtNG_Instance($buffer);

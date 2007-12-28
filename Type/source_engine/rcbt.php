@@ -535,6 +535,12 @@ class TIP_Rcbt extends TIP_Source_Engine
         return $instance->run($caller);
     }
 
+    function compileBuffer(&$instance, &$buffer, &$caller)
+    {
+        // Compilation not implemented
+        return false;
+    }
+
     //}}}
 }
 ?>

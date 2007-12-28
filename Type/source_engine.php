@@ -47,6 +47,8 @@ abstract class TIP_Source_Engine extends TIP_Type
      */
     abstract public function runBuffer(&$instance, &$buffer, &$caller);
 
+    abstract public function compileBuffer(&$instance, &$buffer, &$caller);
+
     //}}}
     //{{{ Methods
 
@@ -65,42 +67,55 @@ abstract class TIP_Source_Engine extends TIP_Type
 
         // Check for cached result
         if (is_array($this->cache_root)) {
-            $file = implode(DIRECTORY_SEPARATOR, array_merge($this->cache_root, $path));
-            if (is_readable($file)) {
-                return readfile($file) !== false;
+            $cache = implode(DIRECTORY_SEPARATOR, array_merge($this->cache_root, $path));
+            if (is_readable($cache)) {
+                return readfile($cache) !== false;
             }
         }
 
         // Check for compiled file
         if (is_array($this->compiled_root)) {
-            $file = implode(DIRECTORY_SEPARATOR, array_merge($this->compiled_root, $path));
-            if (is_readable($file)) {
-                return include($file) !== false;
+            $compiled = implode(DIRECTORY_SEPARATOR, array_merge(array('.'), $this->compiled_root, $path)) . '.php';
+            if (is_readable($compiled)) {
+                return (include $compiled) !== false;
             }
         }
  
         // No cache or compiled file found: parse and run this source
-        if (is_null($source->_buffer)) {
-            $source->_buffer = file_get_contents($source->getProperty('id'));
-        }
+        isset($source->_buffer) || $source->_buffer = file_get_contents($source->__toString());
 
         if ($source->_buffer === false) {
-            TIP::error("unable to read file ($file)");
+            TIP::error("unable to read file ($source)");
             return false;
         }
 
         ob_start();
+
+        // Try to compile
+        if (isset($compiled) && $this->compileBuffer($source->_instance, $source->_buffer, $caller)) {
+            // Compilation succesfull
+            $dir = dirname($compiled);
+            if (is_dir($dir) || mkdir($dir, 0777, true)) {
+                file_put_contents($compiled, ob_get_clean(), LOCK_EX);
+                return (include $compiled) !== false;
+            } else {
+                TIP::warning("Unable to create the compiled path ($dir)");
+                ob_clean();
+            }
+        }
+
         $result = $this->runBuffer($source->_instance, $source->_buffer, $caller);
         if (is_string($result)) {
             ob_end_clean();
-            TIP::error($instance->error);
+            TIP::error($result);
             return false;
-        } elseif (!$result && is_array($this->cache_root)) {
+        } elseif (!$result && isset($cache)) {
             // false returned: cache the result
-            $file = implode(DIRECTORY_SEPARATOR, array_merge($this->cache_root, $path));
-            $dir = dirname($file);
+            $dir = dirname($cache);
             if (is_dir($dir) || mkdir($dir, 0777, true)) {
-                file_put_contents($file, ob_get_contents(), LOCK_EX);
+                file_put_contents($cache, ob_get_contents(), LOCK_EX);
+            } else {
+                TIP::warning("Unable to create the cache path ($dir)");
             }
         }
 

@@ -219,7 +219,7 @@ abstract class TIP_View extends TIP_Type implements Iterator
      */
     public function rewind()
     {
-        return reset($this->rows) !== false;
+        return is_array($this->rows) && reset($this->rows) !== false;
     }
 
     /**
