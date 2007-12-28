@@ -525,20 +525,20 @@ class TIP_Rcbt extends TIP_Source_Engine
     //}}}
     //{{{ TIP_Source_Engine implementation
  
-    function runBuffer(&$instance, &$buffer, &$caller)
+    function runBuffer(&$source, &$caller)
     {
-        if (is_null($instance)) {
-            $instance =& new TIP_Rcbt_Parser($buffer);
-            $instance->parse();
+        if (is_null($source->_instance)) {
+            $source->_instance =& new TIP_Rcbt_Parser($source->_buffer);
+            $source->_instance->parse();
         }
 
-        return $instance->run($caller);
+        return $source->_instance->run($caller);
     }
 
-    function compileBuffer(&$instance, &$buffer, &$caller)
+    function compileBuffer(&$source)
     {
         // Compilation not implemented
-        return false;
+        return null;
     }
 
     //}}}

@@ -55,14 +55,13 @@ class TIP_RcbtNG_Instance
         return true;
     }
 
-    public function compile(&$caller)
+    public function compile()
     {
         if (isset($this->error) || !$this->_init()) {
-            return false;
+            return null;
         }
 
-        echo "<?php\n\n" . $this->_code . "\n?>";
-        return true;
+        return "<?php\n\n" . $this->_code . "\n?>";
     }
 
     //}}}
@@ -459,26 +458,21 @@ class TIP_RcbtNG extends TIP_Source_Engine
     //}}}
     //{{{ TIP_Source_Engine implementation
  
-    public function compileBuffer(&$instance, &$buffer, &$caller)
+    public function compileBuffer(&$source)
     {
-        isset($instance) || $instance =& new TIP_RcbtNG_Instance($buffer);
-
-        if (!$instance->compile($caller)) {
-            return $instance->error;
-        }
-
-        return true;
+        isset($source->_instance) || $source->_instance =& new TIP_RcbtNG_Instance($source->_buffer);
+        return $source->_instance->compile();
     }
 
-    public function runBuffer(&$instance, &$buffer, &$caller)
+    public function runBuffer(&$source, &$caller)
     {
-        isset($instance) || $instance =& new TIP_RcbtNG_Instance($buffer);
+        isset($source->_instance) || $source->_instance =& new TIP_RcbtNG_Instance($source->_buffer);
 
-        if (!$instance->run($caller)) {
-            return $instance->error;
+        if (!$source->_instance->run($caller)) {
+            return $source->_instance->error;
         }
 
-        return !$instance->cache;
+        return !$source->_instance->cache;
     }
 
     //}}}
