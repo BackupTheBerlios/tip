@@ -404,7 +404,8 @@ abstract class TIP_Module extends TIP_Type
      */
     protected function insertInPage($path)
     {
-        TIP_Application::prependCallback(array(&$this, 'run'), array(&$path));
+        $content =& TIP_Application::getGlobal('content');
+        $content = $this->tagRun($path) . $content;
         return true;
     }
 
@@ -419,7 +420,8 @@ abstract class TIP_Module extends TIP_Type
      */
     protected function appendToPage($path)
     {
-        TIP_Application::appendCallback(array(&$this, 'run'), array(&$path));
+        $content =& TIP_Application::getGlobal('content');
+        $content .= $this->tagRun($path);
         return true;
     }
 
@@ -428,7 +430,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * Executes the specified tag, using $params as arguments. This
      * function prepend 'tag' to $name and try to call the so
-     * formed method. If you, for instance, runs callTag('Test', ''), a
+     * formed method. If you, for instance, runs getTag('Test', ''), a
      * tagTest('') call will be performed.
      *
      * A tag is a request from the source engine to echoes something. It can
@@ -444,7 +446,7 @@ abstract class TIP_Module extends TIP_Type
      *                           null if $name is not a valid tag
      * @tutorial TIP/SourceEngine/SourceEngine.pkg#tags
      */
-    public function callTag($name, $params)
+    public function getTag($name, $params)
     {
         $name = strtolower($name);
         $method = 'tag' . $name;
@@ -455,11 +457,15 @@ abstract class TIP_Module extends TIP_Type
         }
 
         global $_tip_profiler;
-        is_object($_tip_profiler) && $_tip_profiler->enterSection($name);
-        $done = $this->$method($params);
+        if (!is_object($_tip_profiler)) {
+            return $this->$method($params);
+        }
+
+        $_tip_profiler->enterSection($name);
+        $result = $this->$method($params);
         is_object($_tip_profiler) && $_tip_profiler->leaveSection($name);
 
-        return $done;
+        return $result;
     }
 
     /**
@@ -538,7 +544,7 @@ abstract class TIP_Module extends TIP_Type
 
     /**#@+
      * @param      string       $params Parameters of the tag
-     * @return     bool                 true on success or false on errors
+     * @return     string|null          The string result or null
      * @subpackage SourceEngine
      */
 
@@ -558,11 +564,9 @@ abstract class TIP_Module extends TIP_Type
         $value = $this->getValidRequest($requests);
         if (is_null($value)) {
             TIP::error("no valid request found ($params)");
-            return false;
         }
 
-        echo $value;
-        return true;
+        return $value;
     }
 
     /**
@@ -579,10 +583,8 @@ abstract class TIP_Module extends TIP_Type
     {
         $requests = explode(',', $params);
         $value = $this->getValidRequest($requests);
-        if (isset($value)) {
-            echo $value;
-        }
-        return true;
+        isset($value) || $value = '';
+        return $value;
     }
 
     /**
@@ -599,11 +601,10 @@ abstract class TIP_Module extends TIP_Type
         $value = $this->getValidRequest($requests);
         if (is_null($value)) {
             TIP::error("no valid request found ($params)");
-            return false;
+            return null;
         }
 
-        echo TIP::toHtml($value);
-        return true;
+        return TIP::toHtml($value);
     }
 
     /**
@@ -618,8 +619,7 @@ abstract class TIP_Module extends TIP_Type
     {
         $requests = explode(',', $params);
         $value = $this->getValidRequest($requests);
-        echo TIP::toHtml($value);
-        return true;
+        return TIP::toHtml($value);
     }
 
     /**
@@ -639,8 +639,7 @@ abstract class TIP_Module extends TIP_Type
             $id = 'label.' . $params;
         }
 
-        echo TIP::getLocale($id, $prefix);
-        return true;
+        return TIP::getLocale($id, $prefix);
     }
 
     /**
@@ -669,19 +668,15 @@ abstract class TIP_Module extends TIP_Type
             array_unshift($list, 'module=' . $this->id);
         }
         $args = implode('&amp;', TIP::urlEncodeAssignment($list));
-        echo TIP::getScriptURI() . '?' . $args;
-        return true;
+        return TIP::getScriptURI() . '?' . $args;
     }
 
     /**
-     * Echo a URL
-     *
-     * Prepends the root URL to $params and outputs the result.
+     * Prepend the root URL to $params and outputs the result.
      */
     protected function tagURL($params)
     {
-        echo TIP::buildURL($params);
-        return true;
+        return TIP::buildURL($params);
     }
 
     /**
@@ -694,8 +689,7 @@ abstract class TIP_Module extends TIP_Type
      */
     protected function tagSourceURL($params)
     {
-        echo $this->buildSourceURL($params);
-        return true;
+        return $this->buildSourceURL($params);
     }
 
     /**
@@ -706,8 +700,7 @@ abstract class TIP_Module extends TIP_Type
      */
     protected function tagModuleURL($params)
     {
-        echo $this->buildSourceURL($this->id, $params);
-        return true;
+        return $this->buildSourceURL($this->id, $params);
     }
 
     /**
@@ -722,8 +715,7 @@ abstract class TIP_Module extends TIP_Type
         if (!$icon_url) {
             $icon_url = $this->buildSourceURL('shared', 'icons');
         }
-        echo $icon_url . '/' . $params;
-        return true;
+        return $icon_url . '/' . $params;
     }
 
     /**
@@ -733,8 +725,7 @@ abstract class TIP_Module extends TIP_Type
      */
     protected function tagUploadURL($params)
     {
-        echo TIP::buildUploadURL($this->id, $params);
-        return true;
+        return TIP::buildUploadURL($this->id, $params);
     }
 
     /**
@@ -745,8 +736,7 @@ abstract class TIP_Module extends TIP_Type
      */
     protected function tagIs($params)
     {
-        echo ((int) $params) === TIP::getUserId() ? 'true' : 'false';
-        return true;
+        return ((int) $params) === TIP::getUserId() ? 'true' : 'false';
     }
 
     /**
@@ -757,7 +747,12 @@ abstract class TIP_Module extends TIP_Type
      */
     protected function tagRun($params)
     {
-        return $this->run($params);
+        ob_start();
+        if ($this->run($params)) {
+            return ob_get_clean();
+        }
+        ob_end_clean();
+        return null;
     }
 
     /**
@@ -768,9 +763,9 @@ abstract class TIP_Module extends TIP_Type
      */
     protected function tagRunShared($params)
     {
-        $path = explode(',', $params);
-        array_unshift($path, 'shared');
-        return $this->run($path);
+        $params = explode(',', $params);
+        array_unshift($params, 'shared');
+        return $this->tagRun($params);
     }
 
     /**
@@ -787,13 +782,12 @@ abstract class TIP_Module extends TIP_Type
         $pos = strpos($params, ',');
         if ($pos === false) {
             TIP::error("invalid inList parameter ($params)");
-            return false;
+            return null;
         }
 
         $needle = substr($params, 0, $pos);
         $list  = explode(',', substr($params, $pos+1));
-        echo in_array($needle, $list) ? 'true' : 'false';
-        return true;
+        return in_array($needle, $list) ? 'true' : 'false';
     }
 
     /**
@@ -809,8 +803,7 @@ abstract class TIP_Module extends TIP_Type
     protected function tagDate($params)
     {
         $format = 'date_' . TIP::getLocaleId();
-        echo TIP::formatDate($format, $params, 'iso8601');
-        return true;
+        return TIP::formatDate($format, $params, 'iso8601');
     }
 
     /**
@@ -827,8 +820,7 @@ abstract class TIP_Module extends TIP_Type
         if (is_null($format)) {
             $format = 'datetime_' . TIP::getLocaleId();
         }
-        echo TIP::toHtml(TIP::formatDate($format, $params, 'iso8601'));
-        return true;
+        return TIP::toHtml(TIP::formatDate($format, $params, 'iso8601'));
     }
 
     /**
@@ -844,8 +836,14 @@ abstract class TIP_Module extends TIP_Type
     protected function tagModuleExists($params)
     {
         $file = TIP::buildLogicPath('module', $params) . '.php';
-        echo is_readable($file) ? 'true' : 'false';
-        return true;
+        return is_readable($file) ? 'true' : 'false';
+    }
+
+    protected function tagSet($params)
+    {
+        list($var, $value) = explode(',', $params, 2);
+        $this->$var = $value;
+        return '';
     }
 
     /**#@-*/

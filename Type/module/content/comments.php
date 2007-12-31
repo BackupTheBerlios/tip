@@ -71,6 +71,12 @@ class TIP_Comments extends TIP_Content
     //}}}
     //{{{ Tags
 
+    /**#@+
+     * @param      string       $params Parameters of the tag
+     * @return     string|null          The string result or null
+     * @subpackage SourceEngine
+     */
+
     /**
      * Add a comments form
      *
@@ -78,28 +84,34 @@ class TIP_Comments extends TIP_Content
      *
      * If the form is validated, the result is rendered in the page. Also, the
      * cancel button in the invalidated form is removed (it is not useful for
-     * inline forms).
-     *
-     * @param  int  $params The id of the master row
-     * @return bool         true on success or false on errors
+     * inline forms). $params must contain the id of the master row.
      */
     protected function tagAdd($params)
     {
         if ($this->privilege < TIP_PRIVILEGE_UNTRUSTED) {
-            // Privilege level too low: return without rendering
-            return true;
+            // Privilege level too low: return empty rendering result
+            return '';
         } elseif (empty($params)) {
             // No param id specified
             TIP::notifyError('noparams');
-            return false;
+            return null;
         }
 
         $options['defaults'][$this->parent_field] = (int) $params;
         $options['buttons'] = TIP_FORM_BUTTON_SUBMIT;
         $options['invalid_render'] = TIP_FORM_RENDER_HERE;
         $options['valid_render'] = TIP_FORM_RENDER_IN_PAGE;
-        return $this->actionAdd($options);
+
+        ob_start();
+        if ($this->actionAdd($options)) {
+            return ob_get_clean();
+        }
+
+        ob_end_clean();
+        return null;
     }
+
+    /**#@-*/
 
     //}}}
     //{{{ Actions

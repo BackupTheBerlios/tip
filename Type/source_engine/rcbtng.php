@@ -67,12 +67,14 @@ class TIP_RcbtNG_Instance
     //}}}
     //{{{ Predefined tags
 
-    /**
-     * Special closing tag
-     * @return     bool         true on success or false on errors
+    /**#@+
+     * @param      string   $module The module to use
+     * @param      string   $params Tag parameters
+     * @return     bool             true on success or false on errors
      * @subpackage SourceEngine
      */
-    protected function tag()
+
+    protected function tag($module, $params)
     {
         $this->_code .= "}\n";
         if (!$this->_popModule()) {
@@ -82,80 +84,59 @@ class TIP_RcbtNG_Instance
         return true;
     }
 
-    /**#@+
-     * @param      TIP_Module   $module The module to use
-     * @param      array       &$node   Parameters node
-     * @return     bool                 true on success or false on errors
-     * @subpackage SourceEngine
-     */
-
-    protected function tagCache($module, &$node)
+    protected function tagCache($module, $params)
     {
         $this->cache = true;
         return true;
     }
 
-    protected function tagIf(&$module, &$node)
+    protected function tagIf($module, $params)
     {
-        $params = $this->_expand($node);
-        if (is_null($params)) {
-            $this->_code .= "if (eval('return '.ob_get_clean().';')) {\n";
-        } else {
-            $this->_code .= "if ($params) {\n";
-        }
+        $this->_code .= "if (eval('return ' . $params . ';')) {\n";
         return $this->_pushModule($module);
     }
 
-    protected function tagElse($module, &$node)
+    protected function tagElse($module, $params)
     {
         $this->_code .= "} else {\n";
         return true;
     }
 
-    protected function tagSelect($module, &$node)
+    protected function tagSelect($module, $params)
     {
         $view = '$view' . count($this->_stack) . '_' . $this->_level;
-        $params = $this->_expand($node);
-        $params = is_null($params) ? 'ob_get_clean()' : $this->_quote($params);
         $this->_code .= "$view =& {$module}->startDataView($params);\n";
         $this->_code .= "if ($view && {$view}->rewind()) {\n";
         return $this->_pushModule($module);
     }
 
-    protected function tagSelectRow($module, &$node)
+    protected function tagSelectRow($module, $params)
     {
         $view = '$view' . count($this->_stack) . '_' . $this->_level;
-        $params = $this->_expand($node);
-        $params = is_null($params) ? 'ob_get_clean()' : $this->_quote($params);
         $this->_code .= "$view =& {$module}->startDataView({$module}->getProperty('data')->rowFilter($params));\n";
         $this->_code .= "if ($view && {$view}->rewind()) {\n";
         return $this->_pushModule($module);
     }
 
-    protected function tagForSelect($module, &$node)
+    protected function tagForSelect($module, $params)
     {
         $view = '$view' . count($this->_stack) . '_' . $this->_level;
-        $params = $this->_expand($node);
-        $params = is_null($params) ? 'ob_get_clean()' : $this->_quote($params);
         $this->_code .= "$view =& {$module}->startDataView($params);\n";
         $this->_code .= "for ($view && {$view}->rewind(); {$view}->valid(); {$view}->next()) {\n";
         return $this->_pushModule($module);
     }
 
-    protected function tagForEach($module, &$node)
+    protected function tagForEach($module, $params)
     {
-        $params = $this->_expand($node);
-
-        if ($params == '') {
+        if ($params == "''") {
             $view = '$view' . count($this->_stack) . '_' . $this->_level;
             $this->_code .= "$view =& {$module}->getCurrentView();\n";
             $this->_code .= "for ($view && {$view}->rewind(); {$view}->valid(); {$view}->next()) {\n";
-        } elseif ($params > 0) {
+        } elseif (!is_null($params) && eval("return $params;") > 0) {
             $cnt = '$cnt' . count($this->_stack) . '_' . $this->_level;
             $this->_code .= "for ($cnt = 1; $cnt < $params; ++ $cnt) {\n";
             $this->_code .= "{$module}->keys['CNT'] = $cnt;\n";
         } else {
-            $params = is_null($params) ? 'ob_get_clean()' : $this->_quote($params);
             $view = '$view' . count($this->_stack) . '_' . $this->_level;
             $this->_code .= "$view =& {$module}->startView($params);\n";
             $this->_code .= "for ($view && {$view}->rewind(); {$view}->valid(); {$view}->next()) {\n";
@@ -178,7 +159,6 @@ class TIP_RcbtNG_Instance
     private $_close = null;
 
     private $_code = null;
-    private $_modules = array();
     private $_caller = '$caller';
     private $_stack = array();
     private $_level = 0;
@@ -305,14 +285,12 @@ class TIP_RcbtNG_Instance
             }
             empty($post) && $post = array('tryHtml');
         } elseif (empty($current)) {
-            // Unnesting command
-            $tag = array('name' => '');
-            return true;
+            $post = array('');
         } else {
-            isset($pre) || $pre = array('');
             $post = array('html');
         }
 
+        isset($pre) || $pre = array('');
         empty($current) && $current = array('');
         $tag = array('module' => $pre, 'name' => $post, 'params' => $current);
         return true;
@@ -320,88 +298,111 @@ class TIP_RcbtNG_Instance
 
     private function _renderer()
     {
-        foreach ($this->_tree as &$tag) {
-            if (is_string($tag)) {
-                $this->_code .= 'echo ' . $this->_quote($tag) . ";\n";
-            } elseif (!$this->_renderTag($tag)) {
-                return false;
-            }
-        }
-
-        $head = '';
-        foreach (array_keys($this->_modules) as $id) {
-            $head .= "\$$id =& TIP_Type::getInstance('$id', false);\n";
-        }
-
-        $this->_code = $head . "\n" . $this->_code;
-        return true;
+        return $this->_render($this->_tree);
     }
 
-    private function _renderTag(&$tag)
+    private function _render(&$node)
     {
-        if (empty($tag['name'])) {
-            return $this->tag();
-        }
-
-        // Get the module
-        $module = $this->_expand($tag['module']);
-        if (is_null($module)) {
-            $module = '$module' . $this->_level;
-            $this->_code .= "$module =& TIP_Type::getInstance(ob_get_clean(), false);\n";
-        } else {
-            $module = strtolower($module);
-            if (empty($module)) {
-                $module = $this->_caller;
+        foreach ($node as &$tag) {
+            if (is_string($tag)) {
+                $text = $this->_quote($tag);
             } else {
-                $this->_modules[$module] = true;
-                $module = '$' . $module;
+                ++ $this->_level;
+                $text = $this->_renderTag($tag);
+                -- $this->_level;
+                if (is_null($text)) {
+                    return false;
+                } elseif ($text == "''") {
+                    continue;
+                }
             }
+            $this->_code .= "echo $text;\n";
         }
 
-        $name = $this->_expand($tag['name']);
-        if (is_null($name)) {
-            $name = '$name' . $this->_level;
-            $this->_code .= "$name = ob_get_clean();\n";
-        } elseif (method_exists($this, 'tag' . $name)) {
-            // Call a predefined tag (a tag defined in this source engine)
-            return $this->{'tag' . $name}($module, $tag['params']);
-        } else {
-            $name = $this->_quote($name);
-        }
-
-        $params = $this->_expand($tag['params'], true);
-        is_null($params) && $params = 'ob_get_clean()';
-
-        $this->_code .= "{$module}->callTag($name, $params);\n";
         return true;
     }
 
     /**
-     * Expand a node
-     * @param  array      &$node  The node to expand
-     * @param  boolean     $quote Wheter to quote or not the text
-     * @return string|null        The expanded text or null for buffered result
+     * Render a tag
+     * @param  array      &$tag    The tag to render
+     * @param  boolean     $inline Try to force an inline rendering
+     * @return string|null         The rendered text or null if not possible
      */
-    private function _expand(&$node, $quote = false)
+    private function _renderTag(&$tag, $inline = false)
     {
-        // Simplest case: only one string
-        if (count($node) == 1 && is_string($node[0])) {
-            return $quote ? $this->_quote($node[0]) : $node[0];
+        // Get the module
+        if (is_null($module = $this->_expandInline($tag['module']))) {
+            if ($inline || !$this->_expandBuffer($tag['module'])) {
+                return null;
+            }
+            $module = '$module' . $this->_level;
+            $this->_code .= "$module =& TIP_Type::getInstance(ob_get_clean());\n";
+        } elseif ($module == "''") {
+            $module = $this->_caller;
+        } else {
+            $module = "TIP_Type::getInstance($module)";
         }
 
-        $this->_code .= "ob_start();\n";
+        // Get the params
+        if (is_null($params = $this->_expandInline($tag['params']))) {
+            if ($inline || !$this->_expandBuffer($tag['params'])) {
+                return null;
+            }
+            $params = '$params' . $this->_level;
+            $this->_code .= "$params = ob_get_clean();\n";
+        }
 
-        foreach ($node as &$tag) {
-            if (is_string($tag)) {
-                $this->_code .= 'echo ' . $this->_quote($tag) . ";\n";
+        // Get the name
+        if (count($tag['name']) == 1 && is_string($tag['name'][0])) {
+            $name = $tag['name'][0];
+            if (method_exists($this, 'tag' . $name)) {
+                // Call a predefined tag (a tag defined in this source engine)
+                return $inline || !$this->{'tag' . $name}($module, $params) ? null : "''";
             } else {
-                ++ $this->_level;
-                $this->_renderTag($tag);
-                -- $this->_level;
+                $name = $this->_quote($name);
+            }
+        } else {
+            if (is_null($name = $this->_expandInline($tag['name']))) {
+                if ($inline || !$this->_expandBuffer($tag['name'])) {
+                    return null;
+                }
+                $name = 'ob_get_clean()';
             }
         }
 
-        return null;
+        return "{$module}->getTag($name, $params)";
+    }
+
+    /**
+     * Expand a node using inline rendering
+     * @param  array      &$node The node to expand
+     * @return string|null       The expanded text or null
+     *                           if inline rendering not possible
+     */
+    private function _expandInline(&$node)
+    {
+        $items = array();
+        foreach ($node as &$tag) {
+            $item = is_string($tag) ? $this->_quote($tag) : $this->_renderTag($tag, true);
+            if (!$item) {
+                // Inline rendering not possible
+                return null;
+            }
+            $item != "''" && $items[] = $item;
+        }
+
+        return empty($items) ? "''" : implode(' . ', $items);
+    }
+
+    /**
+     * Expand a node using ob_start() buffering
+     * @param  array      &$node The node to expand
+     * @return boolean           true on success or false on errors
+     */
+    private function _expandBuffer(&$node)
+    {
+        $this->_code .= "ob_start();\n";
+        return $this->_render($node);
     }
 
     private function _quote($params)

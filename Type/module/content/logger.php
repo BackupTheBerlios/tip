@@ -91,7 +91,7 @@ class TIP_Logger extends TIP_Content
                 $code['origin'] = "$trace[file] on line $trace[line]";
             }
 
-            if ($function == 'calltag') {
+            if ($function == 'gettag') {
                 if (!array_key_exists('tag', $code)) {
                     $module  = $trace['class'];
                     $name = $trace['args'][0];
@@ -99,7 +99,7 @@ class TIP_Logger extends TIP_Content
                     if (strlen($params) > 80) {
                         $params = substr($params, 0, 77) . '...';
                     }
-                    $code['tag'] = "$module::callTag($name, $params)";
+                    $code['tag'] = "$module::getTag($name, $params)";
                 }
                 continue;
             } elseif ($function == 'callaction') {
@@ -170,7 +170,7 @@ class TIP_Logger extends TIP_Content
     public function dumpLogs()
     {
         if (!empty($this->_cache)) {
-            $this->tagRun($this->browse_source);
+            echo $this->run($this->browse_source);
         }
     }
 

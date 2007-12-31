@@ -330,9 +330,10 @@ class TIP_Form extends TIP_Module
 
         // Rendering
         if ($render == TIP_FORM_RENDER_HERE) {
-            $this->_render();
+            echo $this->_render();
         } elseif ($render == TIP_FORM_RENDER_IN_PAGE) {
-            TIP_Application::appendCallback(array(&$this, '_render'));
+            $content =& TIP_Application::getGlobal('content');
+            $content .= $this->_render();
         }
 
         return $valid;
@@ -444,7 +445,7 @@ class TIP_Form extends TIP_Module
     {
         $renderer =& TIP_Renderer::getForm();
         $this->_form->accept($renderer);
-        echo $renderer->toHtml();
+        return $renderer->toHtml();
     }
 
     //}}}

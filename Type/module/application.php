@@ -10,9 +10,7 @@
  * The main module
  *
  * This module manages the generation of the "page" (the most dynamic part of
- * a TIP site). This is done by using a callback queue, stored in the internal
- * $_queue property, where the modules will prepend or append their
- * callbacks.
+ * a TIP site). This is done by using the "content" property as a text buffer.
  *
  * When the tagPage() is called, usually throught a tag in the main source
  * file, the TIP_Application module will call the callbacks stored in the queue
@@ -38,6 +36,36 @@
 class TIP_Application extends TIP_Module
 {
     //{{{ Properties
+
+    /**
+     * Page begin string (incipit)
+     * @var string
+     */
+    protected $incipit = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"it-IT\" lang=\"it-IT\">";
+
+    /**
+     * Page end string (explicit)
+     * @var string
+     */
+    protected $explicit = '</html>';
+
+    /**
+     * Page title
+     * @var string
+     */
+    protected $title = 'Untitled TIP site';
+
+    /**
+     * Page description
+     * @var string
+     */
+    protected $description = 'This is a generic TIP site';
+
+    /**
+     * Page keywords
+     * @var string
+     */
+    protected $keywords = 'tip';
 
     /**
      * The default data engine to use: required
@@ -98,6 +126,18 @@ class TIP_Application extends TIP_Module
     protected $fatal_url = null;
 
     /**
+     * The template to run to generate the <head>
+     * @var string
+     */
+    protected $head_source = 'head.src';
+
+    /**
+     * The template to run to generate the <body>
+     * @var string
+     */
+    protected $body_source = 'body.src';
+
+    /**
      * The file to run to notify errors
      * @var string
      */
@@ -114,6 +154,12 @@ class TIP_Application extends TIP_Module
      * @var string
      */
     protected $info_source = 'info.src';
+
+    /**
+     * The page content
+     * @var string
+     */
+    protected $content = '';
 
     //}}}
     //{{{ Constructor/destructor
@@ -166,6 +212,9 @@ class TIP_Application extends TIP_Module
     {
         parent::postConstructor();
 
+        $this->keys['TITLE'] =& $this->title;
+        $this->keys['DESCRIPTION'] =& $this->description;
+        $this->keys['KEYWORDS'] =& $this->keywords;
         $this->keys['TODAY'] = TIP::formatDate('date_iso8601');
         $this->keys['NOW'] = TIP::formatDate('datetime_iso8601');
         $this->keys['BASE_URL'] = TIP::getBaseURL();
@@ -282,41 +331,6 @@ class TIP_Application extends TIP_Module
     }
 
     /**
-     * Prepend a page callback
-     *
-     * Inserts at the beginning of $_queue the specified callback,
-     * that will be called while generating the page.
-     *
-     * The callback can be expressed in any format accettable by
-     * the call_user_func() function.
-     *
-     * @param mixed $callback The callback
-     * @param array $args     Arguments of the callback
-     */
-    static public function prependCallback($callback, $args = array())
-    {
-        array_unshift($GLOBALS[TIP_MAIN]->_queue, null);
-        $GLOBALS[TIP_MAIN]->_queue[0] = array($callback, $args);
-    }
-
-    /**
-     * Append a page callback
-     *
-     * Appends at the end of $_queue the specified callback, that will
-     * be called while generating the page.
-     *
-     * The callback can be expressed in any format accettable by
-     * the call_user_func() function.
-     *
-     * @param mixed $callback The callback
-     * @param array $args     Arguments of the callback
-     */
-    static public function appendCallback($callback, $args = array())
-    {
-        $GLOBALS[TIP_MAIN]->_queue[] = array($callback, $args);
-    }
-
-    /**
      * Generic message notification
      *
      * Outputs a generic notification message running the specified source
@@ -344,28 +358,31 @@ class TIP_Application extends TIP_Module
             return false;
         }
 
-        $title_id = 'notify.' . $severity;
-        $message_id = $title_id . '.' . $id;
+        $header_id = 'notify.' . $severity;
+        $message_id = $header_id . '.' . $id;
         $data =& $locale->getProperty('data');
 
         $key = $data->getProperty('primary_key');
-        $filter = $data->filter($key, $title_id) . $data->addFilter('OR', $key, $message_id);
+        $filter = $data->filter($key, $header_id) . $data->addFilter('OR', $key, $message_id);
         if (!is_null($view =& $locale->startDataView($filter))) {
             $rows =& $view->getProperty('rows');
             $locale->endView();
             $locale_id = $locale->getProperty('locale');
-            $title = @$rows[$title_id][$locale_id];
+            $header = @$rows[$header_id][$locale_id];
             $message = @$rows[$message_id][$locale_id];
         }
 
         // Fallback values
-        isset($title) || ($title = 'UNDEFINED TITLE') && TIP::warning("localized id not found ($title_id)");
+        isset($header) || ($header = 'UNDEFINED') && TIP::warning("localized id not found ($header_id)");
         isset($message) || ($message = 'Undefined message') && TIP::warning("localized id not found ($message_id)");
 
         $main = $GLOBALS[TIP_MAIN];
         $source_property = $severity . '_source';
         $source = $main->$source_property;
-        $main->prependCallback(array(&$main, '_runNotify'), array($source, $title, $message));
+
+        $main->keys['HEADER'] = $header;
+        $main->keys['MESSAGE'] = $message;
+        $main->content = $main->tagRun($source) . $main->content;
 
         $running = false;
         return true;
@@ -376,10 +393,8 @@ class TIP_Application extends TIP_Module
      *
      * The starting point of the TIP system. This must be called somewhere from
      * your main script.
-     *
-     * @param string $main_source The main source program to run
      */
-    public function go($main_source)
+    public function go()
     {
         $locale = TIP::getOption($this->shared_modules['locale'], 'locale');
 
@@ -415,8 +430,12 @@ class TIP_Application extends TIP_Module
             TIP::notifyError('nomodule');
         }
 
-        // Generates the page
-        $this->tagRun($main_source);
+        // Generates the page: body must be called before the head because
+        // some head tags can be modified by body templates
+        echo $this->incipit;
+        $body = $this->tagRun($this->body_source);
+        $this->run($this->head_source);
+        echo $body . $this->explicit;
 
         $this->_session_started && HTTP_Session2::pause();
     }
@@ -424,45 +443,39 @@ class TIP_Application extends TIP_Module
     //}}}
     //{{{ Tags
 
+    /**#@+
+     * @param      string       $params Parameters of the tag
+     * @return     string|null          The string result or null on errors
+     * @subpackage SourceEngine
+     */
+
     /**
-     * Output the page
-     *
-     * The output of every action is deferred to the page, that can be
-     * placed anywhere in the main source.
-     *
-     * @param  string $params The parameter string
-     * @return bool           true on success or false on errors
+     * Output the page content
      */
     protected function tagPage($params)
     {
-        if (empty($this->_queue)) {
-            $this->tagRunShared('default.src');
-        } else {
-            foreach ($this->_queue as $item) {
-                call_user_func_array($item[0], $item[1]);
-            }
-        }
-        return true;
+        return empty($this->content) ? $this->tagRunShared('default.src') : $this->content;
     }
 
     /**
      * Output some debug information
      *
-     * This echoes some output and profiler information, useful in the
-     * developement process. This works only if the current user has manager
-     * privileges on the application module.
-     *
-     * @param  string $params The parameter string
-     * @return bool           true on success or false on errors
+     * Echoes some output and profiler information, useful in the developement
+     * process. This works only if the current user has some privilege on the
+     * application module.
      */
     protected function tagDebug($params)
     {
-        if ($this->keys['IS_TRUSTED']) {
-            // Show logged messages
-            $logger =& $this->getSharedModule('logger');
-            if (is_object($logger)) {
-                $logger->dumpLogs();
-            }
+        if (!$this->keys['IS_TRUSTED']) {
+            return '';
+        }
+
+        ob_start();
+
+        // Show logged messages
+        $logger =& $this->getSharedModule('logger');
+        if (is_object($logger)) {
+            $logger->dumpLogs();
         }
 
         if ($this->keys['IS_ADMIN']) {
@@ -489,8 +502,10 @@ class TIP_Application extends TIP_Module
             echo "</pre>\n";
         }
 
-        return true;
+        return ob_get_clean();
     }
+
+    /**#@-*/
 
     //}}}
     //{{{ Actions
@@ -500,7 +515,9 @@ class TIP_Application extends TIP_Module
         switch($action) {
 
         case 'phpinfo':
-            $GLOBALS[TIP_MAIN]->appendCallback('phpinfo');
+            ob_start();
+            phpinfo();
+            $this->content .= ob_get_clean();
             return true;
         }
 
@@ -580,13 +597,6 @@ class TIP_Application extends TIP_Module
     private $_referer = null;
 
     /**
-     * The callback queue to scan to generate the page
-     * @var array
-     * @internal
-     */
-    private $_queue = array();
-
-    /**
      * Session started flag
      * @var boolean
      * @internal
@@ -611,14 +621,6 @@ class TIP_Application extends TIP_Module
             echo "$indent$id\n";
             is_array($obj) && self::_dumpRegister($obj, $indent . '  ');
         }
-    }
-
-    private function _runNotify($source, $title, $message)
-    {
-        // Run the source
-        $this->keys['TITLE'] = $title;
-        $this->keys['MESSAGE'] = $message;
-        $this->tagRun($source);
     }
 
     //}}}

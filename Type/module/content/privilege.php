@@ -92,74 +92,62 @@ class TIP_Privilege extends TIP_Content
     //}}}
     //{{{ Tags
 
+    /**#@+
+     * @param      string       $params Parameters of the tag
+     * @return     string|null          The string result or null
+     * @subpackage SourceEngine
+     */
+
     /**
      * Check if the current user is manager
      *
-     * Expands to true if the current logged-in user is manager in the module
-     * specified with $params, false otherwise.
-     *
-     * @param  string $params The module id
-     * @return bool           true for managers
+     * Expands to 'true' if the current logged-in user is manager in the module
+     * specified with $params, 'false' otherwise.
      */
     protected function tagIsManager($params)
     {
-        echo $this->getPrivilege(strtolower($params)) >= TIP_PRIVILEGE_MANAGER ? 'true' : 'false';
-        return true;
+        return $this->getPrivilege(strtolower($params)) >= TIP_PRIVILEGE_MANAGER ? 'true' : 'false';
     }
 
     /**
      * Check if the current user is administrator
      *
-     * Expands to true if the current logged-in user is administrator in the
-     * module specified with $params, false otherwise.
-     *
-     * @param  string $params The module id
-     * @return bool           true for administrators or above
+     * Expands to 'true' if the current logged-in user is administrator in the
+     * module specified with $params, 'false' otherwise.
      */
     protected function tagIsAdmin($params)
     {
-        echo $this->getPrivilege(strtolower($params)) >= TIP_PRIVILEGE_ADMIN ? 'true' : 'false';
-        return true;
+        return $this->getPrivilege(strtolower($params)) >= TIP_PRIVILEGE_ADMIN ? 'true' : 'false';
     }
 
     /**
      * Check if the current user is a trusted user
-     *
-     * Expands to true if the current logged-in user is trusted in the
-     * module specified with $params, false otherwise.
-     *
-     * @param  string $params The module id
-     * @return bool           true for trusted users or above
+     *'
+     * Expands to 'true' if the current logged-in user is trusted in the
+     * module specified with $params, 'false' otherwise.
      */
     protected function tagIsTrusted($params)
     {
-        echo $this->getPrivilege(strtolower($params)) >= TIP_PRIVILEGE_TRUSTED ? 'true' : 'false';
-        return true;
+        return $this->getPrivilege(strtolower($params)) >= TIP_PRIVILEGE_TRUSTED ? 'true' : 'false';
     }
 
     /**
      * Check if the current user is an untrusted user
      *
-     * Expands to true if the current logged-in user is untrusted in the
-     * module specified with $params, false otherwise.
-     *
-     * @param  string $params The module id
-     * @return bool           true for untrusted users or above
+     * Expands to 'true' if the current logged-in user is untrusted in the
+     * module specified with $params, 'false' otherwise.
      */
     protected function tagIsUntrusted($params)
     {
-        echo $this->getPrivilege(strtolower($params)) >= TIP_PRIVILEGE_UNTRUSTED ? 'true' : 'false';
-        return true;
+        return $this->getPrivilege(strtolower($params)) >= TIP_PRIVILEGE_UNTRUSTED ? 'true' : 'false';
     }
 
     /**
-     * Check if the current user is an untrusted user
+     * Get the privilege description
      *
-     * Expands to true if the current logged-in user is untrusted in the
-     * module specified with $params, false otherwise.
-     *
-     * @param  string $params The parameter string
-     * @return bool           true on success or false on errors
+     * Expands to the specified privilege description, in the current locale.
+     * In $params you must specify the privilege as 'module_id,privilege',
+     * where privilege must be manager|admin|trusted|untrusted|none.
      */
     protected function tagPrivilegeDescription($params)
     {
@@ -171,14 +159,15 @@ class TIP_Privilege extends TIP_Content
         foreach ($prefixes as $prefix) {
             $description = TIP::getLocale($privilege, $prefix);
             if (!empty($description)) {
-                echo TIP::toHtml($description);
-                return true;
+                return TIP::toHtml($description);
             }
         }
 
         TIP::warning("localized privilege description not found ($params)");
-        return false;
+        return null;
     }
+
+    /**#@-*/
 
     //}}}
     //{{{ Actions

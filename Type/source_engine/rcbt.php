@@ -490,7 +490,7 @@ class TIP_Rcbt_Tag
         }
 
         if (!$parser->context->skip) {
-            $module->callTag($this->tag_name, $this->params);
+            echo $module->getTag($this->tag_name, $this->params);
         }
 
         return true;

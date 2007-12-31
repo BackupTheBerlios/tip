@@ -256,48 +256,6 @@ class TIP_Content extends TIP_Module
     }
 
     /**
-     * Prepend a source file to the page
-     *
-     * Overrides TIP_Module::insertInPage() storing also the current view (if
-     * present) in the callback.
-     *
-     * @param  array|string $path The file path to run
-     * @return bool               true on success or false on errors
-     */
-    protected function insertInPage($path)
-    {
-        if (empty($this->_view)) {
-            return parent::insertInPage($path);
-        }
-
-        TIP_Application::prependCallback(array(&$this, 'pop'));
-        TIP_Application::prependCallback(array(&$this, 'run'),  array(&$path));
-        TIP_Application::prependCallback(array(&$this, 'push'), array(&$this->_view, false));
-        return true;
-    }
-
-    /**
-     * Append a source file to the page
-     *
-     * Overrides TIP_Module::appendToPage() storing also the current view (if
-     * present) in the callback.
-     *
-     * @param  array|string $path The file path to run
-     * @return bool               true on success or false on errors
-     */
-    protected function appendToPage($path)
-    {
-        if (empty($this->_view)) {
-            return parent::appendToPage($path);
-        }
-
-        TIP_Application::appendCallback(array(&$this, 'push'), array(&$this->_view, false));
-        TIP_Application::appendCallback(array(&$this, 'run'),  array(&$path));
-        TIP_Application::appendCallback(array(&$this, 'pop'));
-        return true;
-    }
-
-    /**
      * Form management
      *
      * Generates a form with the specified $options and executes $action on it.
@@ -638,36 +596,38 @@ class TIP_Content extends TIP_Module
     //}}}
     //{{{ Tags
 
+    /**#@+
+     * @param      string       $params Parameters of the tag
+     * @return     string|null          The string result or null
+     * @subpackage SourceEngine
+     */
+
     /**
      * Fields to use in the next queries
      *
-     * Changes the field subset in SELECT queries. If $params is empty, the
-     * default fieldset will be used.
-     *
-     * @param  string $params A comma separated list of field ids
-     * @return bool           true on success or false on errors
+     * Changes the field subset in SELECT queries. $params must be a comma
+     * separated list of field ids. If $params is empty the default
+     * fieldset will be used.
      */
     protected function tagSubset($params)
     {
         $this->_subset = empty($params) ? null : explode(',', $params);
-        return true;
+        return '';
     }
 
     /**
      * Wikize the field specified in $params
      *
-     * The value is parsed and rendered by the Text_Wiki renderer accordling to
-     * the wiki rules defined in the 'wiki_rules' option of the field.
-     *
-     * @param  string $params Field id to wikize
-     * @return bool           true on success or false on errors
+     * The value of the field with $params id is parsed and rendered by the
+     * Text_Wiki renderer accordling to the wiki rules defined in the
+     * 'wiki_rules' option of this field.
      */
     protected function tagWiki($params)
     {
         $value = $this->getField($params);
         if (is_null($value)) {
             TIP::error("no field found ($params)");
-            return false;
+            return null;
         }
 
         $fields =& $this->data->getFields();
@@ -676,8 +636,7 @@ class TIP_Content extends TIP_Module
 
         $renderer =& TIP_Renderer::getWiki($rules);
         $renderer->setRenderConf('Xhtml', 'Image', 'base', TIP::buildUploadURL($this->id, ''));
-        echo $renderer->transform($value);
-        return true;
+        return $renderer->transform($value);
     }
 
     /**
@@ -687,16 +646,13 @@ class TIP_Content extends TIP_Module
      * id is the id of a wiki field, len is the number of characters to be
      * echoed and wordlen is the maximum length of a single word.
      * len defaults to 100 while wordlen defaults to 25.
-     *
-     * @param  string $params Tag parameters
-     * @return bool           true on success or false on errors
      */
     protected function tagPartialWiki($params)
     {
         @list($field_id, $max, $max_word) = explode(',', $params);
         if (empty($field_id) || is_null($value = $this->getField($field_id))) {
             TIP::error("no valid field found ($params)");
-            return false;
+            return null;
         }
 
         $max > 0 || $max = 100;
@@ -725,8 +681,7 @@ class TIP_Content extends TIP_Module
         $text_len > 0 || $text_len = 0;
         $text = implode(' ', $token_list);
         $text_len < $max || $text = mb_substr($text, 0, $max-3) . '...';
-        echo TIP::toHtml($text);
-        return true;
+        return TIP::toHtml($text);
     }
 
     /**
@@ -740,9 +695,6 @@ class TIP_Content extends TIP_Module
      *
      * All the fields are optionals, in which case the TIP_Cronology default
      * value is used.
-     *
-     * @param  string $params Cronology options
-     * @return bool           true on success or false on errors
      */
     protected function tagCronology($params)
     {
@@ -773,8 +725,7 @@ class TIP_Content extends TIP_Module
         isset($options['master']) || $options['master'] =& $this;
         isset($options['date_field']) || $options['date_field'] = $this->creation_field;
 
-        echo TIP_Type::singleton($options)->toHtml();
-        return true;
+        return TIP_Type::singleton($options)->toHtml();
     }
 
     /**
@@ -789,15 +740,12 @@ class TIP_Content extends TIP_Module
      * This function checks if there is a row more than what specified in the
      * quanto: this provides a simple way to know whether the 'NEXT' button
      * must be rendered or not.
-     *
-     * @param  string $params Parameters of the tag
-     * @return bool           true on success or false on errors
      */
     protected function tagPager($params)
     {
         if (is_null($this->_browse_conditions)) {
             TIP::error('no active browse action');
-            return false;
+            return null;
         }
 
         @list($quanto, $query_adds) = explode(',', $params);
@@ -826,9 +774,10 @@ class TIP_Content extends TIP_Module
 
         if (is_null($view = $this->startDataView($filter))) {
             TIP::notifyError('select');
-            return false;
+            return null;
         }
 
+        ob_start();
         if ($view->isValid()) {
             $partial = $pager && $view->nRows() == $quanto+1;
             if ($partial) {
@@ -864,8 +813,10 @@ class TIP_Content extends TIP_Module
         }
 
         $this->endView();
-        return true;
+        return ob_get_clean();
     }
+
+    /**#@-*/
 
     //}}}
     //{{{ Actions
