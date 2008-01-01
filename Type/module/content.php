@@ -57,6 +57,12 @@ class TIP_Content extends TIP_Module
     protected $pager_post_source = 'pager_after.src';
 
     /**
+     * The file to run to generate the atom feed
+     * @var string
+     */
+    protected $atom_source = 'atom.xml';
+
+    /**
      * The field containing the creation datetime
      * @var string
      */
@@ -642,7 +648,7 @@ class TIP_Content extends TIP_Module
     /**
      * Get a partial content of a wiki field
      *
-     * $params must be a string in the form "field_id,len,wordlen", where
+     * $params must be a string in the form "field_id[,len[,wordlen]]", where
      * id is the id of a wiki field, len is the number of characters to be
      * echoed and wordlen is the maximum length of a single word.
      * len defaults to 100 while wordlen defaults to 25.
@@ -682,6 +688,61 @@ class TIP_Content extends TIP_Module
         $text = implode(' ', $token_list);
         $text_len < $max || $text = mb_substr($text, 0, $max-3) . '...';
         return TIP::toHtml($text);
+    }
+
+    /**
+     * Return a link to the atom feeder
+     *
+     * In $params you can specify a query or leave it empty to use the default
+     * query. The default behaviour is to keep the last three days or
+     * (for empty result set) the last ten records.
+     */
+    protected function tagAtom($params)
+    {
+        $failed = TIP_Application::getGlobal('fatal_url');
+
+        $source =& TIP_Type::singleton(array(
+            'type' => array('source'),
+            'path' => array($this->id, $this->atom_source)
+        ));
+        if (!$source) {
+            return $failed;
+        }
+
+        // Check for cache presence
+        if (!is_null($url = $this->engine->getCacheURL($source))) {
+            return $url;
+        }
+
+        empty($params) && $params = $this->data->filter($this->creation_field, array('NOW() - INTERVAL 3 DAY'), '>');
+        if (is_null($view =& $this->startDataView($params, array('fields' => null)))) {
+            return $failed;
+        }
+
+        if ($view->nRows() <= 0) {
+            // Empty result set: get the last 10 rows
+            $this->endView();
+            $params = $this->data->order($this->creation_field, true);
+            $params .= $this->data->limit(10);
+            if (is_null($view =& $this->startDataView($params, array('fields' => null)))) {
+                return $failed;
+            }
+        }
+
+        if ($view->nRows() <= 0) {
+            $this->endView();
+            return $failed;
+        }
+
+        ob_start();
+        $done = $source->run($this) && $this->endView();
+        ob_end_clean();
+
+        if ($done && !is_null($url = $this->engine->getCacheURL($source))) {
+            return $url;
+        }
+
+        return $failed;
     }
 
     /**
@@ -1211,6 +1272,16 @@ class TIP_Content extends TIP_Module
         if (!is_null($field = @$this->user_statistic['_on' . $action]) &&
             !is_null($user =& TIP_Application::getSharedModule('user'))) {
             $user->increment($field);
+        }
+
+        // Remove the feed, if it exists
+        if (!is_null($source =& TIP_Type::singleton(array(
+               'type' => array('source'),
+               'path' => array($this->id, $this->atom_source)
+           ))) &&
+           !is_null($path = $this->engine->getCachePath($source)) &&
+           file_exists($path)) {
+           unlink($path);
         }
 
         return true;

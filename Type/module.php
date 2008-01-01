@@ -105,6 +105,7 @@ abstract class TIP_Module extends TIP_Type
     protected function __construct($options)
     {
         parent::__construct($options);
+        $this->keys['SELF'] = $this->id;
     }
 
     /**
@@ -793,34 +794,43 @@ abstract class TIP_Module extends TIP_Type
     /**
      * Format a date
      *
-     * Formats the date (specified in $params in iso8601) in the format
-     * "date_" . locale.
-     * For instance, if the current locale is 'it', the format used will be
-     * "date_it".
+     * Converts a date (in ISO8601 format) to a specified format.
+     *
+     * $params must be a string in the format 'date[,format]', where format
+     * is any format allowed by the TIP::formatDate() method, without the
+     * 'date_' prefix.
+     *
+     * If format is not specified, it defaults to locale. For instance,
+     * if the current locale is 'it', the format used will be "date_it".
      *
      * @uses TIP::formatDate() The date formatter
      */
     protected function tagDate($params)
     {
-        $format = 'date_' . TIP::getLocaleId();
-        return TIP::formatDate($format, $params, 'iso8601');
+        @list($date, $format) = explode(',', $params, 2);
+        empty($format) && $format = TIP::getLocaleId();
+        return TIP::formatDate('date_' . $format, $date, 'iso8601');
     }
 
     /**
-     * Format a date time
+     * Format a date/time
      *
-     * Formats the datetime date (specified in iso8601) in the format
-     * "datetime_" . locale.
+     * Converts a datetime (in ISO8601 format) to a specified format.
+     *
+     * $params must be a string in the format 'datetime[,format]', where format
+     * is any format allowed by the TIP::formatDate() method, without the
+     * 'datetime_' prefix.
+     *
+     * If format is not specified, it defaults to locale. For instance,
+     * if the current locale is 'it', the format used will be "datetime_it".
      *
      * @uses TIP::formatDate() The date formatter
      */
     protected function tagDateTime($params)
     {
-        static $format = null;
-        if (is_null($format)) {
-            $format = 'datetime_' . TIP::getLocaleId();
-        }
-        return TIP::toHtml(TIP::formatDate($format, $params, 'iso8601'));
+        @list($datetime, $format) = explode(',', $params, 2);
+        empty($format) && $format = TIP::getLocaleId();
+        return TIP::formatDate('datetime_' . $format, $datetime, 'iso8601');
     }
 
     /**
@@ -839,11 +849,27 @@ abstract class TIP_Module extends TIP_Type
         return is_readable($file) ? 'true' : 'false';
     }
 
+    /**
+     * Change a property value
+     *
+     * $params must be a string in the format 'property,value'.
+     */
     protected function tagSet($params)
     {
-        list($var, $value) = explode(',', $params, 2);
-        $this->$var = $value;
+        list($property, $value) = explode(',', $params, 2);
+        $this->$property = $value;
         return '';
+    }
+
+    /**
+     * Expand to the current datetime
+     *
+     * You must specify the datetime format in $params. Any format
+     * described in TIP::formatDate() is allowed.
+     */
+    protected function tagNow($params)
+    {
+        return TIP::formatDate($params);
     }
 
     /**#@-*/

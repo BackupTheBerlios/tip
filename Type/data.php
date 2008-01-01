@@ -194,7 +194,7 @@ class TIP_Data extends TIP_Type
         $path = $this->engine->preparedName($this->path);
         $name = $path . '.' . $name;
 
-        $value = $this->engine->preparedValue($value);
+        $value = is_array($value) ? reset($value) : $this->engine->preparedValue($value);
         return ' ' . $connector . ' '. $name . ' ' . $condition . ' ' . $value;
     }
 

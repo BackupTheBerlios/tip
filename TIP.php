@@ -71,6 +71,10 @@ class TIP
     static private function _formatTimestamp($timestamp, $format)
     {
         switch ($format) {
+
+        case '':
+            return $timestamp;
+
         case 'date_iso8601':
             return strftime('%Y-%m-%d', $timestamp);
 
@@ -78,7 +82,10 @@ class TIP
             return strftime('%Y%m%d', $timestamp);
 
         case 'datetime_iso8601':
-            return strftime('%Y-%m-%d %H:%M:%S', $timestamp);
+            return date(DATE_ISO8601, $timestamp);
+
+        case 'datetime_rfc3339':
+            return date(DATE_RFC3339, $timestamp);
 
         case 'date_it':
             $same_year = date('Y', $timestamp) == date('Y');
@@ -465,6 +472,7 @@ class TIP
      * - 'date_iso8601' for a string with a day description in ISO 8601 format
      * - 'date_sql' for a string with a day description as '%Y%m%d'
      * - 'datetime_iso8601' for a string with day and hour description in ISO 8601 format
+     * - 'datetime_rfc3339' for a string as described in RFC33309 (atom format)
      * - 'date_it' for a string with a day description (italian locale)
      * - 'datetime_it' for a string with day and hour description (italian locale)
      *
@@ -486,7 +494,7 @@ class TIP
         } else {
             $timestamp = TIP::getTimestamp($input, $input_format);
         }
-        return is_null($timestamp) ? null : TIP::_formatTimestamp($timestamp, $format);
+        return empty($timestamp) ? null : TIP::_formatTimestamp($timestamp, $format);
     }
 
     /**

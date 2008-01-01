@@ -123,7 +123,7 @@ class TIP_Application extends TIP_Module
      * The url to redirect the browse on fatal errors
      * @var string
      */
-    protected $fatal_url = null;
+    protected $fatal_url = 'fatal.html';
 
     /**
      * The template to run to generate the <head>

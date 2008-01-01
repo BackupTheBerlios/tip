@@ -123,6 +123,42 @@ abstract class TIP_Source_Engine extends TIP_Type
         return true;
     }
 
+    /**
+     * Get the path to the cache file, if it exists
+     * @param  TIP_Source  &$source The source to check
+     * @return string|null          Path to the cache file or null on problems
+     */
+    public function getCachePath(&$source)
+    {
+        if (is_array($this->cache_root)) {
+            $path = implode(DIRECTORY_SEPARATOR, array_merge($this->cache_root, $source->getProperty('path')));
+            if (is_readable($path)) {
+                return $path;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Get the relative URL to the cached file
+     *
+     * Works in a similar way to getCachePath() but returning a relative URL
+     * to the cached file.
+     *
+     * @param  TIP_Source  &$source The source to check
+     * @return string|null          URL to the cache file or null on problems
+     */
+    public function getCacheURL(&$source)
+    {
+        if (is_array($this->cache_root)) {
+            $dirs = array_merge($this->cache_root, $source->getProperty('path'));
+            if (is_readable(implode(DIRECTORY_SEPARATOR, $dirs))) {
+                return implode('/', $dirs);
+            }
+        }
+        return null;
+    }
+
     //}}}
 }
 ?>
