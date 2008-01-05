@@ -162,7 +162,7 @@ class TIP_User extends TIP_Content
         }
 
         $expiration = strtotime($this->expiration);
-        setcookie('TIP_User', $this->_row['id'] . ',' . crypt($this->_row['password']), $expiration);
+        setcookie('TIP_User', $this->_row['id'] . ',' . crypt($this->_row['password']), $expiration, '/');
         $this->_activateUser();
         $this->_refreshUser();
         return true;
@@ -180,7 +180,7 @@ class TIP_User extends TIP_Content
     {
         require_once 'HTTP/Session2.php';
         HTTP_Session2::destroy();
-        setcookie('TIP_User', '', time()-3600);
+        setcookie('TIP_User', '', time()-3600, '/');
         $this->_row = null;
         $this->_activateUser();
         $this->_refreshUser();

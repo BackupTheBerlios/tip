@@ -18,7 +18,7 @@
  *
  * After a TIP_Application instantiation, the global variable $GLOBALS[TIP_MAIN]
  * will contain a reference to this TIP_Application instantiated object.
- * Your main script, if the TIP system is properly configured, will usually be
+ * Your index.php, if the TIP system is properly configured, will usually be
  * as the following one:
  *
  * <code>
@@ -41,13 +41,19 @@ class TIP_Application extends TIP_Module
      * Page begin string (incipit)
      * @var string
      */
-    protected $incipit = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"it-IT\" lang=\"it-IT\">";
+    protected $incipit = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"it-IT\" lang=\"it-IT\">\n\n";
 
     /**
      * Page end string (explicit)
      * @var string
      */
     protected $explicit = '</html>';
+
+    /**
+     * Namespace
+     * @var string
+     */
+    protected $namespace = null;
 
     /**
      * Page title
@@ -62,10 +68,22 @@ class TIP_Application extends TIP_Module
     protected $description = 'This is a generic TIP site';
 
     /**
+     * Robots metatag
+     * @var string
+     */
+    protected $robots = 'index,follow';
+
+    /**
      * Page keywords
      * @var string
      */
     protected $keywords = 'tip';
+
+    /**
+     * Additional code to add at the end of the <head>
+     * @var string
+     */
+    protected $additional = '';
 
     /**
      * The default data engine to use: required
@@ -86,16 +104,10 @@ class TIP_Application extends TIP_Module
     protected $fallback_root = array('style');
 
     /**
-     * The upload root path
+     * The data root path
      * @var string
      */
-    protected $upload_root = array('upload');
-
-    /**
-     * The cache root path
-     * @var string
-     */
-    protected $cache_root = array('cache');
+    protected $data_root = array('data');
 
     /**
      * The shared modules interface
@@ -120,10 +132,10 @@ class TIP_Application extends TIP_Module
     protected $data_prefix = '';
 
     /**
-     * The url to redirect the browse on fatal errors
+     * The uri to redirect the browse on fatal errors
      * @var string
      */
-    protected $fatal_url = 'fatal.html';
+    protected $fatal_uri = '/fatal.html';
 
     /**
      * The template to run to generate the <head>
@@ -136,6 +148,12 @@ class TIP_Application extends TIP_Module
      * @var string
      */
     protected $body_source = 'body.src';
+
+    /**
+     * The template to run to generate the default page content
+     * @var string
+     */
+    protected $default_source = 'default.src';
 
     /**
      * The file to run to notify errors
@@ -191,7 +209,6 @@ class TIP_Application extends TIP_Module
             return false;
         }
 
-        isset($options['fatal_url']) || $options['fatal_url'] = TIP::getScriptURI() . '?module=' . $options['id'] . '&action=fatal';
         return true;
     }
 
@@ -212,81 +229,44 @@ class TIP_Application extends TIP_Module
     {
         parent::postConstructor();
 
+        // This must be called here (not in checkOptions()) to avoid
+        // buildActionUri() call before application instantiation
+        isset($this->fatal_uri) || $this->fatal_uri = TIP::buildActionUri($this->id, 'fatal');
+
         $this->keys['TITLE'] =& $this->title;
         $this->keys['DESCRIPTION'] =& $this->description;
         $this->keys['KEYWORDS'] =& $this->keywords;
         $this->keys['TODAY'] = TIP::formatDate('date_iso8601');
         $this->keys['NOW'] = TIP::formatDate('datetime_iso8601');
-        $this->keys['BASE_URL'] = TIP::getBaseURL();
-        $this->keys['DOMAIN'] = rtrim($this->keys['BASE_URL'], '/');
-        $this->keys['SCRIPT'] = TIP::getScriptURI();
+        $this->keys['ROOT'] = TIP::getRoot();
+        $this->keys['HOME'] = TIP::getHome();
         $this->keys['REFERER'] = '';
 
         // Set $_request
         $module = TIP::getGet('module', 'string');
         $action = TIP::getGet('action', 'string');
+        $id     = TIP::getGet('id', 'int');
 
         if (!$action) {
             $module = TIP::getPost('module', 'string');
             $action = TIP::getPost('action', 'string');
+            $id     = TIP::getPost('id', 'int');
         }
 
         $this->_request = array(
             'uri'    => @$_SERVER['REQUEST_URI'],
             'module' => @strtolower($module),
-            'action' => @strtolower($action)
+            'action' => @strtolower($action),
+            'id'     => $id
         );
 
         $this->keys['REQUEST'] = $this->_request['uri'];
-        $this->keys['MODULE'] = $this->_request['module'];
-        $this->keys['ACTION'] = $this->_request['action'];
-
-        if ($this->_request['module'] == $this->id && $this->_request['action'] == 'backup') {
-            return;
-        }
+        $this->keys['MODULE']  = $this->_request['module'];
+        $this->keys['ACTION']  = $this->_request['action'];
+        $this->keys['ID']      = $this->_request['id'];
 
         // Start the session
-        TIP::startSession();
-        $this->_session_started = true;
-
-        // Set $_referer
-        $request = HTTP_Session2::get('request');
-        $referer = HTTP_Session2::get('referer');
-
-        if (is_null($request)) {
-            // Entry page or new session: the referer is the main page
-            $this->_referer = null;
-        } elseif ($this->_request['uri'] == $referer['uri']) {
-            // Current URI equals to the old referer URI: probably a back action
-            $this->_referer = null;
-        } elseif ($this->_request['module'] != $request['module'] || $this->_request['action'] != $request['action']) {
-            // New action: the referer is the previous request
-            $this->_referer = $request;
-        } else {
-            // Same action: leave the old referer
-            $this->_referer = $referer;
-        }
-
-        if (!is_array($this->_referer)) {
-            $this->_referer = array(
-                'uri'    => TIP::getScriptURI(),
-                'module' => null,
-                'action' => null
-            );
-            $this->_referer['action'] = null;
-        }
-
-        $this->keys['REFERER'] = $this->_referer['uri'];
-
-        // Store request and referer
-        HTTP_Session2::set('referer', $this->_referer);
-        HTTP_Session2::set('request', $this->_request);
-
-        if ($this->keys['IS_ADMIN']) {
-            require_once 'Benchmark/Profiler.php';
-            $GLOBALS['_tip_profiler'] =& new Benchmark_Profiler;
-            $GLOBALS['_tip_profiler']->start();
-        }
+        TIP_AJAX || $this->_startSession();
     }
 
     //}}}
@@ -376,13 +356,13 @@ class TIP_Application extends TIP_Module
         isset($header) || ($header = 'UNDEFINED') && TIP::warning("localized id not found ($header_id)");
         isset($message) || ($message = 'Undefined message') && TIP::warning("localized id not found ($message_id)");
 
-        $main = $GLOBALS[TIP_MAIN];
-        $source_property = $severity . '_source';
-        $source = $main->$source_property;
+        $main =& $GLOBALS[TIP_MAIN];
+        $source = $main->{$severity . '_source'};
 
-        $main->keys['HEADER'] = $header;
-        $main->keys['MESSAGE'] = $message;
-        $main->content = $main->tagRun($source) . $main->content;
+        $main->keys['NOTIFY_HEADER'] = $header;
+        $main->keys['NOTIFY_MESSAGE'] = $message;
+        empty($source) || $main->content = $main->tagRun($source) . $main->content;
+        unset($main->keys['NOTIFY_HEADER'], $main->keys['NOTIFY_MESSAGE']);
 
         $running = false;
         return true;
@@ -392,7 +372,7 @@ class TIP_Application extends TIP_Module
      * The "main" function
      *
      * The starting point of the TIP system. This must be called somewhere from
-     * your main script.
+     * your index.php.
      */
     public function go()
     {
@@ -417,6 +397,17 @@ class TIP_Application extends TIP_Module
         // Set the timezone
         date_default_timezone_set('Europe/Rome');
 
+        // Check for ajax requests
+        if (TIP_AJAX) {
+            end($_GET);
+            $id = prev($_GET);
+            $module = key($_GET);
+            if ($module && $module =& TIP_Type::getInstance($module, false)) {
+                $module->ajax($id);
+            }
+            return;
+        }
+
         // Executes the action
         if ($this->_request['module'] && $this->_request['action']) {
             if (is_null($module =& TIP_Type::getInstance($this->_request['module'], false))) {
@@ -432,8 +423,9 @@ class TIP_Application extends TIP_Module
 
         // Generates the page: body must be called before the head because
         // some head tags can be modified by body templates
-        echo $this->incipit;
         $body = $this->tagRun($this->body_source);
+
+        echo $this->incipit;
         $this->run($this->head_source);
         echo $body . $this->explicit;
 
@@ -454,7 +446,7 @@ class TIP_Application extends TIP_Module
      */
     protected function tagPage($params)
     {
-        return empty($this->content) ? $this->tagRunShared('default.src') : $this->content;
+        return empty($this->content) ? $this->tagRun($this->default_source) : $this->content;
     }
 
     /**
@@ -497,7 +489,7 @@ class TIP_Application extends TIP_Module
 
         if ($this->keys['IS_MANAGER']) {
             // Dump the singleton register content
-            echo "<h1>Register content</h1>\n<pre>\n";
+            echo "\n<h1>Register content</h1>\n<pre>\n";
             self::_dumpRegister(TIP_Type::singleton(), '  ');
             echo "</pre>\n";
         }
@@ -532,14 +524,14 @@ class TIP_Application extends TIP_Module
             include_once 'HTTP/Download.php';
             include_once 'Archive/Tar.php';
 
-            if (!$this->data_engine->dump(TIP::buildUploadPath('dump'))) {
+            if (!$this->data_engine->dump(TIP::buildDataPath('dump'))) {
                 TIP::notifyError('backup');
                 return false;
             }
 
             $tar_file = TIP::buildCachePath($this->id . '-' . TIP::formatDate('date_sql') . '.tar.gz');
             $tar_object = new Archive_Tar($tar_file, 'gz');
-            $result = $tar_object->createModify(TIP::buildUploadPath(), '', TIP::buildPath());
+            $result = $tar_object->createModify(TIP::buildDataPath(), '', TIP::buildPath());
             unset($tar_object);
 
             if ($result !== true) {
@@ -620,6 +612,54 @@ class TIP_Application extends TIP_Module
         foreach ($register as $id => &$obj) {
             echo "$indent$id\n";
             is_array($obj) && self::_dumpRegister($obj, $indent . '  ');
+        }
+    }
+
+    private function _startSession()
+    {
+        // Start the session
+        TIP::startSession();
+        $this->_session_started = true;
+
+        // Set $_referer
+        $request = HTTP_Session2::get('request');
+        $referer = HTTP_Session2::get('referer');
+
+        if (is_null($request)) {
+            // Entry page or new session: the referer is the main page
+            $this->_referer = null;
+        } elseif ($this->_request['uri'] == $referer['uri']) {
+            // Current URI equals to the old referer URI: probably a back action
+            $this->_referer = null;
+        } elseif ($this->_request['module'] != $request['module'] || $this->_request['action'] != $request['action']) {
+            // New action: the referer is the previous request
+            $this->_referer = $request;
+        } else {
+            // Same action: leave the old referer
+            $this->_referer = $referer;
+        }
+
+        if (!is_array($this->_referer)) {
+            $this->_referer = array(
+                'uri'    => TIP::getHome(),
+                'module' => null,
+                'action' => null
+            );
+            $this->_referer['action'] = null;
+        }
+
+        $this->keys['REFERER'] = $this->_referer['uri'];
+
+        // Store request and referer
+        HTTP_Session2::set('referer', $this->_referer);
+        HTTP_Session2::set('request', $this->_request);
+
+        // Profiler initialization in "admin" mode
+        if ($this->keys['IS_ADMIN']) {
+            require_once 'Benchmark/Profiler.php';
+            global $_tip_profiler;
+            $_tip_profiler =& new Benchmark_Profiler;
+            $_tip_profiler->start();
         }
     }
 

@@ -23,6 +23,12 @@ class TIP_Hierarchy extends TIP_Content
     protected $master = null;
 
     /**
+     * The default action (if not specified in the row)
+     * @var string
+     */
+    protected $action = null;
+
+    /**
      * The field in 'master' to join to the primary key of this hierarchy
      * @var string
      */
@@ -66,9 +72,12 @@ class TIP_Hierarchy extends TIP_Content
         } elseif (is_array($options['master'])) {
             $options['master'] =& TIP_Type::singleton($options['master']);
         }
+        if (!$options['master'] instanceof TIP_Content) {
+            return false;
+        }
 
-        isset($options['view_source']) || $options['view_source'] = null;
-        return $options['master'] instanceof TIP_Content;
+        isset($options['action']) || $options['action'] = 'browse,-id-';
+        return true;
     }
 
     /**
@@ -96,20 +105,7 @@ class TIP_Hierarchy extends TIP_Content
         }
 
         // By default, counting is enable if the 'count_field' property is set
-        if (isset($this->count_field)) {
-            $total_count = 0;
-            $request_url = htmlspecialchars(TIP::getRequestURI(), ENT_QUOTES, 'UTF-8');
-        }
-
-        $base_action = TIP::getScriptURI();
-        $action = $this->getOption('action');
-        if ($action) {
-            // Action specified: prepend the root URL
-            $action = TIP::buildUrl($action);
-        } else {
-            // No action specified: construct the default action (browse)
-            $action = $base_action . '?module=' . $this->master . '&amp;action=browse&amp;' . $this->master_field . '=';
-        }
+        isset($this->count_field) && $total_count = 0;
 
         $primary_key = $this->data->getProperty('primary_key');
         $tree = array();
@@ -117,14 +113,10 @@ class TIP_Hierarchy extends TIP_Content
             $row =& $rows[$id];
             isset($row['CLASS']) || $row['CLASS'] = 'item';
             if (!isset($row['url'])) {
-                if (isset($row['action'])) {
-                    $row['url'] = $base_action;
-                    if ($row['action']) {
-                        $row['url'] .= '?' . $row['action'];
-                    }
-                } else {
-                    $row['url'] = $action . $id;
-                }
+                $action = $row['action'];
+                $action || $action = $this->action;
+                $action = str_replace('-id-', $id, $action);
+                $row['url'] = $this->tagActionURI($action);
             }
             if (isset($this->count_field)) {
                 $count = @$row[$this->count_field];
@@ -155,7 +147,7 @@ class TIP_Hierarchy extends TIP_Content
 
         require_once 'HTML/Menu.php';
         $model =& new HTML_Menu($tree);
-        $model->forceCurrentUrl(htmlspecialchars(TIP::getRequestURI()));
+        $model->forceCurrentUrl(htmlspecialchars(TIP::getRequestUri()));
         $renderer =& TIP_Renderer::getMenu($this->levels);
         $model->render($renderer, 'sitemap');
         $this->_html = $renderer->toHtml();

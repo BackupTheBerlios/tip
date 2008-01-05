@@ -178,7 +178,7 @@ abstract class TIP_Type
 
             // postConstructor() call: must be done after the registration
             // to avoid circular dependency
-            isset($GLOBALS[TIP_FLAG_AVOID_PC]) || $list[$id]->postConstructor();
+            TIP_AJAX || $list[$id]->postConstructor();
         }
 
         return $list[$id];
@@ -201,14 +201,22 @@ abstract class TIP_Type
     static public function &getInstance($id, $required = true)
     {
         static $register = array();
+        global $cfg;
 
         $id = strtolower($id);
+        if (class_exists('TIP_Application')) {
+            $namespace = TIP_Application::getGlobal('namespace');
+            if (!empty($namespace) && isset($cfg[$namespace . '_' . $id])) {
+                $id = $namespace . '_' . $id;
+            }
+        }
+
         if (array_key_exists($id, $register)) {
             return $register[$id];
         }
 
-        if (isset($GLOBALS['cfg'][$id])) {
-            $options = $GLOBALS['cfg'][$id];
+        if (isset($cfg[$id])) {
+            $options = $cfg[$id];
             isset($options['id']) || $options['id'] = $id;
             $instance =& TIP_Type::singleton($options);
         } else {

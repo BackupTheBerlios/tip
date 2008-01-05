@@ -117,10 +117,10 @@ class TIP_Form extends TIP_Module
     protected $valid_render = TIP_FORM_RENDER_IN_PAGE;
 
     /**
-     * The url where turn back
+     * The uri where turn back
      *
      * Leaves it null to use the default referer. If the action is processed,
-     * all occurrences of '%lastid%' inside this string will be replaced by the
+     * all occurrences of '-lastid-' inside this string will be replaced by the
      * last id (if any).
      *
      * @var string|null
@@ -128,10 +128,10 @@ class TIP_Form extends TIP_Module
     protected $referer = null;
 
     /**
-     * The url where go on: leave it null to use the referer as default value
+     * The uri where go on: leave it null to use the referer as default value
      *
      * Leaves it null to use the referer as default value. If the action is
-     * processed, all occurrences of '%lastid%' inside this string will be
+     * processed, all occurrences of '-lastid-' inside this string will be
      * replaced by the last id (if any).
      *
      * @var string|null
@@ -151,7 +151,7 @@ class TIP_Form extends TIP_Module
         $options['id'] = $options['master']->getProperty('id');
         $options['locale_prefix'] = 'form';
         isset($options['action_id']) || $options['action_id'] = $options['action'];
-        isset($options['referer']) || $options['referer'] = TIP::getRefererURI();
+        isset($options['referer']) || $options['referer'] = TIP::getRefererUri();
         isset($options['follower']) || $options['follower'] = $options['referer'];
         if (!isset($options['buttons'])) {
             switch ($options['action']) {
@@ -257,8 +257,8 @@ class TIP_Form extends TIP_Module
 
                 $last_id = $this->_data->getLastId();
                 if (isset($last_id)) {
-                    $this->referer = str_replace('%lastid%', $last_id, $this->referer);
-                    $this->follower = str_replace('%lastid%', $this->_data->getLastId(), $this->follower);
+                    $this->referer = str_replace('-lastid-', $last_id, $this->referer);
+                    $this->follower = str_replace('-lastid-', $this->_data->getLastId(), $this->follower);
                 }
             }
             $buttons = TIP_FORM_BUTTON_CLOSE;
@@ -290,12 +290,14 @@ class TIP_Form extends TIP_Module
             $group[] =& $element;
         }
         if ($buttons & TIP_FORM_BUTTON_OK) {
-            $element =& $this->_form->createElement('link', 'ok', null, $_SERVER['REQUEST_URI'] . '&process=1', $this->getLocale('button.ok'), array('class' => 'ok'));
+            $uri = TIP::modifyActionUri(null, null, null, array('process' => 1));
+            $element =& $this->_form->createElement('link', 'ok', null, $uri, $this->getLocale('button.ok'), array('class' => 'ok'));
             $element->removeAttribute('name');
             $group[] =& $element;
         }
         if ($buttons & TIP_FORM_BUTTON_DELETE && $this->action_id == TIP_FORM_ACTION_DELETE) {
-            $element =& $this->_form->createElement('link', 'delete', null, $_SERVER['REQUEST_URI'] . '&process=1', $this->getLocale('button.delete'), array('class' => 'delete'));
+            $uri = TIP::modifyActionUri(null, null, null, array('process' => 1));
+            $element =& $this->_form->createElement('link', 'delete', null, $uri, $this->getLocale('button.delete'), array('class' => 'delete'));
             $element->removeAttribute('name');
             $group[] =& $element;
         }
@@ -311,10 +313,8 @@ class TIP_Form extends TIP_Module
         }
         if ($buttons & TIP_FORM_BUTTON_DELETE && $this->action_id != TIP_FORM_ACTION_DELETE) {
             $primary_key = $this->_data->getProperty('primary_key');
-            $url = TIP::getScriptURI() . '?module=' . $this->id .
-                '&action=delete&' .
-                $primary_key . '=' . urlencode($this->_form->getElementValue($primary_key));
-            $element =& $this->_form->createElement('link', 'delete', null, $url, $this->getLocale('button.delete'), array('class' => 'delete'));
+            $uri = TIP::buildActionUri($this->id, 'delete', $this->_form->getElementValue($primary_key));
+            $element =& $this->_form->createElement('link', 'delete', null, $uri, $this->getLocale('button.delete'), array('class' => 'delete'));
             $element->removeAttribute('name');
             $group[] =& $element;
         }
@@ -789,8 +789,8 @@ class TIP_Form extends TIP_Module
         $id = $field['id'];
 
         $element =& $this->_addElement('picture', $id);
-        $element->setBasePath(TIP::buildUploadPath($this->id));
-        $element->setBaseURL(TIP::buildUploadURL($this->id));
+        $element->setBasePath(TIP::buildDataPath($this->id));
+        $element->setBaseURL(TIP::buildDataUri($this->id));
 
         // Unload the picture, if requested
         $unload_id = 'unload_' . $id;

@@ -19,16 +19,52 @@ abstract class TIP_Source_Engine extends TIP_Type
     //{{{ Properties
 
     /**
-     * The cache base url
+     * The cache root
      * @var array
      */
-    protected $cache_root = null;
+    protected $cache_root = array('data', 'cache');
 
     /**
-     * The compiled base url
+     * The compiled root
      * @var array
      */
-    protected $compiled_root = null;
+    protected $compiled_root = array('data', 'rcbtng');
+
+    /**
+     * Is the caching feature enabled or not?
+     * @var boolean
+     */
+    protected $caching = false;
+
+    /**
+     * Is the compiling feature enabled or not?
+     * @var boolean
+     */
+    protected $compiling = false;
+
+    //}}}
+    //{{{ Construction/destruction
+
+    static protected function checkOptions(&$options)
+    {
+        if (!parent::checkOptions($options)) {
+            return false;
+        }
+
+        if (isset($options['cache_root']) && is_string($options['cache_root'])) {
+            $options['cache_root'] = array($options['cache_root']);
+        }
+        if (isset($options['compiled_root']) && is_string($options['compiled_root'])) {
+            $options['compiled_root'] = array($options['compiled_root']);
+        }
+
+        return true;
+    }
+
+    protected function __construct($options)
+    {
+        parent::__construct($options);
+    }
 
     //}}}
     //{{{ Interface
@@ -67,7 +103,7 @@ abstract class TIP_Source_Engine extends TIP_Type
         $path =& $source->getProperty('path');
 
         // Check for cached result
-        if (is_array($this->cache_root)) {
+        if ($this->caching) {
             $cache = implode(DIRECTORY_SEPARATOR, array_merge($this->cache_root, $path));
             if (is_readable($cache)) {
                 return readfile($cache) !== false;
@@ -75,7 +111,7 @@ abstract class TIP_Source_Engine extends TIP_Type
         }
 
         // Check for compiled file
-        if (is_array($this->compiled_root)) {
+        if ($this->compiling) {
             $compiled = implode(DIRECTORY_SEPARATOR, array_merge(array('.'), $this->compiled_root, $path)) . '.php';
             if (is_readable($compiled)) {
                 return (include $compiled) !== false;
@@ -124,39 +160,38 @@ abstract class TIP_Source_Engine extends TIP_Type
     }
 
     /**
+     * Get the path to the cache file without checking for file existence
+     * @param  TIP_Source  &$source The source to build
+     * @return string|null          Path to the cache file or null on problems
+     */
+    public function buildCachePath(&$source)
+    {
+        return implode(DIRECTORY_SEPARATOR, array_merge($this->cache_root, $source->getProperty('path')));
+    }
+
+    /**
      * Get the path to the cache file, if it exists
      * @param  TIP_Source  &$source The source to check
      * @return string|null          Path to the cache file or null on problems
      */
     public function getCachePath(&$source)
     {
-        if (is_array($this->cache_root)) {
-            $path = implode(DIRECTORY_SEPARATOR, array_merge($this->cache_root, $source->getProperty('path')));
-            if (is_readable($path)) {
-                return $path;
-            }
-        }
-        return null;
+        $path = $this->buildCachePath($source);
+        return is_readable($path) ? $path : null;
     }
 
     /**
-     * Get the relative URL to the cached file
-     *
-     * Works in a similar way to getCachePath() but returning a relative URL
-     * to the cached file.
-     *
+     * Get the relative URI of the cached file, if it exists
      * @param  TIP_Source  &$source The source to check
-     * @return string|null          URL to the cache file or null on problems
+     * @return string|null          URI to the cache file or null on problems
      */
-    public function getCacheURL(&$source)
+    public function getCacheUri(&$source)
     {
-        if (is_array($this->cache_root)) {
-            $dirs = array_merge($this->cache_root, $source->getProperty('path'));
-            if (is_readable(implode(DIRECTORY_SEPARATOR, $dirs))) {
-                return implode('/', $dirs);
-            }
+        $dirs = array_merge($this->cache_root, $source->getProperty('path'));
+        if (!is_readable(implode(DIRECTORY_SEPARATOR, $dirs))) {
+            return null;
         }
-        return null;
+        return TIP::buildUri($dirs);
     }
 
     //}}}

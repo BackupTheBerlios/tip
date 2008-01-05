@@ -329,26 +329,6 @@ class TIP
     }
 
     /**
-     * Urlencode an assignment
-     *
-     * Urlencodes only the value part of an assignment. An assignment is a
-     * string in the form 'param=value', often used as construct to pass values
-     * in URLs. This function works also on array.
-     *
-     * @param  string|array $assignment The assignment (or array of assignments) to encode
-     * @return string|array             The encoded copy of $assignment
-     */
-    static public function urlEncodeAssignment($assignment)
-    {
-        if (is_array($assignment)) {
-            return array_map(array('TIP', 'urlEncodeAssignment'), $assignment);
-        }
-
-        list($param, $value) = explode('=', $assignment);
-        return $param . '=' . urlencode($value);
-    }
-
-    /**
      * Double explode a string
      *
      * Given an item separator and a pair separator, performs the explode()
@@ -564,7 +544,7 @@ class TIP
         debug_print_backtrace();
         flush();
         TIP::log('FATAL', $message);
-        $fatal_uri = HTTP::absoluteURI(TIP_Application::getGlobal('fatal_url'));
+        $fatal_uri = HTTP::absoluteURI(TIP_Application::getGlobal('fatal_uri'));
         if ($fatal_uri == $_SERVER['REQUEST_URI']) {
             // This is a recursive redirection
             HTTP::redirect('/fatal.html');
@@ -669,18 +649,20 @@ class TIP
     }
 
     /**
-     * Build an upload path
+     * Build a data path
      *
-     * Shortcut for building a path prepending the application 'upload_root'.
+     * Shortcut for building a path prepending the application 'data_root'.
      *
      * @param  string|array $subpath,... A list of partial paths
      * @return string                    The constructed path
      */
-    static public function buildUploadPath()
+    static public function buildDataPath()
     {
-        static $upload_path = null;
-        $upload_path || $upload_path = TIP::buildPath(TIP_Application::getGlobal('upload_root'));
-        return TIP::deepImplode(array($upload_path, func_get_args()), DIRECTORY_SEPARATOR);
+        static $path = null;
+        if (is_null($path)) {
+            $path = TIP::buildPath(TIP_Application::getGlobal('data_root'));
+        }
+        return TIP::deepImplode(array($path, func_get_args()), DIRECTORY_SEPARATOR);
     }
 
     /**
@@ -699,94 +681,198 @@ class TIP
     }
 
     /**
-     * Build a URL
-     *
-     * Constructs a URL from the argument list and prepending the application
-     * base URL.
-     *
-     * @param  string|array $suburl,... A list of partial URLs
-     * @return string                   The constructed URL
+     * Get the absolute root of the URIs in this server
+     * @return string The URI root
      */
-    static public function buildURL()
+    static public function getRoot()
     {
-        static $root_url = null;
-        if (is_null($root_url)) {
-            $script_uri = TIP::getScriptURI();
-            $root_url = substr($script_uri, 0, strrpos($script_uri, '/'));
+        static $uri = null;
+        if (is_null($uri)) {
+            $uri = 'http://' . $_SERVER['SERVER_NAME'];
+        }
+        return $uri;
+    }
+
+    /**
+     * Get the (relative) URI to the home page
+     * @return string The home URI
+     */
+    static public function getHome()
+    {
+        static $uri = null;
+        if (is_null($uri)) {
+            $namespace = TIP_Application::getGlobal('namespace');
+            if (is_null($namespace)) {
+                $uri = basename($_SERVER['PHP_SELF'] ? $_SERVER['PHP_SELF'] : $_SERVER['SCRIPT_FILENAME']);
+            } else {
+                $uri = empty($namespace) ? '' : $namespace . '/';
+            }
+            $uri = TIP::buildUri($uri);
+        }
+        return $uri;
+    }
+
+    /**
+     * Build a relative URI
+     * @param  string|array $suburi,... A list of partial URIs
+     * @return string                   The constructed URI
+     */
+    static public function buildUri()
+    {
+        static $uri = null;
+        if (is_null($uri)) {
+            // $uri is the path from the server root to this site root
+            $uri = $_SERVER['PHP_SELF'] ? $_SERVER['PHP_SELF'] : $_SERVER['SCRIPT_FILENAME'];
+            $uri = dirname($uri);
+            substr($uri, -1) == '/' && $uri = substr($uri, 0, -1);
+        }
+        return TIP::deepImplode(array($uri, func_get_args()), '/');
+    }
+
+    /**
+     * Build a data (relative) URI
+     * @param  string|array $suburi,... A list of partial URIs
+     * @return string                   The constructed URI
+     */
+    static public function buildDataUri()
+    {
+        static $uri = null;
+        if (is_null($uri)) {
+            $uri = TIP::buildUri(TIP_Application::getGlobal('data_root'));
+        }
+        return TIP::deepImplode(array($uri, func_get_args()), '/');
+    }
+
+    /**
+     * Build a source (relative) URI
+     * @param  string|array $suburi,... A list of partial URIs
+     * @return string                   The constructed URI
+     */
+    static public function buildSourceUri()
+    {
+        static $uri = null;
+        if (is_null($uri)) {
+            $uri = TIP::buildUri(TIP_Application::getGlobal('source_root'));
+        }
+        return TIP::deepImplode(array($uri, func_get_args()), '/');
+    }
+
+    /**
+     * Build a source fallback (relative) URI
+     * @param  string|array $suburi,... A list of partial URIs
+     * @return string                   The constructed URI
+     */
+    static public function buildFallbackUri()
+    {
+        static $uri = null;
+        if (is_null($uri)) {
+            $uri = TIP::buildUri(TIP_Application::getGlobal('fallback_root'));
+        }
+        return TIP::deepImplode(array($uri, func_get_args()), '/');
+    }
+
+    /**
+     * Build an action (relative) URI
+     * @param  string $module The module name
+     * @param  string $action The action to perform
+     * @param  string $id     The subject of the action
+     * @param  array  $args   Optional additional query arguments
+     * @return string         The constructed URI
+     */
+    static public function buildActionUri($module, $action, $id = null, $args = null)
+    {
+        $uri = TIP::getHome();
+
+        if (empty($module) || empty($action)) {
+            empty($args) || $uri .= '?' . http_build_query($args, '', '&amp;');
+            return $uri;
         }
 
-        return TIP::deepImplode(array($root_url, func_get_args()), '/');
+        $namespace = TIP_Application::getGlobal('namespace');
+
+        if (is_null($namespace)) {
+            $args['module'] = $module;
+            $args['action'] = $action;
+            empty($id) || $args['id'] = $id;
+            $uri .= '?' . http_build_query($args, '', '&amp;');
+            return $uri;
+        }
+
+        // Strip the namespace from the module name, if present
+        if (strpos($module, $namespace . '_') === 0) {
+            $module = substr($module, strlen($namespace)+1);
+        }
+
+        $uri .= $module . '/' . $action . '/';
+        empty($id) || $uri .= $id . '/';
+        empty($args) || $uri .= '?' . http_build_query($args, '', '&amp;');
+        return $uri;
     }
 
     /**
-     * Build a source URL
-     *
-     * Shortcut for building a URL prepending the application 'source_root'.
-     *
-     * @param  string|array $suburl,... A list of partial URLs
-     * @return string                   The constructed URL
+     * Build an action (relative) URI
+     * @param  string $tag            A string in the format
+     *                                'action,id[,arg1=value1,...]'
+     * @param  string $default_module The module to use if not specified as arg
+     * @return string                 The constructed URI
      */
-    static public function buildSourceURL()
+    static public function buildActionUriFromTag($tag, $default_module)
     {
-        static $source_url = null;
-        $source_url || $source_url = TIP::buildURL(TIP_Application::getGlobal('source_root'));
-        return TIP::deepImplode(array($source_url, func_get_args()), '/');
+        @list($action, $id, $list) = explode(',', $tag, 3);
+
+        if (is_string($list)) {
+            $list = explode(',', $list);
+            foreach ($list as $item) {
+                list($arg, $value) = explode('=', $item, 2);
+                $args[$arg] = $value;
+            }
+        } else {
+            $args = null;
+        }
+
+        if (isset($args['module'])) {
+            $module = $args['module'];
+            unset($args['module']);
+        } else {
+            $module = $default_module;
+        }
+
+        return TIP::buildActionUri($module, $action, $id, $args);
     }
 
     /**
-     * Build a source fallback URL
+     * Build an action URI by modify the current action
      *
-     * Shortcut for building a URL prepending the application 'fallback_root'.
+     * In this case, anything different from null will be applied to the
+     * current action. The $args array will be merged to the current one.
      *
-     * @param  string|array $suburl,... A list of partial URLs
-     * @return string                   The constructed URL
+     * @param  string $module The module name
+     * @param  string $action The action to perform
+     * @param  string $id     The subject of the action
+     * @param  array  $args   Optional additional query arguments
+     * @return string         The constructed URI
      */
-    static public function buildFallbackURL()
+    static public function modifyActionUri($module, $action, $id = null, $args = null)
     {
-        static $fallback_url = null;
-        $fallback_url || $fallback_url = TIP::buildURL(TIP_Application::getGlobal('fallback_root'));
-        return TIP::deepImplode(array($fallback_url, func_get_args()), '/');
-    }
+        $get = array();
+        foreach ($_GET as $id => $value) {
+            switch ($id) {
+            case 'module':
+                is_null($module) && $module = $value;
+                break;
+            case 'action':
+                is_null($action) && $action = $value;
+                break;
+            case 'id':
+                is_null($id) && $id = $value;
+                break;
+            default:
+                $get[$id] = $value;
+            }
+        }
 
-    /**
-     * Build an upload URL
-     *
-     * Shortcut for building a URL prepending the application 'upload_root'.
-     *
-     * @param  string|array $suburl,... A list of partial URLs
-     * @return string                   The constructed URL
-     */
-    static public function buildUploadURL()
-    {
-        static $upload_url = null;
-        $upload_url || $upload_url = TIP::buildURL(TIP_Application::getGlobal('upload_root'));
-        return TIP::deepImplode(array($upload_url, func_get_args()), '/');
-    }
-
-    /**
-     * Get the base URL
-     *
-     * Returns the absoute base URL of this application.
-     *
-     * @return string The base URL
-     */
-    static public function getBaseURL()
-    {
-        static $base_url = null;
-        $base_url || $base_url = HTTP::absoluteURI(TIP::buildURL());
-        return $base_url;
-    }
-
-    /**
-     * Get the URI of the current script
-     *
-     * @return string The requested URI
-     */
-    static public function getScriptURI()
-    {
-        static $script = null;
-        $script || ($script = @$_SERVER['SCRIPT_NAME']) || ($script = @$_SERVER['PHP_SELF']);
-        return $script;
+        isset($args) && $get = array_merge($get, $args);
+        return TIP::buildActionUri($module, $action, $id, $args);
     }
 
     /**
@@ -794,12 +880,11 @@ class TIP
      *
      * The returned string is not the raw referer, but a logic referer. This
      * means page swapping on the same action or refreshing it does not change
-     * the old referer. Also, in the entry page the referer URI is set to
-     * TIP::getScriptURI().
+     * the old referer.
      *
      * @return string The referer URI
      */
-    static public function getRefererURI()
+    static public function getRefererUri()
     {
         static $referer_uri = null;
         if (is_null($referer_uri)) {
@@ -814,7 +899,7 @@ class TIP
      *
      * @return string The request URI
      */
-    static public function getRequestURI()
+    static public function getRequestUri()
     {
         static $request_uri = null;
         if (is_null($request_uri)) {

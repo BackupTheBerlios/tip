@@ -192,6 +192,7 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         $content = $node['title'];
         $indent = str_repeat('    ', $level);
         isset($node['ITEMS']) && $content .= ' (' . $node['ITEMS'] . ')';
+        $content = htmlspecialchars($content, ENT_QUOTES, 'UTF-8');
         isset($node['COUNT']) && $content = ' <var>' . $node['COUNT'] . ' </var>' . $content;
         $is_active && $content = '<strong>' . $content . '</strong>';
 

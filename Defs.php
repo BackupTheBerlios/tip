@@ -27,14 +27,6 @@ define('TIP_PREFIX',              'TIP_');
  */
 define('TIP_MAIN',                '_tip_main_');
 
-/**
- * Avoid post constructor flag
- *
- * The name of the global variable holding the flag that, if set to true, will
- * avoid the postConstructor call for all types.
- */
-define('TIP_FLAG_AVOID_PC',       '_tip_avoid_PC_');
-
 /**#@+ Privileges */
 define('TIP_PRIVILEGE_INVALID',   0);
 define('TIP_PRIVILEGE_NONE',      1);
@@ -77,5 +69,10 @@ define('TIP_FORM_RENDER_NOTHING', 3);
 /**#@-*/
 
 /**#@-*/
+
+/**
+ * If set to true, this flag will avoid postConstructor calls
+ */
+define('TIP_AJAX', isset($_GET['ajax']));
 
 ?>

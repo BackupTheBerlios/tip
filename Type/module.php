@@ -324,22 +324,6 @@ abstract class TIP_Module extends TIP_Type
     }
 
     /**
-     * Build a source URL
-     *
-     * Shortcut for building a source URL: if the URL does not point to a
-     * readable file, the fallback URL is used.
-     *
-     * @param  string|array $suburl,... A list of partial URLs
-     * @return string                   The constructed URL
-     */
-    protected function buildSourceURL()
-    {
-        $pieces = func_get_args();
-        return file_exists(TIP::buildSourcePath($pieces)) ? 
-            TIP::buildSourceURL($pieces) : TIP::buildFallbackURL($pieces);
-    }
-
-    /**
      * Build a source path
      *
      * Shortcut for building a module source path using the name of the current
@@ -366,11 +350,8 @@ abstract class TIP_Module extends TIP_Type
      */
     public function tryRun($path)
     {
-        $options = array(
-            'type' => array('source'),
-            'path' => is_string($path) ? array($this->id, $path) : $path
-        );
-        $source =& TIP_Type::singleton($options);
+        is_string($path) && $path = array($this->id, $path);
+        $source =& TIP_Type::singleton(array('type' => array('source'), 'path' => $path));
         return $source && $source->run($this);
     }
 
@@ -386,8 +367,7 @@ abstract class TIP_Module extends TIP_Type
     public function run($path)
     {
         if (!$this->tryRun($path)) {
-            $file = implode(DIRECTORY_SEPARATOR, $path);
-            TIP::error("Unable to find a readable file ($file)");
+            TIP::error("Unable to run a file ($path)");
             return false;
         }
 
@@ -485,11 +465,11 @@ abstract class TIP_Module extends TIP_Type
      * TIP::getPrivilege() call. The first method that returns true (meaning
      * the requested action is executed) stops the chain.
      *
-     * Usually the actions are called adding variables to the URL. An example of
-     * an action call is the following URL:
+     * Usually the actions are called adding variables to the URI. An example of
+     * an action call is the following:
      * <samp>http://www.example.org/?module=news&action=view&id=23</samp>
      *
-     * This URL will call the "view" action on the "news" module, setting "id" to
+     * This URI will call the "view" action on the "news" module, setting "id" to
      * 23 (it is request to view a news and its comments). You must check the
      * documentation of every module to see which actions are available and what
      * variables they require.
@@ -644,89 +624,102 @@ abstract class TIP_Module extends TIP_Type
     }
 
     /**
-     * Link to an action
-     *
-     * $params is a string in the form "action,param1=value1,param2=value2,..."
-     *
-     * Output a proper link to the specified action. The values are urlencoded
-     * to avoid collateral effects.
+     * Get the property value specified in $params
      */
-    protected function tagAction($params)
+    protected function tagGetProperty($params)
     {
-        $pos = strpos ($params, ',');
-        if ($pos === false) {
-            $action = $params;
-            $list = array();
-        } else {
-            $action = substr($params, 0, $pos);
-            $list = explode(',', substr($params, $pos+1));
+        return isset($this->$params) ? TIP::toHtml($this->$params) : '';
+    }
+
+    /**
+     * Get the raw property value specified in $params
+     */
+    protected function tagGetPropertyRaw($params)
+    {
+        return isset($this->$params) ? $this->$params : '';
+    }
+
+    /**
+     * Change a property value
+     *
+     * $params must be a string in the format 'property,value'.
+     */
+    protected function tagSetProperty($params)
+    {
+        list($property, $value) = explode(',', $params, 2);
+        $this->$property = $value;
+        return '';
+    }
+
+    /**
+     * Append a string to a property
+     *
+     * $params must be a string in the format 'property,string'.
+     */
+    protected function tagAddToProperty($params)
+    {
+        list($property, $string) = explode(',', $params, 2);
+        $this->$property .= $string;
+        return '';
+    }
+
+    /**
+     * Build a relative URI: $params must be referred to the site root
+     */
+    protected function tagUri()
+    {
+        return TIP::buildUri(func_get_args());
+    }
+
+    /**
+     * Build a relative URI: $params must be referred to the source root
+     *
+     * If the URI does not point to a readable file, the fallback URI is used.
+     */
+    protected function tagSourceUri()
+    {
+        $pieces = func_get_args();
+        return file_exists(TIP::buildSourcePath($pieces)) ? 
+            TIP::buildSourceUri($pieces) : TIP::buildFallbackUri($pieces);
+    }
+
+    /**
+     * Build a relative URI: $params must be referred to the data root
+     */
+    protected function tagDataUri()
+    {
+        return TIP::buildDataUri(func_get_args());
+    }
+
+    /**
+     * Build a relative URI: $params must be referred to the module source root
+     */
+    protected function tagModuleUri($params)
+    {
+        return $this->tagSourceUri($this->id, $params);
+    }
+
+    /**
+     * Build an icon URI
+     */
+    protected function tagIconUri($params)
+    {
+        static $uri = null;
+        if (is_null($uri)) {
+            $uri = $this->tagSourceUri('shared', 'icons');
         }
-
-        if (!empty($action)) {
-            array_unshift($list, 'action=' . $action);
-        }
-        if (strpos($params, ',module=') === false) {
-            array_unshift($list, 'module=' . $this->id);
-        }
-        $args = implode('&amp;', TIP::urlEncodeAssignment($list));
-        return TIP::getScriptURI() . '?' . $args;
+        return $uri . '/' . $params;
     }
 
     /**
-     * Prepend the root URL to $params and outputs the result.
-     */
-    protected function tagURL($params)
-    {
-        return TIP::buildURL($params);
-    }
-
-    /**
-     * Echo a source URL
+     * Build a relative action URI
      *
-     * Prepends the source root URL $params and outputs the result.
-     * This tag (or any of its variants) MUST be used for every file
-     * reference if you want a theme-aware site, because enabling themes will
-     * make the prepending path a dynamic variable.
+     * $params is a string in the form "action[,id[,param1=value1,param2=value2,...]]"
+     * The module name can be overriden specifying it as module=...
      */
-    protected function tagSourceURL($params)
+    protected function tagActionUri($params)
     {
-        return $this->buildSourceURL($params);
-    }
-
-    /**
-     * Echo a module URL
-     *
-     * Prepends the source URL of the current module to $params and
-     * outputs the result.
-     */
-    protected function tagModuleURL($params)
-    {
-        return $this->buildSourceURL($this->id, $params);
-    }
-
-    /**
-     * Echo an icon URL
-     *
-     * Shortcut for the often used icon URL. The icon URL is in the source
-     * root URL, under the "shared/icons" path.
-     */
-    protected function tagIconURL($params)
-    {
-        static $icon_url = null;
-        if (!$icon_url) {
-            $icon_url = $this->buildSourceURL('shared', 'icons');
-        }
-        return $icon_url . '/' . $params;
-    }
-
-    /**
-     * Echo an uploaded URL
-     *
-     * Shortcut for the often used uploaded URL.
-     */
-    protected function tagUploadURL($params)
-    {
-        return TIP::buildUploadURL($this->id, $params);
+        return TIP::buildActionUriFromTag($params, $this->id);
     }
 
     /**
@@ -754,19 +747,6 @@ abstract class TIP_Module extends TIP_Type
         }
         ob_end_clean();
         return null;
-    }
-
-    /**
-     * Execute a shared source
-     *
-     * Executes the source file $params found in the shared source path, using
-     * the current source engine.
-     */
-    protected function tagRunShared($params)
-    {
-        $params = explode(',', $params);
-        array_unshift($params, 'shared');
-        return $this->tagRun($params);
     }
 
     /**
@@ -847,18 +827,6 @@ abstract class TIP_Module extends TIP_Type
     {
         $file = TIP::buildLogicPath('module', $params) . '.php';
         return is_readable($file) ? 'true' : 'false';
-    }
-
-    /**
-     * Change a property value
-     *
-     * $params must be a string in the format 'property,value'.
-     */
-    protected function tagSet($params)
-    {
-        list($property, $value) = explode(',', $params, 2);
-        $this->$property = $value;
-        return '';
     }
 
     /**

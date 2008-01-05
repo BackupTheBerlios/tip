@@ -75,6 +75,12 @@ class TIP_Content extends TIP_Module
     protected $owner_field = '_user';
 
     /**
+     * The default field to use for browse actions
+     * @var string
+     */
+    protected $browse_field = '_parent';
+
+    /**
      * The field containing the last edit datetime
      * @var string
      */
@@ -641,7 +647,7 @@ class TIP_Content extends TIP_Module
         $rules = isset($field['wiki_rules']) ? explode(',', $field['wiki_rules']) : null;
 
         $renderer =& TIP_Renderer::getWiki($rules);
-        $renderer->setRenderConf('Xhtml', 'Image', 'base', TIP::buildUploadURL($this->id, ''));
+        $renderer->setRenderConf('Xhtml', 'Image', 'base', TIP::buildDataUri($this->id) . '/');
         return $renderer->transform($value);
     }
 
@@ -699,7 +705,7 @@ class TIP_Content extends TIP_Module
      */
     protected function tagAtom($params)
     {
-        $failed = TIP_Application::getGlobal('fatal_url');
+        $failed = TIP_Application::getGlobal('fatal_uri');
 
         $source =& TIP_Type::singleton(array(
             'type' => array('source'),
@@ -710,8 +716,8 @@ class TIP_Content extends TIP_Module
         }
 
         // Check for cache presence
-        if (!is_null($url = $this->engine->getCacheURL($source))) {
-            return $url;
+        if (!is_null($uri = $this->engine->getCacheUri($source))) {
+            return $uri;
         }
 
         empty($params) && $params = $this->data->filter($this->creation_field, array('NOW() - INTERVAL 3 DAY'), '>');
@@ -736,13 +742,20 @@ class TIP_Content extends TIP_Module
 
         ob_start();
         $done = $source->run($this) && $this->endView();
-        ob_end_clean();
-
-        if ($done && !is_null($url = $this->engine->getCacheURL($source))) {
-            return $url;
+        if (!$done) {
+            ob_end_clean();
+            return $failed;
         }
 
-        return $failed;
+        // Store the cached atom feed
+        $path = $this->engine->buildCachePath($source);
+        $dir = dirname($path);
+        if (!is_dir($dir) && !mkdir($dir, 0777, true) ||
+            !file_put_contents($path, ob_get_clean(), LOCK_EX)) {
+            return $failed;
+        }
+
+        return $this->engine->getCacheUri($source);
     }
 
     /**
@@ -840,6 +853,7 @@ class TIP_Content extends TIP_Module
 
         ob_start();
         if ($view->isValid()) {
+            $main_id = TIP_Application::getGlobal('id');
             $partial = $pager && $view->nRows() == $quanto+1;
             if ($partial) {
                 // Remove the trailing row from the view
@@ -848,20 +862,23 @@ class TIP_Content extends TIP_Module
             }
 
             if ($pager) {
-                $gets = $_GET;
                 if ($offset > 0) {
-                    $gets['pg_offset'] = $offset-$quanto > 0 ? $offset-$quanto : 0;
-                    $this->keys['PREV'] = TIP::getScriptURI() . '?' . http_build_query($gets);
+                    $this->keys['PREV'] = TIP::modifyActionUri(
+                        null, null, null,
+                        array('pg_offset' => $offset-$quanto > 0 ? $offset-$quanto : 0)
+                    );
                 }
                 if ($partial) {
-                    $gets['pg_offset'] = $offset+$quanto;
-                    $this->keys['NEXT'] = TIP::getScriptURI() . '?' . http_build_query($gets);
+                    $this->keys['NEXT'] = TIP::modifyActionUri(
+                        null, null, null,
+                        array('pg_offset' => $offset+$quanto)
+                    );
                 }
                 $pager = isset($this->keys['PREV']) || isset($this->keys['NEXT']);
             }
 
             // Pager rendering BEFORE the rows
-            $pager && $this->tryRun(array('shared', $this->pager_pre_source));
+            $pager && $this->tryRun(array($main_id, $this->pager_pre_source));
 
             // Rows rendering
             $path = array($this->id, $this->pager_source);
@@ -870,7 +887,7 @@ class TIP_Content extends TIP_Module
             }
 
             // Pager rendering AFTER the rows
-            $pager && $this->tryRun(array('shared', $this->pager_post_source));
+            $pager && $this->tryRun(array($main_id, $this->pager_post_source));
         }
 
         $this->endView();
@@ -900,8 +917,7 @@ class TIP_Content extends TIP_Module
     protected function actionAdd($options = null)
     {
         isset($options['on_process']) || $options['on_process'] = array(&$this, '_onAdd');
-        isset($options['follower']) || $options['follower'] = TIP::getScriptURI() . '?module=' . $this->id . '&action=view&id=%lastid%';
-
+        isset($options['follower']) || $options['follower'] = TIP::buildActionUri($this->id, 'view', '-lastid-');
         $processed = $this->form(TIP_FORM_ACTION_ADD, null, $options);
         if (is_null($processed)) {
             return false;
@@ -1090,8 +1106,9 @@ class TIP_Content extends TIP_Module
             // and which has a corrispondence in the data structure
             $fields = $this->data->getFields();
             foreach ($browsable as $id) {
+                $get = $id == $this->browse_field ? 'id' : $id;
                 if (array_key_exists($id, $fields) &&
-                    !is_null($value = TIP::getGet($id, $fields[$id]['type']))) {
+                    !is_null($value = TIP::getGet($get, $fields[$id]['type']))) {
                     $conditions[$id] = $value;
                 }
             }

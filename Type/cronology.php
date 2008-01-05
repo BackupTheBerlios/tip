@@ -58,10 +58,10 @@ class TIP_Cronology extends TIP_Type
     protected $count_field = '_count';
 
     /**
-     * The base action for this cronology
+     * The action for this cronology
      * @var string
      */
-    protected $base_action = null;
+    protected $action = null;
 
     /**
      * Maximum number of levels to keep online
@@ -78,8 +78,17 @@ class TIP_Cronology extends TIP_Type
             return false;
         }
 
-        is_object($options['master']) || $options['master'] =& TIP_Type::getInstance($options['master']);
-        return $options['master'] instanceof TIP_Content;
+        if (is_string($options['master'])) {
+            $options['master'] =& TIP_Type::getInstance($options['master']);
+        } elseif (is_array($options['master'])) {
+            $options['master'] =& TIP_Type::singleton($options['master']);
+        }
+        if (!$options['master'] instanceof TIP_Content) {
+            return false;
+        }
+
+        isset($options['action']) || $options['action'] = 'view,-id-';
+        return true;
     }
 
     /**
@@ -109,7 +118,7 @@ class TIP_Cronology extends TIP_Type
 
         require_once 'HTML/Menu.php';
         $model =& new HTML_Menu($this->_tree);
-        $model->forceCurrentUrl(htmlspecialchars(TIP::getRequestURI()));
+        $model->forceCurrentUrl(htmlspecialchars(TIP::getRequestUri()));
 
         $renderer =& TIP_Renderer::getMenu($this->levels);
         $model->render($renderer, 'sitemap');
@@ -190,15 +199,10 @@ class TIP_Cronology extends TIP_Type
             return true;
         }
 
-        $action = $this->base_action;
-        if (empty($action)) {
-            // No action specified: construct the default cronology action (view)
-            $action = TIP::getScriptURI() . '?module=' . $this->master . '&amp;action=view&amp;id=';
-        }
-
         $tree =& $this->_tree;
         foreach ($rows as $id => &$row) {
-            $row['url'] = $action . $id;
+            $action = str_replace('-id-', $id, $this->action);
+            $row['url'] = TIP::buildActionUriFromTag($action, (string) $this->master);
             $row['title'] = $this->_renderField($this->title_field, $row);
 
             // Suppose the date is in ISO8601 format
@@ -208,12 +212,9 @@ class TIP_Cronology extends TIP_Type
             // Compute the year
             $year = sprintf('%04d', $y);
             if (!array_key_exists($year, $tree)) {
-                $gets = $_GET;
-                $gets[$this->id] = $year;
-                $url = TIP::getScriptURI() . '?' . http_build_query($gets, '', '&amp;');
                 $tree[$year] = array(
                     'title' => $year,
-                    'url'   => $url,
+                    'url'   => TIP::modifyActionUri(null, null, null, array($this->id => $year)),
                     'sub'   => array(),
                     'ITEMS' => 0
                 );
@@ -227,12 +228,9 @@ class TIP_Cronology extends TIP_Type
             $month = strftime('%B', mktime(0, 0, 0, $m, $day, $year));
             $month_id = $year . sprintf('%02d', $m);
             if (!array_key_exists($month_id, $months)) {
-                $gets = $_GET;
-                $gets[$this->id] = $month_id;
-                $url = TIP::getScriptURI() . '?' . http_build_query($gets, '', '&amp;');
                 $months[$month_id] = array(
                     'title' => $month,
-                    'url'   => $url,
+                    'url'   => TIP::modifyActionUri(null, null, null, array($this->id => $month_id)),
                     'sub'   => array(),
                     'ITEMS' => 0
                 );
