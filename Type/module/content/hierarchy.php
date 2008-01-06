@@ -113,10 +113,10 @@ class TIP_Hierarchy extends TIP_Content
             $row =& $rows[$id];
             isset($row['CLASS']) || $row['CLASS'] = 'item';
             if (!isset($row['url'])) {
-                $action = $row['action'];
+                $action = @$row['action'];
                 $action || $action = $this->action;
                 $action = str_replace('-id-', $id, $action);
-                $row['url'] = $this->tagActionURI($action);
+                $row['url'] = $this->master->tagActionUri($action);
             }
             if (isset($this->count_field)) {
                 $count = @$row[$this->count_field];

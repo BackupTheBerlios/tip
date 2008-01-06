@@ -324,22 +324,6 @@ abstract class TIP_Module extends TIP_Type
     }
 
     /**
-     * Build a source path
-     *
-     * Shortcut for building a module source path using the name of the current
-     * module as subpath of the source root.
-     *
-     * @param string|array $subpath,... A list of partial paths
-     * @return string The constructed path
-     */
-    protected function buildSourcePath()
-    {
-        $pieces = func_get_args();
-        $path = TIP::buildSourcePath($pieces);
-        return is_readable($path) ? $path : TIP::buildFallbackPath($pieces);
-    }
-
-    /**
      * Try to execute a source file
      *
      * Parses and executes the specified file. Similar to run(),
@@ -688,27 +672,26 @@ abstract class TIP_Module extends TIP_Type
      */
     protected function tagDataUri()
     {
-        return TIP::buildDataUri(func_get_args());
+        $pieces = func_get_args();
+        return TIP::buildDataUri($this->id, $pieces);
     }
 
     /**
      * Build a relative URI: $params must be referred to the module source root
      */
-    protected function tagModuleUri($params)
+    protected function tagModuleUri()
     {
-        return $this->tagSourceUri($this->id, $params);
+        $pieces = func_get_args();
+        return $this->tagSourceUri($this->id, $pieces);
     }
 
     /**
      * Build an icon URI
      */
-    protected function tagIconUri($params)
+    protected function tagIconUri()
     {
-        static $uri = null;
-        if (is_null($uri)) {
-            $uri = $this->tagSourceUri('shared', 'icons');
-        }
-        return $uri . '/' . $params;
+        $pieces = func_get_args();
+        return $this->tagSourceUri('shared', 'icons', $pieces);
     }
 
     /**

@@ -176,7 +176,7 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         // Array rendering
         if ($is_container && ($this->_array_mode & 1) ||
             !$is_container && ($this->_array_mode & 2)) {
-            $this->_rows[] = $name;
+            $this->_rows[$node['id']] = $name;
         }
 
         // Check for maximum level
