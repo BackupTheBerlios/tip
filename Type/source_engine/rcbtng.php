@@ -122,7 +122,7 @@ class TIP_RcbtNG_Instance
     {
         $view = '$view' . count($this->_stack) . '_' . $this->_level;
         $this->_code .= "$view =& {$module}->startDataView($params);\n";
-        $this->_code .= "for ($view && {$view}->rewind(); {$view}->valid(); {$view}->next()) {\n";
+        $this->_code .= "if ($view) for ({$view}->rewind(); {$view}->valid(); {$view}->next()) {\n";
         return $this->_pushModule($module);
     }
 
@@ -131,7 +131,7 @@ class TIP_RcbtNG_Instance
         if ($params == "''") {
             $view = '$view' . count($this->_stack) . '_' . $this->_level;
             $this->_code .= "$view =& {$module}->getCurrentView();\n";
-            $this->_code .= "for ($view && {$view}->rewind(); {$view}->valid(); {$view}->next()) {\n";
+            $this->_code .= "if ($view) for ({$view}->rewind(); {$view}->valid(); {$view}->next()) {\n";
         } elseif (!is_null($params) && eval("return $params;") > 0) {
             $cnt = '$cnt' . count($this->_stack) . '_' . $this->_level;
             $this->_code .= "for ($cnt = 1; $cnt < $params; ++ $cnt) {\n";
@@ -139,7 +139,7 @@ class TIP_RcbtNG_Instance
         } else {
             $view = '$view' . count($this->_stack) . '_' . $this->_level;
             $this->_code .= "$view =& {$module}->startView($params);\n";
-            $this->_code .= "for ($view && {$view}->rewind(); {$view}->valid(); {$view}->next()) {\n";
+            $this->_code .= "if ($view) for ({$view}->rewind(); {$view}->valid(); {$view}->next()) {\n";
         }
 
         return $this->_pushModule($module);
