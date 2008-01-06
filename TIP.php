@@ -854,9 +854,9 @@ class TIP
      */
     static public function modifyActionUri($module, $action, $id = null, $args = null)
     {
-        $get = array();
-        foreach ($_GET as $id => $value) {
-            switch ($id) {
+        $gets = array();
+        foreach ($_GET as $get => $value) {
+            switch ($get) {
             case 'module':
                 is_null($module) && $module = $value;
                 break;
@@ -867,11 +867,11 @@ class TIP
                 is_null($id) && $id = $value;
                 break;
             default:
-                $get[$id] = $value;
+                $gets[$get] = $value;
             }
         }
 
-        isset($args) && $get = array_merge($get, $args);
+        isset($args) && $gets = array_merge($gets, $args);
         return TIP::buildActionUri($module, $action, $id, $args);
     }
 
