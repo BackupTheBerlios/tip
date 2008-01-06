@@ -97,7 +97,7 @@ class TIP_Comments extends TIP_Content
             return null;
         }
 
-        $options['defaults'][$this->parent_field] = (int) $params;
+        $options['defaults'][$this->browse_field] = (int) $params;
         $options['buttons'] = TIP_FORM_BUTTON_SUBMIT;
         $options['invalid_render'] = TIP_FORM_RENDER_HERE;
         $options['valid_render'] = TIP_FORM_RENDER_IN_PAGE;
@@ -119,7 +119,7 @@ class TIP_Comments extends TIP_Content
     /**
      * Perform an add action
      *
-     * Overrides the default add action, assuring the 'parent_field' has a
+     * Overrides the default add action, assuring the 'browse_field' has a
      * valid value.
      *
      * @param  array $options Options to pass to the form() call
@@ -127,18 +127,18 @@ class TIP_Comments extends TIP_Content
      */
     protected function actionAdd($options = array())
     {
-        // Check for the default value of 'parent_field' (the parent id)
-        if (!isset($options['defaults'], $options['defaults'][$this->parent_field])) {
+        // Check for the default value of 'browse_field' (the parent id)
+        if (!isset($options['defaults'], $options['defaults'][$this->browse_field])) {
             // Try to get the parent id from GET or POST
-            if (is_null($parent_id = $this->fromGetOrPost($this->parent_field))) {
+            if (is_null($parent_id = $this->fromGetOrPost($this->browse_field))) {
                 return false;
             }
-            $options['defaults'][$this->parent_field] = $parent_id;
+            $options['defaults'][$this->browse_field] = $parent_id;
         } else {
-            $parent_id = $options['defaults'][$this->parent_field];
+            $parent_id = $options['defaults'][$this->browse_field];
         }
 
-        isset($options['follower']) || $options['follower'] = TIP::buildActionURI($this->id, 'browse', null, array($this->parent_field => $parent_id));
+        isset($options['follower']) || $options['follower'] = TIP::buildActionURI($this->id, 'browse', $parent_id);
         return parent::actionAdd($options);
     }
 

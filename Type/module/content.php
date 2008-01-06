@@ -138,6 +138,14 @@ class TIP_Content extends TIP_Module
         TIP_PRIVILEGE_ADMIN => array('__ALL__')
     );
 
+
+    /**
+     * Explicit options to pass to the form
+     *
+     * @var array
+     */
+    protected $form_options = null;
+
     //}}}
     //{{{ Construction/destruction
 
@@ -916,6 +924,10 @@ class TIP_Content extends TIP_Module
      */
     protected function actionAdd($options = null)
     {
+        if (isset($this->form_options['add'])) {
+            $options = array_merge($this->form_options['add'], (array) $options);
+        }
+
         isset($options['on_process']) || $options['on_process'] = array(&$this, '_onAdd');
         isset($options['follower']) || $options['follower'] = TIP::buildActionUri($this->id, 'view', '-lastid-');
         $processed = $this->form(TIP_FORM_ACTION_ADD, null, $options);
@@ -951,6 +963,10 @@ class TIP_Content extends TIP_Module
      */
     protected function actionEdit($id, $options = null)
     {
+        if (isset($this->form_options['edit'])) {
+            $options = array_merge($this->form_options['edit'], (array) $options);
+        }
+
         isset($options) || $options = array();
         isset($options['on_process']) || $options['on_process'] = array(&$this, '_onEdit');
         return !is_null($this->form(TIP_FORM_ACTION_EDIT, $id, $options));
@@ -973,6 +989,10 @@ class TIP_Content extends TIP_Module
      */
     protected function actionDelete($id, $options = null)
     {
+        if (isset($this->form_options['delete'])) {
+            $options = array_merge($this->form_options['delete'], (array) $options);
+        }
+
         isset($options) || $options = array();
         isset($options['on_process']) || $options['on_process'] = array(&$this, '_onDelete');
         return !is_null($this->form(TIP_FORM_ACTION_DELETE, $id, $options));

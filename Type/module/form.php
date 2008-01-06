@@ -256,10 +256,9 @@ class TIP_Form extends TIP_Module
                 HTTP_Session2::set($this->id . '.process', null);
 
                 $last_id = $this->_data->getLastId();
-                if (isset($last_id)) {
-                    $this->referer = str_replace('-lastid-', $last_id, $this->referer);
-                    $this->follower = str_replace('-lastid-', $this->_data->getLastId(), $this->follower);
-                }
+                isset($last_id) || $last_id = '';
+                $this->referer = str_replace('-lastid-', $last_id, $this->referer);
+                $this->follower = str_replace('-lastid-', $last_id, $this->follower);
             }
             $buttons = TIP_FORM_BUTTON_CLOSE;
             $render = $this->valid_render;
