@@ -668,12 +668,25 @@ abstract class TIP_Module extends TIP_Type
     }
 
     /**
-     * Build a relative URI: $params must be referred to the data root
+     * Build a relative URI: $params must be referred to the module data root
      */
     protected function tagDataUri()
     {
         $pieces = func_get_args();
         return TIP::buildDataUri($this->id, $pieces);
+    }
+
+    /**
+     * Build a relative URI: $params must be referred to the module data root
+     */
+    protected function tagCacheUri()
+    {
+        static $base = null;
+        if (is_null($base)) {
+            $base = array_merge($this->engine->getProperty('cache_root'), TIP_Application::getGlobal('source_root'));
+        }
+        $pieces = func_get_args();
+        return TIP::buildUri($base, $this->id, $pieces);
     }
 
     /**
