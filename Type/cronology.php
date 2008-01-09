@@ -150,7 +150,13 @@ class TIP_Cronology extends TIP_Type
 
         $renderer =& TIP_Renderer::getMenu(0);
         $model->render($renderer, 'sitemap');
+
+        header('Content-Type: application/xml');
+        echo '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+        echo "\n<xml>\n\n<ul class=\"opened\">";
         echo $renderer->toHtml();
+        echo "\n</ul>\n\n</xml>";
+
         return true;
     }
 

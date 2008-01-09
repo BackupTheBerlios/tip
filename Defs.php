@@ -72,7 +72,10 @@ define('TIP_FORM_RENDER_NOTHING', 3);
 
 /**
  * If set to true, this flag will avoid postConstructor calls
+ *
+ * I think the following approach is apache specific.
  */
-define('TIP_AJAX', isset($_GET['ajax']));
+
+define('TIP_AJAX', strcasecmp(@$_SERVER["HTTP_X_REQUESTED_WITH"], 'XMLHttpRequest') == 0);
 
 ?>

@@ -399,8 +399,7 @@ class TIP_Application extends TIP_Module
 
         // Check for ajax requests
         if (TIP_AJAX) {
-            end($_GET);
-            $id = prev($_GET);
+            $id = end($_GET);
             $module = key($_GET);
             if ($module && $module =& TIP_Type::getInstance($module, false)) {
                 $module->ajax($id);
