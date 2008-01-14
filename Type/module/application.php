@@ -656,9 +656,8 @@ class TIP_Application extends TIP_Module
         // Profiler initialization in "admin" mode
         if ($this->keys['IS_ADMIN']) {
             require_once 'Benchmark/Profiler.php';
-            global $_tip_profiler;
-            $_tip_profiler =& new Benchmark_Profiler;
-            $_tip_profiler->start();
+            $GLOBALS['_tip_profiler'] =& new Benchmark_Profiler;
+            $GLOBALS['_tip_profiler']->start();
         }
     }
 

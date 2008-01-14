@@ -350,7 +350,7 @@ class TIP_Privilege extends TIP_Content
     private function _getUser()
     {
         if (!array_key_exists('UID', $this->keys)) {
-            if (!is_null($user = $this->fromGet('user')) && $this->privilege < TIP_PRIVILEGE_MANAGER && $user == TIP::getUserId()) {
+            if (!is_null($user = $this->fromGet('id')) && $this->privilege < TIP_PRIVILEGE_MANAGER && $user == TIP::getUserId()) {
                 TIP::notifyError('denied');
                 $user = null;
             }

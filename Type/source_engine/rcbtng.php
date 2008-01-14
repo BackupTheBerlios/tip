@@ -77,7 +77,7 @@ class TIP_RcbtNG_Instance
     protected function tag($module, $params)
     {
         $this->_code .= "}\n";
-        if (!$this->_popModule()) {
+        if (!$this->_pop()) {
             $this->error = 'unmatched closing brace';
             return false;
         }
@@ -93,7 +93,7 @@ class TIP_RcbtNG_Instance
     protected function tagIf($module, $params)
     {
         $this->_code .= "if (eval('return ' . $params . ';')) {\n";
-        return $this->_pushModule($module);
+        return $this->_push($module);
     }
 
     protected function tagElse($module, $params)
@@ -107,7 +107,7 @@ class TIP_RcbtNG_Instance
         $view = '$view' . count($this->_stack) . '_' . $this->_level;
         $this->_code .= "$view =& {$module}->startDataView($params);\n";
         $this->_code .= "if ($view && {$view}->rewind()) {\n";
-        return $this->_pushModule($module);
+        return $this->_push($module, $view);
     }
 
     protected function tagSelectRow($module, $params)
@@ -115,7 +115,7 @@ class TIP_RcbtNG_Instance
         $view = '$view' . count($this->_stack) . '_' . $this->_level;
         $this->_code .= "$view =& {$module}->startDataView({$module}->getProperty('data')->rowFilter($params));\n";
         $this->_code .= "if ($view && {$view}->rewind()) {\n";
-        return $this->_pushModule($module);
+        return $this->_push($module, $view);
     }
 
     protected function tagForSelect($module, $params)
@@ -123,7 +123,7 @@ class TIP_RcbtNG_Instance
         $view = '$view' . count($this->_stack) . '_' . $this->_level;
         $this->_code .= "$view =& {$module}->startDataView($params);\n";
         $this->_code .= "if ($view) for ({$view}->rewind(); {$view}->valid(); {$view}->next()) {\n";
-        return $this->_pushModule($module);
+        return $this->_push($module, $view);
     }
 
     protected function tagForEach($module, $params)
@@ -132,17 +132,19 @@ class TIP_RcbtNG_Instance
             $view = '$view' . count($this->_stack) . '_' . $this->_level;
             $this->_code .= "$view =& {$module}->getCurrentView();\n";
             $this->_code .= "if ($view) for ({$view}->rewind(); {$view}->valid(); {$view}->next()) {\n";
+            $view = null;
         } elseif (!is_null($params) && eval("return $params;") > 0) {
             $cnt = '$cnt' . count($this->_stack) . '_' . $this->_level;
             $this->_code .= "for ($cnt = 1; $cnt < $params; ++ $cnt) {\n";
             $this->_code .= "{$module}->keys['CNT'] = $cnt;\n";
+            $view = null;
         } else {
             $view = '$view' . count($this->_stack) . '_' . $this->_level;
             $this->_code .= "$view =& {$module}->startView($params);\n";
             $this->_code .= "if ($view) for ({$view}->rewind(); {$view}->valid(); {$view}->next()) {\n";
         }
 
-        return $this->_pushModule($module);
+        return $this->_push($module, $view);
     }
 
     /**#@-*/
@@ -410,18 +412,27 @@ class TIP_RcbtNG_Instance
         return "'" . addcslashes($params, '\'\\') . "'";
     }
 
-    private function _pushModule($module)
+    private function _push($module, $view = null)
     {
-        array_push($this->_stack, $this->_caller);
+        array_push($this->_stack, array(
+            'module' => $this->_caller,
+            'view' => $view)
+        );
         $this->_caller = $module;
         return true;
     }
 
-    private function _popModule()
+    private function _pop()
     {
-        $module = array_pop($this->_stack);
-        if (is_null($module)) {
+        if (empty($this->_stack)) {
             return false;
+        }
+
+        $context = array_pop($this->_stack);
+        $module = $context['module'];
+        $view = $context['view'];
+        if ($view) {
+            $this->_code .= "$view && {$this->_caller}->endView();\n";
         }
         $this->_caller = $module;
         return true;
