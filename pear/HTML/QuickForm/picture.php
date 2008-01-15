@@ -387,6 +387,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
                     $error_message = $form->getElementError($name);
                     if (empty($error_message)) {
                         $element->_upload();
+                        $element->setComment(null);
                     } else {
                         $element->_reset();
                         $form->updateAttributes(array('enctype' => 'multipart/form-data'));

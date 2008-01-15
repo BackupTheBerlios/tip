@@ -801,6 +801,32 @@ class TIP_Form extends TIP_Module
             $element->setUnloadElement($unload_element);
         }
 
+        // Update the comments
+        $comment = $element->getComment();
+        if ($comment && strpos($comment, '|0|') !== false) {
+            // Variable substitution in the element comment
+            // (adding the minimum/maximum size, for instance)
+            $match = array();
+            if (preg_match('/minpicturesize\(([0-9]+) *([0-9]+)\)/', $field['rules'], $match)) {
+                $tag[0] = $match[1];
+                $tag[1] = $match[2];
+            } else {
+                $tag[0] = $tag[1] = 0;
+            }
+            if (preg_match('/maxpicturesize\(([0-9]+) *([0-9]+)\)/', $field['rules'], $match)) {
+                $tag[2] = $match[1];
+                $tag[3] = $match[2];
+            } else {
+                $tag[2] = $tag[3] = '&infin;';
+            }
+
+            foreach ($tag as $n => $value) {
+                $comment = str_replace('|'.$n.'|', $value, $comment);
+            }
+
+            $element->setComment($comment);
+        }
+
         return $element;
     }
 
