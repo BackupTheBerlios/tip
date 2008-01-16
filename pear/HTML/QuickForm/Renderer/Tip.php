@@ -36,7 +36,7 @@ class HTML_QuickForm_Renderer_Tip extends HTML_QuickForm_Renderer
      * @var      string
      * @access   private
      */
-    var $_elementTemplate = "\n  <div<!-- BEGIN error --> class=\"error\"<!-- END error -->>\n<!-- BEGIN label -->    <label><!-- BEGIN required --><strong><!-- END required -->{label}<!-- BEGIN required --></strong><!-- END required --></label><!-- END label --><!-- BEGIN error --><em>{error}</em><!-- END error -->\n    <div{required}>{element}</div>\n<!-- BEGIN comment -->    <small>{comment}</small>\n<!-- END comment -->  </div>";
+    var $_elementTemplate = "\n  <div<!-- BEGIN error --> class=\"error\"<!-- END error -->>\n<!-- BEGIN label -->    <label><!-- BEGIN required --><strong><!-- END required -->{label}<!-- BEGIN required --></strong><!-- END required --></label><!-- END label --><!-- BEGIN error --><em>{error}</em><!-- END error -->\n    <div{required}>{element}</div>\n<!-- BEGIN comment -->    <span class=\"comment\">{comment}</span>\n<!-- END comment -->  </div>";
 
     /**
      * Form template string
@@ -50,7 +50,7 @@ class HTML_QuickForm_Renderer_Tip extends HTML_QuickForm_Renderer
      * @var      string
      * @access   private
      */
-    var $_requiredNoteTemplate = "\n  <strong><small>{requiredNote}</small></strong>";
+    var $_requiredNoteTemplate = "\n  <strong class=\"required\">{requiredNote}</strong>";
 
     /**
      * Template used when opening a fieldset
