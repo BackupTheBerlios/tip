@@ -768,45 +768,22 @@ abstract class TIP_Module extends TIP_Type
     }
 
     /**
-     * Format a date
+     * Format a datetime
      *
-     * Converts a date (in ISO8601 format) to a specified format.
+     * Converts a datetime (in SQL format) to a specified format.
      *
-     * $params must be a string in the format 'date[,format]', where format
-     * is any format allowed by the TIP::formatDate() method, without the
-     * 'date_' prefix.
-     *
-     * If format is not specified, it defaults to locale. For instance,
-     * if the current locale is 'it', the format used will be "date_it".
+     * $params must be a string in the format '[date][,format]', where format
+     * is any format allowed by the TIP::formatDate() method. If the date is
+     * not specified, the current date is assumed. If the format is not
+     * specified, it defaults to 'date'.
      *
      * @uses TIP::formatDate() The date formatter
      */
     protected function tagDate($params)
     {
         @list($date, $format) = explode(',', $params, 2);
-        empty($format) && $format = TIP::getLocaleId();
-        return TIP::formatDate('date_' . $format, $date, 'iso8601');
-    }
-
-    /**
-     * Format a date/time
-     *
-     * Converts a datetime (in ISO8601 format) to a specified format.
-     *
-     * $params must be a string in the format 'datetime[,format]', where format
-     * is any format allowed by the TIP::formatDate() method, without the
-     * 'datetime_' prefix.
-     *
-     * If format is not specified, it defaults to locale. For instance,
-     * if the current locale is 'it', the format used will be "datetime_it".
-     *
-     * @uses TIP::formatDate() The date formatter
-     */
-    protected function tagDateTime($params)
-    {
-        @list($datetime, $format) = explode(',', $params, 2);
-        empty($format) && $format = TIP::getLocaleId();
-        return TIP::formatDate('datetime_' . $format, $datetime, 'iso8601');
+        empty($format) && $format = 'date';
+        return empty($date) ? TIP::formatDate($format) : TIP::formatDate($format, $date, 'sql');
     }
 
     /**
@@ -823,17 +800,6 @@ abstract class TIP_Module extends TIP_Type
     {
         $file = TIP::buildLogicPath('module', $params) . '.php';
         return is_readable($file) ? 'true' : 'false';
-    }
-
-    /**
-     * Expand to the current datetime
-     *
-     * You must specify the datetime format in $params. Any format
-     * described in TIP::formatDate() is allowed.
-     */
-    protected function tagNow($params)
-    {
-        return TIP::formatDate($params);
     }
 
     /**#@-*/

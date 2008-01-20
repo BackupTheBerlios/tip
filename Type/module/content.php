@@ -1196,7 +1196,7 @@ class TIP_Content extends TIP_Module
         isset($this->creation_field) &&
             array_key_exists($this->creation_field, $row) &&
             empty($row[$this->creation_field]) &&
-            $row[$this->creation_field] = TIP::formatDate('datetime_iso8601');
+            $row[$this->creation_field] = TIP::formatDate('datetime_sql');
         isset($this->owner_field) &&
             array_key_exists($this->owner_field, $row) &&
             empty($row[$this->owner_field]) &&
@@ -1221,7 +1221,7 @@ class TIP_Content extends TIP_Module
     {
         isset($this->last_edit_field) &&
             array_key_exists($this->last_edit_field, $row) &&
-            $row[$this->last_edit_field] = TIP::formatDate('datetime_iso8601');
+            $row[$this->last_edit_field] = TIP::formatDate('datetime_sql');
         isset($this->editor_field) &&
             array_key_exists($this->editor_field, $row) &&
             $row[$this->editor_field] = TIP::getUserId();
@@ -1263,7 +1263,7 @@ class TIP_Content extends TIP_Module
 
         isset($this->last_hit_field) &&
             array_key_exists($this->last_hit_field, $row) &&
-            $row[$this->last_hit_field] = TIP::formatDate('datetime_iso8601');
+            $row[$this->last_hit_field] = TIP::formatDate('datetime_sql');
         isset($this->hits_field) &&
             array_key_exists($this->hits_field, $row) &&
             ++ $row[$this->hits_field];

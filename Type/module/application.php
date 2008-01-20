@@ -236,8 +236,6 @@ class TIP_Application extends TIP_Module
         $this->keys['TITLE'] =& $this->title;
         $this->keys['DESCRIPTION'] =& $this->description;
         $this->keys['KEYWORDS'] =& $this->keywords;
-        $this->keys['TODAY'] = TIP::formatDate('date_iso8601');
-        $this->keys['NOW'] = TIP::formatDate('datetime_iso8601');
         $this->keys['ROOT'] = TIP::getRoot();
         $this->keys['HOME'] = TIP::getHome();
         $this->keys['REFERER'] = '';
@@ -333,11 +331,7 @@ class TIP_Application extends TIP_Module
         }
 
         $running = true;
-        if (is_null($locale =& TIP_Type::getInstance('locale'))) {
-            TIP::warning('TIP_Notify without TIP_Locale is not implemented');
-            return false;
-        }
-
+        $locale =& TIP_Type::getInstance('locale');
         $header_id = 'notify.' . $severity;
         $message_id = $header_id . '.' . $id;
         $data =& $locale->getProperty('data');
@@ -376,26 +370,10 @@ class TIP_Application extends TIP_Module
      */
     public function go()
     {
-        $locale = TIP::getOption($this->shared_modules['locale'], 'locale');
-
-        // Locale settings
-        switch (TIP::getOS()) {
-
-        case 'unix':
-            // Dirty hack to set the locale on unix systems
-            setlocale(LC_ALL, $locale . '_' . strtoupper($locale));
-            break;
-
-        case 'windows':
-            setlocale(LC_ALL, $locale);
-            break;
-
-        default:
-            break;
-        }
-
-        // Set the timezone
-        date_default_timezone_set('Europe/Rome');
+        // Configure the locale
+        $locale_module = $this->shared_modules['locale'];
+        TIP::setLocaleId(TIP::getOption($locale_module, 'locale'));
+        date_default_timezone_set(TIP::getOption($locale_module, 'timezone'));
 
         // Check for ajax requests
         if (TIP_AJAX) {

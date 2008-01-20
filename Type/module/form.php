@@ -56,6 +56,12 @@ class TIP_Form extends TIP_Module
     protected $fields = null;
 
     /**
+     * Wheter to include a captcha element in the form
+     * @var boolean
+     */
+    protected $captcha = false;
+
+    /**
      * A sum of TIP_FORM_BUTTON_... constants: leave it null to use
      * default buttons regardling the requested action
      *
@@ -228,6 +234,9 @@ class TIP_Form extends TIP_Module
         $this->_form->addElement('hidden', 'module', $this->id);
         $this->_form->addElement('hidden', 'action', $this->action_id);
         array_walk(array_keys($this->fields), array(&$this, '_addWidget'));
+        if ($this->captcha) {
+            $this->_addCaptcha();
+        }
 
         // Set the default content
         if (is_array($this->defaults)) {
@@ -412,10 +421,10 @@ class TIP_Form extends TIP_Module
         $row[$field] = mktime(0, 0, 0, $month, $day, $year);
     }
 
-    private function _converterISO8601(&$row, $field)
+    private function _converterSqlDate(&$row, $field)
     {
         list($day, $month, $year) = array_values($row[$field]);
-        $row[$field] = sprintf('%04d%02d%02d', $year, $month, $day);
+        $row[$field] = sprintf('%04d-%02d-%02d', $year, $month, $day);
     }
 
     private function _converterSet(&$row, $field)
@@ -454,12 +463,12 @@ class TIP_Form extends TIP_Module
     {
         if (array_key_exists('_creation', $this->fields) &&
             @empty($this->defaults['_creation'])) {
-            $this->defaults['_creation'] = TIP::formatDate('datetime_iso8601');
+            $this->defaults['_creation'] = TIP::formatDate('datetime_sql');
         }
 
         if (array_key_exists('_lasthit', $this->fields) &&
             @empty($this->defaults['_lasthit'])) {
-            $this->defaults['_lasthit'] = TIP::formatDate('datetime_iso8601');
+            $this->defaults['_lasthit'] = TIP::formatDate('datetime_sql');
         }
 
         if (array_key_exists('_user', $this->fields) &&
@@ -468,32 +477,47 @@ class TIP_Form extends TIP_Module
         }
     }
 
-    private function& _addElement($type, $id, $class = false)
+    private function& _addElement($type, $id, $attributes = false)
     {
         $label = $this->getLocale('label.' . $id);
         $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
+        if (is_string($attributes)) {
+            $attributes = array('class' => $attributes);
+        }
         $attributes['tabindex'] = ++ $this->_tabindex;
-        $class && $attributes['class'] = $class;
 
         $element =& $this->_form->addElement($type, $id, $label, $attributes);
         $element->setComment($comment);
         return $element;
     }
 
+    private function _addCaptcha()
+    {
+        HTML_QuickForm::registerElementType('captcha', 'HTML/QuickForm/captcha.php', 'HTML_QuickForm_captcha');
+
+        $id = 'captchanw';
+        $element =& $this->_addElement('captcha', $id, array('size' => 6, 'maxlength' => 6));
+        $element->setLocale(TIP::getLocaleId());
+        $this->_addRule($id, 'required');
+        $this->_addRule($id, 'captcha');
+    }
+
     private function _addWidget($id)
     {
-        if (substr($id, 0, 1) == '_' || $this->fields[$id]['automatic']) {
+        $field =& $this->fields[$id];
+
+        if (substr($id, 0, 1) == '_' || $field['automatic']) {
             // By default, fields starting with '_' and automatic fields
             // cannot be edited, so are included as hidden (if defined)
             if (@array_key_exists($id, $this->defaults)) {
                 $this->_form->addElement('hidden', $id, $this->defaults[$id]);
             }
         } else {
-            $method = '_widget' . @$this->fields[$id]['widget'];
+            $method = '_widget' . @$field['widget'];
             if (!method_exists($this, $method)) {
                 $method = '_widgetText';
             }
-            $element =& $this->$method($this->fields[$id]);
+            $element =& $this->$method($field);
         }
     }
 
@@ -757,8 +781,8 @@ class TIP_Form extends TIP_Module
         $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
 
         // Set the date in a format suitable for HTML_QuickForm_date
-        $iso8601 = @$this->defaults[$id];
-        $timestamp = empty($iso8601) ? time() : TIP::getTimestamp($iso8601, 'iso8601');
+        $sql_date = @$this->defaults[$id];
+        $timestamp = empty($sql_date) ? time() : TIP::getTimestamp($sql_date, 'sql');
         $this->defaults[$id] = $timestamp;
 
         $field_year = date('Y', $this->defaults[$id]);
@@ -767,7 +791,7 @@ class TIP_Form extends TIP_Module
         // $min_year > $max_year, so the year list is properly sorted in reversed
         // order
         $options = array(
-            'language' => TIP::getLocaleId(),
+            'language' => substr(TIP::getLocaleId(), 0, 2),
             'format'   => 'dFY',
             'minYear'  => $this_year+1,
             'maxYear'  => $field_year < $this_year-5 ? $field_year : $this_year-5
@@ -777,7 +801,7 @@ class TIP_Form extends TIP_Module
         $element =& $this->_form->addElement('date', $id, $label, $options, array('tabindex' => $this->_tabindex));
         $element->setComment($comment);
         $this->_addRule($id, 'date');
-        $this->_addConverter($id, 'ISO8601');
+        $this->_addConverter($id, 'SqlDate');
         return $element;
     }
 

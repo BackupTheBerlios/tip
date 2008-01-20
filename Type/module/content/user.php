@@ -136,7 +136,7 @@ class TIP_User extends TIP_Content
             ++ $this->_row[$this->hits_field];
         isset($this->last_hit_field) &&
             array_key_exists($this->last_hit_field, $this->_row) &&
-            $this->_row[$this->last_hit_field] = TIP::formatDate('datetime_iso8601');
+            $this->_row[$this->last_hit_field] = TIP::formatDate('datetime_sql');
 
         $this->data->updateRow($this->_row, $this->_old_row);
     }

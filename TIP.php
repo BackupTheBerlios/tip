@@ -40,7 +40,6 @@ require_once 'HTTP.php';
 require_once TIP::buildLogicPath('Type.php');
 require_once TIP::buildLogicPath('Callback.php');
 
-
 /**
  * A collection of global functions
  *
@@ -75,34 +74,47 @@ class TIP
         case '':
             return $timestamp;
 
+        case 'date':
+            // Custom locale manipulations
+            switch (TIP::getLocaleId()) {
+
+            case 'it_IT':
+                $same_year = date('Y', $timestamp) == date('Y');
+                $same_day = date('z', $timestamp) == date('z');
+                if ($same_year && $same_day) {
+                    return 'oggi';
+                }
+                return strftime($same_year ? '%d %B' : '%d %B %Y', $timestamp);
+            }
+
+            return strftime('%x', $timestamp);
+
+        case 'datetime':
+            // Custom locale manipulations
+            switch (TIP::getLocaleId()) {
+
+            case 'it_IT':
+                $date = TIP::_formatTimestamp($timestamp, 'date');
+                return $date . ' alle ' . strftime('%H:%M', $timestamp);
+            }
+
+            return strftime('%c', $timestamp);
+
+        case 'date_sql':
         case 'date_iso8601':
             return strftime('%Y-%m-%d', $timestamp);
 
-        case 'date_sql':
-            return strftime('%Y%m%d', $timestamp);
+        case 'datetime_sql':
+            return strftime('%Y-%m-%d %H:%M:%S', $timestamp);
 
         case 'datetime_iso8601':
             return date(DATE_ISO8601, $timestamp);
 
         case 'datetime_rfc3339':
             return date(DATE_RFC3339, $timestamp);
-
-        case 'date_it':
-            $same_year = date('Y', $timestamp) == date('Y');
-            $same_day = date('z', $timestamp) == date('z');
-            if ($same_year && $same_day) {
-                return 'oggi';
-            }
-            return strftime($same_year ? '%d %B' : '%d %B %Y', $timestamp);
-
-        case 'datetime_it':
-            $date = TIP::_formatTimestamp($timestamp, 'date_it');
-            $time = strftime('%H:%M', $timestamp);
-            return $date . ' alle ' . $time;
         }
 
-        TIP::warning("Output time format not recognized ($format)");
-        return null;
+        return strftime($format, $timestamp);
     }
 
     //}}}
@@ -194,15 +206,30 @@ class TIP
     }
 
     /**
-     * Get the current locale id
+     * Set locale in a platform-independent way
      *
-     * Gets the currently active locale id, such as 'en' or 'it'.
-     *
-     * @param  string      $id      The identifier
-     * @param  string      $prefix  The prefix
-     * @param  array       $context A context associative array
-     * @param  bool        $cached  Whether to perform or not a cached read
-     * @return string|null          The localized text or null if not found
+     * @param  string   $locale The locale name (such as 'en_US' or 'it_IT')
+     * @throw  exception        If the locale could not be set
+     *                          or the encoding will is not UTF-8
+     */
+    function setLocaleId($locale)
+    {
+        list($language, $country) = explode('_', $locale);
+
+        $result = setlocale(LC_ALL, $locale . '.UTF-8', $language, $locale);
+        if(!$result) {
+            throw new exception("Unknown locale name ($locale)");
+        }
+
+        // See if we have successfully set it to UTF-8
+        if(!strpos($result, 'UTF-8')) {
+            throw new exception('Unable to force UTF-8 encoding on this system');
+        }
+    }
+
+    /**
+     * Get the current locale, such as 'en_US' or 'it_IT'
+     * @return string The current locale
      */
     static public function getLocaleId()
     {
@@ -422,7 +449,7 @@ class TIP
      *
      * Parses $date, specified in $format format, and return the timestamp.
      * The currently supported formats are:
-     * - 'iso8601' for ISO8601 date or datetime (the format used, for instance, by MySql)
+     * - 'sql' for SQL date or datetime (YYYY-MM-DD hh:mm:ss)
      *
      * @param  mixed    $date   The input date
      * @param  string   $format A supported date format
@@ -432,7 +459,7 @@ class TIP
     {
         switch ($format) {
 
-        case 'iso8601':
+        case 'sql':
             @list($year, $month, $day, $hour, $min, $sec) = sscanf($date, '%d-%d-%d %d:%d:%d');
             return mktime($hour, $min, $sec, $month, $day, $year);
         }
@@ -449,16 +476,19 @@ class TIP
      * time is used as input.
      *
      * The $format parameter can be one of the following values:
-     * - 'date_iso8601' for a string with a day description in ISO 8601 format
-     * - 'date_sql' for a string with a day description as '%Y%m%d'
-     * - 'datetime_iso8601' for a string with day and hour description in ISO 8601 format
-     * - 'datetime_rfc3339' for a string as described in RFC33309 (atom format)
-     * - 'date_it' for a string with a day description (italian locale)
-     * - 'datetime_it' for a string with day and hour description (italian locale)
+     * - 'date' for a string with a date description (current locale)
+     * - 'date_sql' for date in common SQL format ('%Y-%m-%d')
+     * - 'date_iso8601' same as 'date_sql'
+     * - 'datetime' for a string with date and time description (current locale)
+     * - 'datetime_sql' for a string with a time description as '%Y-%m-%d %H:%M:%S'
+     * - 'datetime_iso8601' for a string with time description in ISO 8601 format
+     * - 'datetime_rfc3339' for a string as described in RFC3339 (atom format)
+     *
+     * Any other value will be passed directly to strftime().
      *
      * The $input_format parameter can be one of the following values:
      * - 'timestamp' for UNIX timestamps
-     * - 'iso8601' for ISO8601 date (the format used, for instance, by MySql)
+     * - 'sql' for common SQL date/datetime
      *
      * @param  string     $format       The format of the resulting date
      * @param  mixed      $input        The source date to format

@@ -211,7 +211,7 @@ class TIP_Cronology extends TIP_Type
             $row['url'] = TIP::buildActionUriFromTag($action, (string) $this->master);
             $row['title'] = $this->_renderField($this->title_field, $row);
 
-            // Suppose the date is in ISO8601 format
+            // Suppose the date is in SQL format
             $date = $row[$this->date_field];
             list($y, $m, $day) = sscanf($date, "%d-%d-%d");
 

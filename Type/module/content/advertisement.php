@@ -78,7 +78,7 @@ class TIP_Advertisement extends TIP_Content
      */
     public function _onDataRow(&$row)
     {
-        $row['EXPIRED'] = TIP::getTimestamp($row[$this->expiration_field], 'iso8601') < time();
+        $row['EXPIRED'] = TIP::getTimestamp($row[$this->expiration_field]) < time();
         if ($row['EXPIRED'] && @$row[$this->public_field] == 'yes') {
             // The advertisement is expired: update accordling
             $new_row = array($this->public_field => 'no');
@@ -101,7 +101,7 @@ class TIP_Advertisement extends TIP_Content
     {
         isset($this->expiration_field) &&
             empty($row[$this->expiration_field]) &&
-            $row[$this->expiration_field] = TIP::formatDate('datetime_iso8601', strtotime($this->expiration));
+            $row[$this->expiration_field] = TIP::formatDate('datetime_sql', strtotime($this->expiration));
         return parent::_onAdd($row);
     }
 
@@ -109,7 +109,7 @@ class TIP_Advertisement extends TIP_Content
     public function _onCheck(&$old_row)
     {
         $row['_check'] = 'yes';
-        $row['_check_on'] = TIP::formatDate('datetime_iso8601');
+        $row['_check_on'] = TIP::formatDate('datetime_sql');
         $row['_check_by'] = TIP::getUserId();
 
         if (!$this->data->updateRow($row, $old_row)) {
@@ -188,7 +188,7 @@ class TIP_Advertisement extends TIP_Content
             if ($expiration === false) {
                 return false;
             }
-            $row[$this->expiration_field] = TIP::formatDate('datetime_iso8601', $expiration);
+            $row[$this->expiration_field] = TIP::formatDate('datetime_sql', $expiration);
             isset($this->public_field) && $row[$this->public_field] = 'yes';
             if ($this->_onDbAction('Edit', $row, $old_row) && !$this->data->updateRow($row, $old_row)) {
                 TIP::notifyError('update');

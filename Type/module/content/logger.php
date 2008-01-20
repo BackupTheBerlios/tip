@@ -79,7 +79,13 @@ class TIP_Logger extends TIP_Content
 
         // Carefully scans the backtrace to find useful informations
         // and store them in the $code array
-        $code = array();
+        $code = array(
+            'origin' => '',
+            'tag' => '',
+            'action' => '',
+            'source' => '',
+            'data' => ''
+        );
         foreach ($bt as $n => $trace) {
             $function = isset($trace['function']) ? strtolower($trace['function']) : '';
 
@@ -139,7 +145,7 @@ class TIP_Logger extends TIP_Content
 
         $context = array(
             'user'     => TIP::getUserId(),
-            'when'     => TIP::formatDate('datetime_iso8601'),
+            'when'     => TIP::formatDate('datetime_sql'),
             'severity' => $severity,
             'message'  => $message
         );
@@ -170,7 +176,7 @@ class TIP_Logger extends TIP_Content
     public function dumpLogs()
     {
         if (!empty($this->_cache)) {
-            echo $this->run($this->browse_source);
+            $this->run($this->browse_source);
         }
     }
 
