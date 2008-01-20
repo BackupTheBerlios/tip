@@ -141,8 +141,8 @@ class HTML_QuickForm_captcha extends HTML_QuickForm_input
         case 'Numbers_Words':
             require_once 'Numbers/Words.php';
             isset($this->_value) || $this->_value = rand(1, 1000);
-            $html = Numbers_Words::toWords($this->_value, $this->_locale);
-            $html = parent::toHtml() . '&nbsp;' . ucfirst($html);
+            $html = ucfirst(Numbers_Words::toWords($this->_value, $this->_locale));
+            $html .= '&nbsp;' . parent::toHtml();
             break;
 
         default:

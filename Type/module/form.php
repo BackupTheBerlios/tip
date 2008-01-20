@@ -30,6 +30,12 @@ class TIP_Form extends TIP_Module
     protected $master = null;
 
     /**
+     * The file to run on form rendering
+     * @var string
+     */
+    protected $form_source = 'form.src';
+
+    /**
      * The type of action this form must perform
      * @var TIP_FORM_ACTION_...
      */
@@ -218,21 +224,17 @@ class TIP_Form extends TIP_Module
         }
 
         // The localized header text is defined by the content
-        $header_label = $this->master->getLocale('header.' . $this->action_id);
+        $this->keys['HEADER'] = $this->master->getLocale('header.' . $this->action_id);
 
         // Create the interface
-        require_once 'HTML/QuickForm/DHTMLRulesTableless.php';
-        $this->_form =& new HTML_QuickForm_DHTMLRulesTableless('__form_' . $this->id);
+        $this->_form =& new HTML_QuickForm('__tip_' . $this->id, 'post', $_SERVER['REQUEST_URI']);
 
         // XHTML compliance
         $this->_form->removeAttribute('name');
 
-        // The legend element (default header object) is unstyleable,
-        // so I provide a decent alternative with a static <h1> element
-        $this->_form->addElement('html', '<h1>' . $header_label . '</h1>');
-        $this->_form->addElement('header', '__set_' . $this->id, $header_label);
         $this->_form->addElement('hidden', 'module', $this->id);
         $this->_form->addElement('hidden', 'action', $this->action_id);
+        $this->_form->addElement('header', '__set_' . $this->id, 'data');
         array_walk(array_keys($this->fields), array(&$this, '_addWidget'));
         if ($this->captcha) {
             $this->_addCaptcha();
@@ -337,15 +339,142 @@ class TIP_Form extends TIP_Module
         $element =& $this->_form->addElement('group', 'buttons', null, $group, ' ', false);
 
         // Rendering
-        if ($render == TIP_FORM_RENDER_HERE) {
-            echo $this->_render();
-        } elseif ($render == TIP_FORM_RENDER_IN_PAGE) {
-            $content =& TIP_Application::getGlobal('content');
-            $content .= $this->_render();
-        }
+        $this->_render($render);
 
         return $valid;
     }
+
+    /**
+     * Start a form view
+     *
+     * The available form views are:
+     * - 'SECTION' to browse throught the form sections
+     * - 'ELEMENT' to browse throught the elements of the current section
+     *
+     * @param  string        $type The view type
+     * @return TIP_View|null       The view instance or null on errors
+     */
+    public function &startView($type)
+    {
+        switch ($type) {
+
+        case 'SECTION':
+            if (!is_array($this->_array)) {
+                return null;
+            }
+
+            $this->_section_view =& TIP_Type::singleton(array(
+                'type' => array('view', 'array_view'),
+                'id'   => 'SECTION',
+                'rows' => &$this->_array
+            ), true);
+
+            return $this->_section_view;
+
+        case 'ELEMENT':
+            if (is_null($this->_section_view) ||
+                is_null($s_id = $this->_section_view->key())) {
+                return null;
+            }
+
+            $this->_element_view =& TIP_Type::singleton(array(
+                'type' => array('view', 'array_view'),
+                'id'   => 'ELEMENT',
+                'rows' => &$this->_array[$s_id]['elements']
+            ), true);
+            return $this->_element_view;
+        }
+
+        return null;
+    }
+
+    /**
+     * End the current view
+     * @return bool true on success or false on errors
+     */
+    public function endView()
+    {
+        if (isset($this->_element_view)) {
+            $this->_element_view = null;
+        } else {
+            $this->_section_view = null;
+        }
+        return true;
+    }
+
+    /**
+     * Return the value of a generic item
+     *
+     * Gets the value of a generic item. This implementation adds form
+     * specific features to the TIP_Module::getItem() method, such as
+     * the ability to get information from the current element or from
+     * the current section.
+     *
+     * @param  string     $id The item id
+     * @return mixed|null     The value of the item or null if not found
+     */
+    public function getItem($id)
+    {
+        if (isset($this->_element_view)
+            && !is_null($value = $this->_element_view->getField($id))) {
+            return $value;
+        }
+
+        if (isset($this->_section_view)
+            && !is_null($value = $this->_section_view->getField($id))) {
+            return $value;
+        }
+
+        return parent::getItem($id);
+    }
+
+    //}}}
+    //{{{ Tags
+
+    /**#@+
+     * @param      string       $params Parameters of the tag
+     * @return     string|null          The string result or null
+     * @subpackage SourceEngine
+     */
+
+    protected function tagHidden($params)
+    {
+        $hidden = isset($this->_section_view) &&
+            !is_null($s_id = $this->_section_view->key()) &&
+            $header =& $this->_array[$s_id]['hidden'];
+        return $hidden ? 'true' : 'false';
+    }
+
+    protected function tagForm($params)
+    {
+        $form =& $this->_form;
+        return method_exists($form, $params) ? $form->$params() : null;
+    }
+
+    protected function tagSection($params)
+    {
+        if (!isset($this->_section_view) ||
+            is_null($section_id = $this->_section_view->key())) {
+            return null;
+        }
+
+        $section =& $this->_array[$section_id]['object'];
+        return method_exists($section, $params) ? $section->$params() : null;
+    }
+
+    protected function tagElement($params)
+    {
+        if (!isset($this->_element_view) ||
+            is_null($element_id = $this->_element_view->key())) {
+            return null;
+        }
+
+        $element_rows =& $this->_element_view->getProperty('rows');
+        $element =& $element_rows[$element_id]['object'];
+        return method_exists($element, $params) ? $element->$params() : null;
+    }
+
+    /**#@-*/
 
     //}}}
     //{{{ Internal properties
@@ -379,6 +508,27 @@ class TIP_Form extends TIP_Module
      * @internal
      */
     private $_tabindex = 0;
+
+    /**
+     * The rendered array used by the renderer
+     * @var array
+     * @internal
+     */
+    private $_array = null;
+
+    /**
+     * The temporary section view to use
+     * @var array
+     * @internal
+     */
+    private $_section_view = null;
+
+    /**
+     * The temporary element view to use
+     * @var array
+     * @internal
+     */
+    private $_element_view = null;
 
     //}}}
     //{{{ Callbacks
@@ -449,11 +599,41 @@ class TIP_Form extends TIP_Module
         $this->_process($row);
     }
 
-    public function _render()
+    public function _render($mode)
     {
-        $renderer =& TIP_Renderer::getForm();
-        $this->_form->accept($renderer);
-        return $renderer->toHtml();
+        if ($mode == TIP_FORM_RENDER_NOTHING) {
+            return;
+        }
+
+        // Initialize the source instance
+        $source =& TIP_Type::singleton(array(
+            'type' => array('source'),
+            'path' => array(TIP_Application::getGlobal('id'), $this->form_source)
+        ));
+        if (!$source) {
+            return;
+        }
+
+        // Some global keys
+        $this->keys['ATTRIBUTES'] = $this->_form->getAttributes(true);
+        $this->keys['REQUIREDNOTE'] = $this->_form->getRequiredNote();
+
+        // Populate the array (if not yet done)
+        if (is_null($this->_array)) {
+            $renderer =& TIP_Renderer::getForm();
+            $this->_form->accept($renderer);
+            $this->_array = $renderer->toArray();
+        }
+
+        // Call the renderer
+        if ($mode == TIP_FORM_RENDER_IN_PAGE) {
+            $content =& TIP_Application::getGlobal('content');
+            ob_start();
+            $source->run($this);
+            $content .= ob_get_clean();
+        } else {
+            $source->run($this);
+        }
     }
 
     //}}}

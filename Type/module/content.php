@@ -447,7 +447,7 @@ class TIP_Content extends TIP_Module
      */
     public function endView()
     {
-        if ($this->pop() === FALSE) {
+        if ($this->pop() === false) {
             TIP::error("'endView()' requested without a previous 'startView()' or 'startDataView()' call");
             return false;
         }

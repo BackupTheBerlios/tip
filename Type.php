@@ -119,12 +119,14 @@ abstract class TIP_Type
      * Some type automatically fills $options['id'] after the checkOptions()
      * call: check the documentation for each class for further information.
      *
-     * @param  array|string|null $options Constructor options
-     * @return array|object|null          The register content, a reference
-     *                                    to the requested instance or null
-     *                                    on instantiation errors
+     * @param  array|string|null $options    Constructor options
+     * @param  bool              $dont_store Don't store the instance
+     *                                       in the register
+     * @return array|object|null             The register content, a reference
+     *                                       to the requested instance or null
+     *                                       on instantiation errors
      */
-    static protected function &singleton($options = null)
+    static protected function &singleton($options = null, $dont_store = false)
     {
         static $register = array();
         static $flat_register = array();
@@ -171,17 +173,27 @@ abstract class TIP_Type
             return $fake_null;
         }
 
-        $id = $options['id'];
-        if (!array_key_exists($id, $list)) {
-            // Object instantiation
-            $list[$id] = new $class($options);
+        if ($dont_store) {
+            $instance = new $class($options);
+            TIP_AJAX || $instance->postConstructor();
+        } else {
+            $id = $options['id'];
+            if (!array_key_exists($id, $list)) {
+                // Object instantiation
+                $instance = new $class($options);
 
-            // postConstructor() call: must be done after the registration
-            // to avoid circular dependency
-            TIP_AJAX || $list[$id]->postConstructor();
+                // Registration
+                $list[$id] =& $instance;
+
+                // postConstructor() call: must be done after the registration
+                // to avoid circular dependency
+                TIP_AJAX || $instance->postConstructor();
+            } else {
+                $instance =& $list[$id];
+            }
         }
 
-        return $list[$id];
+        return $instance;
     }
 
     /**

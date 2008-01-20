@@ -514,6 +514,28 @@ abstract class TIP_Module extends TIP_Type
      */
 
     /**
+     * Check if a string is not empty
+     */
+    protected function tagIsValue($params)
+    {
+        return (is_null($params) || $params == '') ? 'false' : 'true';
+    }
+
+    /**
+     * Check if a request is set
+     *
+     * $params is a string in the form "request,request,...".
+     *
+     * @uses getValidRequest() The method used to resolve the requests
+     */
+    protected function tagIsSet($params)
+    {
+        $requests = explode(',', $params);
+        $value = $this->getValidRequest($requests);
+        return $this->tagIsValue($value);
+    }
+
+    /**
      * Output the first defined request
      *
      * $params is a string in the form "request,request,...".

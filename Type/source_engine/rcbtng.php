@@ -102,6 +102,12 @@ class TIP_RcbtNG_Instance
         return true;
     }
 
+    protected function tagElseIf($module, $params)
+    {
+        $this->_code .= "} elseif (eval('return ' . $params . ';')) {\n";
+        return true;
+    }
+
     protected function tagSelect($module, $params)
     {
         $view = '$view' . count($this->_stack) . '_' . $this->_level;
