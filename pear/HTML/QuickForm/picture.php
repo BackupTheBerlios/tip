@@ -407,7 +407,13 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
      */
     function getFrozenHtml()
     {
-        return $this->_getTabs() . '<img src="' . $this->_base_url . $this->_file . '" alt="' . $this->getName() . '" />' . $this->_getPersistantData();
+        $html = '';
+        if (isset($this->_file)) {
+            $src = $this->_base_url . $this->_file;
+            $alt = $this->getName();
+            $html .= "<img src=\"$src\" alt=\"$alt\" />";
+        }
+        return $html . $this->_getPersistantData();
     } //end func getFrozenHtml
 
     //}}}

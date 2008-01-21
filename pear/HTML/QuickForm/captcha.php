@@ -45,6 +45,7 @@ class HTML_QuickForm_captcha extends HTML_QuickForm_input
     function HTML_QuickForm_captcha($elementName = null, $elementLabel = null, $attributes = null)
     {
         HTML_QuickForm_input::HTML_QuickForm_input($elementName, $elementLabel, $attributes);
+        $this->setType('captcha');
     }
 
     //}}}

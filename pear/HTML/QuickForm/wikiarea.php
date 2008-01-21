@@ -1,44 +1,37 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 require_once 'HTML/QuickForm/textarea.php';
 
 /**
  * HTML class for a Text_Wiki based type field
  * 
- * @author       Nicola Fontana <ntd@users.sourceforge.net>
- * @version      1.0
- * @since        PHP4.3.0
- * @access       public
+ * @author  Nicola Fontana <ntd@entidi.it>
+ * @version 1.0
+ * @access  public
  */
 class HTML_QuickForm_wikiarea extends HTML_QuickForm_textarea
 {
-    /**#@+ @access private */
-
-    // {{{ properties
+    //{{{ Properties
 
     /**
      * Text_Wiki instance to use
-     * @var   Text_Wiki
-     * @since 1.0
+     * @var    Text_Wiki
+     * @access private
+     * @since  1.0
      */
     var $_wiki = null;
     
     /**
      * Text_Wiki renderer to use
-     * @var   string
-     * @since 1.0
+     * @var    string
+     * @access private
+     * @since  1.0
      */
     var $_renderer = 'Xhtml';
-    
-    // }}}
 
-    /**#@-*/
-
-
-    /**#@+ @access public */
-
-    // {{{ constructor
+    //}}}
+    //{{{ Constructor/destructor
         
     /**
      * Class constructor
@@ -46,77 +39,70 @@ class HTML_QuickForm_wikiarea extends HTML_QuickForm_textarea
      * @param  string $elementName  Input field name attribute
      * @param  mixed  $elementLabel Label(s) for a field
      * @param  mixed  $attributes   Either a typical HTML attribute string or an associative array
+     * @access public
      * @since  1.0
      */
     function HTML_QuickForm_wikiarea($elementName=null, $elementLabel=null, $attributes=null)
     {
         HTML_QuickForm_textarea::HTML_QuickForm_textarea($elementName, $elementLabel, $attributes);
-    } //end constructor
+    }
     
-    // }}}
-    // {{{ setWiki()
+    //}}}
+    //{{{ Methods
 
     /**
      * Sets a custom Text_Wiki instance
      * 
-     * @param Text_Wiki &$wiki The new Text_Wiki instance
-     * @since 1.0
+     * @param  Text_Wiki &$wiki The new Text_Wiki instance
+     * @access public
+     * @since  1.0
      */
     function setWiki(&$wiki)
     {
         $this->_wiki =& $wiki;
-    } //end func setWiki
+    }
     
-    // }}}
-    // {{{ getWiki()
-
     /**
      * Returns the active Text_Wiki instance
-     * 
-     * @since  1.0
      * @return Text_Wiki
+     * @access public
+     * @since  1.0
      */
     function& getWiki()
     {
         return $this->_wiki;
-    } //end func getWiki
-
-    // }}}
-    // {{{ setRenderer()
+    }
 
     /**
      * Sets a non-default Text_Wiki renderer
-     * 
-     * @param string $renderer The new Text_Wiki renderer
-     * @since 1.0
+     * @param  string $renderer The Text_Wiki renderer to use
+     * @access public
+     * @since  1.0
      */
     function setRenderer($renderer)
     {
         $this->_renderer = $renderer;
-    } //end func setRenderer
+    }
     
-    // }}}
-    // {{{ getRenderer()
-
     /**
-     * Returns the active Text_Wiki renderer
-     * 
+     * Return the active Text_Wiki renderer
+     * @return string The text wiki renderer
+     * @access public
      * @since  1.0
-     * @return string
      */
     function getRenderer()
     {
         return $this->_renderer;
-    } //end func getRenderer
+    }
 
-    // }}}
-    // {{{ getFrozenHtml()
+    //}}}
+    //{{{ Implementation
 
     /**
-     * Returns the frozen value of field using the specified Text_Wiki renderer
-     * 
-     * @since  1.0
+     * Return the frozen value of field using the specified Text_Wiki renderer
      * @return string
+     * @since  1.0
+     * @access public
      */
     function getFrozenHtml()
     {
@@ -132,12 +118,8 @@ class HTML_QuickForm_wikiarea extends HTML_QuickForm_textarea
         $value = $this->getValue();
         $html = $wiki->transform($value, $this->_renderer);
         return $html . $this->_getPersistantData();
-    } //end func getFrozenHtml
+    }
 
-    // }}}
-
-    /**#@-*/
-
-} //end class HTML_QuickForm_wikiarea
-
+    //}}}
+}
 ?>

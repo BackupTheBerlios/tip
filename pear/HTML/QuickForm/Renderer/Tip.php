@@ -71,7 +71,7 @@ class HTML_QuickForm_Renderer_Tip extends HTML_QuickForm_Renderer
     }
 
     //}}}
-    //{{{ HTML_QuickForm_Renderer implementation
+    //{{{ Implementation
 
     /**
      * Called when visiting a form, before processing any form elements
@@ -85,6 +85,11 @@ class HTML_QuickForm_Renderer_Tip extends HTML_QuickForm_Renderer
         $this->_array = array();
         $this->_elements = null;
         $this->_in_group = false;
+        $this->_frozen = $form->isFrozen();
+        if ($this->_frozen) {
+            // Remove "Required note" from frozen forms
+            $form->setRequiredNote(null);
+        }
     }
 
     /**
@@ -141,17 +146,30 @@ class HTML_QuickForm_Renderer_Tip extends HTML_QuickForm_Renderer
             return;
         }
 
-        if ($element->getType() == 'date') {
+        // Special cases
+        switch ($element->getType()) {
+
+        case 'date':
             // Dirty hack to set the separator (there's no public API, fuck)
             $element->_separator = '&nbsp;';
             // The date is a group
             $group = true;
+            break;
+
+        case 'captcha':
+            // Captcha elements must be skipped in frozen mode
+            if ($this->_frozen) {
+                return;
+            }
+            break;
         }
 
+        // Remove comments from frozen forms
+        $this->_frozen && $element->setComment(null);
+
+        // Set the 'id' attribute (for label target)
         $name = $element->getName();
-        if ($name) {
-            $element->setAttribute('id', $name);
-        }
+        $name && $element->setAttribute('id', $name);
 
         isset($this->_elements) || $this->_elements =& $this->_getHiddenElements();
         $this->_elements[$element->getName()] = array(
@@ -218,6 +236,13 @@ class HTML_QuickForm_Renderer_Tip extends HTML_QuickForm_Renderer
      * @internal
      */
     var $_in_group = false;
+
+    /**
+     * Whether the form to be rendered is frozen
+     * @var bool
+     * @internal
+     */
+    var $_frozen = false;
 
     //}}}
     //{{{ Internal methods
