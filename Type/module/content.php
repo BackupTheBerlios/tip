@@ -835,16 +835,14 @@ class TIP_Content extends TIP_Module
         $pager = $quanto > 0;
 
         if (empty($this->_browse_conditions)) {
-            $filter = '';
+            $filter = $query_adds;
         } else {
             $conditions = array();
             foreach ($this->_browse_conditions as $id => $value) {
                 $conditions[] = $this->data->addFilter('', $id, $value);
             }
-            $filter = 'WHERE ' . implode(' AND ', $conditions) . ' ';
+            $filter = 'WHERE ' . implode(' AND ', $conditions) . ' ' . $query_adds;
         }
-
-        $filter .= $query_adds;
 
         if ($pager) {
             $offset = TIP::getGet('pg_offset', 'int');
@@ -1040,7 +1038,7 @@ class TIP_Content extends TIP_Module
             return true;
         }
 
-        $this->_browse_conditions = &$conditions;
+        $this->_browse_conditions =& $conditions;
         $this->appendToPage($this->browse_source);
         return true;
     }
