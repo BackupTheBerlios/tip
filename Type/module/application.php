@@ -488,6 +488,18 @@ class TIP_Application extends TIP_Module
             phpinfo();
             $this->content .= ob_get_clean();
             return true;
+
+        case 'clear':
+            if (is_null($dir = TIP::getGet('id', 'string'))) {
+                TIP::warning("GET not found ($id)");
+                TIP::notifyError('noparams');
+                return false;
+            }
+
+            $dir = TIP::buildDataPath(urldecode($dir));
+            TIP::removeDir($dir, false);
+            TIP::notifyInfo('done');
+            return true;
         }
 
         return null;

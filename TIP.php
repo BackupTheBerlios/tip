@@ -616,6 +616,28 @@ class TIP
     }
 
     /**
+     * Recursively remove a directory
+     * @param string $dir The directory to delete
+     */
+    static public function removeDir($dir, $self_remove = true)
+    {
+        $handle = @opendir($dir);
+        if (!$handle) {
+            return;
+        }
+
+        while (($file = readdir($handle)) !== false) {
+            if ($file != '.' && $file != '..') {
+                $file = $dir . DIRECTORY_SEPARATOR . $file;
+                @unlink($file) || TIP::removeDir($file);
+            }
+        }
+
+        closedir($handle);
+        $self_remove && @rmdir($dir);
+    }
+
+    /**
      * Build a path
      *
      * Constructs a path from the argument list and prepending the application
