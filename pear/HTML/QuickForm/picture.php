@@ -1,5 +1,5 @@
 <?php
-/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4: */
+/* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 require_once 'HTML/QuickForm/input.php';
 
@@ -15,82 +15,15 @@ HTML_QuickForm::registerRule('mimetype', 'callback', '_ruleCheckMimeType', 'HTML
 HTML_QuickForm::registerRule('minpicturesize', 'callback', '_ruleMinPictureSize', 'HTML_QuickForm_picture');
 HTML_QuickForm::registerRule('maxpicturesize', 'callback', '_ruleMaxPictureSize', 'HTML_QuickForm_picture');
 
-if (!function_exists('image_type_to_extension')) {
-    /**
-     * Get file extension for image type
-     *
-     * Returns the extension for the given IMAGETYPE_... constant.
-     *
-     * @param  int     $imagetype   One of the IMAGETYPE_... constant
-     * @param  boolean $include_dot Must the result prepended with a dot?
-     * @return string               The guessed extension
-     */
-    function image_type_to_extension($imagetype, $include_dot = true)
-    {
-        switch ($imagetype) {
-        case IMAGETYPE_PNG:
-            $ext = 'png';
-            break;
-        case IMAGETYPE_JPEG:
-            $ext = 'jpg';
-            break;
-        case IMAGETYPE_GIF:
-            $ext = 'gif';
-            break;
-        case IMAGETYPE_BMP:
-        case IMAGETYPE_WBMP:
-            $ext = 'bmp';
-            break;
-        case IMAGETYPE_TIFF_II:
-        case IMAGETYPE_TIFF_MM:
-            $ext = 'tif';
-            break;
-        case IMAGETYPE_SWF:
-            $ext = 'swf';
-            break;
-        case IMAGETYPE_PSD:
-            $ext = 'psd';
-            break;
-        case IMAGETYPE_JPC:
-            $ext = 'jpc';
-            break;
-        case IMAGETYPE_JP2:
-            $ext = 'jp2';
-            break;
-        case IMAGETYPE_JPX:
-            $ext = 'jpx';
-            break;
-        case IMAGETYPE_JB2:
-            $ext = 'jb2';
-            break;
-        case IMAGETYPE_SWC:
-            $ext = 'swc';
-            break;
-        case IMAGETYPE_IFF:
-            $ext = 'iff';
-            break;
-        case IMAGETYPE_XBM:
-            $ext = 'xbm';
-            break;
-        default:
-            // No dot prepending for unknown types
-            return '';
-        }
-
-        return $include_dot ? '.' . $ext : $ext;
-    }
-}
-
 /**
  * HTML class for a generic picture based field
  * 
- * @author  Nicola Fontana <ntd@users.sourceforge.net>
- * @access  public
+ * @author Nicola Fontana <ntd@entidi.it>
+ * @access public
  */
 class HTML_QuickForm_picture extends HTML_QuickForm_input
 {
-    // {{{ properties
- 
+    //{{{ properties
 
     /**
      * Uploaded data, from $_FILES
@@ -134,9 +67,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
      */
     var $_unload_element = null;
 
-    // }}}
-    // {{{ constructor
-
+    //}}}
+    //{{{ constructor
 
     /**
      * Class constructor
@@ -153,9 +85,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         $this->_persistantFreeze = true;
     } //end constructor
     
-    // }}}
-    // {{{ getValue()
- 
+    //}}}
+    //{{{ getValue()
     
     /**
      * Get the file name of the picture
@@ -168,10 +99,9 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         return $this->_file;
     } //end func getValue
     
-    // }}}
-    // {{{ setValue()
+    //}}}
+    //{{{ setValue()
  
-    
     /**
      * Set the picture
      *
@@ -201,10 +131,9 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         }
     } //end func setValue
     
-    // }}}
-    // {{{ getBasePath()
+    //}}}
+    //{{{ getBasePath()
  
-    
     /**
      * Get the base upload path
      * 
@@ -216,10 +145,9 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         return $this->_base_path;
     } //end func getBasePath
     
-    // }}}
-    // {{{ setBasePath()
+    //}}}
+    //{{{ setBasePath()
  
-    
     /**
      * Set the base path where uploaded pictures are stored
      * 
@@ -236,10 +164,9 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         $this->_base_path = $path;
     } //end func setBasePath
     
-    // }}}
-    // {{{ getBaseUrl()
+    //}}}
+    //{{{ getBaseUrl()
  
-    
     /**
      * Get the base upload url
      * 
@@ -251,10 +178,9 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         return $this->_base_url;
     } //end func getBaseUrl
     
-    // }}}
-    // {{{ setBaseUrl()
+    //}}}
+    //{{{ setBaseUrl()
  
-    
     /**
      * Set the base url where pictures are uploaded
      * 
@@ -271,10 +197,9 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         $this->_base_url = $url;
     } //end func setBaseUrl
     
-    // }}}
-    // {{{ setFile()
+    //}}}
+    //{{{ setFile()
  
-    
     /**
      * Set the file name of the picture
      *
@@ -289,10 +214,9 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         $this->_file = $file;
     } //end func setFile
     
-    // }}}
-    // {{{ getUnloadElement()
+    //}}}
+    //{{{ getUnloadElement()
  
-    
     /**
      * Get the unload element
      *
@@ -306,10 +230,9 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         return $this->_unload_element;
     } //end func getUnloadElement
     
-    // }}}
-    // {{{ setUnloadElement()
+    //}}}
+    //{{{ setUnloadElement()
  
-    
     /**
      * Set the unload element
      *
@@ -326,10 +249,9 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         $this->_unload_element->setPersistantFreeze(false);
     } //end func setUnloadElement
     
-    // }}}
-    // {{{ getState()
+    //}}}
+    //{{{ getState()
  
-    
     /**
      * Get the current state
      *
@@ -343,10 +265,9 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         return $this->_state;
     } //end func getState
     
-    // }}}
-    // {{{ setState()
+    //}}}
+    //{{{ setState()
  
-    
     /**
      * Set a new state
      *
@@ -360,9 +281,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         $this->_state = $state;
     } //end func setState
     
-    // }}}
-    // {{{ doUploads()
-
+    //}}}
+    //{{{ doUploads()
 
     /**
      * Perform the needed uploads/unloads
@@ -404,10 +324,9 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         }
     } //end func doUploads
 
-    // }}}
-    // {{{ onQuickFormEvent()
+    //}}}
+    //{{{ onQuickFormEvent()
  
-    
     /**
      * Called by HTML_QuickForm whenever form event is made on this element
      *
@@ -451,10 +370,9 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         return true;
     } // end func onQuickFormEvent
  
-    // }}}
-    // {{{ toHtml()
+    //}}}
+    //{{{ toHtml()
  
-    
     /**
      * Returns the picture element in HTML
      *
@@ -478,9 +396,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         return HTML_QuickForm_input::toHtml();
     } //end func toHtml
     
-    // }}}
-    // {{{ getFrozenHtml()
-
+    //}}}
+    //{{{ getFrozenHtml()
 
     /**
      * Returns the inline object
@@ -490,12 +407,17 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
      */
     function getFrozenHtml()
     {
-        return $this->_getTabs() . '<img src="' . $this->_base_url . $this->_file . '" alt="' . $this->getName() . '" />' . $this->_getPersistantData();
+        $html = '';
+        if (isset($this->_file)) {
+            $src = $this->_base_url . $this->_file;
+            $alt = $this->getName();
+            $html .= "<img src=\"$src\" alt=\"$alt\" />";
+        }
+        return $html . $this->_getPersistantData();
     } //end func getFrozenHtml
 
-    // }}}
-    // {{{ _findUploadedValue
-
+    //}}}
+    //{{{ _findUploadedValue
 
     /**
      * Try to find the element value from $_FILES
@@ -537,10 +459,9 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         return null;
     } //end func _findUploadedValue
  
-    // }}}
-    // {{{ _updatePictureInfo()
+    //}}}
+    //{{{ _updatePictureInfo()
 
-    
     /**
      * Update _info with the uploading picture array
      * 
@@ -560,9 +481,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         return is_array($this->_info);
     } //end func _updatePictureInfo
     
-    // }}}
-    // {{{ _reset()
-
+    //}}}
+    //{{{ _reset()
 
     /**
      * Reset the picture
@@ -578,9 +498,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         $this->_value = '';
     } // end func _reset
     
-    // }}}
-    // {{{ _upload()
-
+    //}}}
+    //{{{ _upload()
 
     /**
      * Upload the picture
@@ -630,9 +549,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         return true;
     } // end func _upload
     
-    // }}}
-    // {{{ _unload()
-
+    //}}}
+    //{{{ _unload()
 
     /**
      * Unload the picture
@@ -652,9 +570,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         return true;
     } // end func _unload
     
-    // }}}
-    // {{{ _ruleIsUploadedPicture()
-
+    //}}}
+    //{{{ _ruleIsUploadedPicture()
 
     /**
      * Check if the given value is an uploaded picture
@@ -674,8 +591,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         return $element->isToUpload() || $element->isUploaded();
     } //end func _ruleIsUploadedPicture
     
-    // }}}
-    // {{{ _ruleCheckMaxFileSize()
+    //}}}
+    //{{{ _ruleCheckMaxFileSize()
 
     /**
      * Check that the file does not exceed the max file size
@@ -700,8 +617,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         return ($size >= @filesize($value['tmp_name']));
     } // end func _ruleCheckMaxFileSize
 
-    // }}}
-    // {{{ _ruleCheckMimeType()
+    //}}}
+    //{{{ _ruleCheckMimeType()
 
     /**
      * Check if the given element contains an uploaded file of the right mime type
@@ -724,9 +641,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         return $value['type'] == $type;
     } // end func _ruleCheckMimeType
 
-    // }}}
-    // {{{ _ruleMinPictureSize()
-
+    //}}}
+    //{{{ _ruleMinPictureSize()
 
     /**
      * Check if the specified box can be contained inside the picture
@@ -753,9 +669,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         return $element->_info[0] >= $min_width && $element->_info[1] >= $min_height;
     } //end func _ruleMinPictureSize
 
-    // }}}
-    // {{{ _ruleMaxPictureSize()
-
+    //}}}
+    //{{{ _ruleMaxPictureSize()
 
     /**
      * Check if the picture is contained by the specified bounding box
@@ -782,6 +697,6 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         return $element->_info[0] <= $max_width && $element->_info[1] <= $max_height;
     } //end func _ruleMaxPictureSize
 
-    // }}}
+    //}}}
 } //end class HTML_QuickForm_picture
 ?>
