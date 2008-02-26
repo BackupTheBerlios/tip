@@ -16,7 +16,6 @@
  *
  * @package    TIP
  * @subpackage SourceEngine
- * @tutorial   TIP/SourceEngine/TIP_Rcbt.cls
  */
 class TIP_RcbtNG_Instance
 {
@@ -141,7 +140,7 @@ class TIP_RcbtNG_Instance
             $view = null;
         } elseif (!is_null($params) && eval("return $params;") > 0) {
             $cnt = '$cnt' . count($this->_stack) . '_' . $this->_level;
-            $this->_code .= "for ($cnt = 1; $cnt < $params; ++ $cnt) {\n";
+            $this->_code .= "for ($cnt = 1; $cnt <= $params; ++ $cnt) {\n";
             $this->_code .= "{$module}->keys['CNT'] = $cnt;\n";
             $view = null;
         } else {
@@ -455,7 +454,6 @@ class TIP_RcbtNG_Instance
  *
  * @package    TIP
  * @subpackage SourceEngine
- * @tutorial   TIP/SourceEngine/TIP_Rcbt.cls
  */
 class TIP_RcbtNG extends TIP_Source_Engine
 {

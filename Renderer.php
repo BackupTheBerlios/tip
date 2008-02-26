@@ -68,7 +68,7 @@ class TIP_Renderer
             $renderer->setFormatConf('Xhtml', 'charset', 'UTF-8');
             $renderer->setFormatConf('Xhtml', 'translate', HTML_SPECIALCHARS);
             $renderer->setRenderConf('Xhtml', 'toc', array(
-                'title'    => '<h2>Indice</h2>',
+                'title'    => '<h2>' . TIP::getLocale('index', 'wiki') . '</h2>',
                 'div_id'   => 'idToc',
                 'use_ul'   => true,
                 'collapse' => false

@@ -14,7 +14,6 @@
  * use of TIP_Data_View instances.
  *
  * @package  TIP
- * @tutorial TIP/Module.pkg#TIP_Content
  */
 class TIP_Content extends TIP_Module
 {
@@ -145,6 +144,12 @@ class TIP_Content extends TIP_Module
      * @var array
      */
     protected $form_options = null;
+
+    /**
+     * The type of the id field: any valid settype() type is allowed
+     * @var string
+     */
+    protected $id_type = 'integer';
 
     //}}}
     //{{{ Construction/destruction
@@ -1049,7 +1054,7 @@ class TIP_Content extends TIP_Module
 
         case 'edit':
             return
-                !is_null($id = $this->fromGetOrPost()) &&
+                !is_null($id = $this->fromGetOrPost(null, $this->id_type)) &&
                 $this->actionEdit($id);
         }
 
@@ -1062,7 +1067,7 @@ class TIP_Content extends TIP_Module
 
         case 'delete':
             return
-                !is_null($id = $this->fromGet()) &&
+                !is_null($id = $this->fromGet(null, $this->id_type)) &&
                 $this->actionDelete($id);
         }
 
@@ -1075,13 +1080,13 @@ class TIP_Content extends TIP_Module
 
         case 'edit':
             return
-                !is_null($id = $this->fromGetOrPost()) &&
+                !is_null($id = $this->fromGetOrPost(null, $this->id_type)) &&
                 $this->isOwner($id) &&
                 $this->actionEdit($id);
 
         case 'delete':
             return
-                !is_null($id = $this->fromGet()) &&
+                !is_null($id = $this->fromGet(null, $this->id_type)) &&
                 $this->isOwner($id) &&
                 $this->actionDelete($id);
         }
@@ -1106,7 +1111,7 @@ class TIP_Content extends TIP_Module
 
         case 'view':
             return
-                !is_null($id = $this->fromGetOrPost()) &&
+                !is_null($id = $this->fromGetOrPost(null, $this->id_type)) &&
                 $this->actionView($id);
 
         case 'browse':

@@ -17,7 +17,6 @@ require_once 'HTML/QuickForm.php';
  *
  * @package    TIP
  * @subpackage Module
- * @tutorial   TIP/Module/TIP_Form.cls
  */
 class TIP_Form extends TIP_Module
 {

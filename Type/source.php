@@ -9,7 +9,6 @@
  * A generic source template
  *
  * @package  TIP
- * @tutorial TIP/SourceEngine/SourceEngine.pkg#TIP_Source
  */
 class TIP_Source extends TIP_Type
 {

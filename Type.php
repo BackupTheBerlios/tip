@@ -18,7 +18,6 @@
  * when required, enabling a real modular environement.
  *
  * @package  TIP
- * @tutorial TIP/Module.pkg#TIP_Type
  */
 abstract class TIP_Type
 {

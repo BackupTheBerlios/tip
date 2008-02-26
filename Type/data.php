@@ -22,7 +22,6 @@ define('TIP_ORDER_DESCENDING', true);
  * A generic data provider
  *
  * @package  TIP
- * @tutorial TIP/DataEngine/DataEngine.pkg#TIP_Data
  */
 class TIP_Data extends TIP_Type
 {
@@ -210,6 +209,10 @@ class TIP_Data extends TIP_Type
      */
     public function order($name, $descending = false)
     {
+        if (empty($name)) {
+            return '';
+        }
+
         $name = $this->engine->preparedName($name);
         $tail = $descending ? ' DESC' : '';
         return ' ORDER BY ' . $name . $tail;
@@ -254,7 +257,6 @@ class TIP_Data extends TIP_Type
      *
      * @param    bool       $detailed Force a TIP_Data_Engine::fillDetails() call
      * @return   array|null           The field structure or null on errors
-     * @tutorial TIP/DataEngine/DataEngine.pkg#fields
      */
     public function &getFields($detailed = true)
     {
@@ -310,7 +312,6 @@ class TIP_Data extends TIP_Type
      * @param    array|null $fields Fields to get or null for all
      * @return   array|null         The array of rows matching $filter
      *                              or null on errors
-     * @tutorial TIP/DataEngine/DataEngine.pkg#rows
      */
     public function &getRows($filter, $fields = null)
     {

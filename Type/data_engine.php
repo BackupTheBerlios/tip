@@ -12,7 +12,6 @@
  * Provides a common interface to access any data requested by TIP.
  *
  * @package  TIP
- * @tutorial TIP/DataEngine/DataEngine.pkg
  */
 abstract class TIP_Data_Engine extends TIP_Type
 {

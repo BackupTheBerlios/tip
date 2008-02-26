@@ -12,7 +12,6 @@
  * Provides a common interface to run source files.
  *
  * @package  TIP
- * @tutorial TIP/SourceEngine/SourceEngine.pkg
  */
 abstract class TIP_Source_Engine extends TIP_Type
 {

@@ -17,7 +17,6 @@
  *
  * @package    TIP
  * @subpackage DataEngine
- * @tutorial   TIP/DataEngine/TIP_Mysql.cls
  */
 class TIP_Mysql extends TIP_Data_Engine
 {

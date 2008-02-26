@@ -504,7 +504,6 @@ class TIP_Rcbt_Tag
  *
  * @package    TIP
  * @subpackage SourceEngine
- * @tutorial   TIP/SourceEngine/TIP_Rcbt.cls
  */
 class TIP_Rcbt extends TIP_Source_Engine
 {

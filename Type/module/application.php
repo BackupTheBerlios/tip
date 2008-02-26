@@ -31,7 +31,6 @@
  * </code>
  *
  * @package  TIP
- * @tutorial TIP/TIP.pkg
  */
 class TIP_Application extends TIP_Module
 {

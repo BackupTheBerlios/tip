@@ -17,7 +17,7 @@ class TIP_Hierarchy extends TIP_Content
     //{{{ Properties
 
     /**
-     * A reference to the master module
+     * An optional reference to the master module
      * @var TIP_Content
      */
     protected $master = null;
@@ -29,7 +29,7 @@ class TIP_Hierarchy extends TIP_Content
     protected $action = null;
 
     /**
-     * The field in 'master' to join to the primary key of this hierarchy
+     * The field in $master to join to the primary key of this hierarchy
      * @var string
      */
     protected $master_field = 'group';
@@ -39,6 +39,12 @@ class TIP_Hierarchy extends TIP_Content
      * @var string
      */
     protected $parent_field = 'parent';
+
+    /**
+     * The field specifying the title to use (or null to use the 'title' field)
+     * @var string
+     */
+    protected $title_field = null;
 
     /**
      * The field that forces a specified order
@@ -53,26 +59,38 @@ class TIP_Hierarchy extends TIP_Content
     protected $count_field = '_count';
 
     /**
-     * Maximum number of levels to keep online
+     * Maximum number of levels to keep online (before enabling AJAX)
+     *
+     * Leave it null to not use AJAX at all. This means the whole tree is
+     * generated on every page.
+     *
      * @var int
      */
     protected $levels = null;
+
+    /**
+     * Set to true to automatically generate a self-reference as the
+     * first child on every container
+     * @var boolean
+     */
+    protected $self_reference = false;
 
     //}}}
     //{{{ Construction/destruction
 
     static protected function checkOptions(&$options)
     {
-        if (!parent::checkOptions($options) || !isset($options['master'])) {
+        if (!parent::checkOptions($options)) {
             return false;
         }
 
-        if (is_string($options['master'])) {
+        if (@is_string($options['master'])) {
             $options['master'] =& TIP_Type::getInstance($options['master']);
-        } elseif (is_array($options['master'])) {
+        } elseif (@is_array($options['master'])) {
             $options['master'] =& TIP_Type::singleton($options['master']);
         }
-        if (!$options['master'] instanceof TIP_Content) {
+
+        if (isset($options['master']) && !$options['master'] instanceof TIP_Content) {
             return false;
         }
 
@@ -109,14 +127,20 @@ class TIP_Hierarchy extends TIP_Content
 
         $primary_key = $this->data->getProperty('primary_key');
         $tree = array();
+        if (isset($this->master)) {
+            $module =& $this->master;
+        } else {
+            $module =& $this;
+        }
         foreach (array_keys($rows) as $id) {
             $row =& $rows[$id];
             isset($row['CLASS']) || $row['CLASS'] = 'item';
+            isset($this->title_field) && $row['title'] = $row[$this->title_field];
             if (!isset($row['url'])) {
                 $action = @$row['action'];
                 $action || $action = $this->action;
                 $action = str_replace('-id-', $id, $action);
-                $row['url'] = $this->master->tagActionUri($action);
+                $row['url'] = $module->tagActionUri($action);
             }
             if (isset($this->count_field)) {
                 $count = @$row[$this->count_field];
@@ -128,7 +152,13 @@ class TIP_Hierarchy extends TIP_Content
             if ($row[$this->parent_field]) {
                 while ($parent_id = $row[$this->parent_field]) {
                     $parent =& $rows[$parent_id];
-                    $parent['CLASS'] = 'folder';
+                    if (@$parent['CLASS'] != 'folder') {
+                        if ($this->self_reference) {
+                            $tmp = $parent;
+                            $parent['sub']['SELF'] = $tmp;
+                        }
+                        $parent['CLASS'] = 'folder';
+                    }
                     $parent['sub'][$row[$primary_key]] =& $row;
                     if (isset($count)) {
                         isset($parent['COUNT']) || $parent['COUNT'] = 0;

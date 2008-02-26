@@ -9,7 +9,6 @@
  * Base class for modules
  *
  * @package  TIP
- * @tutorial TIP/Module.pkg#TIP_Module
  */
 abstract class TIP_Module extends TIP_Type
 {
@@ -409,7 +408,6 @@ abstract class TIP_Module extends TIP_Type
      * @param string     $params Parameters to pass to the tag
      * @return bool|null         true on success, false on errors or
      *                           null if $name is not a valid tag
-     * @tutorial TIP/SourceEngine/SourceEngine.pkg#tags
      */
     public function getTag($name, $params)
     {

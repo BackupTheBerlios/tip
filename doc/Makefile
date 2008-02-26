@@ -3,7 +3,7 @@ FORMATS = html
 
 srcdir = ..
 
-source_find  := find $(srcdir) -wholename "$(srcdir)/pear" -prune -or -name '*.php' -and -print0 | xargs -0
+source_find  := find $(srcdir) -wholename "$(srcdir)/pear" -prune -or -wholename "$(srcdir)/doc" -prune -or -name '*.php' -and -print0 | xargs -0
 source_files := `$(source_find)`
 source_list  := `$(source_find) | tr ' ' ','`
 extra_files  :=
@@ -18,7 +18,7 @@ html: old-stats stats
 	  echo Documentation is up to date; \
 	else \
 	  test -d $@ || mkdir $@; \
-	  $(PHPDOC) --target $@ --output "HTML:frames:phpedit"; \
+	  $(PHPDOC) -tb . --target $@ --output "SQL:default"; \
 	fi
 
 stats:
@@ -31,6 +31,6 @@ mostlyclean:
 	@rm -f old-stats
 
 clean: mostlyclean
-	@rm -fr stats $(FORMATS)
+	@rm -fr tip.sql stats $(FORMATS)
 
 .PHONY:	old-stats stats html mostlyclean clean
