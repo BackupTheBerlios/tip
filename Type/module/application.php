@@ -300,8 +300,8 @@ class TIP_Application extends TIP_Module
     {
         static $cache = array();
 
-        if (!isset($cache[$job])) {
-            $cache[$job] =& TIP_Type::getInstance($GLOBALS[TIP_MAIN]->shared_modules[$job]);
+        if (!array_key_exists($job, $cache)) {
+            $cache[$job] =& TIP_Type::getInstance($GLOBALS[TIP_MAIN]->shared_modules[$job], false);
         }
 
         return $cache[$job];
@@ -329,8 +329,13 @@ class TIP_Application extends TIP_Module
             return false;
         }
 
+        // Check for the locale instance (required)
+        $locale =& TIP_Type::getInstance('locale', false);
+        if (!$locale instanceof TIP_Module) {
+            return false;
+        }
+
         $running = true;
-        $locale =& TIP_Type::getInstance('locale');
         $header_id = 'notify.' . $severity;
         $message_id = $header_id . '.' . $id;
         $data =& $locale->getProperty('data');
@@ -371,8 +376,9 @@ class TIP_Application extends TIP_Module
     {
         // Configure the locale
         $locale_module = $this->shared_modules['locale'];
-        TIP::setLocaleId(TIP::getOption($locale_module, 'locale'));
-        date_default_timezone_set(TIP::getOption($locale_module, 'timezone'));
+        if (TIP::setLocaleId(TIP::getOption($locale_module, 'locale'))) {
+            date_default_timezone_set(TIP::getOption($locale_module, 'timezone'));
+        }
 
         // Check for ajax requests
         if (TIP_AJAX) {

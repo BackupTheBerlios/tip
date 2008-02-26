@@ -211,11 +211,17 @@ class TIP
      * Set locale in a platform-independent way
      *
      * @param  string   $locale The locale name (such as 'en_US' or 'it_IT')
+     * @return boolean          true on success or false if not possible
      * @throw  exception        If the locale could not be set
      *                          or the encoding will is not UTF-8
      */
     function setLocaleId($locale)
     {
+        if (@strpos($locale, '_') === false) {
+            TIP::warning ("Not a valid locale id ($locale)");
+            return false;
+        }
+
         list($language, $country) = explode('_', $locale);
 
         $result = setlocale(LC_ALL, $locale . '.UTF-8', $language, $locale);
@@ -227,6 +233,8 @@ class TIP
         if(!strpos($result, 'UTF-8')) {
             throw new exception('Unable to force UTF-8 encoding on this system');
         }
+
+        return true;
     }
 
     /**
