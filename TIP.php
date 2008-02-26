@@ -31,7 +31,9 @@ error_reporting(E_ALL);
 mb_internal_encoding('UTF-8');
 
 require_once 'Defs.php';
-require_once './config.php';
+if (!isset($cfg)) {
+    require_once './config.php';
+}
 require_once 'Renderer.php';
 
 set_include_path(TIP::buildLogicPath('pear'));
