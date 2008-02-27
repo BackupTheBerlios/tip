@@ -39,6 +39,9 @@ class TIP_Content extends TIP_Module
 
     /**
      * The file to run at the beginning of a 'pager' tag
+     *
+     * This template must reside in the application directory.
+     *
      * @var string
      */
     protected $pager_pre_source = 'pager_before.src';
@@ -50,7 +53,19 @@ class TIP_Content extends TIP_Module
     protected $pager_source = 'row.src';
 
     /**
+     * The file to run on empty result set
+     *
+     * This template must reside in the application directory.
+     *
+     * @var string
+     */
+    protected $pager_empty_source = 'pager_empty.src';
+
+    /**
      * The file to run at the end of a 'pager' tag
+     *
+     * This template must reside in the application directory.
+     *
      * @var string
      */
     protected $pager_post_source = 'pager_after.src';
@@ -892,13 +907,20 @@ class TIP_Content extends TIP_Module
             $pager && $this->tryRun(array($main_id, $this->pager_pre_source));
 
             // Rows rendering
+            $empty = true;
             $path = array($this->id, $this->pager_source);
             foreach ($view as $row) {
                 $this->run($path);
+                $empty = false;
             }
+
+            // Empty result set
+            $empty && $this->tryRun(array($main_id, $this->pager_empty_source));
 
             // Pager rendering AFTER the rows
             $pager && $this->tryRun(array($main_id, $this->pager_post_source));
+        } else {
+            $this->tryRun(array($main_id, $this->pager_empty_source));
         }
 
         $this->endView();
