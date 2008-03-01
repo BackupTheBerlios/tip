@@ -122,7 +122,14 @@ class TIP_Cronology extends TIP_Type
 
         $renderer =& TIP_Renderer::getMenu($this->levels);
         $model->render($renderer, 'sitemap');
-        return $renderer->toHtml();
+        $html = $renderer->toHtml();
+
+        if ($renderer->isCurrentContainer()) {
+            // If the current row is a container, don't index this page
+            TIP_Application::setRobots(false, null);
+        }
+
+        return $html;
     }
 
     public function ajax($id)

@@ -182,6 +182,7 @@ class TIP_Hierarchy extends TIP_Content
         $model->render($renderer, 'sitemap');
         $this->_html = $renderer->toHtml();
         $this->_rows = $renderer->toArray();
+        $this->_is_current_container = $renderer->isCurrentContainer();
         return true;
     }
 
@@ -231,15 +232,6 @@ class TIP_Hierarchy extends TIP_Content
     //}}}
     //{{{ Methods
 
-    private function _render()
-    {
-        if (is_null($this->_html)) {
-            $this->startDataView() && $this->endView();
-        }
-
-        return !empty($this->_html);
-    }
-
     /**
      * Start a data view
      *
@@ -267,9 +259,7 @@ class TIP_Hierarchy extends TIP_Content
     }
 
     /**
-     * Render a DHTML hierarchy
-     *
-     * Renders this hierarchy in a DHTML form.
+     * Render as XHTML hierarchy
      *
      * @return string|null The rendered HTML or null on errors
      */
@@ -336,6 +326,11 @@ class TIP_Hierarchy extends TIP_Content
             return null;
         }
 
+        if ($this->_is_current_container) {
+            // If the current row is a container, don't index this page
+            TIP_Application::setRobots(false, null);
+        }
+
         return $this->_html;
     }
 
@@ -358,8 +353,24 @@ class TIP_Hierarchy extends TIP_Content
      */
     private $_rows = null;
 
+    /**
+     * Is the current row a container?
+     * @var boolean
+     * @internal
+     */
+    private $_is_current_container = false;
+
     //}}}
     //{{{ Internal methods
+
+    private function _render()
+    {
+        if (is_null($this->_html)) {
+            $this->startDataView() && $this->endView();
+        }
+
+        return !empty($this->_html);
+    }
 
     private function _updateCount($id, $offset)
     {

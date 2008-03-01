@@ -414,6 +414,44 @@ class TIP_Application extends TIP_Module
         $this->_session_started && HTTP_Session2::pause();
     }
 
+    static public function setRobots($index, $follow)
+    {
+        $robots =& TIP_Application::getGlobal('robots');
+        $values = explode(',', $robots);
+
+        if (is_bool($index)) {
+            if ($index) {
+                $old_value = 'noindex';
+                $new_value = 'index';
+            } else {
+                $old_value = 'index';
+                $new_value = 'noindex';
+            }
+            if (!in_array($new_value, $values)) {
+                $key = array_search($old_value, $values);
+                $key === false && $key = count($values);
+                $values[$key] = $new_value;
+            }
+        }
+
+        if (is_bool($follow)) {
+            if ($follow) {
+                $old_value = 'nofollow';
+                $new_value = 'follow';
+            } else {
+                $old_value = 'follow';
+                $new_value = 'nofollow';
+            }
+            if (!in_array($new_value, $values)) {
+                $key = array_search($old_value, $values);
+                $key === false && $key = count($values);
+                $values[$key] = $new_value;
+            }
+        }
+
+        $robots = implode(',', $values);
+    }
+
     //}}}
     //{{{ Tags
 

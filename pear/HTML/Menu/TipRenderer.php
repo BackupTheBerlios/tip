@@ -20,7 +20,7 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
     //{{{ properties
 
     /**
-     * Text to use to connect different levels in row rendering
+     * Text to use to connect different titles in row rendering
      * @var string
      */
     var $_glue = '::';
@@ -32,10 +32,7 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
     var $_levels = null;
 
     /**
-     * Rows render mode
-     *
-     * How to render in rows (it works only for toArray() method).
-     *
+     * How to render rows (it works only for toArray() method).
      * @var int
      */
     var $_array_mode = 2;
@@ -58,6 +55,12 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
      * @internal
      */
     var $_name_stack = array();
+
+    /**
+     * true if the current row is a container
+     * @var boolean
+     */
+    var $_is_current_container = false;
 
     //}}}
     //{{{ setGlue()
@@ -152,6 +155,21 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
     } // end func getArrayMode
 
     //}}}
+    //{{{ isCurrentContainer()
+
+    /**
+     * true if the current row is a container
+     *
+     * @return boolean The requested info
+     * @access public
+     */
+
+    function isCurrentContainer()
+    {
+        return $this->_is_current_container;
+    } // end func isCurrentContainer
+
+    //}}}
     //{{{ overriden virtual functions
 
     function setMenuType($type)
@@ -161,6 +179,7 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
             $this->_html = '';
             $this->_rows = array();
             $this->_name_stack = array();
+            $this->_is_current_container = false;
         } else {
             require_once 'PEAR.php';
             return PEAR::raiseError("HTML_Menu_TipRenderer: unable to render '$type' type menu");
@@ -186,6 +205,11 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
             $is_deep && $level > $this->_levels && !$is_active &&
             !end($this->_html[$level-1]['active'])) {
             return;
+        }
+
+        // Verify if the current/active row is a container
+        if ($is_active) {
+            $this->_is_current_container = $is_container;
         }
 
         // Generate the XHTML content
