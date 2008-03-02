@@ -44,10 +44,11 @@ class TIP_Renderer
      * TIP system. You can specify an array of rules to use in the $rules
      * array, or leave it undefined to use all the available rules.
      *
-     * @param  array|null $rules The array of rules to enable
-     * @return Text_Wiki         The renderer
+     * @param  array|null  $rules     The array of rules to enable
+     * @param  string|null $toc_title TOC title or null to use a default value
+     * @return Text_Wiki              The renderer
      */
-    static public function &getWiki($rules = null)
+    static public function &getWiki($rules = null, $toc_title = null)
     {
         static $renderer = null;
         static $all_rules = array(
@@ -64,11 +65,16 @@ class TIP_Renderer
 
         if (is_null($renderer)) {
             require_once 'Text/Wiki.php';
+            isset($toc_title) || $toc_title = TIP::getLocale('index', 'wiki');
             $renderer =& Text_Wiki::singleton('Default');
             $renderer->setFormatConf('Xhtml', 'charset', 'UTF-8');
+            /* Accordling to the following comment:
+             * http://php.net/manual/function.htmlentities.php#78509
+             * "There's no sane reason to use htmlentities() instead of htmlspecialchars()"
+             */
             $renderer->setFormatConf('Xhtml', 'translate', HTML_SPECIALCHARS);
             $renderer->setRenderConf('Xhtml', 'toc', array(
-                'title'    => '<h2>' . TIP::getLocale('index', 'wiki') . '</h2>',
+                'title'    => '<h2>' . $toc_title . '</h2>',
                 'div_id'   => 'idToc',
                 'use_ul'   => true,
                 'collapse' => false

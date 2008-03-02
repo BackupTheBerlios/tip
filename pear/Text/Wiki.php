@@ -347,7 +347,7 @@ class Text_Wiki {
      *
      * @var string
      */
-    var $renderingType = 'normal';
+    var $renderingType = 'preg';
 
     /**
      * Stack of rendering callbacks
