@@ -24,19 +24,18 @@
 error_reporting(E_ALL);
 
 /**
- * Set the internal encoding
- *
- * Default encoding for TIP based sites is utf8.
+ * The default encoding for TIP based sites is utf8.
  */
 mb_internal_encoding('UTF-8');
 
+/**
+ * Defs.php must precede anything because of TIP_ROOT
+ */
 require_once 'Defs.php';
-if (!isset($cfg)) {
-    require_once './config.php';
-}
 require_once 'Renderer.php';
 
 set_include_path(TIP::buildLogicPath('pear'));
+
 require_once 'PEAR.php';
 require_once 'HTTP.php';
 require_once TIP::buildLogicPath('Type.php');
@@ -663,7 +662,6 @@ class TIP
             ($script = @$_SERVER['SCRIPT_FILENAME']) || ($script = __FILE__);
             $base_path = rtrim(realpath(dirname($script)), DIRECTORY_SEPARATOR);
         }
-
         return TIP::deepImplode(array($base_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
 
@@ -677,7 +675,12 @@ class TIP
      */
     static public function buildLogicPath()
     {
-        return TIP::buildPath(array(TIP_ROOT, func_get_args()));
+        static $logic_path = null;
+        if (is_null($logic_path)) {
+            $file = dirname(__FILE__);
+            $logic_path = rtrim(realpath($file), DIRECTORY_SEPARATOR);
+        }
+        return TIP::deepImplode(array($logic_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
 
     /**
@@ -691,7 +694,9 @@ class TIP
     static public function buildSourcePath()
     {
         static $source_path = null;
-        $source_path || $source_path = TIP::buildPath(TIP_Application::getGlobal('source_root'));
+        if (is_null($source_path)) {
+            $source_path = TIP::buildPath(TIP_Application::getGlobal('source_root'));
+        }
         return TIP::deepImplode(array($source_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
 
@@ -706,7 +711,9 @@ class TIP
     static public function buildFallbackPath()
     {
         static $fallback_path = null;
-        $fallback_path || $fallback_path = TIP::buildPath(TIP_Application::getGlobal('fallback_root'));
+        if (is_null($fallback_path)) {
+            $fallback_path = TIP::buildPath(TIP_Application::getGlobal('fallback_root'));
+        }
         return TIP::deepImplode(array($fallback_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
 
@@ -738,7 +745,9 @@ class TIP
     static public function buildCachePath()
     {
         static $cache_path = null;
-        $cache_path || $cache_path = TIP::buildPath(TIP_Application::getGlobal('cache_root'));
+        if (is_null($cache_path)) {
+            $cache_path = TIP::buildPath(TIP_Application::getGlobal('cache_root'));
+        }
         return TIP::deepImplode(array($cache_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
 
