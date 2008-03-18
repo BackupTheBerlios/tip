@@ -253,7 +253,9 @@ class TIP
             $shared_modules = TIP_Application::getGlobal('shared_modules');
             $locale = TIP::getOption($shared_modules['locale'], 'locale');
         }
-        return $locale;
+
+        // Fallback to en_US, so ensure the locale is set anyway
+        return isset($locale) ? $locale : 'en_US';
     }
 
     /**
