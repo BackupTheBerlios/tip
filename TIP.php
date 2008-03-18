@@ -277,7 +277,9 @@ class TIP
         if ($locale === false) {
             $locale =& TIP_Application::getSharedModule('locale');
         }
-
+        if (!$locale instanceof TIP_Type) {
+            return null;
+        }
         return $locale->get($id, $prefix, $context, $cached);
     }
 
