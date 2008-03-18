@@ -664,8 +664,9 @@ class TIP
     static public function buildPath()
     {
         static $base_path = null;
-        if (!$base_path) {
-            ($script = @$_SERVER['SCRIPT_FILENAME']) || ($script = __FILE__);
+        if (is_null($base_path)) {
+            // All the paths are relative to the running script
+            $script = $_SERVER['SCRIPT_FILENAME'];
             $base_path = rtrim(realpath(dirname($script)), DIRECTORY_SEPARATOR);
         }
         return TIP::deepImplode(array($base_path, func_get_args()), DIRECTORY_SEPARATOR);
