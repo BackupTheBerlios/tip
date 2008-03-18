@@ -129,7 +129,7 @@ class TIP_Cronology extends TIP_Type
 
         require_once 'HTML/Menu.php';
         $model =& new HTML_Menu($this->_tree);
-        $model->forceCurrentUrl(htmlspecialchars(TIP::getRequestUri()));
+        $model->forceCurrentUrl(TIP::toHtml(TIP::getRequestUri()));
 
         $renderer =& TIP_Renderer::getMenu($this->levels);
         $model->render($renderer, 'sitemap');

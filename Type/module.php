@@ -748,7 +748,7 @@ abstract class TIP_Module extends TIP_Type
      */
     protected function tagActionUri($params)
     {
-        return TIP::buildActionUriFromTag($params, $this->id);
+        return TIP::toHtml(TIP::buildActionUriFromTag($params, $this->id));
     }
 
     /**

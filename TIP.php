@@ -866,7 +866,7 @@ class TIP
         $uri = TIP::getHome();
 
         if (empty($module) || empty($action)) {
-            empty($args) || $uri .= '?' . http_build_query($args, '', '&amp;');
+            empty($args) || $uri .= '?' . http_build_query($args, '', '&');
             return $uri;
         }
 
@@ -876,7 +876,7 @@ class TIP
             $args['module'] = $module;
             $args['action'] = $action;
             empty($id) || $args['id'] = $id;
-            $uri .= '?' . http_build_query($args, '', '&amp;');
+            $uri .= '?' . http_build_query($args, '', '&');
             return $uri;
         }
 
@@ -887,7 +887,7 @@ class TIP
 
         $uri .= $module . '/' . $action . '/';
         empty($id) || $uri .= $id . '/';
-        empty($args) || $uri .= '?' . http_build_query($args, '', '&amp;');
+        empty($args) || $uri .= '?' . http_build_query($args, '', '&');
         return $uri;
     }
 

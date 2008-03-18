@@ -223,10 +223,10 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
         if ($is_container) {
             // <em> for containers
             $content = '<em>' . $content . '</em>';
-            $is_deep && !$is_active && $content = '<a href="' . $node['url'] . '">' . $content . '</a>';
+            $is_deep && !$is_active && $content = '<a href="' . TIP::toHtml($node['url']) . '">' . $content . '</a>';
         } else {
             // <span> for normal entries
-            $content = '<a href="' . $node['url'] . '"><span>' . $content . '</span></a>';
+            $content = '<a href="' . TIP::toHtml($node['url']) . '"><span>' . $content . '</span></a>';
         }
 
         $content = "\n$indent  <li>$content";

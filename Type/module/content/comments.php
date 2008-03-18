@@ -151,7 +151,7 @@ class TIP_Comments extends TIP_Content
             $parent_id = $options['defaults'][$this->browse_field];
         }
 
-        isset($options['follower']) || $options['follower'] = TIP::buildActionURI($this->id, 'browse', $parent_id);
+        isset($options['follower']) || $options['follower'] = TIP::buildActionUri($this->id, 'browse', $parent_id);
         return parent::actionAdd($options);
     }
 
