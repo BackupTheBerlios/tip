@@ -49,8 +49,7 @@ class Text_Wiki_Parse_Code extends Text_Wiki_Parse {
     * 
     */
     
-/*    var $regex = '/^(\<code( .+)?\>)\n(.+)\n(\<\/code\>)(\s|$)/Umsi';*/
-    var $regex = ';^<code(\s[^>]*)?>((?:(?R)|.*?)*)\n</code>(\s|$);msi';
+    var $regex = ';<code(\s[^>]*)?>\n?((?:[^<]*(?R)?.*?)*?)</code>;msi';
     
     /**
     * 
@@ -71,29 +70,17 @@ class Text_Wiki_Parse_Code extends Text_Wiki_Parse {
     {
         // are there additional attribute arguments?
         $args = trim($matches[1]);
-        
-        if ($args == '') {
-            $options = array(
-                'text' => $matches[2],
-                'attr' => array('type' => '')
-            );
-        } else {
-        	// get the attributes...
+        if ($args != '') {
         	$attr = $this->getAttrs($args);
-        	
-        	// ... and make sure we have a 'type'
-        	if (! isset($attr['type'])) {
-        		$attr['type'] = '';
-        	}
-        	
-        	// retain the options
-            $options = array(
-                'text' => $matches[2],
-                'attr' => $attr
-            );
         }
-        
-        return $this->wiki->addToken($this->rule, $options) . $matches[3];
+
+        isset($attr['type']) || $attr['type'] = '';
+        $options = array(
+            'text' => $matches[2],
+            'attr' => $attr
+        );
+
+        return $this->wiki->addToken($this->rule, $options);
     }
 }
 ?>
