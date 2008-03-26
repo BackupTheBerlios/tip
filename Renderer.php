@@ -85,6 +85,9 @@ class TIP_Renderer
              * "There's no sane reason to use htmlentities() instead of htmlspecialchars()"
              */
             $renderer->setFormatConf('Xhtml', 'translate', HTML_SPECIALCHARS);
+            $renderer->setRenderConf('Xhtml', 'url', array(
+                'target'   => ''
+            ));
             $renderer->setRenderConf('Xhtml', 'toc', array(
                 'title'    => '<h2>' . $toc_title . '</h2>',
                 'div_id'   => 'idToc',
