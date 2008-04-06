@@ -151,7 +151,7 @@ class TIP_Hierarchy extends TIP_Content
                 $action = @$row['action'];
                 $action || $action = $this->action;
                 $action = str_replace('-id-', $id, $action);
-                $row['url'] = $module->tagActionUri($action);
+                $row['url'] = TIP::buildActionUriFromTag($action, (string) $module);
             }
             if (isset($this->count_field)) {
                 $count = @$row[$this->count_field];
