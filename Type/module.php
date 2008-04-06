@@ -363,6 +363,7 @@ abstract class TIP_Module extends TIP_Type
     public function run($path)
     {
         if (!$this->tryRun($path)) {
+            is_array($path) && $path = implode(DIRECTORY_SEPARATOR, $path);
             TIP::error("Unable to run a file ($path)");
             return false;
         }
