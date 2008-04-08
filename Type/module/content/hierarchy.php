@@ -188,7 +188,7 @@ class TIP_Hierarchy extends TIP_Content
 
         require_once 'HTML/Menu.php';
         $model =& new HTML_Menu($tree);
-        $model->forceCurrentUrl(htmlspecialchars(TIP::getRequestUri()));
+        $model->forceCurrentUrl(TIP::getRequestUri());
         $renderer =& TIP_Renderer::getMenu($this->levels);
         $model->render($renderer, 'sitemap');
         $this->_html = $renderer->toHtml();
