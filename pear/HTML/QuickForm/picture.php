@@ -50,6 +50,12 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     var $_base_url = '';
 
     /**
+     * Picture file prefix
+     * @var string
+     */
+    var $_file_prefix = 'qf';
+
+    /**
      * The file name of the picture
      * @var string
      */
@@ -130,6 +136,34 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
             }
         }
     } //end func setValue
+    
+    //}}}
+    //{{{ getFilePrefix()
+    
+    /**
+     * Get the prefix prepended on every picture file
+     *
+     * @return string  The file prefix
+     * @access public
+     */
+    function getFilePrefix()
+    {
+        return $this->_file;
+    } //end func getFilePrefix
+    
+    //}}}
+    //{{{ setFilePrefix()
+ 
+    /**
+     * Set the prefix to prepend on every picture file
+     *
+     * @param  string $prefix  The new file prefix
+     * @access public
+     */
+    function setFilePrefix($prefix)
+    {
+        $this->_file_prefix = empty($prefix) ? '' : $prefix;
+    } //end func setFilePrefix
     
     //}}}
     //{{{ getBasePath()
@@ -532,7 +566,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
                     $this->_reset();
                     return false;
                 }
-                $file = uniqid('tip') . $ext;
+                $file = uniqid($this->_file_prefix) . $ext;
             } while (!($handle = fopen($this->_base_path . $file, 'xb')));
 
             fclose($handle);
