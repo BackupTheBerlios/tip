@@ -148,7 +148,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
      */
     function getFilePrefix()
     {
-        return $this->_file;
+        return $this->_file_prefix;
     } //end func getFilePrefix
     
     //}}}
