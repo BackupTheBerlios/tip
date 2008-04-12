@@ -91,7 +91,7 @@ class TIP_Application extends TIP_Module
     protected $keywords = 'tip';
 
     /**
-     * Additional code to add at the end of the <head>
+     * Additional code to add at the end of the <head> section
      * @var string
      */
     protected $additional = '';

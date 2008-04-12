@@ -1045,6 +1045,58 @@ class TIP_Form extends TIP_Module
         return $element;
     }
 
+    private function &_widgetThumbnail(&$field)
+    {
+        HTML_QuickForm::registerElementType('thumbnail', 'HTML/QuickForm/thumbnail.php', 'HTML_QuickForm_thumbnail');
+
+        $id = $field['id'];
+
+        $element =& $this->_addElement('thumbnail', $id);
+        $element->setBasePath(TIP::buildDataPath($this->id));
+        $element->setBaseURL(TIP::buildDataUri($this->id));
+
+        // Unload the thumbnail, if requested
+        $unload_id = 'unload_' . $id;
+        if (array_key_exists($unload_id, $_POST)) {
+            $element->setState(QF_PICTURE_TO_UNLOAD);
+        } else {
+            $unload_label = $this->getLocale('label.' . $unload_id);
+            $unload_element = $this->_form->createElement('checkbox', $unload_id, $unload_label, $unload_label, array('tabindex' => $this->_tabindex));
+            $element->setUnloadElement($unload_element);
+        }
+
+        // Update the comments
+        $comment = $element->getComment();
+        if ($comment && strpos($comment, '|0|') !== false) {
+            // Variable substitution in the element comment
+            // (adding the minimum/maximum size, for instance)
+            $match = array();
+            if (preg_match('/minpicturesize\(([0-9]+) *([0-9]+)\)/', $field['rules'], $match)) {
+                $tag[0] = $match[1];
+                $tag[1] = $match[2];
+
+                // By default, the thumbnail size is equal to the minpicturesize
+                $element->setThumbnailSize($tag[0], $tag[1]);
+            } else {
+                $tag[0] = $tag[1] = 0;
+            }
+            if (preg_match('/maxpicturesize\(([0-9]+) *([0-9]+)\)/', $field['rules'], $match)) {
+                $tag[2] = $match[1];
+                $tag[3] = $match[2];
+            } else {
+                $tag[2] = $tag[3] = '&infin;';
+            }
+
+            foreach ($tag as $n => $value) {
+                $comment = str_replace('|'.$n.'|', $value, $comment);
+            }
+
+            $element->setComment($comment);
+        }
+
+        return $element;
+    }
+
     private function &_widgetHierarchy(&$field)
     {
         $id = $field['id'];
