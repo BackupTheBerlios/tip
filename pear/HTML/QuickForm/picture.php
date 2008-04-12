@@ -107,7 +107,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     
     //}}}
     //{{{ setValue()
- 
+
     /**
      * Set the picture
      *
@@ -120,6 +120,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     function setValue($value)
     {
         if ($this->_state == QF_PICTURE_TO_UNLOAD) {
+            $this->_file = $value;
             return;
         } elseif (empty($value)) {
             $this->_file = null;
@@ -136,7 +137,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
             }
         }
     } //end func setValue
-    
+
     //}}}
     //{{{ getFilePrefix()
     
@@ -360,7 +361,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
 
     //}}}
     //{{{ onQuickFormEvent()
- 
+
     /**
      * Called by HTML_QuickForm whenever form event is made on this element
      *
@@ -388,10 +389,12 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
                     $this->_state = QF_PICTURE_UPLOADED;
                 } elseif (!is_null($value = $this->_findUploadedValue())) {
                     $this->_state = QF_PICTURE_TO_UPLOAD;
-                } elseif ($this->_state != QF_PICTURE_TO_UNLOAD) {
+                } else {
                     $value = $this->_findValue($caller->_submitValues);
                     empty($value) && $value = $this->_findValue($caller->_defaultValues);
-                    empty($value) || $this->_state = QF_PICTURE_UPLOADED;
+                    if ($this->_state != QF_PICTURE_TO_UNLOAD && !empty($value)) {
+                        $this->_state = QF_PICTURE_UPLOADED;
+                    }
                 }
                 $this->setValue($value);
                 if ($this->_state == QF_PICTURE_EMPTY || $this->_state == QF_PICTURE_TO_UNLOAD) {
@@ -403,7 +406,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
 
         return true;
     } // end func onQuickFormEvent
- 
+
     //}}}
     //{{{ toHtml()
  
