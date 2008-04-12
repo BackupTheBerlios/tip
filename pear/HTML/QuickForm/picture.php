@@ -17,7 +17,7 @@ HTML_QuickForm::registerRule('maxpicturesize', 'callback', '_ruleMaxPictureSize'
 
 /**
  * HTML class for a generic picture based field
- * 
+ *
  * @author Nicola Fontana <ntd@entidi.it>
  * @access public
  */
@@ -27,16 +27,16 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
 
     /**
      * Uploaded data, from $_FILES
-     * @var array 
+     * @var array
      */
     var $_value = null;
- 
+
     /**
      * Running operation
-     * @var array 
+     * @var array
      */
     var $_state = QF_PICTURE_EMPTY;
- 
+
     /**
      * Base picture path
      * @var string
@@ -53,7 +53,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
      * Picture file prefix
      * @var string
      */
-    var $_file_prefix = 'qf';
+    var $_file_prefix = '';
 
     /**
      * The file name of the picture
@@ -78,7 +78,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
 
     /**
      * Class constructor
-     * 
+     *
      * @param  string $elementName   Input field name attribute
      * @param  mixed  $elementLabel  Label(s) for a field
      * @param  mixed  $attributes    Either a typical HTML attribute string or an associative array
@@ -88,12 +88,12 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     {
         HTML_QuickForm_input::HTML_QuickForm_input($elementName, $elementLabel, $attributes);
         $this->setType('file');
-        $this->_persistantFreeze = true;
+        $this->setPersistantFreeze(true);
     } //end constructor
-    
+
     //}}}
     //{{{ getValue()
-    
+
     /**
      * Get the file name of the picture
      *
@@ -104,7 +104,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     {
         return $this->_file;
     } //end func getValue
-    
+
     //}}}
     //{{{ setValue()
 
@@ -140,7 +140,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
 
     //}}}
     //{{{ getFilePrefix()
-    
+
     /**
      * Get the prefix prepended on every picture file
      *
@@ -151,10 +151,10 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     {
         return $this->_file_prefix;
     } //end func getFilePrefix
-    
+
     //}}}
     //{{{ setFilePrefix()
- 
+
     /**
      * Set the prefix to prepend on every picture file
      *
@@ -165,13 +165,13 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     {
         $this->_file_prefix = empty($prefix) ? '' : $prefix;
     } //end func setFilePrefix
-    
+
     //}}}
     //{{{ getBasePath()
- 
+
     /**
      * Get the base upload path
-     * 
+     *
      * @return string  The base upload path
      * @access public
      */
@@ -179,13 +179,13 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     {
         return $this->_base_path;
     } //end func getBasePath
-    
+
     //}}}
     //{{{ setBasePath()
- 
+
     /**
      * Set the base path where uploaded pictures are stored
-     * 
+     *
      * @param  string $path  The base path
      * @access public
      */
@@ -198,13 +198,13 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         }
         $this->_base_path = $path;
     } //end func setBasePath
-    
+
     //}}}
     //{{{ getBaseUrl()
- 
+
     /**
      * Get the base upload url
-     * 
+     *
      * @return string|null  The base upload url
      * @access public
      */
@@ -212,13 +212,13 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     {
         return $this->_base_url;
     } //end func getBaseUrl
-    
+
     //}}}
     //{{{ setBaseUrl()
- 
+
     /**
      * Set the base url where pictures are uploaded
-     * 
+     *
      * @param  mixed  $url  The base url
      * @access public
      */
@@ -231,16 +231,16 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         }
         $this->_base_url = $url;
     } //end func setBaseUrl
-    
+
     //}}}
     //{{{ setFile()
- 
+
     /**
      * Set the file name of the picture
      *
      * Here you can set explicily the file name of the uploaded picture.
      * Leave it null to have an automatic file name.
-     * 
+     *
      * @param  string|null  The picture file name
      * @access public
      */
@@ -248,10 +248,10 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     {
         $this->_file = $file;
     } //end func setFile
-    
+
     //}}}
     //{{{ getUnloadElement()
- 
+
     /**
      * Get the unload element
      *
@@ -264,10 +264,10 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     {
         return $this->_unload_element;
     } //end func getUnloadElement
-    
+
     //}}}
     //{{{ setUnloadElement()
- 
+
     /**
      * Set the unload element
      *
@@ -283,10 +283,10 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         // Unload element value must not be persistant
         $this->_unload_element->setPersistantFreeze(false);
     } //end func setUnloadElement
-    
+
     //}}}
     //{{{ getState()
- 
+
     /**
      * Get the current state
      *
@@ -299,10 +299,10 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     {
         return $this->_state;
     } //end func getState
-    
+
     //}}}
     //{{{ setState()
- 
+
     /**
      * Set a new state
      *
@@ -315,7 +315,64 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     {
         $this->_state = $state;
     } //end func setState
-    
+
+    //}}}
+    //{{{ getPictureInfo()
+
+    /**
+     * Get the info of the uploaded image, as returned by getimagesize()
+     *
+     * @return array|null  The info array or null on errors
+     * @access public
+     */
+    function getPictureInfo()
+    {
+        // Check only once and if a file was uploaded
+        if (is_null($this->_info) &&
+            @array_key_exists('tmp_name', $this->_value)) {
+            $this->_info = getimagesize($this->_value['tmp_name']);
+        }
+
+        // Check for valid result
+        if (!is_array($this->_info)) {
+            // This avoid next checks
+            $this->_info = false;
+            return null;
+        }
+
+        return $this->_info;
+    } //end func getPictureInfo
+
+    //}}}
+    //{{{ imageCreateFromFile()
+
+    /**
+     * Wrap the imagecreatefrom...() methods
+     *
+     * @param  string   $file The file name
+     * @param  int      $type An IMAGETYPE_... constant
+     * @return resource       A image resource or null on errors
+     * @access public
+     */
+    function imageCreateFromFile($file, $type)
+    {
+        switch ($type) {
+        case IMAGETYPE_JPEG:
+            return imagecreatefromjpeg($file);
+        case IMAGETYPE_PNG:
+            return imagecreatefrompng($file);
+        case IMAGETYPE_GIF:
+            return imagecreatefromgif($file);
+        case IMAGETYPE_WBMP:
+            return imagecreatefromwbmp($file);
+        case IMAGETYPE_XBM:
+            return imagecreatefromxbm($file);
+        }
+
+        // The last chance
+        return imagecreatefromxpm($file);
+    } //end func imageCreateFromFile
+
     //}}}
     //{{{ doUploads()
 
@@ -337,8 +394,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
             if ($element instanceof HTML_QuickForm_picture) {
                 $name = $element->getName();
                 if ($element->getState() == QF_PICTURE_TO_UPLOAD) {
-                    // An element is considered valid if does not have an error message:
-                    // not ever right but it is a good starting point ...
+                    // An element is considered valid if does not have
+                    // an error message: quite naive but working...
                     $error_message = $form->getElementError($name);
                     if (empty($error_message)) {
                         $element->_upload();
@@ -409,7 +466,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
 
     //}}}
     //{{{ toHtml()
- 
+
     /**
      * Returns the picture element in HTML
      *
@@ -432,7 +489,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
 
         return HTML_QuickForm_input::toHtml();
     } //end func toHtml
-    
+
     //}}}
     //{{{ getFrozenHtml()
 
@@ -454,14 +511,122 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     } //end func getFrozenHtml
 
     //}}}
+    //{{{ getTmpFile()
+
+    /**
+     * Build a temporary file name accordling to the uploaded image type
+     *
+     * @param  string      $prefix A string to prepend to the file name
+     * @return string|null         The file name or null on errors
+     * @access protected
+     */
+    function getTmpFile($prefix)
+    {
+        if (is_null($info = $this->getPictureInfo()) ||
+            !is_string($ext = image_type_to_extension($info[2]))) {
+            return null;
+        }
+
+        // Try to create a unique file in the base path
+        $attempts = 5;
+        do {
+            -- $attempts;
+            if ($attempts < 0) {
+                return null;
+            }
+            $file = uniqid($prefix) . $ext;
+        } while (!($handle = fopen($this->_base_path . $file, 'xb')));
+
+        fclose($handle);
+        return $file;
+    } // end func getTmpFile
+
+    //}}}
+    //{{{ _reset()
+
+    /**
+     * Reset the picture internal state to its (empty) default
+     *
+     * @access protected
+     * @return boolean   true on success, false otherwise
+     */
+    function _reset()
+    {
+        $this->_state = QF_PICTURE_EMPTY;
+        $this->_file = null;
+        $this->_value = '';
+        $this->_info = null;
+        return true;
+    } // end func _reset
+
+    //}}}
+    //{{{ _upload()
+
+    /**
+     * Upload the picture
+     *
+     * @return bool      Whether the picture was uploaded successfully
+     * @access protected
+     */
+    function _upload()
+    {
+        if ($this->_state != QF_PICTURE_TO_UPLOAD) {
+            return false;
+        }
+
+        if (empty($this->_file)) {
+            // Automatic file name
+            $file = $this->getTmpFile($this->_file_prefix);
+            if (!$file) {
+                $this->_reset();
+                return false;
+            }
+        } else {
+            // Explicit file name
+            $file = $this->_file;
+        }
+
+        // File upload
+        if (!move_uploaded_file($this->_value['tmp_name'], $this->_base_path . $file)) {
+            @unlink($this->_base_path . $file);
+            $this->_reset();
+            return false;
+        }
+
+        $this->_state = QF_PICTURE_UPLOADED;
+        $this->_file = $file;
+        return true;
+    } // end func _upload
+
+    //}}}
+    //{{{ _unload()
+
+    /**
+     * Unload the picture
+     *
+     * This is the reverse operation of _upload().
+     *
+     * @return bool      Whether the picture was unloaded successfully
+     * @access protected
+     */
+    function _unload()
+    {
+        if (!empty($this->_file)) {
+            unlink($this->_base_path . $this->_file);
+        }
+
+        return $this->_reset();
+    } // end func _unload
+
+    //}}}
     //{{{ _findUploadedValue
 
     /**
      * Try to find the element value from $_FILES
      *
      * Directly stolen from HTML_QuickForm_file.
-     * 
-     * @return array|null  An array as in $_FILES or null if not found 
+     *
+     * @return array|null  An array as in $_FILES or null if not found
      * @access private
      */
     function _findUploadedValue()
@@ -477,7 +642,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
             $base  = str_replace(
                         array('\\', '\''), array('\\\\', '\\\''),
                         substr($name, 0, $pos)
-                    ); 
+                    );
             $idx   = "['" . str_replace(
                         array('\\', '\'', ']', '['), array('\\\\', '\\\'', '', "']['"),
                         substr($name, $pos + 1, -1)
@@ -495,118 +660,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
 
         return null;
     } //end func _findUploadedValue
- 
-    //}}}
-    //{{{ _updatePictureInfo()
 
-    /**
-     * Update _info with the uploading picture array
-     * 
-     * @return bool    Whether the picture info was populated successfully
-     * @access private
-     */
-    function _updatePictureInfo()
-    {
-        if (isset($this->_info)) {
-            return true;
-        }
-        if (!@array_key_exists('tmp_name', $this->_value)) {
-            return false;
-        }
-
-        $this->_info = getimagesize($this->_value['tmp_name']);
-        return is_array($this->_info);
-    } //end func _updatePictureInfo
-    
-    //}}}
-    //{{{ _reset()
-
-    /**
-     * Reset the picture
-     * 
-     * Called after an unrecoverable error.
-     *
-     * @access private
-     */
-    function _reset()
-    {
-        $this->_state = QF_PICTURE_EMPTY;
-        $this->_file = null;
-        $this->_value = '';
-    } // end func _reset
-    
-    //}}}
-    //{{{ _upload()
-
-    /**
-     * Upload the picture
-     * 
-     * @return bool    Whether the picture was uploaded successfully
-     * @access private
-     */
-    function _upload()
-    {
-        if (!$this->_updatePictureInfo()) {
-            $this->_reset();
-            return false;
-        }
-
-        if ($this->_file) {
-            // Explicit file name
-            $file = $this->_file;
-        } else {
-            // Automatic file name
-            if (!is_string($ext = image_type_to_extension($this->_info[2]))) {
-                $this->_reset();
-                return false;
-            }
-
-            // Try 5 times to create a unique file in the base path
-            $attempts = 5;
-            do {
-                -- $attempts;
-                if ($attempts < 0) {
-                    $this->_reset();
-                    return false;
-                }
-                $file = uniqid($this->_file_prefix) . $ext;
-            } while (!($handle = fopen($this->_base_path . $file, 'xb')));
-
-            fclose($handle);
-        }
-
-        // File upload
-        if (!move_uploaded_file($this->_value['tmp_name'], $this->_base_path . $file)) {
-            $this->_reset();
-            return false;
-        }
-
-        $this->_state = QF_PICTURE_UPLOADED;
-        $this->_file = $file;
-        return true;
-    } // end func _upload
-    
-    //}}}
-    //{{{ _unload()
-
-    /**
-     * Unload the picture
-     *
-     * This is the reverse operation of _upload().
-     * 
-     * @return bool    Whether the picture was unloaded successfully
-     * @access private
-     */
-    function _unload()
-    {
-        if (!empty($this->_file)) {
-            unlink($this->_base_path . $this->_file);
-        }
-
-        $this->_reset();
-        return true;
-    } // end func _unload
-    
     //}}}
     //{{{ _ruleIsUploadedPicture()
 
@@ -627,7 +681,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         $element =& $value['_qf_element'];
         return $element->isToUpload() || $element->isUploaded();
     } //end func _ruleIsUploadedPicture
-    
+
     //}}}
     //{{{ _ruleCheckMaxFileSize()
 
@@ -697,13 +751,13 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         }
 
         $element =& $value['_qf_element'];
-        if (!$element->_updatePictureInfo()) {
+        if (is_null($info = $element->getPictureInfo())) {
             // No info availables: invalid image
             return false;
         }
 
         list($min_width, $min_height) = $box;
-        return $element->_info[0] >= $min_width && $element->_info[1] >= $min_height;
+        return $info[0] >= $min_width && $info[1] >= $min_height;
     } //end func _ruleMinPictureSize
 
     //}}}
@@ -725,13 +779,13 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         }
 
         $element =& $value['_qf_element'];
-        if (!$element->_updatePictureInfo()) {
+        if (is_null($info = $element->getPictureInfo())) {
             // No info availables: invalid image
             return false;
         }
 
         list($max_width, $max_height) = $box;
-        return $element->_info[0] <= $max_width && $element->_info[1] <= $max_height;
+        return $info[0] <= $max_width && $info[1] <= $max_height;
     } //end func _ruleMaxPictureSize
 
     //}}}
