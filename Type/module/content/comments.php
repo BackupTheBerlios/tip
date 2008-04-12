@@ -185,7 +185,9 @@ class TIP_Comments extends TIP_Content
         }
 
         $old_row = $row;
-        $row[$this->master_count] += $offset;
+        if (array_key_exists($this->master_count, $row)) {
+            $row[$this->master_count] += $offset;
+        }
 
         if (!$this->master->getProperty('data')->updateRow($row, $old_row)) {
             TIP::notifyError('update');
