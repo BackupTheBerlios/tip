@@ -208,11 +208,11 @@ class HTML_QuickForm_thumbnail extends HTML_QuickForm_picture
     {
         $html = '';
         $file = $this->getValue();
-        if (is_string($file) && !empty($string)) {
+        if (is_string($file) && !empty($file)) {
             $picture = $this->getBaseUrl() . $file;
             $thumbnail = $this->getThumbnailUrl() . $file;
             $alt = $this->getName();
-            $html .= "<a href=\"$picture\"><img src=\"$thumbnail\" alt=\"$alt\" /></a>";
+            $html .= "<img src=\"$thumbnail\" alt=\"$alt\" />";
         }
         return $html . $this->_getPersistantData();
     } //end func getFrozenHtml
