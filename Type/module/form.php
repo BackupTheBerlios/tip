@@ -772,6 +772,11 @@ class TIP_Form extends TIP_Module
         $this->_converter[$id] = $type;
     }
 
+    private function _toProcess()
+    {
+        return TIP::getGet('process', 'int') == 1;
+    }
+
     private function _validate()
     {
         // Validate
@@ -798,7 +803,7 @@ class TIP_Form extends TIP_Module
         case TIP_FORM_ACTION_DELETE:
         case TIP_FORM_ACTION_CUSTOM:
             $this->_form->freeze();
-            return TIP::getGet('process', 'int') == 1;
+            return $this->_toProcess();
         }
 
         $this->_form->freeze();
@@ -1008,7 +1013,9 @@ class TIP_Form extends TIP_Module
 
         // Unload the picture, if requested
         $unload_id = 'unload_' . $id;
-        if (array_key_exists($unload_id, $_POST)) {
+
+        if ($this->action == TIP_FORM_ACTION_DELETE && $this->_toProcess() ||
+            array_key_exists($unload_id, $_POST)) {
             $element->setState(QF_PICTURE_TO_UNLOAD);
         } else {
             $unload_label = $this->getLocale('label.' . $unload_id);
@@ -1059,7 +1066,8 @@ class TIP_Form extends TIP_Module
 
         // Unload the thumbnail, if requested
         $unload_id = 'unload_' . $id;
-        if (array_key_exists($unload_id, $_POST)) {
+        if ($this->action == TIP_FORM_ACTION_DELETE && $this->_toProcess() ||
+            array_key_exists($unload_id, $_POST)) {
             $element->setState(QF_PICTURE_TO_UNLOAD);
         } else {
             $unload_label = $this->getLocale('label.' . $unload_id);
