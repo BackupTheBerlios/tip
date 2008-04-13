@@ -14,10 +14,16 @@ class HTML_QuickForm_thumbnail extends HTML_QuickForm_picture
     //{{{ properties
 
     /**
-     * Prefix for thumbnail files
+     * Base thumbnail path: must be different from getBasePath()
      * @var string
      */
-    var $_thumbnail_prefix = 'tmb';
+    var $_thumbnail_path = '';
+
+    /**
+     * Base thumbnail url: must be different from getBaseUrl()
+     * @var string
+     */
+    var $_thumbnail_url = '';
 
     /**
      * Thumbnail size
@@ -39,39 +45,121 @@ class HTML_QuickForm_thumbnail extends HTML_QuickForm_picture
     function HTML_QuickForm_thumbnail($elementName=null, $elementLabel=null, $attributes=null)
     {
         HTML_QuickForm_picture::HTML_QuickForm_picture($elementName, $elementLabel, $attributes);
-
-        // Use prefix to avoid name collision and to easely switch
-        // from the picture to its thumbnail file (by switching the prefix)
-        HTML_QuickForm_picture::setFilePrefix('pic');
     } //end constructor
 
     //}}}
-    //{{{ getThumbnailPrefix()
+    //{{{ setBasePath()
 
     /**
-     * Get the prefix prepended on every thumbnail file
+     * Overriden method
      *
-     * @return string  The file prefix
+     * On empty thumbnail path, it builds a default one by appending
+     * 'thumbnail' to this base path.
+     *
+     * @param  string $path  The base path
      * @access public
      */
-    function getThumbnailPrefix()
+    function setBasePath($path)
     {
-        return $this->_thumbnail_prefix;
-    } //end func getThumbnailPrefix
+        HTML_QuickForm_picture::setBasePath($path);
+
+        if (empty($this->_thumbnail_path)) {
+            $this->setThumbnailPath($this->getBasePath() . 'thumbnail');
+        }
+    } //end func setBasePath
 
     //}}}
-    //{{{ setThumbnailPrefix()
+    //{{{ setBaseUrl()
 
     /**
-     * Set the prefix to prepend on every thumbnail file
+     * Overriden method
      *
-     * @param  string $prefix  The new file prefix
+     * On empty thumbnail url, it builds a default one by appending
+     * 'thumbnail' to this base url.
+     *
+     * @param  string $url  The base url
      * @access public
      */
-    function setThumbnailPrefix($prefix)
+    function setBaseUrl($url)
     {
-        $this->_thumbnail_prefix = is_null($prefix) ? 'tmb' : $prefix;
-    } //end func setThumbnailPrefix
+        HTML_QuickForm_picture::setBaseUrl($url);
+
+        if (empty($this->_thumbnail_url)) {
+            $this->setThumbnailUrl($this->getBaseUrl() . 'thumbnail');
+        }
+    } //end func setBaseUrl
+
+    //}}}
+    //{{{ getThumbnailPath()
+
+    /**
+     * Get the base thumbnail path
+     *
+     * @return string  The thumbnail path
+     * @access public
+     */
+    function getThumbnailPath()
+    {
+        return $this->_thumbnail_path;
+    } //end func getThumbnailPath
+
+    //}}}
+    //{{{ setThumbnailPath()
+
+    /**
+     * Set the path where thumbnails will be generated
+     *
+     * Must be different from the base picture path,
+     * that is what returned by getBasePath().
+     *
+     * @param  string $path  The thumbnail path
+     * @access public
+     */
+    function setThumbnailPath($path)
+    {
+        if (empty($path)) {
+            $path = '';
+        } elseif (substr($path, -1) != DIRECTORY_SEPARATOR) {
+            $path .= DIRECTORY_SEPARATOR;
+        }
+        $this->_thumbnail_path = $path;
+    } //end func setThumbnailPath
+
+    //}}}
+    //{{{ getThumbnailUrl()
+
+    /**
+     * Get the base thumbnail url
+     *
+     * @return string|null  The thumbnail upload url
+     * @access public
+     */
+    function getThumbnailUrl()
+    {
+        return $this->_thumbnail_url;
+    } //end func getThumbnailUrl
+
+    //}}}
+    //{{{ setThumbnailUrl()
+
+    /**
+     * Set the url where thumbnails will be generated
+     *
+     * Must be different from the base picture url,
+     * that is what returned by getBaseUrl().
+     *
+     * @param  mixed  $url  The thumbnail url
+     * @access public
+     */
+    function setThumbnailUrl($url)
+    {
+        if (empty($url)) {
+            $url = '';
+        } elseif (substr($url, -1) != '/') {
+            $url .= '/';
+        }
+        $this->_thumbnail_url = $url;
+    } //end func setThumbnailUrl
 
     //}}}
     //{{{ getThumbnailSize()
@@ -108,34 +196,6 @@ class HTML_QuickForm_thumbnail extends HTML_QuickForm_picture
     } //end func setThumbnailSize
 
     //}}}
-    //{{{ getThumbnailFile()
-
-    /**
-     * Get the thumbnail file name
-     *
-     * @return string|null The thumbnail file name
-     * @access public
-     */
-    function getThumbnailFile()
-    {
-        $file = $this->getValue();
-        if (empty($file)) {
-            return null;
-        }
-
-        $prefix = $this->getFilePrefix();
-        $prefix_len = strlen($prefix);
-
-        // Strip the file prefix, if found
-        if ($prefix_len > 0 && strncmp($file, $prefix, $prefix_len) == 0) {
-            $file = substr($file, $prefix_len);
-        }
-
-        // Prepend the thumbnail prefix
-        return $this->_thumbnail_prefix . $file;
-    } //end func getThumbnailFile
-
-    //}}}
     //{{{ getFrozenHtml()
 
     /**
@@ -147,10 +207,10 @@ class HTML_QuickForm_thumbnail extends HTML_QuickForm_picture
     function getFrozenHtml()
     {
         $html = '';
-        $thumbnail = $this->getThumbnailFile();
-        if (!empty($thumbnail)) {
-            $picture = $this->getBaseUrl() . $this->getValue();
-            $thumbnail = $this->getBaseUrl() . $thumbnail;
+        $file = $this->getValue();
+        if (is_string($file) && !empty($string)) {
+            $picture = $this->getBaseUrl() . $file;
+            $thumbnail = $this->getThumbnailUrl() . $file;
             $alt = $this->getName();
             $html .= "<a href=\"$picture\"><img src=\"$thumbnail\" alt=\"$alt\" /></a>";
         }
@@ -168,8 +228,9 @@ class HTML_QuickForm_thumbnail extends HTML_QuickForm_picture
             return false;
         }
 
-        $picture = $this->getBasePath() . $this->getValue();
-        $thumbnail = $this->getBasePath() . $this->getThumbnailFile();
+        $file = $this->getValue();
+        $picture = $this->getBasePath() . $file;
+        $thumbnail = $this->getThumbnailPath() . $file;
         list($pic_width, $pic_height) = $info;
         list($tmb_width, $tmb_height) = $this->_thumbnail_size;
 
@@ -225,16 +286,13 @@ class HTML_QuickForm_thumbnail extends HTML_QuickForm_picture
     {
         // Must be called before chaining the parent method
         // because _unload() resets the $_file property
-        $thumbnail = $this->getThumbnailFile();
+        $file = $this->getValue();
 
         if (!HTML_QuickForm_picture::_unload()) {
             return false;
         }
 
-        if (!empty($thumbnail)) {
-            unlink($this->getBasePath() . $thumbnail);
-        }
-
+        unlink($this->getThumbnailPath() . $file);
         return true;
     } // end func _unload
 

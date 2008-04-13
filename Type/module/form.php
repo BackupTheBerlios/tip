@@ -1004,7 +1004,7 @@ class TIP_Form extends TIP_Module
 
         $element =& $this->_addElement('picture', $id);
         $element->setBasePath(TIP::buildDataPath($this->id));
-        $element->setBaseURL(TIP::buildDataUri($this->id));
+        $element->setBaseUrl(TIP::buildDataUri($this->id));
 
         // Unload the picture, if requested
         $unload_id = 'unload_' . $id;
@@ -1053,7 +1053,9 @@ class TIP_Form extends TIP_Module
 
         $element =& $this->_addElement('thumbnail', $id);
         $element->setBasePath(TIP::buildDataPath($this->id));
-        $element->setBaseURL(TIP::buildDataUri($this->id));
+        $element->setBaseUrl(TIP::buildDataUri($this->id));
+        // Leave the default thumbnail path/url, that is
+        // the base ones with 'thumbnail' appended
 
         // Unload the thumbnail, if requested
         $unload_id = 'unload_' . $id;
