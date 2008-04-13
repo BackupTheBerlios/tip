@@ -967,12 +967,20 @@ class TIP_Content extends TIP_Module
      */
     protected function actionAdd($options = null)
     {
+        // Merge the argument options with the configuration options, if found
+        // The argument options have higher priority...
         if (isset($this->form_options['add'])) {
             $options = array_merge($this->form_options['add'], (array) $options);
         }
 
-        isset($options['on_process']) || $options['on_process'] = array(&$this, '_onAdd');
-        isset($options['follower']) || $options['follower'] = TIP::buildActionUri($this->id, 'view', '-lastid-');
+        // Use array_key_exists to allow emtpy defaults
+        if (!array_key_exists('on_process', $options)) {
+            $options['on_process'] = array(&$this, '_onAdd');
+        }
+        if (!array_key_exists('follower', $options)) {
+            $options['follower'] = TIP::buildActionUri($this->id, 'view', '-lastid-');
+        }
+
         $processed = $this->form(TIP_FORM_ACTION_ADD, null, $options);
         if (is_null($processed)) {
             return false;

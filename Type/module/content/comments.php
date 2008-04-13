@@ -140,6 +140,12 @@ class TIP_Comments extends TIP_Content
      */
     protected function actionAdd($options = array())
     {
+        // Merge the argument before the parent actionAdd, so also
+        // the defaults here defined can be overriden in configuration
+        if (isset($this->form_options['add'])) {
+            $options = array_merge($this->form_options['add'], (array) $options);
+        }
+
         // Check for the default value of 'browse_field' (the parent id)
         if (!isset($options['defaults'], $options['defaults'][$this->browse_field])) {
             // Try to get the parent id from GET or POST
@@ -151,7 +157,10 @@ class TIP_Comments extends TIP_Content
             $parent_id = $options['defaults'][$this->browse_field];
         }
 
-        isset($options['follower']) || $options['follower'] = TIP::buildActionUri($this->id, 'browse', $parent_id);
+        if (!array_key_exists('follower', $options)) {
+            $options['follower'] = TIP::buildActionUri($this->id, 'browse', $parent_id);
+        }
+
         return parent::actionAdd($options);
     }
 
