@@ -1113,16 +1113,22 @@ class TIP_Form extends TIP_Module
         $label = $this->getLocale('label.' . $id);
         $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
 
-        // Try to get the hierarchy master module from the $cfg array
-        global $cfg;
-        foreach ($cfg as $module_id => &$options) {
-            if (isset($options['master']) && $options['master'] == $this->id) {
-                $hierarchy_id = $module_id;
-                break;
+        if (empty($args)) {
+            // Try to get the hierarchy master module from the $cfg array
+            global $cfg;
+            foreach ($cfg as $module_id => &$options) {
+                if (isset($options['master']) && $options['master'] == $this->id) {
+                    $hierarchy_id = $module_id;
+                    break;
+                }
             }
+        } else {
+            // Explicitely defined in the widget args
+            $hierarchy_id = $args;
         }
 
-        // If not set, build it by appending '_hierarchy' to this module id
+        // On master field not found, build a default one
+        // by appending '_hierarchy' to this module id
         isset($hierarchy_id) || $hierarchy_id = $this->id . '_hierarchy';
 
         $hierarchy =& TIP_Type::getInstance($hierarchy_id);
