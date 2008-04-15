@@ -956,7 +956,10 @@ class TIP_Form extends TIP_Module
         $id = $field['id'];
         $element =& $this->_addElement('wikiarea', $id, 'expand');
 
-        if (array_key_exists('wiki_rules', $field)) {
+        if (!empty($args)) {
+            $rules = explode(',', $args);
+        } elseif (array_key_exists('wiki_rules', $field)) {
+            // DEPRECATED: use the "wiki_rules" option instead of widget args
             $rules = explode(',', $field['wiki_rules']);
         } else {
             $rules = null;

@@ -672,7 +672,7 @@ class TIP_Content extends TIP_Module
      *
      * The value of the field with $params id is parsed and rendered by the
      * Text_Wiki renderer accordling to the wiki rules defined in the
-     * 'wiki_rules' option of this field.
+     * widget args of this field.
      */
     protected function tagWiki($params)
     {
@@ -684,7 +684,16 @@ class TIP_Content extends TIP_Module
 
         $fields =& $this->data->getFields();
         $field =& $fields[$params];
-        $rules = isset($field['wiki_rules']) ? explode(',', $field['wiki_rules']) : null;
+
+        // Get the wiki rules
+        if (array_key_exists('widget_args', $field)) {
+            $rules = explode(',', $field['widget_args']);
+        } elseif (array_key_exists('wiki_rules', $field)) {
+            // DEPRECATED: use the "wiki_rules" option instead of widget args
+            $rules = explode(',', $field['wiki_rules']);
+        } else {
+            $rules = null;
+        }
 
         $renderer =& TIP_Renderer::getWiki($rules);
         $renderer->setRenderConf('Xhtml', 'Image', 'base', TIP::buildDataUri($this->id) . '/');
