@@ -708,7 +708,7 @@ class TIP_Form extends TIP_Module
             if (!method_exists($this, $method)) {
                 $method = '_widgetText';
             }
-            $element =& $this->$method($field);
+            $element =& $this->$method($field, @$field['widget_args']);
         }
     }
 
@@ -848,7 +848,7 @@ class TIP_Form extends TIP_Module
         return true;
     }
 
-    private function &_widgetText(&$field)
+    private function &_widgetText(&$field, $args)
     {
         $id = $field['id'];
         $element =& $this->_addElement('text', $id, 'expand');
@@ -861,7 +861,7 @@ class TIP_Form extends TIP_Module
         return $element;
     }
 
-    private function &_widgetPassword(&$field)
+    private function &_widgetPassword(&$field, $args)
     {
         $id = $field['id'];
         $element =& $this->_addElement('password', $id, 'expand');
@@ -890,7 +890,7 @@ class TIP_Form extends TIP_Module
         return $element;
     }
 
-    private function &_widgetEnum(&$field)
+    private function &_widgetEnum(&$field, $args)
     {
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
@@ -919,7 +919,7 @@ class TIP_Form extends TIP_Module
         return $element;
     }
 
-    private function &_widgetSet(&$field)
+    private function &_widgetSet(&$field, $args)
     {
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
@@ -949,7 +949,7 @@ class TIP_Form extends TIP_Module
         return $element;
     }
 
-    private function &_widgetTextArea(&$field)
+    private function &_widgetTextArea(&$field, $args)
     {
         HTML_QuickForm::registerElementType('wikiarea', 'HTML/QuickForm/wikiarea.php', 'HTML_QuickForm_wikiarea');
 
@@ -968,7 +968,7 @@ class TIP_Form extends TIP_Module
         return $element;
     }
 
-    private function &_widgetDate(&$field)
+    private function &_widgetDate(&$field, $args)
     {
         HTML_QuickForm::registerRule('date', 'callback', '_ruleDate', 'TIP_Form');
 
@@ -1001,7 +1001,7 @@ class TIP_Form extends TIP_Module
         return $element;
     }
 
-    private function &_widgetPicture(&$field)
+    private function &_widgetPicture(&$field, $args)
     {
         HTML_QuickForm::registerElementType('picture', 'HTML/QuickForm/picture.php', 'HTML_QuickForm_picture');
 
@@ -1052,7 +1052,7 @@ class TIP_Form extends TIP_Module
         return $element;
     }
 
-    private function &_widgetThumbnail(&$field)
+    private function &_widgetThumbnail(&$field, $args)
     {
         HTML_QuickForm::registerElementType('thumbnail', 'HTML/QuickForm/thumbnail.php', 'HTML_QuickForm_thumbnail');
 
@@ -1107,7 +1107,7 @@ class TIP_Form extends TIP_Module
         return $element;
     }
 
-    private function &_widgetHierarchy(&$field)
+    private function &_widgetHierarchy(&$field, $args)
     {
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
