@@ -789,6 +789,9 @@ class TIP_Form extends TIP_Module
         $element->setBasePath(TIP::buildDataPath($this->id));
         $element->setBaseUrl(TIP::buildDataUri($this->id));
 
+        // Set the autoresize feature, if requested
+        $element->setAutoresize($args && strpos($args, 'autoresize') !== false);
+
         // Unload the element data, if needed
         $unload_id = 'unload_' . $element->getName();
         if ($this->action == TIP_FORM_ACTION_DELETE && $this->_toProcess() ||

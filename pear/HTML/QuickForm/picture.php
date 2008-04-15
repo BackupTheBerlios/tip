@@ -33,7 +33,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
 
     /**
      * Running operation
-     * @var array
+     * @var QF_PICTURE_...
      */
     var $_state = QF_PICTURE_EMPTY;
 
@@ -72,6 +72,19 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
      * @var HTML_QuickForm_element
      */
     var $_unload_element = null;
+
+    /**
+     * Autoresize feature (enabled or disabled)
+     * @var bool
+     */
+    var $_autoresize = false;
+
+    /**
+     * Autoresize bounding box, if any
+     * @var array
+     * @internal
+     */
+    var $_autoresize_box = null;
 
     //}}}
     //{{{ constructor
@@ -283,6 +296,38 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         // Unload element value must not be persistant
         $this->_unload_element->setPersistantFreeze(false);
     } //end func setUnloadElement
+
+    //}}}
+    //{{{ getAutoresize()
+
+    /**
+     * Get the autoresize feature status
+     *
+     * @return bool   true if the autoresize feature is enable or false otherwise
+     * @access public
+     */
+    function getAutoresize()
+    {
+        return $this->_autoresize;
+    } //end func getAutoresize
+
+    //}}}
+    //{{{ setAutoresize()
+
+    /**
+     * Enable or disable the autoresize feature
+     *
+     * The autoresize feature allows to resize the uploaded image on the fly,
+     * keeping as bounding box the size in the 'maxpicturesize' rule
+     * (that MUST be specified to work).
+     *
+     * @param  bool   $autoresize true to enable the autoresize feature
+     * @access public
+     */
+    function setAutoresize($autoresize)
+    {
+        $this->_autoresize = $autoresize;
+    } //end func setAutoresize
 
     //}}}
     //{{{ getState()
@@ -618,8 +663,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     /**
      * Reset the picture internal state to its (empty) default
      *
-     * @access protected
      * @return boolean   true on success, false otherwise
+     * @access protected
      */
     function _reset()
     {
@@ -641,6 +686,10 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
      */
     function _upload()
     {
+        // Reset the autoresize bounding box
+        $box = $this->_autoresize_box;
+        $this->_autoresize_box = null;
+
         if ($this->_state != QF_PICTURE_TO_UPLOAD) {
             return false;
         }
@@ -658,8 +707,20 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         }
 
         // File upload
-        if (!move_uploaded_file($this->_value['tmp_name'], $this->_base_path . $file)) {
-            @unlink($this->_base_path . $file);
+        $tmp_name = $this->_value['tmp_name'];
+        $picture = $this->_base_path . $file;
+        if (is_array($box)) {
+            // Autoresize the image
+            if (is_uploaded_file($tmp_name) && $this->_resizeImage($tmp_name, $picture, $box)) {
+                // Success: store the new image data
+                $this->_value['tmp_name'] = $picture;
+                $this->_info[0] = $box[0];
+                $this->_info[1] = $box[1];
+            } else {
+                $this->_reset();
+                return false;
+            }
+        } elseif (!move_uploaded_file($tmp_name, $picture)) {
             $this->_reset();
             return false;
         }
@@ -688,6 +749,77 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
 
         return $this->_reset();
     } // end func _unload
+
+    //}}}
+    //{{{ _resizeImage()
+
+    /**
+     * Resize an image
+     *
+     * The $_info property must be populated with the $from image data,
+     * as returned by getimagesize().
+     *
+     * The new image size is returned in the in/out $box variable.
+     *
+     * @param  string    $from The image file
+     * @param  string    $to   The destination file
+     * @param  array    &$box  The bounding box, as array(max_width,max_height)
+     * @return bool            true on success, false on errors
+     * @access protected
+     */
+    function _resizeImage($from, $to, &$box)
+    {
+        list($org_width, $org_height, $type) = $this->_info;
+        list($max_width, $max_height) = $box;
+
+        // Check for valid dimensions
+        if ($org_width <= 0 || $org_height <= 0 ||
+            $max_width <= 0 || $max_height <= 0) {
+            return false;
+        }
+
+        // Calculate the final picture size (retaining the aspect ratio)
+        $ratio = $org_width / $org_height;
+        if ($ratio > $max_width / $max_height) {
+            $width  = $max_width;
+            $height = $width / $ratio;
+        } else {
+            $height = $max_height;
+            $width  = $height * $ratio;
+        }
+
+        // Try to acquire the source image
+        $src = $this->imageCreateFromFile($from, $type);
+        if (!$src) {
+            return false;
+        }
+
+        // Create the destination image
+        $dst = imagecreatetruecolor($width, $height);
+        if (!$dst) {
+            imagedestroy($src);
+            return false;
+        }
+
+        // The real work: use imageToFile() to retain the same image type
+        // of the original one (who knows...)
+        $done = imagecopyresampled($dst, $src, 0, 0, 0, 0, $max_width, $max_height, $org_width, $org_height);
+        imagedestroy($src);
+
+        if ($done) {
+            if ($this->imageToFile($dst, $type, $to)) {
+                // Success! The new image size is stored in $box
+                $box = array($width, $height);
+            } else {
+                // Failure in serialization
+                @unlink($to);
+                $done = false;
+            }
+        }
+
+        imagedestroy($dst);
+        return $done;
+    } // end func _resizeImage
 
     //}}}
     //{{{ _findUploadedValue
@@ -856,7 +988,17 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
         }
 
         list($max_width, $max_height) = $box;
-        return $info[0] <= $max_width && $info[1] <= $max_height;
+        $is_smaller = $info[0] <= $max_width && $info[1] <= $max_height;
+
+        // Autoresize only pictures exceeding the bounding box
+        if (!$is_smaller && $element->getAutoresize()) {
+            // Autoresize feature enabled: set the autoresize bounding box
+            // and always return true
+            $element->_autoresize_box = $box;
+            return true;
+        }
+
+        return $is_smaller;
     } //end func _ruleMaxPictureSize
 
     //}}}

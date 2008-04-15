@@ -222,65 +222,25 @@ class HTML_QuickForm_thumbnail extends HTML_QuickForm_picture
 
     function _upload()
     {
-        // Get the info array and ensure the original image is uploaded
-        if (is_null($info = $this->getPictureInfo()) ||
-            !HTML_QuickForm_picture::_upload()) {
+        // Ensure the original image is uploaded and get the info array
+        // getPictureInfo() must be called AFTER the _upload() to allow
+        // the autoresizing feature
+        if (!HTML_QuickForm_picture::_upload() ||
+            is_null($info = $this->getPictureInfo())) {
             return false;
         }
 
         $file = $this->getValue();
         $picture = $this->getBasePath() . $file;
         $thumbnail = $this->getThumbnailPath() . $file;
-        list($pic_width, $pic_height) = $info;
-        list($tmb_width, $tmb_height) = $this->_thumbnail_size;
-        $type = $info[2];
+        $box = $this->_thumbnail_size;
 
-        // Check for valid dimensions
-        if ($pic_width <= 0 || $pic_height <= 0 ||
-            $tmb_width <= 0 || $tmb_height <= 0) {
+        if (!$this->_resizeImage($picture, $thumbnail, $box)) {
             $this->_unload();
             return false;
         }
 
-        // Calculate the final thumbnail size (retaining its aspect ratio)
-        $ratio = $pic_width / $pic_height;
-        if ($ratio > $tmb_width / $tmb_height) {
-            $width = $tmb_width;
-            $height = $width / $ratio;
-        } else {
-            $height = $tmb_height;
-            $width = $height * $ratio;
-        }
-
-        // Try to acquire the source image
-        $src = $this->imageCreateFromFile($picture, $type);
-        if (!$src) {
-            $this->_unload();
-            return false;
-        }
-
-        // Create the destination image
-        $dst = imagecreatetruecolor($width, $height);
-        if (!$dst) {
-            imagedestroy($src);
-            $this->_unload();
-            return false;
-        }
-
-        // The real work: use imageToFile() to retain the same image type
-        // of the original one (who knows...)
-        $done =
-            imagecopyresampled($dst, $src, 0, 0, 0, 0, $tmb_width, $tmb_height, $pic_width, $pic_height) &&
-            $this->imageToFile($dst, $type, $thumbnail);
-
-        // Finalization: destroy the images (hopefully freeing the memory)
-        imagedestroy($src);
-        imagedestroy($dst);
-
-        // Unload the images on errors
-        $done || $this->_unload();
-
-        return $done;
+        return true;
     } // end func _upload
 
     //}}}
