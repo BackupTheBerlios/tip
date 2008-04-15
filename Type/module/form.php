@@ -772,6 +772,77 @@ class TIP_Form extends TIP_Module
         $this->_converter[$id] = $type;
     }
 
+    /**
+     * Configure a picture based element
+     *
+     * This code can be shared by every HTML_QuickForm_picture based element.
+     *
+     * @param  string                &$element The element to configure
+     * @param  array                  $range   The allowed range, as returned
+     *                                         by _getPictureRange()
+     * @param  string                 $args    The widget args
+     * @return HTML_QuickForm_element          The configured element
+     */
+    private function &_configPictureWidget(&$element, $range, $args)
+    {
+        // Common defaults
+        $element->setBasePath(TIP::buildDataPath($this->id));
+        $element->setBaseUrl(TIP::buildDataUri($this->id));
+
+        // Unload the element data, if needed
+        $unload_id = 'unload_' . $element->getName();
+        if ($this->action == TIP_FORM_ACTION_DELETE && $this->_toProcess() ||
+            array_key_exists($unload_id, $_POST)) {
+            $element->setState(QF_PICTURE_TO_UNLOAD);
+        } else {
+            $unload_label = $this->getLocale('label.' . $unload_id);
+            $unload_element = $this->_form->createElement('checkbox', $unload_id, $unload_label, $unload_label, array('tabindex' => $this->_tabindex));
+            $element->setUnloadElement($unload_element);
+        }
+
+        // Variable substitution in the element comment, if needed
+        $comment = $element->getComment();
+        if ($comment && strpos($comment, '|0|') !== false) {
+            foreach ($range as $n => $value) {
+                $comment = str_replace('|'.$n.'|', $value, $comment);
+            }
+            $element->setComment($comment);
+        }
+
+        return $element;
+    }
+
+    /**
+     * Get the range of allowed picture size
+     *
+     * Analyzes the field rules ('minpicturesize' and 'maxpicturesize')
+     * to get the range of the allowed picture size.
+     *
+     * @param  array &$field The field to analyze
+     * @return array         The size range in the form
+     *                       array(min_width,min_height,max_width,max_height)
+     */
+    private function _getPictureRange(&$field)
+    {
+        $range = array();
+
+        if (preg_match('/minpicturesize\(([0-9]+) *([0-9]+)\)/', $field['rules'], $match)) {
+            $range[0] = $match[1];
+            $range[1] = $match[2];
+        } else {
+            $range[0] = $range[1] = 0;
+        }
+
+        if (preg_match('/maxpicturesize\(([0-9]+) *([0-9]+)\)/', $field['rules'], $match)) {
+            $range[2] = $match[1];
+            $range[3] = $match[2];
+        } else {
+            $range[2] = $range[3] = '&infin;';
+        }
+
+        return $range;
+    }
+
     private function _toProcess()
     {
         return TIP::getGet('process', 'int') == 1;
@@ -1007,107 +1078,26 @@ class TIP_Form extends TIP_Module
     private function &_widgetPicture(&$field, $args)
     {
         HTML_QuickForm::registerElementType('picture', 'HTML/QuickForm/picture.php', 'HTML_QuickForm_picture');
-
-        $id = $field['id'];
-
-        $element =& $this->_addElement('picture', $id);
-        $element->setBasePath(TIP::buildDataPath($this->id));
-        $element->setBaseUrl(TIP::buildDataUri($this->id));
-
-        // Unload the picture, if requested
-        $unload_id = 'unload_' . $id;
-
-        if ($this->action == TIP_FORM_ACTION_DELETE && $this->_toProcess() ||
-            array_key_exists($unload_id, $_POST)) {
-            $element->setState(QF_PICTURE_TO_UNLOAD);
-        } else {
-            $unload_label = $this->getLocale('label.' . $unload_id);
-            $unload_element = $this->_form->createElement('checkbox', $unload_id, $unload_label, $unload_label, array('tabindex' => $this->_tabindex));
-            $element->setUnloadElement($unload_element);
-        }
-
-        // Update the comments
-        $comment = $element->getComment();
-        if ($comment && strpos($comment, '|0|') !== false) {
-            // Variable substitution in the element comment
-            // (adding the minimum/maximum size, for instance)
-            $match = array();
-            if (preg_match('/minpicturesize\(([0-9]+) *([0-9]+)\)/', $field['rules'], $match)) {
-                $tag[0] = $match[1];
-                $tag[1] = $match[2];
-            } else {
-                $tag[0] = $tag[1] = 0;
-            }
-            if (preg_match('/maxpicturesize\(([0-9]+) *([0-9]+)\)/', $field['rules'], $match)) {
-                $tag[2] = $match[1];
-                $tag[3] = $match[2];
-            } else {
-                $tag[2] = $tag[3] = '&infin;';
-            }
-
-            foreach ($tag as $n => $value) {
-                $comment = str_replace('|'.$n.'|', $value, $comment);
-            }
-
-            $element->setComment($comment);
-        }
-
-        return $element;
+        $element =& $this->_addElement('picture', $field['id']);
+        $range = $this->_getPictureRange($field);
+        return $this->_configPictureWidget($element, $range, $args);
     }
 
     private function &_widgetThumbnail(&$field, $args)
     {
         HTML_QuickForm::registerElementType('thumbnail', 'HTML/QuickForm/thumbnail.php', 'HTML_QuickForm_thumbnail');
 
-        $id = $field['id'];
-
-        $element =& $this->_addElement('thumbnail', $id);
-        $element->setBasePath(TIP::buildDataPath($this->id));
-        $element->setBaseUrl(TIP::buildDataUri($this->id));
         // Leave the default thumbnail path/url, that is
         // the base ones with 'thumbnail' appended
+        $element =& $this->_addElement('thumbnail', $field['id']);
+        $range = $this->_getPictureRange($field);
 
-        // Unload the thumbnail, if requested
-        $unload_id = 'unload_' . $id;
-        if ($this->action == TIP_FORM_ACTION_DELETE && $this->_toProcess() ||
-            array_key_exists($unload_id, $_POST)) {
-            $element->setState(QF_PICTURE_TO_UNLOAD);
-        } else {
-            $unload_label = $this->getLocale('label.' . $unload_id);
-            $unload_element = $this->_form->createElement('checkbox', $unload_id, $unload_label, $unload_label, array('tabindex' => $this->_tabindex));
-            $element->setUnloadElement($unload_element);
+        // If set, the thumbnail size is equal to the minimum size
+        if ($range[0] > 0 && $range[1] > 0) {
+            $element->setThumbnailSize($range[0], $range[1]);
         }
 
-        // Update the comments
-        $comment = $element->getComment();
-        if ($comment && strpos($comment, '|0|') !== false) {
-            // Variable substitution in the element comment
-            // (adding the minimum/maximum size, for instance)
-            $match = array();
-            if (preg_match('/minpicturesize\(([0-9]+) *([0-9]+)\)/', $field['rules'], $match)) {
-                $tag[0] = $match[1];
-                $tag[1] = $match[2];
-
-                // By default, the thumbnail size is equal to the minpicturesize
-                $element->setThumbnailSize($tag[0], $tag[1]);
-            } else {
-                $tag[0] = $tag[1] = 0;
-            }
-            if (preg_match('/maxpicturesize\(([0-9]+) *([0-9]+)\)/', $field['rules'], $match)) {
-                $tag[2] = $match[1];
-                $tag[3] = $match[2];
-            } else {
-                $tag[2] = $tag[3] = '&infin;';
-            }
-
-            foreach ($tag as $n => $value) {
-                $comment = str_replace('|'.$n.'|', $value, $comment);
-            }
-
-            $element->setComment($comment);
-        }
-
-        return $element;
+        return $this->_configPictureWidget($element, $range, $args);
     }
 
     private function &_widgetHierarchy(&$field, $args)
