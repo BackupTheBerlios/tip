@@ -357,21 +357,92 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
     function imageCreateFromFile($file, $type)
     {
         switch ($type) {
+
         case IMAGETYPE_JPEG:
-            return imagecreatefromjpeg($file);
+            if (function_exists('imagecreatefromjpeg')) {
+                return imagecreatefromjpeg($file);
+            }
+            return null;
+
         case IMAGETYPE_PNG:
-            return imagecreatefrompng($file);
+            if (function_exists('imagecreatefrompng')) {
+                return imagecreatefrompng($file);
+            }
+            return null;
+
         case IMAGETYPE_GIF:
-            return imagecreatefromgif($file);
+            if (function_exists('imagecreatefromgif')) {
+                return imagecreatefromgif($file);
+            }
+            return null;
+
         case IMAGETYPE_WBMP:
-            return imagecreatefromwbmp($file);
+            if (function_exists('imagecreatefromwbmp')) {
+                return imagecreatefromwbmp($file);
+            }
+            return null;
+
         case IMAGETYPE_XBM:
-            return imagecreatefromxbm($file);
+            if (function_exists('imagecreatefromxbm')) {
+                return imagecreatefromxbm($file);
+            }
+            return null;
         }
 
-        // The last chance
-        return imagecreatefromxpm($file);
+        // Unsupported format
+        return null;
     } //end func imageCreateFromFile
+
+    //}}}
+    //{{{ imageToFile()
+
+    /**
+     * Wrap the image...() serialization methods
+     *
+     * @param  resource &$image The image to serialize
+     * @param  int       $type  An IMAGETYPE_... constant
+     * @param  string    $file  The file name
+     * @return boolean          true on success, false otherwise
+     * @access public
+     */
+    function imageToFile(&$image, $type, $file)
+    {
+        switch ($type) {
+
+        case IMAGETYPE_JPEG:
+            if (function_exists('imagejpeg')) {
+                return imagejpeg($image, $file);
+            }
+            return false;
+
+        case IMAGETYPE_PNG:
+            if (function_exists('imagepng')) {
+                return imagepng($image, $file);
+            }
+            return false;
+
+        case IMAGETYPE_GIF:
+            if (function_exists('imagegif')) {
+                return imagegif($image, $file);
+            }
+            return false;
+
+        case IMAGETYPE_XBM:
+            if (function_exists('imagexbm')) {
+                return imagexbm($image, $file);
+            }
+            return false;
+
+        case IMAGETYPE_WBMP:
+            if (function_exists('imagewbmp')) {
+                return imagewbmp($image, $file);
+            }
+            return false;
+        }
+
+        // Unsupported format
+        return false;
+    } //end func imageToFile
 
     //}}}
     //{{{ doUploads()

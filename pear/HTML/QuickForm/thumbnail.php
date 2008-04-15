@@ -233,6 +233,7 @@ class HTML_QuickForm_thumbnail extends HTML_QuickForm_picture
         $thumbnail = $this->getThumbnailPath() . $file;
         list($pic_width, $pic_height) = $info;
         list($tmb_width, $tmb_height) = $this->_thumbnail_size;
+        $type = $info[2];
 
         // Check for valid dimensions
         if ($pic_width <= 0 || $pic_height <= 0 ||
@@ -252,7 +253,7 @@ class HTML_QuickForm_thumbnail extends HTML_QuickForm_picture
         }
 
         // Try to acquire the source image
-        $src = $this->imageCreateFromFile($picture, $info[2]);
+        $src = $this->imageCreateFromFile($picture, $type);
         if (!$src) {
             $this->_unload();
             return false;
@@ -266,14 +267,17 @@ class HTML_QuickForm_thumbnail extends HTML_QuickForm_picture
             return false;
         }
 
-        // The real work
+        // The real work: use imageToFile() to retain the same image type
+        // of the original one (who knows...)
         $done =
             imagecopyresampled($dst, $src, 0, 0, 0, 0, $tmb_width, $tmb_height, $pic_width, $pic_height) &&
-            imagejpeg($dst, $thumbnail);
+            $this->imageToFile($dst, $type, $thumbnail);
 
-        // Finalization: I destroy the images for safety reasons
+        // Finalization: destroy the images (hopefully freeing the memory)
         imagedestroy($src);
         imagedestroy($dst);
+
+        // Unload the images on errors
         $done || $this->_unload();
 
         return $done;
