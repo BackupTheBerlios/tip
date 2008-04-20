@@ -109,6 +109,8 @@ class TIP_User extends TIP_Content
             $this->_constructor_error = 'notfound';
         } elseif (crypt($this->_row['password'], $password) != $password) {
             // Invalid password
+            echo "<pre>" . $this->_row['password'] . "\n$password\n";
+            die();
             $this->_constructor_error = 'denied';
         } else {
             $this->_activateUser();
@@ -172,8 +174,7 @@ class TIP_User extends TIP_Content
             return false;
         }
 
-        $expiration = strtotime($this->expiration);
-        setcookie('TIP_User', $this->_row['id'] . ',' . crypt($this->_row['password']), $expiration, '/');
+        $this->_updateCookie();
         $this->_activateUser();
         $this->_refreshUser();
         return true;
@@ -191,8 +192,8 @@ class TIP_User extends TIP_Content
     {
         require_once 'HTTP/Session2.php';
         HTTP_Session2::destroy();
-        setcookie('TIP_User', '', time()-3600, '/');
         $this->_row = null;
+        $this->_updateCookie();
         $this->_activateUser();
         $this->_refreshUser();
         return true;
@@ -276,7 +277,7 @@ class TIP_User extends TIP_Content
      * Perform an add action
      *
      * Overrides the default add action, showing the conditions to accept
-     * before registering a new user.
+     * before registering a new user and performing the autologin.
      *
      * @param  array $options Options to pass to the form() call
      * @return bool           true on success or false on errors
@@ -463,6 +464,34 @@ class TIP_User extends TIP_Content
     }
 
     /**
+     * Update the cookie on password changed
+     *
+     * @param  array &$row     The subject row
+     * @param  array  $old_row The old row
+     * @return bool            true on success, false on errors
+     */
+    public function _onEdit(&$row, $old_row = null)
+    {
+        // Ensure $old_row is properly populated
+        is_array($old_row) || $old_row =& $this->_old_row;
+        if (!is_array($old_row) || !parent::_onEdit($row, $old_row)) {
+            return false;
+        }
+
+        // Update the internal data
+        $this->_row = $row;
+        $this->_old_row = $row;
+
+        // Update the cookie on password change: the expiration is reset
+        if (isset($row['password'], $old_row['password']) &&
+            strcmp($row['password'], $old_row['password']) != 0) {
+            $this->_updateCookie();
+        }
+
+        return true;
+    }
+
+    /**
      * Refresh module privileges
      *
      * Called by _refreshUser() to recursively refresh the privilege of the
@@ -481,6 +510,23 @@ class TIP_User extends TIP_Content
 
     //}}}
     //{{{ Internal methods
+
+    /**
+     * Update the authentication cookie using the $_row internal property
+     */
+    private function _updateCookie()
+    {
+        if (is_array($this->_row)) {
+            // Registered user request
+            $id = $this->_row['id'];
+            $password = crypt($this->_row['password']);
+            $expiration = strtotime($this->expiration);
+            setcookie('TIP_User', $id . ',' . $password, $expiration, '/');
+        } else {
+            // Anonymous request
+            setcookie('TIP_User', '', time()-3600, '/');
+        }
+    }
 
     /**
      * Activate the current user

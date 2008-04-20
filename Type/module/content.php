@@ -983,7 +983,7 @@ class TIP_Content extends TIP_Module
         }
 
         // Use array_key_exists to allow emtpy defaults
-        if (!array_key_exists('on_process', $options)) {
+        if (!@array_key_exists('on_process', $options)) {
             $options['on_process'] = array(&$this, '_onAdd');
         }
         if (!array_key_exists('follower', $options)) {
