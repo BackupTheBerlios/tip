@@ -263,8 +263,8 @@ class TIP_Form extends TIP_Module
         $valid = $this->_validate();
 
         // Perform uploads (if any)
-        if (is_callable(array('HTML_QuickForm_picture', 'doUploads'))) {
-            HTML_QuickForm_picture::doUploads($this->_form);
+        if (is_callable(array('HTML_QuickForm_attachment', 'doUploads'))) {
+            HTML_QuickForm_attachment::doUploads($this->_form);
         }
 
         // Process the form
@@ -726,14 +726,24 @@ class TIP_Form extends TIP_Module
             
         $message = $this->getLocale('rule.' . $type, $context);
         $result = $this->_form->addRule($id, $message, $type, $format, $this->validation);
+        if (PEAR::isError($result)) {
+            TIP::error($result->getMessage());
+        }
     }
 
     private function _addGuessedRules($id)
     {
+        $widget = strtolower(@$this->fields[$id]['widget']);
+        $is_upload = in_array($widget, array('attachment', 'picture', 'thumbnail'));
+
         if (@$this->fields[$id]['category'] == 'required') {
             $this->_addRule($id, 'required');
+            $is_upload && $this->_addRule($id, 'requiredupload');
         }
-        if (is_numeric($this->fields[$id]['default'])) {
+
+        if ($is_upload) {
+            $this->_addRule($id, 'uploaded');
+        } elseif (is_numeric($this->fields[$id]['default'])) {
             $this->_addRule($id, 'numeric');
         }
     }
@@ -773,35 +783,53 @@ class TIP_Form extends TIP_Module
     }
 
     /**
-     * Configure a picture based element
+     * Configure an attachment based element
      *
-     * This code can be shared by every HTML_QuickForm_picture based element.
+     * This code can be shared by every HTML_QuickForm_attachment based element.
      *
-     * @param  string                &$element The element to configure
-     * @param  array                  $range   The allowed range, as returned
-     *                                         by _getPictureRange()
-     * @param  string                 $args    The widget args
-     * @return HTML_QuickForm_element          The configured element
+     * @param  HTML_QuickForm_element &$element The element to configure
+     * @param  string                  $args    The widget args
+     * @return HTML_QuickForm_element           The configured element
      */
-    private function &_configPictureWidget(&$element, $range, $args)
+    private function &_configAttachment(&$element, $args)
     {
-        // Common defaults
+        // Common base path and uri
         $element->setBasePath(TIP::buildDataPath($this->id));
         $element->setBaseUrl(TIP::buildDataUri($this->id));
-
-        // Set the autoresize feature, if requested
-        $element->setAutoresize($args && strpos($args, 'autoresize') !== false);
 
         // Unload the element data, if needed
         $unload_id = 'unload_' . $element->getName();
         if ($this->action == TIP_FORM_ACTION_DELETE && $this->_toProcess() ||
             array_key_exists($unload_id, $_POST)) {
-            $element->setState(QF_PICTURE_TO_UNLOAD);
+            $element->setState(QF_ATTACHMENT_TO_UNLOAD);
         } else {
+            // Add the unload element
             $unload_label = $this->getLocale('label.' . $unload_id);
             $unload_element = $this->_form->createElement('checkbox', $unload_id, $unload_label, $unload_label, array('tabindex' => $this->_tabindex));
             $element->setUnloadElement($unload_element);
         }
+
+        return $element;
+    }
+
+    /**
+     * Configure a picture based element
+     *
+     * This code can be shared by every HTML_QuickForm_picture based element.
+     *
+     * @param  HTML_QuickForm_element &$element The element to configure
+     * @param  array                   $range   The allowed range, as returned
+     *                                          by _getPictureRange()
+     * @param  string                  $args    The widget args
+     * @return HTML_QuickForm_element           The configured element
+     */
+    private function &_configPicture(&$element, $range, $args)
+    {
+        // A picture is an attachment derived element
+        $this->_configAttachment($element, $args);
+
+        // Set the autoresize feature, if requested
+        $element->setAutoresize($args && strpos($args, 'autoresize') !== false);
 
         // Variable substitution in the element comment, if needed
         $comment = $element->getComment();
@@ -859,7 +887,7 @@ class TIP_Form extends TIP_Module
         case TIP_FORM_ACTION_ADD:
         case TIP_FORM_ACTION_EDIT:
             foreach (array_keys($this->fields) as $id) {
-                if ($this->_form->elementExists($id) && @$this->fields[$id]['widget'] != 'upload') {
+                if ($this->_form->elementExists($id)) {
                     $this->_addGuessedRules($id);
                     $this->_addCustomRules($id);
                 }
@@ -1078,12 +1106,19 @@ class TIP_Form extends TIP_Module
         return $element;
     }
 
+    private function &_widgetAttachment(&$field, $args)
+    {
+        HTML_QuickForm::registerElementType('attachment', 'HTML/QuickForm/attachment.php', 'HTML_QuickForm_attachment');
+        $element =& $this->_addElement('attachment', $field['id']);
+        return $this->_configAttachment($element, $args);
+    }
+
     private function &_widgetPicture(&$field, $args)
     {
         HTML_QuickForm::registerElementType('picture', 'HTML/QuickForm/picture.php', 'HTML_QuickForm_picture');
         $element =& $this->_addElement('picture', $field['id']);
         $range = $this->_getPictureRange($field);
-        return $this->_configPictureWidget($element, $range, $args);
+        return $this->_configPicture($element, $range, $args);
     }
 
     private function &_widgetThumbnail(&$field, $args)
@@ -1100,7 +1135,7 @@ class TIP_Form extends TIP_Module
             $element->setThumbnailSize($range[0], $range[1]);
         }
 
-        return $this->_configPictureWidget($element, $range, $args);
+        return $this->_configPicture($element, $range, $args);
     }
 
     private function &_widgetHierarchy(&$field, $args)
