@@ -908,7 +908,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_input
             return false;
         }
 
-        return ($size >= @filesize($value['tmp_name']));
+        $file = $value['tmp_name'];
+        return @file_exists($file) && @filesize($file) <= $size;
     } // end func _ruleCheckMaxFileSize
 
     //}}}
