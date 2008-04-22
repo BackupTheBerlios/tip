@@ -327,7 +327,7 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
      *
      * Returns the current state of this attachment widget.
      *
-     * @return int    A STATE_... constant
+     * @return int    A QF_ATTACHMENT_... constant
      * @access public
      */
     function& getState()
@@ -343,7 +343,7 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
      *
      * Forces the state of this attachment widget to $state.
      *
-     * @param  int    A STATE_... constant
+     * @param  int    A QF_ATTACHMENT_... constant
      * @access public
      */
     function setState($state)
@@ -670,7 +670,7 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
         $name = isset($value['name']) ? $value['name'] : null;
         $tmp_name = isset($value['tmp_name']) ? $value['tmp_name'] : null;
         return empty($name) && empty($tmp_name) ||
-            !empty($name) && !empty($tmp_name) && file_exists($tmp_name);
+            !empty($name) && !empty($tmp_name) && is_uploaded_file($tmp_name);
     } //end func _ruleUploaded
 
     //}}}
