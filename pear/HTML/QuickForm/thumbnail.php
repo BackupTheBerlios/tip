@@ -51,10 +51,7 @@ class HTML_QuickForm_thumbnail extends HTML_QuickForm_picture
     //{{{ setBasePath()
 
     /**
-     * Overriden method
-     *
-     * On empty thumbnail path, it builds a default one by appending
-     * 'thumbnail' to this base path.
+     * Override the default method, providing a default thumbnail path
      *
      * @param  string $path  The base path
      * @access public
@@ -72,10 +69,7 @@ class HTML_QuickForm_thumbnail extends HTML_QuickForm_picture
     //{{{ setBaseUrl()
 
     /**
-     * Overriden method
-     *
-     * On empty thumbnail url, it builds a default one by appending
-     * 'thumbnail' to this base url.
+     * Override the default method, providing a default thumbnail url
      *
      * @param  string $url  The base url
      * @access public
@@ -218,47 +212,52 @@ class HTML_QuickForm_thumbnail extends HTML_QuickForm_picture
     } //end func getFrozenHtml
 
     //}}}
-    //{{{ _upload()
+    //{{{ _realUpload()
 
-    function _upload()
+    /**
+     * Ovverride the default method adding the thumbnail generation
+     *
+     * @param  string    $tmp  The source temporary file
+     * @param  string    $file The destination file name (only the name)
+     * @return bool            true on success, false otherwise
+     * @access protected
+     */
+    function _realUpload($tmp, $file)
     {
         // Ensure the original image is uploaded and get the info array
-        // getPictureInfo() must be called AFTER the _upload() to allow
-        // the autoresizing feature
-        if (!HTML_QuickForm_picture::_upload() ||
-            is_null($info = $this->getPictureInfo())) {
+        // getPictureInfo() must be called AFTER the _realUpload() to catch
+        // the autoresizing operation, if any
+        if (!HTML_QuickForm_picture::_realUpload($tmp, $file)) {
             return false;
         }
 
-        $file = $this->getValue();
+        // Generate the thumbnail
         $picture = $this->getBasePath() . $file;
         $thumbnail = $this->getThumbnailPath() . $file;
         $box = $this->_thumbnail_size;
-
-        if (!$this->_resizeImage($picture, $thumbnail, $box)) {
-            $this->_unload();
-            return false;
-        }
-
-        return true;
-    } // end func _upload
+        return $this->_resizeImage($picture, $thumbnail, $box);
+    } // end func _realUpload
 
     //}}}
-    //{{{ _unload()
+    //{{{ _realUnload()
 
-    function _unload()
+    /**
+     * Override the default method removing also the thumbnail
+     *
+     * @param  string    $file The uploaded file name (only the name)
+     * @return bool            true on success, false otherwise
+     * @access protected
+     */
+    function _realUnload($file)
     {
-        // Must be called before chaining the parent method
-        // because _unload() resets the $_file property
-        $file = $this->getValue();
-
-        if (!HTML_QuickForm_picture::_unload()) {
+        // Chain-up the parent method
+        if (!HTML_QuickForm_picture::_realUnload($file)) {
             return false;
         }
 
-        unlink($this->getThumbnailPath() . $file);
+        @unlink($this->getThumbnailPath() . $file);
         return true;
-    } // end func _unload
+    } // end func _realUnload
 
     //}}}
 } //end class HTML_QuickForm_thumbnail

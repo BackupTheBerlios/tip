@@ -542,7 +542,7 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
     /**
      * Upload the attachment
      *
-     * @return bool      Whether the attachment was uploaded successfully
+     * @return bool    Whether the attachment was uploaded successfully
      * @access private
      */
     function _upload()
@@ -550,8 +550,7 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
         $file = empty($this->_file) ? $this->getTmpFile() : $this->_file;
 
         // File upload
-        if (!$file ||
-            !$this->_realUpload($this->_value['tmp_name'], $this->_base_path . $file)) {
+        if (!$file || !$this->_realUpload($this->_value['tmp_name'], $file)) {
             $this->_reset();
             return false;
         }
@@ -567,14 +566,14 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
     /**
      * The real upload work
      *
-     * @param  string    $from  The temporary file
-     * @param  string    $to    The destination file
-     * @return bool             true on success, false otherwise
+     * @param  string    $tmp  The source temporary file
+     * @param  string    $file The destination file name (only the name)
+     * @return bool            true on success, false otherwise
      * @access protected
      */
-    function _realUpload($from, $to)
+    function _realUpload($tmp, $file)
     {
-        return move_uploaded_file($from, $to);
+        return move_uploaded_file($tmp, $this->_base_path . $file);
     } // end func _realUpload
 
     //}}}
@@ -585,17 +584,33 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
      *
      * This is the reverse operation of _upload().
      *
-     * @return bool      Whether the attachment was unloaded successfully
-     * @access protected
+     * @return bool    Whether the attachment was unloaded successfully
+     * @access private
      */
     function _unload()
     {
-        if (!empty($this->_file)) {
-            unlink($this->_base_path . $this->_file);
+        if (!empty($this->_file) && !$this->_realUnload($this->_file)) {
+            return false;
         }
 
         return $this->_reset();
     } // end func _unload
+
+    //}}}
+    //{{{ _realUnload()
+
+    /**
+     * The real unloading method
+     *
+     * @param  string    $file The uploaded file name (only the name)
+     * @return bool            true on success, false otherwise
+     * @access protected
+     */
+    function _realUnload($file)
+    {
+        @unlink($this->_base_path . $file);
+        return true;
+    } // end func _realUnload
 
     //}}}
     //{{{ _findUploadedValue
