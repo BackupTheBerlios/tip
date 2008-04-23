@@ -128,7 +128,7 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
             $this->_file = $value;
         } elseif (is_array($value)) {
             // Check the validity of $value
-            if ((!isset($value['error']) || $value['error'] == 0) &&
+            if ((!array_key_exists('error', $value) || $value['error'] == 0) &&
                 !empty($value['tmp_name']) && $value['tmp_name'] != 'none' &&
                 is_uploaded_file($value['tmp_name'])) {
                 $this->_state = QF_ATTACHMENT_TO_UPLOAD;
@@ -176,7 +176,7 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
      */
     function getSuffix()
     {
-        if (is_null($this->_suffix) && isset($this->_value['name'])) {
+        if (is_null($this->_suffix) && array_key_exists('name', $this->_value)) {
             // Try to set the suffix to the uploaded file extension
             $ext = strrchr($this->_value['name'], '.');
             if ($ext) {
@@ -630,7 +630,7 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
         }
 
         $name = $this->getName();
-        if (isset($_FILES[$name])) {
+        if (array_key_exists($name, $_FILES)) {
             return $_FILES[$name];
         } elseif (false !== ($pos = strpos($name, '['))) {
             $base  = str_replace(
@@ -667,7 +667,12 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
      */
     function _ruleRequiredUpload($value)
     {
-        return isset($value['name']) && !empty($value['name']);
+        if (is_string($value)) {
+            $file = $value;
+        } elseif (array_key_exists('name', $value)) {
+            $file = $value['name'];
+        }
+        return isset($file);
     } //end func _ruleRequiredUpload
 
     //}}}
@@ -682,8 +687,8 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
      */
     function _ruleUploaded($value)
     {
-        $name = isset($value['name']) ? $value['name'] : null;
-        $tmp_name = isset($value['tmp_name']) ? $value['tmp_name'] : null;
+        $name = array_key_exists('name', $value) ? $value['name'] : null;
+        $tmp_name = array_key_exists('tmp_name', $value) ? $value['tmp_name'] : null;
         return empty($name) && empty($tmp_name) ||
             !empty($name) && !empty($tmp_name) && is_uploaded_file($tmp_name);
     } //end func _ruleUploaded
@@ -701,9 +706,9 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
      */
     function _ruleMaxFileSize($value, $size)
     {
-        if (!isset($value['tmp_name'])) {
-            // How is this possible?
-            return false;
+        if (!array_key_exists('tmp_name', $value)) {
+            // No recent upload done
+            return true;
         }
 
         // Return false ONLY if tmp_name exists and exceeds $size
@@ -723,7 +728,7 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
      */
     function _ruleMimeType($value, $type)
     {
-        if (!@array_key_exists('_qf_element', $value)) {
+        if (!@array_key_exists('tmp_name', $value)) {
             // No recent upload done
             return true;
         }
