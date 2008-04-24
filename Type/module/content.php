@@ -754,8 +754,10 @@ class TIP_Content extends TIP_Module
     /**
      * Return a link to the atom feeder
      *
-     * In $params you can specify a query or leave it empty to use the default
-     * query. The default behaviour is to keep the last three days or
+     * In $params you can specify a query to perform, a date field or leave it
+     * blank to use the default behavior (that is use the $creation_field).
+     *
+     * The default behaviour is to keep the last three days or
      * (for empty result set) the last ten records.
      */
     protected function tagAtom($params)
@@ -775,18 +777,30 @@ class TIP_Content extends TIP_Module
             return $uri;
         }
 
-        empty($params) && $params = $this->data->filter($this->creation_field, array('NOW() - INTERVAL 3 DAY'), '>');
-        if (is_null($view =& $this->startDataView($params, array('fields' => null)))) {
-            return $failed;
-        }
-
-        if ($view->nRows() <= 0) {
-            // Empty result set: get the last 10 rows
-            $this->endView();
-            $params = $this->data->order($this->creation_field, true);
-            $params .= $this->data->limit(10);
+        // To make life easier, $params will be a query if contains a space
+        if (strpos($params, ' ') !== false) {
+            // $params is a query
             if (is_null($view =& $this->startDataView($params, array('fields' => null)))) {
                 return $failed;
+            }
+        } else {
+            // $params is a field or it is empty
+            $date_field = empty($params) ? $this->creation_field : $params;
+
+            // Check for the last 3 days interval
+            $query = $this->data->filter($date_field, array('NOW() - INTERVAL 3 DAY'), '>');
+            if (is_null($view =& $this->startDataView($query, array('fields' => null)))) {
+                return $failed;
+            }
+
+            if ($view->nRows() <= 0) {
+                // Empty result set: get the last 10 rows
+                $this->endView();
+                $query = $this->data->order($date_field, true);
+                $query .= $this->data->limit(10);
+                if (is_null($view =& $this->startDataView($query, array('fields' => null)))) {
+                    return $failed;
+                }
             }
         }
 
