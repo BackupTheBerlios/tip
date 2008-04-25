@@ -777,6 +777,13 @@ class TIP_Content extends TIP_Module
             return $uri;
         }
 
+        // Check for usable cache path
+        $path = $this->engine->buildCachePath($source);
+        $dir = dirname($path);
+        if (!is_dir($dir) && !mkdir($dir, 0777, true)) {
+            return $failed;
+        }
+
         // To make life easier, $params will be a query if contains a space
         if (strpos($params, ' ') !== false) {
             // $params is a query
@@ -810,17 +817,13 @@ class TIP_Content extends TIP_Module
         }
 
         ob_start();
-        $done = $source->run($this) && $this->endView();
-        if (!$done) {
+        if (!$source->run($this) || !$this->endView()) {
             ob_end_clean();
             return $failed;
         }
 
         // Store the cached atom feed
-        $path = $this->engine->buildCachePath($source);
-        $dir = dirname($path);
-        if (!is_dir($dir) && !mkdir($dir, 0777, true) ||
-            !file_put_contents($path, ob_get_clean(), LOCK_EX)) {
+        if (!file_put_contents($path, ob_get_clean(), LOCK_EX)) {
             return $failed;
         }
 
