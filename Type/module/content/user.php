@@ -60,11 +60,11 @@ class TIP_User extends TIP_Content
             return false;
         }
 
-        isset($options['owner_field']) || $options['owner_field'] = 'id';
-        isset($options['statistics']) || $options['statistics'] = array();
-        isset($options['browsable_fields']) || $options['browsable_fields'] = array(
+        TIP::arrayDefault($options, 'owner_field', 'id');
+        TIP::arrayDefault($options, 'statistics', array());
+        TIP::arrayDefault($options, 'browsable_fields', array(
             TIP_PRIVILEGE_ADMIN => array('__ALL__')
-        );
+        ));
 
         return true;
     }
@@ -289,7 +289,7 @@ class TIP_User extends TIP_Content
             return true;
         }
 
-        isset($options['on_process']) || $options['on_process'] = array(&$this, '_onAdd');
+        TIP::arrayDefault($options, 'on_process', array(&$this, '_onAdd'));
 
         $processed = $this->form(TIP_FORM_ACTION_ADD, null, $options);
         if ($processed &&
@@ -313,15 +313,18 @@ class TIP_User extends TIP_Content
      */
     protected function actionLogin($options = array())
     {
-        if (!isset($options['fields'])) {
+        if (!array_key_exists('fields', $options)) {
             $fields =& $this->data->getFields();
-            $options['fields']['user'] =& $fields['user'];
-            $options['fields']['password'] =& $fields['password'];
+            $options['fields'] = array(
+                'user'     => &$fields['user'],
+                'password' => &$fields['password']
+            );
         }
-        isset($options['action_id']) || $options['action_id'] = 'login';
-        isset($options['validator']) || $options['validator'] = array(&$this, '_checkLogin');
-        isset($options['on_process']) || $options['on_process'] = array(&$this, '_onLogin');
-        isset($options['valid_render']) || $options['valid_render'] = TIP_FORM_RENDER_NOTHING;
+
+        TIP::arrayDefault($options, 'action_id', 'login');
+        TIP::arrayDefault($options, 'validator', array(&$this, '_checkLogin'));
+        TIP::arrayDefault($options, 'on_process', array(&$this, '_onLogin'));
+        TIP::arrayDefault($options, 'valid_render', TIP_FORM_RENDER_NOTHING);
 
         return !is_null($this->form(TIP_FORM_ACTION_ADD, null, $options));
     }
@@ -483,7 +486,7 @@ class TIP_User extends TIP_Content
         $this->_old_row = $row;
 
         // Update the cookie on password change: the expiration is reset
-        if (isset($row['password'], $old_row['password']) &&
+        if (array_key_exists('password', $row) && array_key_exists('password', $old_row) &&
             strcmp($row['password'], $old_row['password']) != 0) {
             $this->_updateCookie();
         }

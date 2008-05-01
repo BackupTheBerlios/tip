@@ -152,6 +152,20 @@ class TIP
     }
 
     /**
+     * Convenience function to set a default array value
+     *
+     * @param  array &$array An array
+     * @param  string $key   The item key on $array
+     * @param  mixed  $value The value to use if $array[$key] is not set
+     */
+    static public function arrayDefault(&$array, $key, $value)
+    {
+        if (!is_array($array) || !array_key_exists($key, $array)) {
+            $array[$key] = $value;
+        }
+    }
+
+    /**
      * Get an option
      *
      * Gets a configuration option for a specified type. All the option values

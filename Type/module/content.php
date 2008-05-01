@@ -187,15 +187,15 @@ class TIP_Content extends TIP_Module
             return false;
         }
 
-        isset($options['data']) || $options['data'] = $options['id'];
+        TIP::arrayDefault($options, 'data', $options['id']);
         if (is_string($options['data'])) {
             $options['data'] =& TIP_Type::singleton(array(
                 'type' => array('data'),
                 'path' => $options['data']
             ));
         } elseif (is_array($options['data'])) {
-            isset($options['data']['type']) || $options['data']['type'] = array('data');
-            isset($options['data']['path']) || $options['data']['path'] = $options['id'];
+            TIP::arrayDefault($options['data'], 'type', array('data'));
+            TIP::arrayDefault($options['data'], 'path', $options['id']);
             $options['data'] =& TIP_Type::singleton($options['data']);
         }
 
@@ -294,7 +294,7 @@ class TIP_Content extends TIP_Module
                 $view_id = key($stack);
             } while (isset($view_id) && !$stack[$view_id] instanceof TIP_Data_View);
 
-            if (isset($stack[$view_id]) && !is_null($value = $stack[$view_id]->getField($id))) {
+            if (is_object($stack[$view_id]) && !is_null($value = $stack[$view_id]->getField($id))) {
                 return $value;
             }
         }
@@ -569,7 +569,7 @@ class TIP_Content extends TIP_Module
             // Use the 'rows' property instead of current() to get a real
             // reference to the row stored inside the view
             $rows =& $view->getProperty('rows');
-            isset($rows[$id]) && $row =& $rows[$id];
+            array_key_exists($id, $rows) && $row =& $rows[$id];
         }
 
         if (is_null($row)) {
@@ -602,7 +602,8 @@ class TIP_Content extends TIP_Module
             return false;
         }
 
-        if (isset($row[$this->owner_field]) && $row[$this->owner_field] != TIP::getUserId()) {
+        if (array_key_exists($this->owner_field, $row) &&
+            $row[$this->owner_field] != TIP::getUserId()) {
             TIP::warning("not an owned row ($id)");
             TIP::notifyError('denied');
             return false;
@@ -626,7 +627,8 @@ class TIP_Content extends TIP_Module
             return false;
         }
 
-        if (isset($row[$this->owner_field]) && $row[$this->owner_field] == TIP::getUserId()) {
+        if (array_key_exists($this->owner_field, $row) &&
+            $row[$this->owner_field] == TIP::getUserId()) {
             TIP::warning("owned row ($id)");
             TIP::notifyError('denied');
             return false;
@@ -689,7 +691,7 @@ class TIP_Content extends TIP_Module
         if (array_key_exists('widget_args', $field)) {
             $rules = explode(',', $field['widget_args']);
         } elseif (array_key_exists('wiki_rules', $field)) {
-            // DEPRECATED: use the "wiki_rules" option instead of widget args
+            // DEPRECATED: now use widget args instead of "wiki_rules" option
             $rules = explode(',', $field['wiki_rules']);
         } else {
             $rules = null;
@@ -722,11 +724,21 @@ class TIP_Content extends TIP_Module
             return null;
         }
 
-        $max > 0 || $max = 100;
-        $max_word > 0 || $max_word = 25;
         $fields =& $this->data->getFields();
         $field =& $fields[$field_id];
-        $rules = isset($field['wiki_rules']) ? explode(',', $field['wiki_rules']) : null;
+
+        // Get the wiki rules
+        if (array_key_exists('widget_args', $field)) {
+            $rules = explode(',', $field['widget_args']);
+        } elseif (array_key_exists('wiki_rules', $field)) {
+            // DEPRECATED: now use widget args instead of "wiki_rules" option
+            $rules = explode(',', $field['wiki_rules']);
+        } else {
+            $rules = null;
+        }
+
+        $max > 0 || $max = 100;
+        $max_word > 0 || $max_word = 25;
         $text = TIP_Renderer::getWiki($rules)->transform($value, 'Plain');
 
         // Ellipsize the words too big
@@ -864,12 +876,12 @@ class TIP_Content extends TIP_Module
 
         // Merge with the configuration options
         $options['id'] = $id;
-        isset($GLOBALS['cfg'][$id]) && $options += $GLOBALS['cfg'][$id];
+        array_key_exists($id, $GLOBALS['cfg']) && $options += $GLOBALS['cfg'][$id];
 
         // Set required defaults
-        isset($options['type']) || $options['type'] = array('cronology');
-        isset($options['master']) || $options['master'] =& $this;
-        isset($options['date_field']) || $options['date_field'] = $this->creation_field;
+        TIP::arrayDefault($options, 'type', array('cronology'));
+        TIP::arrayDefault($options, 'master', $this);
+        TIP::arrayDefault($options, 'date_field', $this->creation_field);
 
         return TIP_Type::singleton($options)->toHtml();
     }
@@ -944,7 +956,7 @@ class TIP_Content extends TIP_Module
                         array('pg_offset' => $offset+$quanto)
                     );
                 }
-                $pager = isset($this->keys['PREV']) || isset($this->keys['NEXT']);
+                $pager = $partial || $offset > 0;
             }
 
             // Pager rendering BEFORE the rows
@@ -995,17 +1007,12 @@ class TIP_Content extends TIP_Module
     {
         // Merge the argument options with the configuration options, if found
         // The argument options have higher priority...
-        if (isset($this->form_options['add'])) {
+        if (is_array($this->form_options['add'])) {
             $options = array_merge($this->form_options['add'], (array) $options);
         }
 
-        // Use array_key_exists to allow emtpy defaults
-        if (!@array_key_exists('on_process', $options)) {
-            $options['on_process'] = array(&$this, '_onAdd');
-        }
-        if (!array_key_exists('follower', $options)) {
-            $options['follower'] = TIP::buildActionUri($this->id, 'view', '-lastid-');
-        }
+        TIP::arrayDefault($options, 'on_process', array(&$this, '_onAdd'));
+        TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '-lastid-'));
 
         $processed = $this->form(TIP_FORM_ACTION_ADD, null, $options);
         if (is_null($processed)) {
@@ -1038,14 +1045,14 @@ class TIP_Content extends TIP_Module
      * @param  array|null $options Options to pass to the form() call
      * @return bool                true on success or false on errors
      */
-    protected function actionEdit($id, $options = null)
+    protected function actionEdit($id, $options = array())
     {
-        if (isset($this->form_options['edit'])) {
-            $options = array_merge($this->form_options['edit'], (array) $options);
+        if (is_array($this->form_options['edit'])) {
+            $options = array_merge($this->form_options['edit'], $options);
         }
 
-        isset($options) || $options = array();
-        isset($options['on_process']) || $options['on_process'] = array(&$this, '_onEdit');
+        TIP::arrayDefault($options, 'on_process', array(&$this, '_onEdit'));
+
         return !is_null($this->form(TIP_FORM_ACTION_EDIT, $id, $options));
     }
 
@@ -1064,14 +1071,14 @@ class TIP_Content extends TIP_Module
      * @param  array|null $options Options to pass to the form() call
      * @return bool                true on success or false on errors
      */
-    protected function actionDelete($id, $options = null)
+    protected function actionDelete($id, $options = array())
     {
-        if (isset($this->form_options['delete'])) {
-            $options = array_merge($this->form_options['delete'], (array) $options);
+        if (is_array($this->form_options['delete'])) {
+            $options = array_merge($this->form_options['delete'], $options);
         }
 
-        isset($options) || $options = array();
-        isset($options['on_process']) || $options['on_process'] = array(&$this, '_onDelete');
+        TIP::arrayDefault($options, 'on_process', array(&$this, '_onDelete'));
+
         return !is_null($this->form(TIP_FORM_ACTION_DELETE, $id, $options));
     }
 
