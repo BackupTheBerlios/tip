@@ -176,7 +176,8 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
      */
     function getSuffix()
     {
-        if (is_null($this->_suffix) && array_key_exists('name', $this->_value)) {
+        if (is_null($this->_suffix) && is_array($this->_value) &&
+            array_key_exists('name', $this->_value)) {
             // Try to set the suffix to the uploaded file extension
             $ext = strrchr($this->_value['name'], '.');
             if ($ext) {
@@ -667,7 +668,7 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
      */
     function _ruleRequiredUpload($value)
     {
-        if (is_string($value)) {
+        if (!is_array($value)) {
             $file = $value;
         } elseif (array_key_exists('name', $value)) {
             $file = $value['name'];
@@ -687,6 +688,10 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
      */
     function _ruleUploaded($value)
     {
+        if (!is_array($value)) {
+            return true;
+        }
+
         $name = array_key_exists('name', $value) ? $value['name'] : null;
         $tmp_name = array_key_exists('tmp_name', $value) ? $value['tmp_name'] : null;
         return empty($name) && empty($tmp_name) ||
@@ -706,7 +711,7 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
      */
     function _ruleMaxFileSize($value, $size)
     {
-        if (!array_key_exists('tmp_name', $value)) {
+        if (!is_array($value) || !array_key_exists('tmp_name', $value)) {
             // No recent upload done
             return true;
         }
@@ -728,7 +733,7 @@ class HTML_QuickForm_attachment extends HTML_QuickForm_input
      */
     function _ruleMimeType($value, $type)
     {
-        if (!@array_key_exists('tmp_name', $value)) {
+        if (!is_array($value) || !array_key_exists('tmp_name', $value)) {
             // No recent upload done
             return true;
         }
