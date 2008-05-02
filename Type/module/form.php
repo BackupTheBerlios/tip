@@ -350,7 +350,9 @@ class TIP_Form extends TIP_Module
         $element =& $this->_form->addElement('group', 'buttons', null, $group, ' ', false);
 
         // Rendering
-        $this->_render($render);
+        if (!$this->_render($render)) {
+            return null;
+        }
 
         return $valid;
     }
@@ -613,7 +615,7 @@ class TIP_Form extends TIP_Module
     public function _render($mode)
     {
         if ($mode == TIP_FORM_RENDER_NOTHING) {
-            return;
+            return true;
         }
 
         // Initialize the source instance
@@ -622,7 +624,8 @@ class TIP_Form extends TIP_Module
             'path' => array(TIP_Application::getGlobal('id'), $this->form_source)
         ));
         if (!$source) {
-            return;
+            TIP::error("form template not found ($this->form_source)");
+            return false;
         }
 
         // Some global keys
@@ -640,11 +643,13 @@ class TIP_Form extends TIP_Module
         if ($mode == TIP_FORM_RENDER_IN_PAGE) {
             $content =& TIP_Application::getGlobal('content');
             ob_start();
-            $source->run($this);
+            $done = $source->run($this);
             $content .= ob_get_clean();
         } else {
-            $source->run($this);
+            $done = $source->run($this);
         }
+
+        return $done;
     }
 
     //}}}
