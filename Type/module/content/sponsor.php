@@ -31,10 +31,10 @@ class TIP_Sponsor extends TIP_Content
     //{{{ Properties
 
     /**
-     * The field of the destination url of the sponsor
+     * The field of the destination URI of the sponsor
      * @var string
      */
-    protected $url_field = 'url';
+    protected $uri_field = 'uri';
 
     /**
      * The field of the counter of times the sponsor was showed
@@ -153,7 +153,7 @@ class TIP_Sponsor extends TIP_Content
      * Perform a view action
      *
      * Overrides the default view providing a redirection to the sponsor site,
-     * if the 'url_field' is not empty. If the destination url is not defined,
+     * if the 'uri_field' is not empty. If the destination URI is not defined,
      * performs the default view action.
      *
      * @param  mixed $id The identifier of the row to view
@@ -165,9 +165,9 @@ class TIP_Sponsor extends TIP_Content
             return false;
         }
 
-        if (@array_key_exists($this->url_field, $row) && !empty($row[$this->url_field])) {
-            // The url of the sponsor site is defined: redirect the browser
-            header('Location: ' . $row[$this->url_field]);
+        if (@array_key_exists($this->uri_field, $row) && !empty($row[$this->uri_field])) {
+            // The URI of the sponsor site is defined: redirect the browser
+            header('Location: ' . $row[$this->uri_field]);
             exit;
         }
 
