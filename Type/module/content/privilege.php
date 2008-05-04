@@ -177,6 +177,36 @@ class TIP_Privilege extends TIP_Content
         return null;
     }
 
+    /**
+     * Get the privilege id from a privilege level
+     *
+     * Given a privilege level (1..5), returns the privilege id, that
+     * is a string containing manager|admin|trusted|untrusted|none.
+     */
+    protected function tagPrivilegeId($params)
+    {
+        if (!array_key_exists($params, $this->_privileges)) {
+            TIP::warning("undefined privilege level ($params)");
+            return null;
+        }
+        return $this->_privileges[$params];
+    }
+
+    /**
+     * Get the privilege level from a privilege id
+     *
+     * The reverse operation of tagPrivilegeId().
+     */
+    protected function tagPrivilegeLevel($params)
+    {
+        $level = array_search($params, $this->_privileges);
+        if ($level === false) {
+            TIP::warning("undefined privilege id ($params)");
+            return null;
+        }
+        return $level;
+    }
+
     /**#@-*/
 
     //}}}
