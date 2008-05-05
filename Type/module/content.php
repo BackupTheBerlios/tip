@@ -294,7 +294,7 @@ class TIP_Content extends TIP_Module
                 $view_id = key($stack);
             } while (isset($view_id) && !$stack[$view_id] instanceof TIP_Data_View);
 
-            if (is_object($stack[$view_id]) && !is_null($value = $stack[$view_id]->getField($id))) {
+            if (isset($view_id) && !is_null($value = $stack[$view_id]->getField($id))) {
                 return $value;
             }
         }
