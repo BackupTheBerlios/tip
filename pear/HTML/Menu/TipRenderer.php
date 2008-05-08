@@ -225,8 +225,16 @@ class HTML_Menu_TipRenderer extends HTML_Menu_Renderer
             $content = '<em>' . $content . '</em>';
             $is_deep && !$is_active && $content = '<a href="' . TIP::toHtml($node['url']) . '">' . $content . '</a>';
         } else {
-            // <span> for normal entries
-            $content = '<a href="' . TIP::toHtml($node['url']) . '"><span>' . $content . '</span></a>';
+            // Compute the tooltip, if defined
+            isset($node['ITEMS']) && $content .= ' (' . $node['ITEMS'] . ')';
+            if (array_key_exists('tooltip', $node)) {
+                $tooltip = '" title="' . htmlspecialchars($node['tooltip'], ENT_QUOTES, 'UTF-8');
+            } else {
+                $tooltip = '';
+            }
+
+            // Use <span> for normal entries
+            $content = '<a href="' . TIP::toHtml($node['url']) . $tooltip . '"><span>' . $content . '</span></a>';
         }
 
         $content = "\n$indent  <li>$content";

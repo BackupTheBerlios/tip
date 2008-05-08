@@ -52,10 +52,17 @@ class TIP_Hierarchy extends TIP_Content
     protected $parent_field = 'parent';
 
     /**
-     * The field specifying the title to use (or null to use the 'title' field)
+     * The field specifying the title or null to use the default 'title' field
      * @var string
      */
-    protected $title_field = null;
+    protected $title_field = 'title';
+
+    /**
+     * The field specifying the tooltip to use or null to try to use the
+     * default 'tooltip' field
+     * @var string
+     */
+    protected $tooltip_field = null;
 
     /**
      * The field that forces a specified order
@@ -146,7 +153,16 @@ class TIP_Hierarchy extends TIP_Content
         foreach (array_keys($rows) as $id) {
             $row =& $rows[$id];
             isset($row['CLASS']) || $row['CLASS'] = 'item';
+
+            // Use the custom title_field or
+            // leave the default $row['title'] untouched
             isset($this->title_field) && $row['title'] = $row[$this->title_field];
+
+            // Try to set the custom tooltip field
+            if (isset($this->tooltip_field) && array_key_exists($this->tooltip_field, $row)) {
+                $row['tooltip'] = $row[$this->tooltip_field];
+            }
+
             if (!isset($row['url'])) {
                 $action = @$row['action'];
                 $action || $action = $this->action;
