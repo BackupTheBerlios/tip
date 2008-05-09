@@ -28,6 +28,11 @@
 define('TIP_PREFIX',              'TIP_');
 
 /**
+ * The TiP branch version, to be used to roughly identify the TiP used
+ */
+define('TIP_VERSION_BRANCH',      '0.2');
+
+/**
  * The name of the main module
  *
  * The name of the global variable holding the reference to the main module.
