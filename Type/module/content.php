@@ -193,7 +193,7 @@ class TIP_Content extends TIP_Module
                 'type' => array('data'),
                 'path' => $options['data']
             ));
-        } elseif (is_array($options['data'])) {
+        } elseif (@is_array($options['data'])) {
             TIP::arrayDefault($options['data'], 'type', array('data'));
             TIP::arrayDefault($options['data'], 'path', $options['id']);
             $options['data'] =& TIP_Type::singleton($options['data']);
@@ -1007,7 +1007,7 @@ class TIP_Content extends TIP_Module
     {
         // Merge the argument options with the configuration options, if found
         // The argument options have higher priority...
-        if (is_array($this->form_options['add'])) {
+        if (@is_array($this->form_options['add'])) {
             $options = array_merge($this->form_options['add'], (array) $options);
         }
 
@@ -1047,7 +1047,7 @@ class TIP_Content extends TIP_Module
      */
     protected function actionEdit($id, $options = array())
     {
-        if (is_array($this->form_options['edit'])) {
+        if (@is_array($this->form_options['edit'])) {
             $options = array_merge($this->form_options['edit'], $options);
         }
 
@@ -1073,7 +1073,7 @@ class TIP_Content extends TIP_Module
      */
     protected function actionDelete($id, $options = array())
     {
-        if (is_array($this->form_options['delete'])) {
+        if (@is_array($this->form_options['delete'])) {
             $options = array_merge($this->form_options['delete'], $options);
         }
 
