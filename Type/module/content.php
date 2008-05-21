@@ -697,7 +697,8 @@ class TIP_Content extends TIP_Module
             $rules = null;
         }
 
-        $renderer =& TIP_Renderer::getWiki($rules);
+        $wiki_base = TIP::buildActionUri($this->id, 'view');
+        $renderer =& TIP_Renderer::getWiki($rules, null, $wiki_base);
         $renderer->setRenderConf('Xhtml', 'Image', 'base', TIP::buildDataUri($this->id) . '/');
 
         $result = $renderer->transform($value);
