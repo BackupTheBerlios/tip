@@ -82,9 +82,38 @@ class SQLdefaultConverter extends Converter
         return '_' . ($is_page ? $element->getName() : $element->parent->getName());
     }
 
-    function getCData($value)
+    function getCData($string)
     {
-        return '<pre>' . htmlentities($value) . '</pre>';
+        return "<code>\n" . htmlentities($string, ENT_QUOTES, 'UTF-8') . "\n</code>";
+    }
+
+
+    function ProgramExample($string, $tutorial = false, $inlinesourceparse = null, $class = null, $linenum = null, $filesourcepath = null)
+    {
+        if ($inlinesourceparse) {
+            return '{{' . $string . '}}';
+        }
+        return "<code>\n" . $string . "\n</code>";
+    }
+
+    function EncloseList($string, $ordered)
+    {
+        return $string . "\n";
+    }
+
+    function ListItem($string)
+    {
+        return '* ' . $string . "\n";
+    }
+
+    function PreserveWhiteSpace($string)
+    {
+        return $this->getCData($string);
+    }
+
+    function EncloseParagraph($string)
+    {
+        return $string . "\n\n";
     }
 
     /**
@@ -142,10 +171,62 @@ class SQLdefaultConverter extends Converter
         return $name;
     }
 
-    function getDoc(&$element)
+    function renderElement(&$element)
     {
-        $docblock = $this->prepareDocBlock($element, null, false);
-        return mysql_escape_string($docblock['desc']);
+        if (is_null($name = $this->getName($element))) {
+            return '';
+        }
+
+        $doc = $element->docblock;
+
+        switch ($element->type) {
+        case 'class':
+            $file = $element->sourceLocation;
+            $extends = $element->extends;
+            $text = "\n";
+            empty($file) || $text .= "\n: Source file : {{{$file}}}";
+            empty($extends) || $text .= "\n: Extends : (($extends))";
+            break;
+        case 'var':
+            $type = @$doc->var->returnType;
+            $text = "\n\n+++ " . $name;
+            empty($type) || $text .= '{{ : ' . $type . '}}';
+            break;
+        case 'method':
+            $type = @$doc->return->returnType;
+            $params = array();
+            foreach($element->listParams() as $param) {
+                if ($param[1] !== false) {
+                    $params[] = "[$param[0] = $param[1]]";
+                } else {
+                    $params[] = $param[0];
+                }
+            }
+            $params = implode(', ', $params);
+
+            $text = "\n\n+++ $name {{($params)";
+            if (isset($type)) {
+                $text .= ' : ';
+                if ($element->getReturnsReference()) {
+                    $text .= '&';
+                }
+                $text .= $type;
+            }
+            $text .= '}}';
+            break;
+        default:
+            print_r($element);die();
+        }
+
+        if (isset($doc)) {
+            $sdesc = $doc->getSDesc($this);
+            $desc = $doc->getDesc($this);
+
+            empty($sdesc) || $text .= "\n\n//" . $sdesc . '//';
+            empty($desc) || $text .= "\n\n" . $desc;
+        }
+
+        return mysql_escape_string($text) . "\n\n";
     }
 
     function renderClass(&$element, $parent = null)
@@ -154,15 +235,14 @@ class SQLdefaultConverter extends Converter
             return;
         }
 
-        $content = "[[toc]]\n\n++ Introduction\n\n" . $this->getDoc($element);
+        $content = "[[toc]]\n\n++ Introduction\n\n";
+        $content .= $this->renderElement($element);
 
         $items = $element->getVars($this);
         if (is_array($items)) {
             $content .= "\n\n++ Properties";
             foreach ($items as &$var) {
-                if (!is_null($name = $this->getName($var))) {
-                    $content .= "\n\n+++ $name\n\n" . $this->getDoc($var);
-                }
+                $content .= $this->renderElement($var);
             }
         }
 
@@ -170,9 +250,7 @@ class SQLdefaultConverter extends Converter
         if (is_array($items)) {
             $content .= "\n\n++ Methods";
             foreach ($items as &$method) {
-                if (!is_null($name = $this->getName($method))) {
-                    $content .= "\n\n+++ $name\n\n" . $this->getDoc($method);
-                }
+                $content .= $this->renderElement($method);
             }
         }
 
