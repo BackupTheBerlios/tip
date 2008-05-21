@@ -58,9 +58,10 @@ class TIP_Renderer
      *
      * @param  array|null  $rules     The array of rules to enable
      * @param  string|null $toc_title TOC title or null to use a default value
+     * @param  string|null $wiki_base Base URI for wiki links
      * @return Text_Wiki              The renderer
      */
-    static public function &getWiki($rules = null, $toc_title = null)
+    static public function &getWiki($rules = null, $toc_title = null, $wiki_base = '')
     {
         static $renderer = null;
         static $all_rules = array(
@@ -93,6 +94,11 @@ class TIP_Renderer
                 'div_id'   => 'idToc',
                 'use_ul'   => true,
                 'collapse' => false
+            ));
+            $renderer->setRenderConf('Xhtml', 'freelink', array(
+                'pages'        => null,
+                'view_url'     => $wiki_base,
+                'new_text_pos' => null
             ));
         }
 
