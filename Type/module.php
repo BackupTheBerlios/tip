@@ -738,7 +738,7 @@ abstract class TIP_Module extends TIP_Type
     protected function tagIconUri()
     {
         $pieces = func_get_args();
-        return $this->tagSourceUri('shared', 'icons', $pieces);
+        return TIP::buildUri(TIP_Application::getGlobal('icon_root'), $pieces);
     }
 
     /**

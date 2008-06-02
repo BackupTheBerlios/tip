@@ -121,6 +121,12 @@ class TIP_Application extends TIP_Module
     protected $data_root = array('data');
 
     /**
+     * The icon root path
+     * @var string
+     */
+    protected $icon_root = array('style', 'icons');
+
+    /**
      * The shared modules interface
      *
      * The associative array of shared modules, organized by "job".
