@@ -90,7 +90,7 @@ class TIP_Renderer
                 'target'   => ''
             ));
             $renderer->setRenderConf('Xhtml', 'toc', array(
-                'title'    => '<h2>' . $toc_title . '</h2>',
+                'title'    => '<p><strong>' . $toc_title . '</strong></p>',
                 'div_id'   => 'idToc',
                 'use_ul'   => true,
                 'collapse' => false
