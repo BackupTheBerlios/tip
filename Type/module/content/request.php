@@ -15,7 +15,7 @@
  * @copyright Copyright &copy; 2006-2008 Nicola Fontana
  * @license   http://www.opensource.org/licenses/bsd-license.php New BSD License
  * @package   TIP
- * @since     0.0.1
+ * @since     0.2.5
  */
 
 /**
