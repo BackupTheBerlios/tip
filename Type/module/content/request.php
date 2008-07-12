@@ -48,10 +48,10 @@ class TIP_Request extends TIP_Content
     protected $subject_text = 'Info request from website';
 
     /**
-     * The message field to use as body of the email notification
+     * The message template to use as body of the email notification
      * @var string
      */
-    protected $message_field = 'message';
+    protected $message_source = 'body.tip';
 
     //}}}
     //{{{ Constructor/destructor
@@ -67,6 +67,35 @@ class TIP_Request extends TIP_Content
     {
         parent::__construct($options);
     }
+
+    //}}}
+    //{{{ Methods
+
+    /**
+     * Get a field value
+     *
+     * Gets a field from the current row of the current view.
+     *
+     * @param  string     $id The field id
+     * @return mixed|null     The field value or null on errors
+     */
+    public function getField($id)
+    {
+        if (array_key_exists($id, $this->_current_row)) {
+            return $this->_current_row[$id];
+        }
+        return parent::getField($id);
+    }
+
+    //}}}
+    //{{{ Internal properties
+
+    /**
+     * The current row in use, to be checked by getField()
+     * @var array
+     * @internal
+     */
+    private $_current_row = null;
 
     //}}}
     //{{{ Callbacks
@@ -95,7 +124,21 @@ class TIP_Request extends TIP_Content
         $headers .= 'MIME-Version: 1.0' . $eol;
         $headers .= 'Content-Type: text/plain; charset=ISO-8859-1';
 
-        $message  = wordwrap(utf8_decode($row[$this->message_field]), 66);
+        // Assign current_row, so getField() checks for values in this row
+        $this->_current_row =& $row;
+
+        ob_start();
+        if ($this->tryRun($this->message_source)) {
+            $message = ob_get_clean();
+        } elseif (array_key_exists($this->message_source, $row)) {
+            ob_end_clean();
+            $message = $row[$this->message_source];
+        } else {
+            ob_end_clean();
+            $message = 'Undefined message';
+        }
+
+        $message = wordwrap(utf8_decode($message), 66);
 
         if (!mail($this->notify_to, $this->subject_text, $message, $headers)) {
             TIP::warning("Unable to send an email message to $this->notify_to");
