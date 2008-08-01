@@ -43,7 +43,7 @@ class TIP_User extends TIP_Content
      * The file to run to view the registration conditions
      * @var string
      */
-    protected $conditions_source = 'conditions.src';
+    protected $conditions_source = 'conditions.tip';
 
     /**
      * The default expiration for the cookie
