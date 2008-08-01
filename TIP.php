@@ -45,7 +45,6 @@ set_include_path(TIP::buildLogicPath('pear'));
 require_once 'PEAR.php';
 require_once 'HTTP.php';
 require_once TIP::buildLogicPath('Type.php');
-require_once TIP::buildLogicPath('Callback.php');
 
 /**
  * A collection of global functions
