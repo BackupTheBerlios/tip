@@ -38,7 +38,7 @@
  * require_once './logic/TIP.php';
  *
  * TIP_Type::getInstance('main');
- * $GLOBALS[TIP_MAIN]->go('index.src');
+ * $GLOBALS[TIP_MAIN]->go('index.tip');
  * ?>
  * </code>
  *
@@ -158,37 +158,37 @@ class TIP_Application extends TIP_Module
      * The template to run to generate the <head>
      * @var string
      */
-    protected $head_source = 'head.src';
+    protected $head_source = 'head.tip';
 
     /**
      * The template to run to generate the <body>
      * @var string
      */
-    protected $body_source = 'body.src';
+    protected $body_source = 'body.tip';
 
     /**
      * The template to run to generate the default page content
      * @var string
      */
-    protected $default_source = 'default.src';
+    protected $default_source = 'default.tip';
 
     /**
      * The file to run to notify errors
      * @var string
      */
-    protected $error_source = 'error.src';
+    protected $error_source = 'error.tip';
 
     /**
      * The file to run to notify warnings
      * @var string
      */
-    protected $warning_source = 'warning.src';
+    protected $warning_source = 'warning.tip';
 
     /**
      * The file to run to notify informations
      * @var string
      */
-    protected $info_source = 'info.src';
+    protected $info_source = 'info.tip';
 
     /**
      * The page content
