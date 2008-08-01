@@ -272,7 +272,7 @@ class TIP_Privilege extends TIP_Content
             }
         }
 
-        $this->appendToPage('edit.src');
+        $this->appendToPage('edit.tip');
         return $done;
     }
 
@@ -287,12 +287,12 @@ class TIP_Privilege extends TIP_Content
 
             if (!$this->data->deleteRows($this->filterOwnedBy($user))) {
                 TIP::notifyError('delete');
-                $this->appendToPage('edit.src');
+                $this->appendToPage('edit.tip');
                 return false;
             }
 
             TIP::notifyInfo('done');
-            $this->appendToPage('edit.src');
+            $this->appendToPage('edit.tip');
             return true;
 
         }
@@ -317,7 +317,7 @@ class TIP_Privilege extends TIP_Content
         case 'edit':
             return
                 !is_null($user = $this->_getUser()) &&
-                $this->appendToPage('edit.src');
+                $this->appendToPage('edit.tip');
 
         case 'change':
             return
