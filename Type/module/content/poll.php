@@ -32,7 +32,7 @@ class TIP_Poll extends TIP_Content
      * The source to run to confirm the vote
      * @var string
      */
-    protected $vote_source = 'vote.src';
+    protected $vote_source = 'vote.tip';
 
     /**
      * The expiration time for the vote

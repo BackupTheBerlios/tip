@@ -41,13 +41,13 @@ class TIP_Content extends TIP_Module
      * The file to run on view actions
      * @var string
      */
-    protected $view_source = 'view.src';
+    protected $view_source = 'view.tip';
 
     /**
      * The file to run on browse actions
      * @var string
      */
-    protected $browse_source = 'browse.src';
+    protected $browse_source = 'browse.tip';
 
     /**
      * The file to run at the beginning of a 'pager' tag
@@ -56,13 +56,13 @@ class TIP_Content extends TIP_Module
      *
      * @var string
      */
-    protected $pager_pre_source = 'pager_before.src';
+    protected $pager_pre_source = 'pager_before.tip';
 
     /**
      * The file to run for every row on the 'pager' tag
      * @var string
      */
-    protected $pager_source = 'row.src';
+    protected $pager_source = 'row.tip';
 
     /**
      * The file to run on empty result set
@@ -71,7 +71,7 @@ class TIP_Content extends TIP_Module
      *
      * @var string
      */
-    protected $pager_empty_source = 'pager_empty.src';
+    protected $pager_empty_source = 'pager_empty.tip';
 
     /**
      * The file to run at the end of a 'pager' tag
@@ -80,7 +80,7 @@ class TIP_Content extends TIP_Module
      *
      * @var string
      */
-    protected $pager_post_source = 'pager_after.src';
+    protected $pager_post_source = 'pager_after.tip';
 
     /**
      * The file to run to generate the atom feed
