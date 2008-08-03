@@ -469,6 +469,12 @@ class TIP_RcbtNG extends TIP_Template_Engine
 {
     //{{{ Constructor/destructor
 
+    static protected function checkOptions(&$options)
+    {
+        isset($options['extension']) || $options['extension'] = '.rcbt';
+        return parent::checkOptions($options);
+    }
+
     /**
      * Constructor
      *
