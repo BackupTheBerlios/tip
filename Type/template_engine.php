@@ -2,7 +2,7 @@
 /* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
- * TIP_Source_Engine definition file
+ * TIP_Template_Engine definition file
  *
  * LICENSE: This source file is subject to the New BSD license that is 
  * available through the world-wide-web at the following URI:
@@ -25,7 +25,7 @@
  *
  * @package  TIP
  */
-abstract class TIP_Source_Engine extends TIP_Type
+abstract class TIP_Template_Engine extends TIP_Type
 {
     //{{{ Properties
 
@@ -82,18 +82,18 @@ abstract class TIP_Source_Engine extends TIP_Type
 
     /**
      * Parse and execute a template buffer
-     * @param  TIP_Source &$template The template instance
-     * @param  TIP_Module &$caller The caller module
-     * @return bool|string         true on success,
-     *                             false if the result must be cached or
-     *                             a message string on errors
+     * @param  TIP_Template &$template The template instance
+     * @param  TIP_Module   &$caller   The caller module
+     * @return bool|string             true on success,
+     *                                 false if the result must be cached or
+     *                                 a message string on errors
      */
     abstract public function runBuffer(&$template, &$caller);
 
     /**
      * Compile a template buffer
-     * @param  TIP_Source &$template The template instance
-     * @return string|null         The compiled code or null if not possible
+     * @param  TIP_Template &$template The template instance
+     * @return string|null             The compiled code or null on errors
      */
     abstract public function compileBuffer(&$template);
 
@@ -105,9 +105,9 @@ abstract class TIP_Source_Engine extends TIP_Type
      *
      * Parses and executes a template.
      *
-     * @param  TIP_Source &$template The template to run
-     * @param  TIP_Module &$caller The caller module
-     * @return bool                true on success or false on errors
+     * @param  TIP_Template &$template The template to run
+     * @param  TIP_Module   &$caller   The caller module
+     * @return bool                    true on success or false on errors
      */
     public function run(&$template, &$caller)
     {
@@ -172,8 +172,8 @@ abstract class TIP_Source_Engine extends TIP_Type
 
     /**
      * Get the path to the cache file without checking for file existence
-     * @param  TIP_Source  &$template The template to build
-     * @return string|null          Path to the cache file or null on problems
+     * @param  TIP_Template &$template The template to build
+     * @return string|null             Path to the cache or null on errors
      */
     public function buildCachePath(&$template)
     {
@@ -182,8 +182,8 @@ abstract class TIP_Source_Engine extends TIP_Type
 
     /**
      * Get the path to the cache file, if it exists
-     * @param  TIP_Source  &$template The template to check
-     * @return string|null          Path to the cache file or null on problems
+     * @param  TIP_Template &$template The template to check
+     * @return string|null             Path to the cache or null on errors
      */
     public function getCachePath(&$template)
     {
@@ -193,8 +193,8 @@ abstract class TIP_Source_Engine extends TIP_Type
 
     /**
      * Get the relative URI of the cached file, if it exists
-     * @param  TIP_Source  &$template The template to check
-     * @return string|null          URI to the cache file or null on problems
+     * @param  TIP_Template &$template The template to check
+     * @return string|null             URI to the cache or null on errors
      */
     public function getCacheUri(&$template)
     {
