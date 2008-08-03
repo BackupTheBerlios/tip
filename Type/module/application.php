@@ -314,6 +314,30 @@ class TIP_Application extends TIP_Module
     }
 
     /**
+     * Get a shared template
+     *
+     * Shared templates reside in the application directory and do not
+     * depend on any particular module.
+     *
+     * @param  string            $name The template name
+     * @return TIP_Template|null       The requested template or
+     *                                 null if not found
+     */
+    static public function &getSharedTemplate($name)
+    {
+        $main =& $GLOBALS[TIP_MAIN];
+
+        // Initialize the template instance
+        $template =& TIP_Type::singleton(array(
+            'type'   => array('template'),
+            'engine' => &$main->engine,
+            'path'   => array($main->id, $name)
+        ));
+
+        return $template;
+    }
+
+    /**
      * Generic message notification
      *
      * Outputs a generic notification message running the specified template
