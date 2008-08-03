@@ -524,7 +524,11 @@ class TIP_Content extends TIP_Module
      */
     public function fromGetOrPost($id = null, $type = 'integer')
     {
-        isset($id) || $id = $this->data->getProperty('primary_key');
+        if (is_null($id)) {
+            $id = 'id';
+            $type = $this->id_type;
+        }
+
         if (is_null($value = TIP::getGet($id, $type)) &&
             is_null($value = TIP::getPost($id, $type))) {
             TIP::warning("GET or POST not found ($id)");
@@ -1136,7 +1140,7 @@ class TIP_Content extends TIP_Module
 
         case 'edit':
             return
-                !is_null($id = $this->fromGetOrPost(null, $this->id_type)) &&
+                !is_null($id = $this->fromGetOrPost()) &&
                 $this->actionEdit($id);
         }
 
@@ -1162,7 +1166,7 @@ class TIP_Content extends TIP_Module
 
         case 'edit':
             return
-                !is_null($id = $this->fromGetOrPost(null, $this->id_type)) &&
+                !is_null($id = $this->fromGetOrPost()) &&
                 $this->isOwner($id) &&
                 $this->actionEdit($id);
 
@@ -1193,7 +1197,7 @@ class TIP_Content extends TIP_Module
 
         case 'view':
             return
-                !is_null($id = $this->fromGetOrPost(null, $this->id_type)) &&
+                !is_null($id = $this->fromGetOrPost()) &&
                 $this->actionView($id);
 
         case 'browse':
