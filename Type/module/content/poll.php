@@ -29,10 +29,10 @@ class TIP_Poll extends TIP_Content
     //{{{ Properties
 
     /**
-     * The source to run to confirm the vote
+     * The template to run to confirm the vote
      * @var string
      */
-    protected $vote_source = 'vote.tip';
+    protected $vote_template = 'vote.tip';
 
     /**
      * The expiration time for the vote
@@ -73,7 +73,7 @@ class TIP_Poll extends TIP_Content
     /**
      * Perform a vote action
      *
-     * Runs the 'vote_source' source to get a confirmation on the vote and
+     * Runs the 'vote_template' template to get a confirmation on the vote and
      * adds the vote if confirmed.
      *
      * @param  int  $id     The poll id
@@ -112,10 +112,10 @@ class TIP_Poll extends TIP_Content
             $this->data->updateRow($row, $old_row);
             HTTP_Session2::set($this->id . '.voting', false);
             HTTP_Session2::set($this->id . '.expiration', strtotime($this->expiration));
-            $this->appendToPage($this->view_source);
+            $this->appendToPage($this->view_template);
         } else {
             HTTP_Session2::set($this->id . '.voting', true);
-            $this->appendToPage($this->vote_source);
+            $this->appendToPage($this->vote_template);
         }
 
         $this->endView();
