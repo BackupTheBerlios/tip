@@ -28,14 +28,14 @@ abstract class TIP_Module extends TIP_Type
     //{{{ Properties
 
     /**
-     * The source (or template) engine: required only for TIP_Application
+     * The template engine: required for TIP_Application instances
      *
-     * Contains a reference to the source engine to use when parsing a file.
-     * See the TIP_Source class for details on what is a source engine.
+     * Contains a reference to the template engine to use when parsing a file.
+     * See the TIP_Template class for details on what is a template engine.
      * If not configured, it defaults to the one of the main module
      * (that obviously MUST be configured).
      *
-     * @var TIP_Source_Engine
+     * @var TIP_Template_Engine
      */
     protected $engine = null;
 
@@ -93,13 +93,13 @@ abstract class TIP_Module extends TIP_Type
 
         if (is_string($options['engine'])) {
             $options['engine'] =& TIP_Type::singleton(array(
-                'type' => array('source_engine', $options['engine'])
+                'type' => array('template_engine', $options['engine'])
             ));
         } elseif (is_array($options['engine'])) {
             $options['engine'] =& TIP_Type::singleton($options['engine']);
         }
 
-        if (!$options['engine'] instanceof TIP_Source_Engine) {
+        if (!$options['engine'] instanceof TIP_Template_Engine) {
             return false;
         }
 
@@ -251,7 +251,7 @@ abstract class TIP_Module extends TIP_Type
     /**
      * Get the value of a pair throught a "request" interface
      *
-     * This method is usually used by the source engine interface methods
+     * This method is usually used by the template engine interface methods
      * (the tag... functions) to access any pair information available
      * in the TIP system.
      *
@@ -336,7 +336,7 @@ abstract class TIP_Module extends TIP_Type
     }
 
     /**
-     * Try to execute a source file
+     * Try to execute a template file
      *
      * Parses and executes the specified file. Similar to run(),
      * but it does not raise any warning/error if $path is not found.
@@ -347,12 +347,12 @@ abstract class TIP_Module extends TIP_Type
     public function tryRun($path)
     {
         is_string($path) && $path = array($this->id, $path);
-        $source =& TIP_Type::singleton(array('type' => array('source'), 'path' => $path));
-        return $source && $source->run($this);
+        $template =& TIP_Type::singleton(array('type' => array('template'), 'path' => $path));
+        return $template && $template->run($this);
     }
 
     /**
-     * Execute a source file
+     * Execute a template file
      *
      * Parses and executes the specified file. If $path is a string,
      * the module id is prepended to the real path.
@@ -372,9 +372,9 @@ abstract class TIP_Module extends TIP_Type
     }
 
     /**
-     * Prepend a source file to the page
+     * Prepend a template file to the page
      *
-     * Runs the $path source using the current source engine and puts
+     * Runs the $path template using the current template engine and puts
      * the result at the beginning of the page.
      *
      * @param  array|string $path The file path to run
@@ -388,9 +388,9 @@ abstract class TIP_Module extends TIP_Type
     }
 
     /**
-     * Append a source file to the page
+     * Append a template file to the page
      *
-     * Runs the $path source using the current source engine and puts
+     * Runs the $path template using the current template engine and puts
      * the result at the end of the page.
      *
      * @param  array|string $path The file path to run
@@ -411,9 +411,9 @@ abstract class TIP_Module extends TIP_Type
      * formed method. If you, for instance, runs getTag('Test', ''), a
      * tagTest('') call will be performed.
      *
-     * A tag is a request from the source engine to echoes something. It can
+     * A tag is a request from the template engine to echoes something. It can
      * be tought as the dinamic primitive of the TIP system: every dinamic tag
-     * parsed by the source engine runs a tag.
+     * parsed by the template engine runs a tag.
      *
      * The tags - as everything else - are inherited from the module parents,
      * so every TIP_Module tags are available to the TIP_Module children.
@@ -522,7 +522,7 @@ abstract class TIP_Module extends TIP_Type
     /**#@+
      * @param      string       $params Parameters of the tag
      * @return     string|null          The string result or null
-     * @subpackage SourceEngine
+     * @subpackage TemplateEngine
      */
 
     /**
@@ -690,15 +690,15 @@ abstract class TIP_Module extends TIP_Type
     }
 
     /**
-     * Build a relative URI: $params must be referred to the source root
+     * Build a relative URI: $params must be referred to the template root
      *
      * If the URI does not point to a readable file, the fallback URI is used.
      */
-    protected function tagSourceUri()
+    protected function tagTemplateUri()
     {
         $pieces = func_get_args();
-        return file_exists(TIP::buildSourcePath($pieces)) ? 
-            TIP::buildSourceUri($pieces) : TIP::buildFallbackUri($pieces);
+        return file_exists(TIP::buildTemplatePath($pieces)) ? 
+            TIP::buildTemplateUri($pieces) : TIP::buildFallbackUri($pieces);
     }
 
     /**
@@ -717,19 +717,19 @@ abstract class TIP_Module extends TIP_Type
     {
         static $base = null;
         if (is_null($base)) {
-            $base = array_merge($this->engine->getProperty('cache_root'), TIP_Application::getGlobal('source_root'));
+            $base = array_merge($this->engine->getProperty('cache_root'), TIP_Application::getGlobal('template_root'));
         }
         $pieces = func_get_args();
         return TIP::buildUri($base, $this->id, $pieces);
     }
 
     /**
-     * Build a relative URI: $params must be referred to the module source root
+     * Build a relative URI: $params must be referred to the module template root
      */
     protected function tagModuleUri()
     {
         $pieces = func_get_args();
-        return $this->tagSourceUri($this->id, $pieces);
+        return $this->tagTemplateUri($this->id, $pieces);
     }
 
     /**
@@ -764,10 +764,10 @@ abstract class TIP_Module extends TIP_Type
     }
 
     /**
-     * Execute a source
+     * Execute a template
      *
-     * Executes the source file $params found in the current module source path,
-     * using the current source engine.
+     * Executes the template file $params found in the current module
+     * template path, using the current template engine.
      */
     protected function tagRun($params)
     {
