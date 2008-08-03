@@ -44,7 +44,7 @@ class TIP_Form extends TIP_Module
      * The file to run on form rendering
      * @var string
      */
-    protected $form_source = 'form.tip';
+    protected $form_template = 'form.tip';
 
     /**
      * The type of action this form must perform
@@ -447,7 +447,7 @@ class TIP_Form extends TIP_Module
     /**#@+
      * @param      string       $params Parameters of the tag
      * @return     string|null          The string result or null
-     * @subpackage SourceEngine
+     * @subpackage TemplateEngine
      */
 
     protected function tagHidden($params)
@@ -618,13 +618,13 @@ class TIP_Form extends TIP_Module
             return true;
         }
 
-        // Initialize the source instance
-        $source =& TIP_Type::singleton(array(
-            'type' => array('source'),
-            'path' => array(TIP_Application::getGlobal('id'), $this->form_source)
+        // Initialize the template instance
+        $template =& TIP_Type::singleton(array(
+            'type' => array('template'),
+            'path' => array(TIP_Application::getGlobal('id'), $this->form_template)
         ));
-        if (!$source) {
-            TIP::error("form template not found ($this->form_source)");
+        if (!$template) {
+            TIP::error("form template not found ($this->form_template)");
             return false;
         }
 
@@ -643,10 +643,10 @@ class TIP_Form extends TIP_Module
         if ($mode == TIP_FORM_RENDER_IN_PAGE) {
             $content =& TIP_Application::getGlobal('content');
             ob_start();
-            $done = $source->run($this);
+            $done = $template->run($this);
             $content .= ob_get_clean();
         } else {
-            $done = $source->run($this);
+            $done = $template->run($this);
         }
 
         return $done;
