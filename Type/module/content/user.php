@@ -43,7 +43,7 @@ class TIP_User extends TIP_Content
      * The template to run to view the registration conditions
      * @var string
      */
-    protected $conditions_template = 'conditions.tip';
+    protected $conditions_template = 'conditions';
 
     /**
      * The default expiration for the cookie
