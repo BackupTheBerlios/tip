@@ -618,12 +618,8 @@ class TIP_Form extends TIP_Module
             return true;
         }
 
-        // Initialize the template instance
-        $template =& TIP_Type::singleton(array(
-            'type' => array('template'),
-            'path' => array(TIP_Application::getGlobal('id'), $this->form_template)
-        ));
-        if (!$template) {
+        $template =& TIP_Application::getSharedTemplate($this->form_template);
+        if (is_null($template)) {
             TIP::error("form template not found ($this->form_template)");
             return false;
         }
