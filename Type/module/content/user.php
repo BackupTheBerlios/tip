@@ -40,10 +40,10 @@ class TIP_User extends TIP_Content
     //{{{ Properties
 
     /**
-     * The file to run to view the registration conditions
+     * The template to run to view the registration conditions
      * @var string
      */
-    protected $conditions_source = 'conditions.tip';
+    protected $conditions_template = 'conditions.tip';
 
     /**
      * The default expiration for the cookie
@@ -285,7 +285,7 @@ class TIP_User extends TIP_Content
     protected function actionAdd($options = array())
     {
         if (TIP::getGet('accept', 'int') == 1) {
-            $this->appendToPage($this->conditions_source);
+            $this->appendToPage($this->conditions_template);
             return true;
         }
 
