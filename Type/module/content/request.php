@@ -51,7 +51,7 @@ class TIP_Request extends TIP_Content
      * The message template to use as body of the email notification
      * @var string
      */
-    protected $message_source = 'body.tip';
+    protected $message_template = 'body.tip';
 
     //}}}
     //{{{ Constructor/destructor
@@ -128,11 +128,11 @@ class TIP_Request extends TIP_Content
         $this->_current_row =& $row;
 
         ob_start();
-        if ($this->tryRun($this->message_source)) {
+        if ($this->tryRun($this->message_template)) {
             $message = ob_get_clean();
-        } elseif (array_key_exists($this->message_source, $row)) {
+        } elseif (array_key_exists($this->message_template, $row)) {
             ob_end_clean();
-            $message = $row[$this->message_source];
+            $message = $row[$this->message_template];
         } else {
             ob_end_clean();
             $message = 'Undefined message';
