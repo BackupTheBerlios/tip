@@ -51,7 +51,7 @@ class TIP_Request extends TIP_Content
      * The message template to use as body of the email notification
      * @var string
      */
-    protected $message_template = 'body.tip';
+    protected $message_template = 'body';
 
     //}}}
     //{{{ Constructor/destructor
