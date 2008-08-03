@@ -160,7 +160,7 @@ abstract class TIP_Module extends TIP_Type
         switch ($this->privilege) {
 
         case TIP_PRIVILEGE_MANAGER:
-            $this->keys['IS_MANAGER']    = true;
+            $this->keys['IS_MANAGER']   = true;
 
         case TIP_PRIVILEGE_ADMIN:
             $this->keys['IS_ADMIN']     = true;
