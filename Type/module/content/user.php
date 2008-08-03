@@ -109,11 +109,7 @@ class TIP_User extends TIP_Content
             $this->_constructor_error = 'notfound';
         } elseif (crypt($this->_row['password'], $password) != $password) {
             // Invalid password
-            echo "<pre>" . $this->_row['password'] . "\n$password\n";
-            die();
             $this->_constructor_error = 'denied';
-        } else {
-            $this->_activateUser();
         }
     }
 
@@ -125,11 +121,14 @@ class TIP_User extends TIP_Content
      */
     protected function postConstructor()
     {
-        parent::postConstructor();
         if (isset($this->_constructor_error)) {
             TIP::notifyError($this->_constructor_error);
             $this->_constructor_error = null;
+            $this->_row = null;
+        } elseif (is_array($this->_row)) {
+            $this->_activateUser();
         }
+        parent::postConstructor();
     }
 
     /**
