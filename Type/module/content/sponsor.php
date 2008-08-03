@@ -171,7 +171,7 @@ class TIP_Sponsor extends TIP_Content
             exit;
         }
 
-        $this->appendToPage($this->view_source);
+        $this->appendToPage($this->view_template);
         $this->endView();
         return true;
     }
