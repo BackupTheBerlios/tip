@@ -191,6 +191,41 @@ abstract class TIP_Template_Engine extends TIP_Type
     }
 
     /**
+     * Get the path nodes to a template file
+     *
+     * Check for the template file identified by path in the 'template_root'
+     * directory. If the template does not exist, try to get it from
+     * 'fallback_root'. The "extension" property, if defined by the template
+     * engine, is used to build the file name.
+     *
+     * Return the path as an array of nodes (directory and file names), so
+     * it can be easily used to build both paths and URIs.
+     *
+     * @param  array|string &$path The path nodes to analyze
+     * @return array|null          New path or null on errors
+     */
+    public function getTemplatePath(&$path)
+    {
+        is_string($path) && $path = explode(DIRECTORY_SEPARATOR, $path);
+        $ext = isset($this->extension) ? $this->extension : '';
+
+        // Search in the template_root directory
+        $new_path = array_merge($this->template_root, $path);
+        if (is_readable(implode(DIRECTORY_SEPARATOR, $new_path) . $ext)) {
+            return $new_path;
+        }
+
+        // Search in the fallback_root directory
+        $new_path = array_merge($this->fallback_root, $path);
+        if (is_readable(implode(DIRECTORY_SEPARATOR, $new_path) . $ext)) {
+            return $new_path;
+        }
+
+        // Template file not found
+        return null;
+    }
+
+    /**
      * Get the path to the cache file without checking for file existence
      * @param  TIP_Template &$template The template to build
      * @return string|null             Path to the cache or null on errors

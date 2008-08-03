@@ -60,21 +60,13 @@ class TIP_Template extends TIP_Type
             return false;
         }
 
-        $engine =& $options['engine'];
         $path =& $options['path'];
+        $engine =& $options['engine'];
 
-        if (is_readable($file = TIP::buildTemplatePath($path))) {
-            // Found the template in the default path
-            $path = array_merge($engine->getProperty('template_root'), $path);
-        } elseif (is_readable($file = TIP::buildFallbackPath($path))) {
-            // Found the template in the fallback path
-            $path = array_merge($engine->getProperty('fallback_root'), $path);
-        } else {
-            // Template not found
+        if (is_null($path = $engine->getTemplatePath($path)))
             return false;
-        }
 
-        $options['id'] = $file;
+        $options['id'] = implode(DIRECTORY_SEPARATOR, $path);
         return parent::checkOptions($options);
     }
 
@@ -103,7 +95,7 @@ class TIP_Template extends TIP_Type
      */
     public function run(&$caller)
     {
-        return $caller->engine->run($this, $caller);
+        return $this->engine->run($this, $caller);
     }
 
     //}}}
