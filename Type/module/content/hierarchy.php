@@ -316,7 +316,7 @@ class TIP_Hierarchy extends TIP_Content
     /**#@+
      * @param      string       $params Parameters of the tag
      * @return     string|null          The string result or null
-     * @subpackage SourceEngine
+     * @subpackage TemplateEngine
      */
 
     /**
