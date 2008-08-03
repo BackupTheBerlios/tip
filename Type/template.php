@@ -2,7 +2,7 @@
 /* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
- * TIP_Source definition file
+ * TIP_Template definition file
  *
  * LICENSE: This source file is subject to the New BSD license that is 
  * available through the world-wide-web at the following URI:
@@ -19,16 +19,16 @@
  */
 
 /**
- * A generic source template
+ * A generic template instance
  *
- * @package  TIP
+ * @package TIP
  */
-class TIP_Source extends TIP_Type
+class TIP_Template extends TIP_Type
 {
     //{{{ Properties
 
     /**
-     * The path to the source file
+     * The path to the template file
      * @var array
      */
     protected $path = null;
@@ -40,7 +40,7 @@ class TIP_Source extends TIP_Type
      * Check the options
      *
      * Builds an unique 'id' from the 'path' option (required).
-     * It also checks for the source existence.
+     * It also checks for the template existence.
      *
      * @param  array &$options Properties values
      * @return bool            true on success or false on error
@@ -52,14 +52,14 @@ class TIP_Source extends TIP_Type
         }
 
         $path =& $options['path'];
-        if (is_readable($file = TIP::buildSourcePath($path))) {
-            // Found the source in the default path
-            $path = array_merge(TIP_Application::getGlobal('source_root'), $path);
+        if (is_readable($file = TIP::buildTemplatePath($path))) {
+            // Found the template in the default path
+            $path = array_merge(TIP_Application::getGlobal('template_root'), $path);
         } elseif (is_readable($file = TIP::buildFallbackPath($path))) {
-            // Found the source in the fallback path
+            // Found the template in the fallback path
             $path = array_merge(TIP_Application::getGlobal('fallback_root'), $path);
         } else {
-            // Source not found
+            // Template not found
             return false;
         }
 
@@ -83,9 +83,9 @@ class TIP_Source extends TIP_Type
     //{{{ Methods
 
     /**
-     * Execute the source file
+     * Execute the template file
      *
-     * Parses and executes this source.
+     * Parses and executes this template.
      *
      * @param  TIP_Module &$caller The caller module
      * @return bool                true on success or false on errors
@@ -99,14 +99,14 @@ class TIP_Source extends TIP_Type
     //{{{ Internal properties
 
     /**
-     * The content of the source file
+     * The content of the template file
      * @var string
      * @internal
      */
     public $_buffer = null;
 
     /**
-     * A custom property to be used by the source engine
+     * A custom property to be used by the template engine
      * @var mixed
      * @internal
      */
