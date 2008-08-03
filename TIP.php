@@ -708,24 +708,24 @@ class TIP
     }
 
     /**
-     * Build a source path
+     * Build a template path
      *
-     * Shortcut for building a path prepending the application 'source_root'.
+     * Shortcut for building a path prepending the application 'template_root'.
      *
      * @param  string|array $subpath,... A list of partial paths
      * @return string                    The constructed path
      */
-    static public function buildSourcePath()
+    static public function buildTemplatePath()
     {
-        static $source_path = null;
-        if (is_null($source_path)) {
-            $source_path = TIP::buildPath(TIP_Application::getGlobal('source_root'));
+        static $template_path = null;
+        if (is_null($template_path)) {
+            $template_path = TIP::buildPath(TIP_Application::getGlobal('template_root'));
         }
-        return TIP::deepImplode(array($source_path, func_get_args()), DIRECTORY_SEPARATOR);
+        return TIP::deepImplode(array($template_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
 
     /**
-     * Build a source fallback path
+     * Build a template fallback path
      *
      * Shortcut for building a path prepending the application 'fallback_root'.
      *
@@ -839,21 +839,21 @@ class TIP
     }
 
     /**
-     * Build a source (relative) URI
+     * Build a template (relative) URI
      * @param  string|array $suburi,... A list of partial URIs
      * @return string                   The constructed URI
      */
-    static public function buildSourceUri()
+    static public function buildTemplateUri()
     {
         static $uri = null;
         if (is_null($uri)) {
-            $uri = TIP::buildUri(TIP_Application::getGlobal('source_root'));
+            $uri = TIP::buildUri(TIP_Application::getGlobal('template_root'));
         }
         return TIP::deepImplode(array($uri, func_get_args()), '/');
     }
 
     /**
-     * Build a source fallback (relative) URI
+     * Build a template fallback (relative) URI
      * @param  string|array $suburi,... A list of partial URIs
      * @return string                   The constructed URI
      */
