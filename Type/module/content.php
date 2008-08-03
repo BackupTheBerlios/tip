@@ -22,8 +22,8 @@
  * The root of data based modules
  *
  * This class mainly adds a data management infrastructure to TIP_Module,
- * allowing for a full interaction between TIP_Source and TIP_Data throught the
- * use of TIP_Data_View instances.
+ * allowing for a full interaction between TIP_Template and TIP_Data
+ * throught the use of TIP_Data_View instances.
  *
  * @package  TIP
  */
@@ -41,13 +41,13 @@ class TIP_Content extends TIP_Module
      * The file to run on view actions
      * @var string
      */
-    protected $view_source = 'view.tip';
+    protected $view_template = 'view.tip';
 
     /**
      * The file to run on browse actions
      * @var string
      */
-    protected $browse_source = 'browse.tip';
+    protected $browse_template = 'browse.tip';
 
     /**
      * The file to run at the beginning of a 'pager' tag
@@ -56,13 +56,13 @@ class TIP_Content extends TIP_Module
      *
      * @var string
      */
-    protected $pager_pre_source = 'pager_before.tip';
+    protected $pager_pre_template = 'pager_before.tip';
 
     /**
      * The file to run for every row on the 'pager' tag
      * @var string
      */
-    protected $pager_source = 'row.tip';
+    protected $pager_template = 'row.tip';
 
     /**
      * The file to run on empty result set
@@ -71,7 +71,7 @@ class TIP_Content extends TIP_Module
      *
      * @var string
      */
-    protected $pager_empty_source = 'pager_empty.tip';
+    protected $pager_empty_template = 'pager_empty.tip';
 
     /**
      * The file to run at the end of a 'pager' tag
@@ -80,13 +80,13 @@ class TIP_Content extends TIP_Module
      *
      * @var string
      */
-    protected $pager_post_source = 'pager_after.tip';
+    protected $pager_post_template = 'pager_after.tip';
 
     /**
      * The file to run to generate the atom feed
      * @var string
      */
-    protected $atom_source = 'atom.xml';
+    protected $atom_template = 'atom.xml';
 
     /**
      * The field containing the creation datetime
@@ -653,7 +653,7 @@ class TIP_Content extends TIP_Module
     /**#@+
      * @param      string       $params Parameters of the tag
      * @return     string|null          The string result or null
-     * @subpackage SourceEngine
+     * @subpackage TemplateEngine
      */
 
     /**
@@ -777,21 +777,21 @@ class TIP_Content extends TIP_Module
     {
         $failed = TIP_Application::getGlobal('fatal_uri');
 
-        $source =& TIP_Type::singleton(array(
-            'type' => array('source'),
-            'path' => array($this->id, $this->atom_source)
+        $template =& TIP_Type::singleton(array(
+            'type' => array('template'),
+            'path' => array($this->id, $this->atom_template)
         ));
-        if (!$source) {
+        if (!$template) {
             return $failed;
         }
 
         // Check for cache presence
-        if (!is_null($uri = $this->engine->getCacheUri($source))) {
+        if (!is_null($uri = $this->engine->getCacheUri($template))) {
             return $uri;
         }
 
         // Check for usable cache path
-        $path = $this->engine->buildCachePath($source);
+        $path = $this->engine->buildCachePath($template);
         $dir = dirname($path);
         if (!is_dir($dir) && !mkdir($dir, 0777, true)) {
             return $failed;
@@ -830,7 +830,7 @@ class TIP_Content extends TIP_Module
         }
 
         ob_start();
-        if (!$source->run($this) || !$this->endView()) {
+        if (!$template->run($this) || !$this->endView()) {
             ob_end_clean();
             return $failed;
         }
@@ -840,7 +840,7 @@ class TIP_Content extends TIP_Module
             return $failed;
         }
 
-        return $this->engine->getCacheUri($source);
+        return $this->engine->getCacheUri($template);
     }
 
     /**
@@ -961,23 +961,23 @@ class TIP_Content extends TIP_Module
             }
 
             // Pager rendering BEFORE the rows
-            $pager && $this->tryRun(array($main_id, $this->pager_pre_source));
+            $pager && $this->tryRun(array($main_id, $this->pager_pre_template));
 
             // Rows rendering
             $empty = true;
-            $path = array($this->id, $this->pager_source);
+            $path = array($this->id, $this->pager_template);
             foreach ($view as $row) {
                 $this->run($path);
                 $empty = false;
             }
 
             // Empty result set
-            $empty && $this->tryRun(array($main_id, $this->pager_empty_source));
+            $empty && $this->tryRun(array($main_id, $this->pager_empty_template));
 
             // Pager rendering AFTER the rows
-            $pager && $this->tryRun(array($main_id, $this->pager_post_source));
+            $pager && $this->tryRun(array($main_id, $this->pager_post_template));
         } else {
-            $this->tryRun(array($main_id, $this->pager_empty_source));
+            $this->tryRun(array($main_id, $this->pager_empty_template));
         }
 
         $this->endView();
@@ -1086,7 +1086,7 @@ class TIP_Content extends TIP_Module
     /**
      * Perform a view action
      *
-     * Runs the file identified by the 'view_source' property for the
+     * Runs the file identified by the 'view_template' property for the
      * specified row. The rendered result is appended to the page.
      *
      * @param  mixed $id The identifier of the row to view
@@ -1094,8 +1094,8 @@ class TIP_Content extends TIP_Module
      */
     protected function actionView($id)
     {
-        // If no view source defined, simply does nothing (without errors)
-        if (empty($this->view_source)) {
+        // If no view template defined, simply does nothing (without errors)
+        if (empty($this->view_template)) {
             return true;
         }
 
@@ -1103,7 +1103,7 @@ class TIP_Content extends TIP_Module
             return false;
         }
 
-        $this->appendToPage($this->view_source);
+        $this->appendToPage($this->view_template);
         $this->endView();
         return true;
     }
@@ -1120,13 +1120,13 @@ class TIP_Content extends TIP_Module
      */
     protected function actionBrowse(&$conditions)
     {
-        // If no browse source defined, simply does nothing (without errors)
-        if (empty($this->browse_source)) {
+        // If no browse template defined, simply does nothing (without errors)
+        if (empty($this->browse_template)) {
             return true;
         }
 
         $this->_browse_conditions =& $conditions;
-        $this->appendToPage($this->browse_source);
+        $this->appendToPage($this->browse_template);
         return true;
     }
 
@@ -1397,11 +1397,11 @@ class TIP_Content extends TIP_Module
         }
 
         // Remove the feed, if it exists
-        if (!is_null($source =& TIP_Type::singleton(array(
-               'type' => array('source'),
-               'path' => array($this->id, $this->atom_source)
+        if (!is_null($template =& TIP_Type::singleton(array(
+               'type' => array('template'),
+               'path' => array($this->id, $this->atom_template)
            ))) &&
-           !is_null($path = $this->engine->getCachePath($source)) &&
+           !is_null($path = $this->engine->getCachePath($template)) &&
            file_exists($path)) {
            unlink($path);
         }
