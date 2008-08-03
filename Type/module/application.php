@@ -24,8 +24,8 @@
  * This module manages the generation of the "page" (the most dynamic part of
  * a TIP site). This is done by using the "content" property as a text buffer.
  *
- * When the tagPage() is called, usually throught a tag in the main source
- * file, the TIP_Application module will call the callbacks stored in the queue
+ * When the tagPage() is called, usually throught a tag in the main template,
+ * the TIP_Application module will call the callbacks stored in the queue
  * in sequential order. The page is the output of these callbacks.
  *
  * After a TIP_Application instantiation, the global variable $GLOBALS[TIP_MAIN]
@@ -103,13 +103,13 @@ class TIP_Application extends TIP_Module
     protected $data_engine = null;
 
     /**
-     * The source root path
+     * The template root path
      * @var string
      */
-    protected $source_root = array('style');
+    protected $template_root = array('style');
 
     /**
-     * The source fallback path
+     * The template fallback path
      * @var string
      */
     protected $fallback_root = array('style');
@@ -158,37 +158,37 @@ class TIP_Application extends TIP_Module
      * The template to run to generate the <head>
      * @var string
      */
-    protected $head_source = 'head.tip';
+    protected $head_template = 'head.tip';
 
     /**
      * The template to run to generate the <body>
      * @var string
      */
-    protected $body_source = 'body.tip';
+    protected $body_template = 'body.tip';
 
     /**
      * The template to run to generate the default page content
      * @var string
      */
-    protected $default_source = 'default.tip';
+    protected $default_template = 'default.tip';
 
     /**
      * The file to run to notify errors
      * @var string
      */
-    protected $error_source = 'error.tip';
+    protected $error_template = 'error.tip';
 
     /**
      * The file to run to notify warnings
      * @var string
      */
-    protected $warning_source = 'warning.tip';
+    protected $warning_template = 'warning.tip';
 
     /**
      * The file to run to notify informations
      * @var string
      */
-    protected $info_source = 'info.tip';
+    protected $info_template = 'info.tip';
 
     /**
      * The page content
@@ -328,8 +328,8 @@ class TIP_Application extends TIP_Module
     /**
      * Generic message notification
      *
-     * Outputs a generic notification message running the specified source
-     * program with the current source engine. The output will be inserted
+     * Outputs a generic notification message running the specified template
+     * program with the current template engine. The output will be inserted
      * at the beginning of the page content.
      *
      * @param  TIP_SEVERITY_... $severity Severity level
@@ -373,11 +373,11 @@ class TIP_Application extends TIP_Module
         isset($message) || ($message = 'Undefined message') && TIP::warning("localized id not found ($message_id)");
 
         $main =& $GLOBALS[TIP_MAIN];
-        $source = $main->{$severity . '_source'};
+        $template = $main->{$severity . '_template'};
 
         $main->keys['NOTIFY_HEADER'] = $header;
         $main->keys['NOTIFY_MESSAGE'] = $message;
-        empty($source) || $main->content = $main->tagRun($source) . $main->content;
+        empty($template) || $main->content = $main->tagRun($template) . $main->content;
         unset($main->keys['NOTIFY_HEADER'], $main->keys['NOTIFY_MESSAGE']);
 
         $running = false;
@@ -423,10 +423,10 @@ class TIP_Application extends TIP_Module
 
         // Generates the page: body must be called before the head because
         // some head tags can be modified by body templates
-        $body = $this->tagRun($this->body_source);
+        $body = $this->tagRun($this->body_template);
 
         echo $this->incipit;
-        $this->run($this->head_source);
+        $this->run($this->head_template);
         echo $body . $this->explicit;
 
         $this->_session_started && HTTP_Session2::pause();
@@ -476,7 +476,7 @@ class TIP_Application extends TIP_Module
     /**#@+
      * @param      string       $params Parameters of the tag
      * @return     string|null          The string result or null on errors
-     * @subpackage SourceEngine
+     * @subpackage TemplateEngine
      */
 
     /**
@@ -484,7 +484,7 @@ class TIP_Application extends TIP_Module
      */
     protected function tagPage($params)
     {
-        return empty($this->content) ? $this->tagRun($this->default_source) : $this->content;
+        return empty($this->content) ? $this->tagRun($this->default_template) : $this->content;
     }
 
     /**
