@@ -521,7 +521,7 @@ class TIP_User extends TIP_Content
     {
         if (is_array($this->_row)) {
             // Registered user request
-            $id = $this->_row['id'];
+            $id = $this->_row[$this->data->getProperty('primary_key')];
             $password = crypt($this->_row['password']);
             $expiration = strtotime($this->expiration);
             setcookie('TIP_User', $id . ',' . $password, $expiration, '/');
@@ -543,7 +543,7 @@ class TIP_User extends TIP_Content
     private function _activateUser()
     {
         $this->_old_row = $this->_row;
-        $this->keys['CID'] = @$this->_row['id'];
+        $this->keys['CID'] = @$this->_row[$this->data->getProperty('primary_key')];
     }
 
     /**
