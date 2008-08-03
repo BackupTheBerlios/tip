@@ -38,7 +38,7 @@
  * require_once './logic/TIP.php';
  *
  * TIP_Type::getInstance('main');
- * $GLOBALS[TIP_MAIN]->go('index');
+ * $GLOBALS[TIP_MAIN]->go();
  * ?>
  * </code>
  *
