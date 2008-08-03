@@ -19,13 +19,13 @@
  */
 
 /**
- * Recursive Curly Brace Tags source engine (next generation) implementation
+ * Recursive Curly Brace Tags (Next Generation) template engine
  *
- * The TIP_RcbtNG implementation, to be registered
- * for every TIP_Source instance.
+ * The TIP_RcbtNG implementation, to be used instead of the deprecated
+ * TIP_Rcbt engine.
  *
  * @package    TIP
- * @subpackage SourceEngine
+ * @subpackage TemplateEngine
  */
 class TIP_RcbtNG_Instance
 {
@@ -80,7 +80,7 @@ class TIP_RcbtNG_Instance
      * @param      string   $module The module to use
      * @param      string   $params Tag parameters
      * @return     bool             true on success or false on errors
-     * @subpackage SourceEngine
+     * @subpackage TemplateEngine
      */
 
     protected function tag($module, $params)
@@ -373,7 +373,7 @@ class TIP_RcbtNG_Instance
         if (count($tag['name']) == 1 && is_string($tag['name'][0])) {
             $name = $tag['name'][0];
             if (method_exists($this, 'tag' . $name)) {
-                // Call a predefined tag (a tag defined in this source engine)
+                // Call a predefined tag (a tag defined in this template engine)
                 return $inline || !$this->{'tag' . $name}($module, $params) ? null : "''";
             } else {
                 $name = $this->_quote($name);
@@ -458,14 +458,14 @@ class TIP_RcbtNG_Instance
 
 
 /**
- * Recursive Curly Brace Tags source engine (next generation)
+ * Recursive Curly Brace Tags template engine (next generation)
  *
- * Simple implementation of TIP_SourceEngine.
+ * Simple implementation of TIP_Template_Engine.
  *
  * @package    TIP
- * @subpackage SourceEngine
+ * @subpackage TemplateEngine
  */
-class TIP_RcbtNG extends TIP_Source_Engine
+class TIP_RcbtNG extends TIP_Template_Engine
 {
     //{{{ Constructor/destructor
 
@@ -482,23 +482,23 @@ class TIP_RcbtNG extends TIP_Source_Engine
     }
 
     //}}}
-    //{{{ TIP_Source_Engine implementation
+    //{{{ TIP_Template_Engine implementation
  
-    public function compileBuffer(&$source)
+    public function compileBuffer(&$template)
     {
-        isset($source->_instance) || $source->_instance =& new TIP_RcbtNG_Instance($source->_buffer);
-        return $source->_instance->compile();
+        isset($template->_instance) || $template->_instance =& new TIP_RcbtNG_Instance($template->_buffer);
+        return $template->_instance->compile();
     }
 
-    public function runBuffer(&$source, &$caller)
+    public function runBuffer(&$template, &$caller)
     {
-        isset($source->_instance) || $source->_instance =& new TIP_RcbtNG_Instance($source->_buffer);
+        isset($template->_instance) || $template->_instance =& new TIP_RcbtNG_Instance($template->_buffer);
 
-        if (!$source->_instance->run($caller)) {
-            return $source->_instance->error;
+        if (!$template->_instance->run($caller)) {
+            return $template->_instance->error;
         }
 
-        return !$source->_instance->cache;
+        return !$template->_instance->cache;
     }
 
     //}}}
