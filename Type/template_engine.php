@@ -30,6 +30,12 @@ abstract class TIP_Template_Engine extends TIP_Type
     //{{{ Properties
 
     /**
+     * The extension to append to the template files
+     * @var string
+     */
+    protected $extension = null;
+
+    /**
      * The cache root
      * @var array
      */
@@ -130,9 +136,11 @@ abstract class TIP_Template_Engine extends TIP_Type
         }
  
         // No cache or compiled file found: parse and run this template
-        isset($template->_buffer) || $template->_buffer = file_get_contents($template->__toString());
+        $file = $template->__toString();
+        isset($this->extension) && $file .= $this->extension;
+        isset($template->_buffer) || $template->_buffer = file_get_contents($file);
         if ($template->_buffer === false) {
-            TIP::error("unable to read file ($template)");
+            TIP::error("unable to read file ($file)");
             return false;
         }
 
