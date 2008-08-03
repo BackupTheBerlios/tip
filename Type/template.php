@@ -103,7 +103,7 @@ class TIP_Template extends TIP_Type
      */
     public function run(&$caller)
     {
-        return $caller->getProperty('engine')->run($this, $caller);
+        return $caller->engine->run($this, $caller);
     }
 
     //}}}
