@@ -347,7 +347,11 @@ abstract class TIP_Module extends TIP_Type
     public function tryRun($path)
     {
         is_string($path) && $path = array($this->id, $path);
-        $template =& TIP_Type::singleton(array('type' => array('template'), 'path' => $path));
+        $template =& TIP_Type::singleton(array(
+            'type'   => array('template'),
+            'path'   => $path,
+            'engine' => &$this->engine
+        ));
         return $template && $template->run($this);
     }
 

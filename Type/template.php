@@ -28,6 +28,12 @@ class TIP_Template extends TIP_Type
     //{{{ Properties
 
     /**
+     * The template engine to be used with this template file
+     * @var TIP_Template_Engine
+     */
+    protected $engine = null;
+
+    /**
      * The path to the template file
      * @var array
      */
@@ -47,7 +53,8 @@ class TIP_Template extends TIP_Type
      */
     static protected function checkOptions(&$options)
     {
-        if (!isset($options['path'])) {
+        if (!isset($options['path'], $options['engine']) ||
+            !$options['engine'] instanceof TIP_Template_Engine) {
             return false;
         }
 
