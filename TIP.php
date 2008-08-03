@@ -720,7 +720,7 @@ class TIP
         static $template_path = null;
         if (is_null($template_path)) {
             $engine =& TIP_Application::getGlobal('engine');
-            $template_path = TIP::buildPath($engine->getGlobal('template_root'));
+            $template_path = TIP::buildPath($engine->getProperty('template_root'));
         }
         return TIP::deepImplode(array($template_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
@@ -738,7 +738,7 @@ class TIP
         static $fallback_path = null;
         if (is_null($fallback_path)) {
             $engine =& TIP_Application::getGlobal('engine');
-            $fallback_path = TIP::buildPath($engine->getGlobal('fallback_root'));
+            $fallback_path = TIP::buildPath($engine->getProperty('fallback_root'));
         }
         return TIP::deepImplode(array($fallback_path, func_get_args()), DIRECTORY_SEPARATOR);
     }
@@ -850,7 +850,7 @@ class TIP
         static $uri = null;
         if (is_null($uri)) {
             $engine =& TIP_Application::getGlobal('engine');
-            $uri = TIP::buildUri($engine->getGlobal('template_root'));
+            $uri = TIP::buildUri($engine->getProperty('template_root'));
         }
         return TIP::deepImplode(array($uri, func_get_args()), '/');
     }
@@ -865,7 +865,7 @@ class TIP
         static $uri = null;
         if (is_null($uri)) {
             $engine =& TIP_Application::getGlobal('engine');
-            $uri = TIP::buildUri($engine->getGlobal('fallback_root'));
+            $uri = TIP::buildUri($engine->getProperty('fallback_root'));
         }
         return TIP::deepImplode(array($uri, func_get_args()), '/');
     }
