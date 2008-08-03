@@ -46,7 +46,9 @@ class TIP_Template extends TIP_Type
      * Check the options
      *
      * Builds an unique 'id' from the 'path' option (required).
-     * It also checks for the template existence.
+     * It also checks for the template engine definition and
+     * builds the template path, by checking its existence inside
+     * "template_root" directory before and in "fallback_root" after.
      *
      * @param  array &$options Properties values
      * @return bool            true on success or false on error
