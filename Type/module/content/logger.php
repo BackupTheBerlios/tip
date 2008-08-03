@@ -94,7 +94,7 @@ class TIP_Logger extends TIP_Content
             'origin' => '',
             'tag' => '',
             'action' => '',
-            'source' => '',
+            'template' => '',
             'data' => ''
         );
         foreach ($bt as $n => $trace) {
@@ -129,13 +129,13 @@ class TIP_Logger extends TIP_Content
             }
 
             $class = isset($trace['class']) ? strtolower($trace['class']) : '';
-            if ($class == 'tip_source') {
-                if (!array_key_exists('source', $code)) {
+            if ($class == 'tip_template') {
+                if (!array_key_exists('template', $code)) {
                     $last =& $bt[$n-1];
                     if (is_object($last['args'][0])) {
-                        $source =& $last['args'][0];
+                        $template =& $last['args'][0];
                         $method =  $last['function'];
-                        $code['source'] = "$source on method $method";
+                        $code['template'] = "$template on method $method";
                     }
                 }
                 continue;
@@ -187,7 +187,7 @@ class TIP_Logger extends TIP_Content
     public function dumpLogs()
     {
         if (!empty($this->_cache)) {
-            $this->run($this->browse_source);
+            $this->run($this->browse_template);
         }
     }
 
