@@ -87,7 +87,7 @@ class TIP_Comments extends TIP_Content
     /**#@+
      * @param      string       $params Parameters of the tag
      * @return     string|null          The string result or null
-     * @subpackage SourceEngine
+     * @subpackage TemplateEngine
      */
 
     /**
