@@ -32,7 +32,7 @@ class TIP_Poll extends TIP_Content
      * The template to run to confirm the vote
      * @var string
      */
-    protected $vote_template = 'vote.tip';
+    protected $vote_template = 'vote';
 
     /**
      * The expiration time for the vote
