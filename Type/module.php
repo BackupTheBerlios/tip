@@ -717,7 +717,7 @@ abstract class TIP_Module extends TIP_Type
     {
         static $base = null;
         if (is_null($base)) {
-            $base = array_merge($this->engine->getProperty('cache_root'), TIP_Application::getGlobal('template_root'));
+            $base = array_merge($this->engine->getProperty('cache_root'), $this->engine->getProperty('template_root'));
         }
         $pieces = func_get_args();
         return TIP::buildUri($base, $this->id, $pieces);
