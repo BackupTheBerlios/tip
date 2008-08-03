@@ -44,7 +44,7 @@ class TIP_Form extends TIP_Module
      * The file to run on form rendering
      * @var string
      */
-    protected $form_template = 'form.tip';
+    protected $form_template = 'form';
 
     /**
      * The type of action this form must perform
