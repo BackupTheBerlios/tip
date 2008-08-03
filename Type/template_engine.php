@@ -36,6 +36,18 @@ abstract class TIP_Template_Engine extends TIP_Type
     protected $extension = null;
 
     /**
+     * The template root path
+     * @var string
+     */
+    protected $template_root = array('style');
+
+    /**
+     * The template fallback path
+     * @var string
+     */
+    protected $fallback_root = null;
+
+    /**
      * The cache root
      * @var array
      */

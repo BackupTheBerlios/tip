@@ -103,18 +103,6 @@ class TIP_Application extends TIP_Module
     protected $data_engine = null;
 
     /**
-     * The template root path
-     * @var string
-     */
-    protected $template_root = array('style');
-
-    /**
-     * The template fallback path
-     * @var string
-     */
-    protected $fallback_root = array('style');
-
-    /**
      * The data root path
      * @var string
      */
