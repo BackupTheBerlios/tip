@@ -210,15 +210,19 @@ abstract class TIP_Template_Engine extends TIP_Type
         $ext = isset($this->extension) ? $this->extension : '';
 
         // Search in the template_root directory
-        $new_path = array_merge($this->template_root, $path);
-        if (is_readable(implode(DIRECTORY_SEPARATOR, $new_path) . $ext)) {
-            return $new_path;
+        if (is_array($this->template_root)) {
+            $new_path = array_merge($this->template_root, $path);
+            if (is_readable(implode(DIRECTORY_SEPARATOR, $new_path) . $ext)) {
+                return $new_path;
+            }
         }
 
         // Search in the fallback_root directory
-        $new_path = array_merge($this->fallback_root, $path);
-        if (is_readable(implode(DIRECTORY_SEPARATOR, $new_path) . $ext)) {
-            return $new_path;
+        if (is_array($this->fallback_root)) {
+            $new_path = array_merge($this->fallback_root, $path);
+            if (is_readable(implode(DIRECTORY_SEPARATOR, $new_path) . $ext)) {
+                return $new_path;
+            }
         }
 
         // Template file not found
