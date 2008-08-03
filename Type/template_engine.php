@@ -19,9 +19,9 @@
  */
 
 /**
- * Base class for source engines
+ * Base class for template engines
  *
- * Provides a common interface to run source files.
+ * Provides a common interface to run template files.
  *
  * @package  TIP
  */
@@ -81,37 +81,37 @@ abstract class TIP_Source_Engine extends TIP_Type
     //{{{ Interface
 
     /**
-     * Parse and execute a source/template buffer
-     * @param  TIP_Source &$source The source instance
+     * Parse and execute a template buffer
+     * @param  TIP_Source &$template The template instance
      * @param  TIP_Module &$caller The caller module
      * @return bool|string         true on success,
      *                             false if the result must be cached or
      *                             a message string on errors
      */
-    abstract public function runBuffer(&$source, &$caller);
+    abstract public function runBuffer(&$template, &$caller);
 
     /**
-     * Compile a source/template buffer
-     * @param  TIP_Source &$source The source instance
+     * Compile a template buffer
+     * @param  TIP_Source &$template The template instance
      * @return string|null         The compiled code or null if not possible
      */
-    abstract public function compileBuffer(&$source);
+    abstract public function compileBuffer(&$template);
 
     //}}}
     //{{{ Methods
 
     /**
-     * Execute a source file
+     * Execute a template file
      *
-     * Parses and executes a source.
+     * Parses and executes a template.
      *
-     * @param  TIP_Source &$source The source to run
+     * @param  TIP_Source &$template The template to run
      * @param  TIP_Module &$caller The caller module
      * @return bool                true on success or false on errors
      */
-    public function run(&$source, &$caller)
+    public function run(&$template, &$caller)
     {
-        $path =& $source->getProperty('path');
+        $path =& $template->getProperty('path');
 
         // Check for cached result
         if ($this->caching) {
@@ -129,15 +129,15 @@ abstract class TIP_Source_Engine extends TIP_Type
             }
         }
  
-        // No cache or compiled file found: parse and run this source
-        isset($source->_buffer) || $source->_buffer = file_get_contents($source->__toString());
-        if ($source->_buffer === false) {
-            TIP::error("unable to read file ($source)");
+        // No cache or compiled file found: parse and run this template
+        isset($template->_buffer) || $template->_buffer = file_get_contents($template->__toString());
+        if ($template->_buffer === false) {
+            TIP::error("unable to read file ($template)");
             return false;
         }
 
         ob_start();
-        $result = $this->runBuffer($source, $caller);
+        $result = $this->runBuffer($template, $caller);
         if (is_string($result)) {
             ob_end_clean();
             TIP::error($result);
@@ -154,7 +154,7 @@ abstract class TIP_Source_Engine extends TIP_Type
             }
         } elseif (isset($compiled)) {
             // Compiling requested
-            $result = $this->compileBuffer($source);
+            $result = $this->compileBuffer($template);
             if (is_string($result)) {
                 // Compilation successfull
                 $dir = dirname($compiled);
@@ -172,33 +172,33 @@ abstract class TIP_Source_Engine extends TIP_Type
 
     /**
      * Get the path to the cache file without checking for file existence
-     * @param  TIP_Source  &$source The source to build
+     * @param  TIP_Source  &$template The template to build
      * @return string|null          Path to the cache file or null on problems
      */
-    public function buildCachePath(&$source)
+    public function buildCachePath(&$template)
     {
-        return implode(DIRECTORY_SEPARATOR, array_merge($this->cache_root, $source->getProperty('path')));
+        return implode(DIRECTORY_SEPARATOR, array_merge($this->cache_root, $template->getProperty('path')));
     }
 
     /**
      * Get the path to the cache file, if it exists
-     * @param  TIP_Source  &$source The source to check
+     * @param  TIP_Source  &$template The template to check
      * @return string|null          Path to the cache file or null on problems
      */
-    public function getCachePath(&$source)
+    public function getCachePath(&$template)
     {
-        $path = $this->buildCachePath($source);
+        $path = $this->buildCachePath($template);
         return is_readable($path) ? $path : null;
     }
 
     /**
      * Get the relative URI of the cached file, if it exists
-     * @param  TIP_Source  &$source The source to check
+     * @param  TIP_Source  &$template The template to check
      * @return string|null          URI to the cache file or null on problems
      */
-    public function getCacheUri(&$source)
+    public function getCacheUri(&$template)
     {
-        $dirs = array_merge($this->cache_root, $source->getProperty('path'));
+        $dirs = array_merge($this->cache_root, $template->getProperty('path'));
         if (!is_readable(implode(DIRECTORY_SEPARATOR, $dirs))) {
             return null;
         }
