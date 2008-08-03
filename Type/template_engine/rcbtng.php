@@ -471,7 +471,7 @@ class TIP_RcbtNG extends TIP_Template_Engine
 
     static protected function checkOptions(&$options)
     {
-        isset($options['extension']) || $options['extension'] = '.rcbt';
+        TIP::arrayDefault($options, 'extension', '.rcbt');
         return parent::checkOptions($options);
     }
 
