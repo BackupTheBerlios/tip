@@ -233,7 +233,7 @@ abstract class TIP_Module extends TIP_Type
      *
      * This method can be overriden by the children to provide a more
      * sophisticated interface, such as the fields management in the
-     * TIP_DataModule class.
+     * TIP_Content objects.
      *
      * @param  string     $id The item id
      * @return mixed|null     The item value or null if not found
@@ -926,6 +926,7 @@ abstract class TIP_Module extends TIP_Type
     /**
      * The current privilege descriptor
      * @var TIP_PRIVILEGE_...
+     * @internal
      */
     protected $privilege = TIP_PRIVILEGE_NONE;
 
@@ -938,6 +939,7 @@ abstract class TIP_Module extends TIP_Type
      * parents, in a hierarchy order.
      *
      * @var array
+     * @internal
      */
     public $keys = array();
 

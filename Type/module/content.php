@@ -551,7 +551,7 @@ class TIP_Content extends TIP_Module
      * requests will be cached.
      *
      * @param  mixed      $id       The row id
-     * @param  bool       $end_view Wheter to end the view or not
+     * @param  bool       $end_view Whether to end the view or not
      * @return array|null           The row or null on errors
      */
     public function &fromRow($id = null, $end_view = true)
