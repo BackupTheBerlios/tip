@@ -344,7 +344,7 @@ class TIP_User extends TIP_Content
 
         case 'view':
             // Moved from runAction()
-            return $this->actionView();
+            return $this->actionView(TIP_Application::getGlobalItem('ID'));
         }
 
         return parent::runAdminAction($action);
