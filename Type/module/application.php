@@ -289,6 +289,17 @@ class TIP_Application extends TIP_Module
     }
 
     /**
+     * Get a global item
+     *
+     * @param  string $id The item id
+     * @return mixed      The item value or null if not found
+     */
+    static public function getGlobalItem($id)
+    {
+        return $GLOBALS[TIP_MAIN]->getItem($id);
+    }
+
+    /**
      * Get a shared module
      *
      * Some special modules are shared between the application. A common example
