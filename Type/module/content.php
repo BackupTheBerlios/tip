@@ -736,7 +736,7 @@ class TIP_Content extends TIP_Module
         if (array_key_exists('widget_args', $field)) {
             $rules = explode(',', $field['widget_args']);
         } elseif (array_key_exists('wiki_rules', $field)) {
-            // DEPRECATED: now use widget args instead of "wiki_rules" option
+            // DEPRECATED: now use "widget_args" instead of "wiki_rules" option
             $rules = explode(',', $field['wiki_rules']);
         } else {
             $rules = null;
