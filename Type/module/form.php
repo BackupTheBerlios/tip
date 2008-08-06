@@ -123,9 +123,13 @@ class TIP_Form extends TIP_Module
      * array this callback will add a new row to the data object of the master
      * module or will update an existing row if the primary key field is found.
      *
-     * @var callback
+     * This callback can be set to true or false, in which case it acts as a
+     * boolean predicate: default processing if true (default behaviour) or
+     * no processing at all if false.
+     *
+     * @var boolean|callback
      */
-    protected $on_process = null;
+    protected $on_process = true;
 
     /**
      * The render mode for not-validated form
@@ -223,10 +227,20 @@ class TIP_Form extends TIP_Module
      * Executes the requested action, accordling to the properties values set
      * in the constructor.
      *
-     * @return bool|null true if the action is performed, false if not
-     *                   or null on errors
+     * @return bool|null true if the action is performed,
+     *                   false if not or null on errors
      */
     public function run()
+    {
+        $this->populate();
+        $processed = $this->process();
+        return $this->render($processed) ? $processed : null;
+    }
+
+    /**
+     * Populate the form
+     */
+    public function populate()
     {
         isset($this->fields) || $this->fields = $this->_data->getFields();
 
@@ -238,7 +252,7 @@ class TIP_Form extends TIP_Module
         $this->keys['HEADER'] = $this->master->getLocale('header.' . $this->action_id);
 
         // Create the interface
-        $this->_form =& new HTML_QuickForm('__tip_' . $this->id, 'post', $_SERVER['REQUEST_URI']);
+        $this->_form =& new HTML_QuickForm('__tip_' . $this->id, TIP_FORM_METHOD_POST, $_SERVER['REQUEST_URI'], '', null, true);
 
         // XHTML compliance
         $this->_form->removeAttribute('name');
@@ -258,46 +272,124 @@ class TIP_Form extends TIP_Module
             $defaults = array_map(create_function('&$f', 'return $f["default"];'), $this->fields);
         }
         $this->_form->setDefaults($defaults);
+    }
 
-        // Validate the form
-        $valid = $this->_validate();
-
-        // Perform uploads (if any)
+    /**
+     * Validate and process the form
+     *
+     * @param  int       $stage The child stage for nested forms
+     * @return bool|null        true if the action is performed,
+     *                          false if not or null on errors
+     */
+    public function process($stage = null)
+    {
+        // Perform uploads (if needed)
         if (is_callable(array('HTML_QuickForm_attachment', 'doUploads'))) {
             HTML_QuickForm_attachment::doUploads($this->_form);
         }
 
-        // Process the form
-        if ($valid === true) {
-            if (HTTP_Session2::get($this->id . '.process')) {
-                if ($this->_form->isSubmitted()) {
-                    $this->_form->process(array(&$this, '_convert'));
-                } else {
-                    $this->_process($this->defaults);
-                }
-                HTTP_Session2::set($this->id . '.process', null);
+        if ($this->action == TIP_FORM_ACTION_DELETE ||
+            $this->action == TIP_FORM_ACTION_CUSTOM) {
+            // GET driven form
+            $this->_form->freeze();
+            if (TIP::getGet('process', 'int') != 1)
+                return false;
 
-                $last_id = $this->_data->getLastId();
-                isset($last_id) || $last_id = '';
-                $this->referer = str_replace('-lastid-', $last_id, $this->referer);
-                $this->follower = str_replace('-lastid-', $last_id, $this->follower);
-            }
-
-            $this->buttons = TIP_FORM_BUTTON_CLOSE;
-            $render = $this->valid_render;
-        } elseif ($valid === false) {
-            HTTP_Session2::set($this->id . '.process', true);
-            $render = $this->invalid_render;
-        } else {
-            $render = $this->valid_render;
+            // Process this action (could be called more than once)
+            $this->_processRow($this->defaults);
+            return true;
         }
 
-        // Rendering
-        if (!$this->_render($render)) {
+        // POST driven form
+        $stage_id = $this->id . '.stage';
+        $this->_form->setRequiredNote($this->getLocale('required_note'));
+
+        // Add element and form rules
+        foreach (array_keys($this->fields) as $id) {
+            if ($this->_form->elementExists($id)) {
+                $this->_addGuessedRules($id);
+                $this->_addCustomRules($id);
+            }
+        }
+        isset($this->validator) && $this->_form->addFormRule($this->validator);
+
+        if (!$this->_form->isSubmitted()) {
+            // First submission: initialize the stage level
+            HTTP_Session2::set($stage_id, 0);
+            return false;
+        }
+
+        $last_stage = HTTP_Session2::get($stage_id);
+        if (is_null($last_stage)) {
+            // No stage defined: do nothing (double submission)
             return null;
         }
 
-        return $valid;
+        // Validate the data
+        $this->_form->applyFilter('__ALL__', array('TIP', 'extendedTrim'));
+        if (!$this->_form->validate())
+            return false;
+
+        $this->_form->freeze();
+        if (is_null($stage) || $last_stage < $stage) {
+            // Process only once
+            HTTP_Session2::set($stage_id, $stage);
+            $this->_form->process(array(&$this, '_processRow'));
+            $last_id = $this->_data->getLastId();
+            isset($last_id) || $last_id = '';
+            $this->referer = str_replace('-lastid-', $last_id, $this->referer);
+            $this->follower = str_replace('-lastid-', $last_id, $this->follower);
+        }
+
+        return true;
+    }
+
+    /**
+     * Render the form
+     *
+     * @param  bool|null $processed Whether the form was processed
+     * @return bool                 true if the renderer was performed,
+     *                              false on errors
+     */
+    public function render($processed)
+    {
+        $mode = $processed === false ? $this->invalid_render : $this->valid_render;
+        if ($mode == TIP_FORM_RENDER_NOTHING) {
+            return true;
+        }
+
+        // Add buttons
+        $this->_addButtons($processed);
+
+        // Form template initialization
+        $template =& TIP_Application::getSharedTemplate($this->form_template);
+        if (is_null($template)) {
+            TIP::error("form template not found ($this->form_template)");
+            return false;
+        }
+
+        // Some global keys
+        $this->keys['ATTRIBUTES'] = $this->_form->getAttributes(true);
+        $this->keys['REQUIREDNOTE'] = $this->_form->getRequiredNote();
+
+        // Populate the array (if not yet done)
+        if (is_null($this->_array)) {
+            $renderer =& TIP_Renderer::getForm();
+            $this->_form->accept($renderer);
+            $this->_array = $renderer->toArray();
+        }
+
+        // Call the renderer
+        if ($mode == TIP_FORM_RENDER_IN_PAGE) {
+            $content =& TIP_Application::getGlobal('content');
+            ob_start();
+            $done = $template->run($this);
+            $content .= ob_get_clean();
+        } else {
+            $done = $template->run($this);
+        }
+
+        return $done;
     }
 
     /**
@@ -545,54 +637,52 @@ class TIP_Form extends TIP_Module
         $row[$field] = @$this->defaults[$field];
     }
 
-    public function _convert(&$row)
+    public function _processRow(&$row)
     {
+        // Apply the converters on every field of $row
         foreach ($this->_converter as $field => $type) {
             $method = '_converter' . $type;
             $this->$method($row, $field);
         }
 
-        $this->_process($row);
-    }
-
-    private function _render($mode, $buttons = null)
-    {
-        if ($mode == TIP_FORM_RENDER_NOTHING) {
-            return true;
-        }
-
-        // Add buttons
-        $this->_addButtons($this->buttons);
-
-        // Form template initialization
-        $template =& TIP_Application::getSharedTemplate($this->form_template);
-        if (is_null($template)) {
-            TIP::error("form template not found ($this->form_template)");
-            return false;
-        }
-
-        // Some global keys
-        $this->keys['ATTRIBUTES'] = $this->_form->getAttributes(true);
-        $this->keys['REQUIREDNOTE'] = $this->_form->getRequiredNote();
-
-        // Populate the array (if not yet done)
-        if (is_null($this->_array)) {
-            $renderer =& TIP_Renderer::getForm();
-            $this->_form->accept($renderer);
-            $this->_array = $renderer->toArray();
-        }
-
-        // Call the renderer
-        if ($mode == TIP_FORM_RENDER_IN_PAGE) {
-            $content =& TIP_Application::getGlobal('content');
-            ob_start();
-            $done = $template->run($this);
-            $content .= ob_get_clean();
+        // Check if the row needs to be processed
+        if (is_bool($this->on_process)) {
+            $to_process = $this->on_process;
         } else {
-            $done = $template->run($this);
+            $to_process = call_user_func_array($this->on_process, array(&$row, &$this->defaults));
         }
 
-        return $done;
+        if (!$to_process)
+            return;
+
+        // Process the row
+        $processed = false;
+
+        switch ($this->action) {
+
+        case TIP_FORM_ACTION_ADD:
+            $processed = $this->_data->putRow($row);
+            break;
+
+        case TIP_FORM_ACTION_EDIT:
+            $processed = $this->_data->updateRow($row);
+            break;
+
+        case TIP_FORM_ACTION_DELETE:
+            $processed = $this->_data->deleteRow($row[$this->_data->getProperty('primary_key')]);
+            break;
+
+        case TIP_FORM_ACTION_CUSTOM:
+            $processed = true;
+            break;
+        }
+
+        if (!$processed) {
+            // Error in processing the row
+            TIP::notifyError('fatal');
+        } else {
+            TIP::notifyInfo('done');
+        }
     }
 
     //}}}
@@ -747,7 +837,8 @@ class TIP_Form extends TIP_Module
 
         // Unload the element data, if needed
         $unload_id = 'unload_' . $element->getName();
-        if ($this->action == TIP_FORM_ACTION_DELETE && $this->_toProcess() ||
+        if ($this->action == TIP_FORM_ACTION_DELETE &&
+            TIP::getGet('process', 'int') == 1 ||
             array_key_exists($unload_id, $_POST)) {
             $element->setState(QF_ATTACHMENT_TO_UNLOAD);
         } else {
@@ -822,55 +913,19 @@ class TIP_Form extends TIP_Module
         return $range;
     }
 
-    private function _toProcess()
-    {
-        return TIP::getGet('process', 'int') == 1;
-    }
-
-    private function _validate()
-    {
-        // Validate
-        switch ($this->action) {
-
-        case TIP_FORM_ACTION_ADD:
-        case TIP_FORM_ACTION_EDIT:
-            foreach (array_keys($this->fields) as $id) {
-                if ($this->_form->elementExists($id)) {
-                    $this->_addGuessedRules($id);
-                    $this->_addCustomRules($id);
-                }
-            }
-
-            isset($this->validator) && $this->_form->addFormRule($this->validator);
-            $this->_form->applyFilter('__ALL__', array('TIP', 'extendedTrim'));
-            if ($this->_form->validate()) {
-                $this->_form->freeze();
-                return true;
-            }
-            $this->_form->setRequiredNote($this->getLocale('required_note'));
-            return false;
-
-        case TIP_FORM_ACTION_DELETE:
-        case TIP_FORM_ACTION_CUSTOM:
-            $this->_form->freeze();
-            return $this->_toProcess();
-        }
-
-        $this->_form->freeze();
-        return null;
-    }
-
     /**
      * Append action buttons to the end of this form
      *
      * Executes the requested action, accordling to the properties values set
      * in the constructor.
      *
-     * @param int $buttons A sum of TIP_FORM_BUTTON_... constants
+     * @param bool|null $processed Whether the form was processed
      */
-    private function _addButtons($buttons)
+    private function _addButtons($processed)
     {
+        $buttons = $processed ? TIP_FORM_BUTTON_CLOSE : $this->buttons;
         $group = array();
+
         if ($buttons & TIP_FORM_BUTTON_SUBMIT) {
             $element =& $this->_form->createElement('submit', null, $this->getLocale('button.submit'), array('class' => 'ok'));
             $element->removeAttribute('name');
@@ -913,44 +968,6 @@ class TIP_Form extends TIP_Module
 
         // Append the group of buttons to the form
         $this->_form->addElement('group', 'buttons', null, $group, ' ', false);
-    }
-
-    private function _process(&$row)
-    {
-        $processed = false;
-
-        if (is_null($this->on_process) || call_user_func_array($this->on_process, array(&$row, &$this->defaults))) {
-            switch ($this->action) {
-
-            case TIP_FORM_ACTION_ADD:
-                $processed = $this->_data->putRow($row);
-                break;
-
-            case TIP_FORM_ACTION_EDIT:
-                $processed = $this->_data->updateRow($row);
-                break;
-
-            case TIP_FORM_ACTION_DELETE:
-                $processed = $this->_data->deleteRow($row[$this->_data->getProperty('primary_key')]);
-                break;
-
-            case TIP_FORM_ACTION_CUSTOM:
-                $processed = true;
-                break;
-            }
-
-            if (!$processed) {
-                // Error in processing the row
-                TIP::notifyError('fatal');
-                return false;
-            }
-        } else {
-            // Callback returned false: no processing needed
-            return false;
-        }
-
-        TIP::notifyInfo('done');
-        return true;
     }
 
     private function &_widgetText(&$field, $args)
