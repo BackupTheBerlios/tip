@@ -244,10 +244,6 @@ class TIP_Form extends TIP_Module
     {
         isset($this->fields) || $this->fields = $this->_data->getFields();
 
-        if ($this->action == TIP_FORM_ACTION_ADD) {
-            $this->_addAutomaticDefaults();
-        }
-
         // The localized header text is defined by the content
         $this->keys['HEADER'] = $this->master->getLocale('header.' . $this->action_id);
 
@@ -259,19 +255,31 @@ class TIP_Form extends TIP_Module
 
         $this->_form->addElement('hidden', 'module', $this->id);
         $this->_form->addElement('hidden', 'action', $this->action_id);
+
         $this->_form->addElement('header', '__set_' . $this->id, 'data');
-        array_walk(array_keys($this->fields), array(&$this, '_addWidget'));
+        $this->_updateFields();
+
         if ($this->captcha) {
             $this->_addCaptcha();
         }
+    }
 
-        // Set the default content
-        if (is_array($this->defaults)) {
-            $defaults =& $this->defaults;
-        } else {
-            $defaults = array_map(create_function('&$f', 'return $f["default"];'), $this->fields);
-        }
-        $this->_form->setDefaults($defaults);
+    /**
+     * Append a custom field structure to a yet existing form
+     */
+    public function append(&$module)
+    {
+        // Merge the new fields in the "fields" property
+        $fields = $module->getProperty('data')->getFields();
+        $this->fields += $fields;
+
+        // Change the localized header text
+        $this->keys['HEADER'] = $module->getLocale('header.' . $this->action_id);
+
+        // Start a new fieldset
+        $this->_form->addElement('header', '__set_' . $module, 'data');
+
+        $this->_updateFields();
     }
 
     /**
@@ -331,6 +339,9 @@ class TIP_Form extends TIP_Module
             return false;
 
         $this->_form->freeze();
+        // Hack to avoid freezing of next elements
+        $this->_form->_freezeAll = false;
+
         if (is_null($stage) || $last_stage < $stage) {
             // Process only once
             HTTP_Session2::set($stage_id, $stage);
@@ -688,19 +699,19 @@ class TIP_Form extends TIP_Module
     //}}}
     //{{{ Internal methods
 
-    private function _addAutomaticDefaults()
+    private function _addAutomaticDefaults(&$fields)
     {
-        if (array_key_exists('_creation', $this->fields) &&
+        if (array_key_exists('_creation', $fields) &&
             @empty($this->defaults['_creation'])) {
             $this->defaults['_creation'] = TIP::formatDate('datetime_sql');
         }
 
-        if (array_key_exists('_lasthit', $this->fields) &&
+        if (array_key_exists('_lasthit', $fields) &&
             @empty($this->defaults['_lasthit'])) {
             $this->defaults['_lasthit'] = TIP::formatDate('datetime_sql');
         }
 
-        if (array_key_exists('_user', $this->fields) &&
+        if (array_key_exists('_user', $fields) &&
             @empty($this->defaults['_user'])) {
             $this->defaults['_user'] = TIP::getUserId();
         }
@@ -733,6 +744,9 @@ class TIP_Form extends TIP_Module
 
     private function _addWidget($id)
     {
+        if ($this->_form->elementExists($id))
+            return;
+
         $field =& $this->fields[$id];
 
         if (substr($id, 0, 1) == '_' || $field['automatic']) {
@@ -818,6 +832,23 @@ class TIP_Form extends TIP_Module
     private function _addConverter($id, $type)
     {
         $this->_converter[$id] = $type;
+    }
+
+    private function _updateFields()
+    {
+        if ($this->action == TIP_FORM_ACTION_ADD) {
+            $this->_addAutomaticDefaults($this->fields);
+        }
+
+        array_walk(array_keys($this->fields), array(&$this, '_addWidget'));
+
+        // Set the default content
+        if (is_array($this->defaults)) {
+            $defaults =& $this->defaults;
+        } else {
+            $defaults = array_map(create_function('&$f', 'return $f["default"];'), $this->fields);
+        }
+        $this->_form->setDefaults($defaults);
     }
 
     /**

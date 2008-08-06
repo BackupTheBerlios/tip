@@ -75,24 +75,27 @@ class TIP_Class extends TIP_Content
             $options = array_merge($this->form_options['add'], (array) $options);
         }
 
-        TIP::arrayDefault($options, 'on_process', array(&$this, '_onClassAdd'));
+        TIP::arrayDefault($options, 'on_process', false);
         TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '-lastid-'));
-        TIP::arrayDefault($options, 'chained', true);
 
-        $processed = $this->form(TIP_FORM_ACTION_ADD, null, $options);
-        if (is_null($processed)) {
-            return false;
-        } elseif (!$processed) {
-            return true;
+        $options['type']   = array('module', 'form');
+        $options['master'] =& $this;
+        $options['action'] = TIP_FORM_ACTION_ADD;
+
+        $form =& TIP_Type::singleton($options);
+
+        $form->populate();
+        $processed = $form->process(1);
+        if ($processed) {
+            $child_name = $this->id . '-' . TIP::getPost($this->class_field, 'string');
+            if ($child =& TIP_Type::getInstance($child_name, false)) {
+                // Child module found: chain-up the child form
+                $form->append($child);
+                $processed = $form->process(null);
+            }
         }
 
-        // Form validate: if 'valid_render' is set to nothing, try to
-        // call actionView() on the newly appended row
-        if (@$options['valid_render'] == TIP_FORM_RENDER_NOTHING) {
-            return $this->actionView($this->data->getLastId());
-        }
-
-        return true;
+        return $form->render($processed);
     }
 
     //}}}
