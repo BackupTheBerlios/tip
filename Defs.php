@@ -58,6 +58,11 @@ define('TIP_SEVERITY_ERROR',      'error');
 
 /**#@+ Form related constants */
 
+/**#@+ Form method */
+define('TIP_FORM_METHOD_GET',     'get');
+define('TIP_FORM_METHOD_POST',    'post');
+/**#@-*/
+
 /**#@+ Form action */
 define('TIP_FORM_ACTION_ADD',     'add');
 define('TIP_FORM_ACTION_EDIT',    'edit');
