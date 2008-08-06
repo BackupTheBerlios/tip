@@ -295,59 +295,8 @@ class TIP_Form extends TIP_Module
             return $valid;
         }
 
-        // Define buttons if $this->buttons is not set
-        isset($buttons) || $buttons = $this->buttons;
-
         // Add buttons
-        $group = array();
-        if ($buttons & TIP_FORM_BUTTON_SUBMIT) {
-            $element =& $this->_form->createElement('submit', null, $this->getLocale('button.submit'), array('class' => 'ok'));
-            $element->removeAttribute('name');
-            $group[] =& $element;
-        }
-        if ($buttons & TIP_FORM_BUTTON_RESET) {
-            $element =& $this->_form->createElement('reset', null, $this->getLocale('button.reset'), array('class' => 'restore'));
-            $element->removeAttribute('name');
-            $group[] =& $element;
-        }
-        if ($buttons & TIP_FORM_BUTTON_OK) {
-            $uri = TIP::modifyActionUri(null, null, null, array('process' => 1));
-            $element =& $this->_form->createElement('link', 'ok', null, $uri, $this->getLocale('button.ok'), array('class' => 'ok'));
-            $element->removeAttribute('name');
-            $group[] =& $element;
-        }
-        if ($buttons & TIP_FORM_BUTTON_DELETE && $this->action_id == TIP_FORM_ACTION_DELETE) {
-            $uri = TIP::modifyActionUri(null, null, null, array('process' => 1));
-            $element =& $this->_form->createElement('link', 'delete', null, $uri, $this->getLocale('button.delete'), array('class' => 'delete'));
-            $element->removeAttribute('name');
-            $group[] =& $element;
-        }
-        if ($buttons & TIP_FORM_BUTTON_CANCEL) {
-            $element =& $this->_form->createElement('link', 'cancel', null, $this->referer, $this->getLocale('button.cancel'), array('class' => 'cancel'));
-            $element->removeAttribute('name');
-            $group[] =& $element;
-        }
-        if ($buttons & TIP_FORM_BUTTON_CLOSE) {
-            $element =& $this->_form->createElement('link', 'close', null, $this->follower, $this->getLocale('button.close'), array('class' => 'close'));
-            $element->removeAttribute('name');
-            $group[] =& $element;
-        }
-        if ($buttons & TIP_FORM_BUTTON_DELETE && $this->action_id != TIP_FORM_ACTION_DELETE) {
-            $primary_key = $this->_data->getProperty('primary_key');
-            $uri = TIP::buildActionUri($this->id, 'delete', $this->_form->getElementValue($primary_key));
-            $element =& $this->_form->createElement('link', 'delete', null, $uri, $this->getLocale('button.delete'), array('class' => 'delete'));
-            $element->removeAttribute('name');
-            $group[] =& $element;
-        }
-
-        // Add the tabindex property to the buttons
-        foreach (array_keys($group) as $id) {
-            ++ $this->_tabindex;
-            $group[$id]->setAttribute('tabindex', $this->_tabindex);
-        }
-
-        // Add the group of buttons to the form
-        $element =& $this->_form->addElement('group', 'buttons', null, $group, ' ', false);
+        $this->_addButtons(isset($buttons) ? $buttons : $this->buttons);
 
         // Rendering
         if (!$this->_render($render)) {
@@ -911,6 +860,61 @@ class TIP_Form extends TIP_Module
 
         $this->_form->freeze();
         return null;
+    }
+
+    /**
+     * Append action buttons to the end of this form
+     *
+     * Executes the requested action, accordling to the properties values set
+     * in the constructor.
+     *
+     * @param int $buttons A sum of TIP_FORM_BUTTON_... constants
+     */
+    private function _addButtons($buttons)
+    {
+        $group = array();
+        if ($buttons & TIP_FORM_BUTTON_SUBMIT) {
+            $element =& $this->_form->createElement('submit', null, $this->getLocale('button.submit'), array('class' => 'ok'));
+            $element->removeAttribute('name');
+            $group[] =& $element;
+        }
+        if ($buttons & TIP_FORM_BUTTON_RESET) {
+            $element =& $this->_form->createElement('reset', null, $this->getLocale('button.reset'), array('class' => 'restore'));
+            $element->removeAttribute('name');
+            $group[] =& $element;
+        }
+        if ($buttons & TIP_FORM_BUTTON_OK) {
+            $uri = TIP::modifyActionUri(null, null, null, array('process' => 1));
+            $element =& $this->_form->createElement('link', 'ok', null, $uri, $this->getLocale('button.ok'), array('class' => 'ok'));
+            $element->removeAttribute('name');
+            $group[] =& $element;
+        }
+        if ($buttons & TIP_FORM_BUTTON_DELETE && $this->action_id == TIP_FORM_ACTION_DELETE) {
+            $uri = TIP::modifyActionUri(null, null, null, array('process' => 1));
+            $element =& $this->_form->createElement('link', 'delete', null, $uri, $this->getLocale('button.delete'), array('class' => 'delete'));
+            $element->removeAttribute('name');
+            $group[] =& $element;
+        }
+        if ($buttons & TIP_FORM_BUTTON_CANCEL) {
+            $element =& $this->_form->createElement('link', 'cancel', null, $this->referer, $this->getLocale('button.cancel'), array('class' => 'cancel'));
+            $element->removeAttribute('name');
+            $group[] =& $element;
+        }
+        if ($buttons & TIP_FORM_BUTTON_CLOSE) {
+            $element =& $this->_form->createElement('link', 'close', null, $this->follower, $this->getLocale('button.close'), array('class' => 'close'));
+            $element->removeAttribute('name');
+            $group[] =& $element;
+        }
+        if ($buttons & TIP_FORM_BUTTON_DELETE && $this->action_id != TIP_FORM_ACTION_DELETE) {
+            $primary_key = $this->_data->getProperty('primary_key');
+            $uri = TIP::buildActionUri($this->id, 'delete', $this->_form->getElementValue($primary_key));
+            $element =& $this->_form->createElement('link', 'delete', null, $uri, $this->getLocale('button.delete'), array('class' => 'delete'));
+            $element->removeAttribute('name');
+            $group[] =& $element;
+        }
+
+        // Append the group of buttons to the form
+        $this->_form->addElement('group', 'buttons', null, $group, ' ', false);
     }
 
     private function _process(&$row)
