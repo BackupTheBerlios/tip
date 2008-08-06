@@ -282,7 +282,8 @@ class TIP_Form extends TIP_Module
                 $this->referer = str_replace('-lastid-', $last_id, $this->referer);
                 $this->follower = str_replace('-lastid-', $last_id, $this->follower);
             }
-            $buttons = TIP_FORM_BUTTON_CLOSE;
+
+            $this->buttons = TIP_FORM_BUTTON_CLOSE;
             $render = $this->valid_render;
         } elseif ($valid === false) {
             HTTP_Session2::set($this->id . '.process', true);
@@ -290,13 +291,6 @@ class TIP_Form extends TIP_Module
         } else {
             $render = $this->valid_render;
         }
-
-        if ($render == TIP_FORM_RENDER_NOTHING) {
-            return $valid;
-        }
-
-        // Add buttons
-        $this->_addButtons(isset($buttons) ? $buttons : $this->buttons);
 
         // Rendering
         if (!$this->_render($render)) {
@@ -561,12 +555,16 @@ class TIP_Form extends TIP_Module
         $this->_process($row);
     }
 
-    public function _render($mode)
+    private function _render($mode, $buttons = null)
     {
         if ($mode == TIP_FORM_RENDER_NOTHING) {
             return true;
         }
 
+        // Add buttons
+        $this->_addButtons($this->buttons);
+
+        // Form template initialization
         $template =& TIP_Application::getSharedTemplate($this->form_template);
         if (is_null($template)) {
             TIP::error("form template not found ($this->form_template)");
