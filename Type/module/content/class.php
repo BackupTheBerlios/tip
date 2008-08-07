@@ -84,18 +84,18 @@ class TIP_Class extends TIP_Content
 
         $form =& TIP_Type::singleton($options);
 
-        $form->populate();
-        $processed = $form->process(1);
-        if ($processed) {
+        $valid = $form->validate();
+        if ($valid) {
             $child_name = $this->id . '-' . TIP::getPost($this->class_field, 'string');
             if ($child =& TIP_Type::getInstance($child_name, false)) {
                 // Child module found: chain-up the child form
-                $form->append($child);
-                $processed = $form->process(null);
+                $valid = $form->validateAlso($child);
             }
         }
+        if ($valid)
+            $form->process();
 
-        return $form->render($processed);
+        return $form->render($valid);
     }
 
     //}}}

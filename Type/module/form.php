@@ -68,7 +68,7 @@ class TIP_Form extends TIP_Module
      * A list of field ids to be used by the form: leave null for full automatic
      * field management
      *
-     * @var array|null
+     * @var array
      */
     protected $fields = null;
 
@@ -215,7 +215,6 @@ class TIP_Form extends TIP_Module
     {
         parent::__construct($options);
         HTML_QuickForm::registerRule('unique', 'callback', '_ruleUnique', 'TIP_Form');
-        $this->_data =& $this->master->getProperty('data');
     }
 
     //}}}
@@ -232,145 +231,113 @@ class TIP_Form extends TIP_Module
      */
     public function run()
     {
-        $this->populate();
-        $processed = $this->process();
-        return $this->render($processed) ? $processed : null;
+        $valid = $this->validate();
+        if ($valid)
+            $this->process();
+        $this->render($valid);
+        return $valid;
     }
 
     /**
-     * Populate the form
+     * Define and validate the form
+     *
+     * @return bool|null true if the form validates,
+     *                   false if not or null on errors
      */
-    public function populate()
+    public function validate()
     {
-        isset($this->fields) || $this->fields = $this->_data->getFields();
-
-        // The localized header text is defined by the content
-        $this->keys['HEADER'] = $this->master->getLocale('header.' . $this->action_id);
-
-        // Create the interface
+        // Create the form
         $this->_form =& new HTML_QuickForm('__tip_' . $this->id, TIP_FORM_METHOD_POST, $_SERVER['REQUEST_URI'], '', null, true);
-
-        // XHTML compliance
         $this->_form->removeAttribute('name');
-
+        $this->_form->setRequiredNote($this->getLocale('required_note'));
         $this->_form->addElement('hidden', 'module', $this->id);
         $this->_form->addElement('hidden', 'action', $this->action_id);
 
-        $this->_form->addElement('header', '__set_' . $this->id, 'data');
-        $this->_updateFields();
+        return $this->validateAlso($this->master);
+    }
+
+    /**
+     * Append a module structure to the current form and validate
+     *
+     * @param  TIP_Content &$module The module owning the structure to append
+     * @return bool|null            true if the form validates,
+     *                              false if not or null on errors
+     */
+    public function validateAlso(&$module)
+    {
+        $this->_data =& $module->getProperty('data');
+
+        // Initialize or merge the new fields in "fields" property
+        if ($module == $this->master) {
+            isset($this->fields) || $this->fields = $this->_data->getFields();
+        } else {
+            $this->fields += $this->_data->getFields();
+        }
+
+        $this->keys['HEADER'] = $module->getLocale('header.' . $this->action_id);
+        $this->_form->addElement('header', '__set_' . $module, 'data');
+
+        if ($this->action == TIP_FORM_ACTION_ADD) {
+            $this->_addAutomaticDefaults($this->fields);
+        }
+
+        array_walk(array_keys($this->fields), array(&$this, '_addWidget'));
+
+        // Set the default content
+        if (is_array($this->defaults)) {
+            $defaults =& $this->defaults;
+        } else {
+            $defaults = array_map(create_function('&$f', 'return $f["default"];'), $this->fields);
+        }
+        $this->_form->setDefaults($defaults);
 
         if ($this->captcha) {
             $this->_addCaptcha();
         }
+
+        ++ $this->_stage;
+        return $this->_validate();
     }
 
     /**
-     * Append a custom field structure to a yet existing form
-     */
-    public function append(&$module)
-    {
-        // Merge the new fields in the "fields" property
-        $fields = $module->getProperty('data')->getFields();
-        $this->fields += $fields;
-
-        // Change the localized header text
-        $this->keys['HEADER'] = $module->getLocale('header.' . $this->action_id);
-
-        // Start a new fieldset
-        $this->_form->addElement('header', '__set_' . $module, 'data');
-
-        $this->_updateFields();
-    }
-
-    /**
-     * Validate and process the form
+     * Process the form
      *
-     * @param  int       $stage The child stage for nested forms
-     * @return bool|null        true if the action is performed,
-     *                          false if not or null on errors
+     * Also resets the session stage counter on POST driven form to avoid
+     * multiple calls.
      */
-    public function process($stage = null)
+    public function process()
     {
-        // Perform uploads (if needed)
-        if (is_callable(array('HTML_QuickForm_attachment', 'doUploads'))) {
-            HTML_QuickForm_attachment::doUploads($this->_form);
-        }
-
         if ($this->action == TIP_FORM_ACTION_DELETE ||
             $this->action == TIP_FORM_ACTION_CUSTOM) {
-            // GET driven form
-            $this->_form->freeze();
-            if (TIP::getGet('process', 'int') != 1)
-                return false;
-
-            // Process this action (could be called more than once)
+            // GET driven form: this action could be called more than once
             $this->_processRow($this->defaults);
-            return true;
-        }
-
-        // POST driven form
-        $stage_id = $this->id . '.stage';
-        $this->_form->setRequiredNote($this->getLocale('required_note'));
-
-        // Add element and form rules
-        foreach (array_keys($this->fields) as $id) {
-            if ($this->_form->elementExists($id)) {
-                $this->_addGuessedRules($id);
-                $this->_addCustomRules($id);
-            }
-        }
-        isset($this->validator) && $this->_form->addFormRule($this->validator);
-
-        if (!$this->_form->isSubmitted()) {
-            // First submission: initialize the stage level
-            HTTP_Session2::set($stage_id, 0);
-            return false;
-        }
-
-        $last_stage = HTTP_Session2::get($stage_id);
-        if (is_null($last_stage)) {
-            // No stage defined: do nothing (double submission)
-            return null;
-        }
-
-        // Validate the data
-        $this->_form->applyFilter('__ALL__', array('TIP', 'extendedTrim'));
-        if (!$this->_form->validate())
-            return false;
-
-        $this->_form->freeze();
-        // Hack to avoid freezing of next elements
-        $this->_form->_freezeAll = false;
-
-        if (is_null($stage) || $last_stage < $stage) {
-            // Process only once
-            HTTP_Session2::set($stage_id, $stage);
+        } else {
+            // POST driven form: called only once
+            HTTP_Session2::set($this->id . '.stage', null);
             $this->_form->process(array(&$this, '_processRow'));
             $last_id = $this->_data->getLastId();
             isset($last_id) || $last_id = '';
             $this->referer = str_replace('-lastid-', $last_id, $this->referer);
             $this->follower = str_replace('-lastid-', $last_id, $this->follower);
         }
-
-        return true;
     }
 
     /**
      * Render the form
      *
-     * @param  bool|null $processed Whether the form was processed
-     * @return bool                 true if the renderer was performed,
-     *                              false on errors
+     * @param  bool|null $valid Whether the form was validated
+     * @return bool             true if the renderer was performed,
+     *                          false on errors
      */
-    public function render($processed)
+    public function render($valid)
     {
-        $mode = $processed === false ? $this->invalid_render : $this->valid_render;
+        $mode = $valid === false ? $this->invalid_render : $this->valid_render;
         if ($mode == TIP_FORM_RENDER_NOTHING) {
             return true;
         }
 
         // Add buttons
-        $this->_addButtons($processed);
+        $this->_addButtons($valid);
 
         // Form template initialization
         $template =& TIP_Application::getSharedTemplate($this->form_template);
@@ -567,6 +534,13 @@ class TIP_Form extends TIP_Module
      * @internal
      */
     private $_tabindex = 0;
+
+    /**
+     * The current stage level
+     * @var int
+     * @internal
+     */
+    private $_stage = 0;
 
     /**
      * The rendered array used by the renderer
@@ -834,23 +808,6 @@ class TIP_Form extends TIP_Module
         $this->_converter[$id] = $type;
     }
 
-    private function _updateFields()
-    {
-        if ($this->action == TIP_FORM_ACTION_ADD) {
-            $this->_addAutomaticDefaults($this->fields);
-        }
-
-        array_walk(array_keys($this->fields), array(&$this, '_addWidget'));
-
-        // Set the default content
-        if (is_array($this->defaults)) {
-            $defaults =& $this->defaults;
-        } else {
-            $defaults = array_map(create_function('&$f', 'return $f["default"];'), $this->fields);
-        }
-        $this->_form->setDefaults($defaults);
-    }
-
     /**
      * Configure an attachment based element
      *
@@ -944,17 +901,63 @@ class TIP_Form extends TIP_Module
         return $range;
     }
 
+    private function _validate()
+    {
+        if ($this->action == TIP_FORM_ACTION_DELETE ||
+            $this->action == TIP_FORM_ACTION_CUSTOM) {
+            // Special case: GET driven form
+            $this->_form->freeze();
+            return TIP::getGet('process', 'int') == 1;
+        }
+
+        // Perform uploads (if needed)
+        if (is_callable(array('HTML_QuickForm_attachment', 'doUploads'))) {
+            HTML_QuickForm_attachment::doUploads($this->_form);
+        }
+
+        // Add element and form rules
+        isset($this->validator) && $this->_form->addFormRule($this->validator);
+        foreach (array_keys($this->fields) as $id)
+            if ($this->_form->elementExists($id)) {
+                $this->_addGuessedRules($id);
+                $this->_addCustomRules($id);
+            }
+
+        $stage_id = $this->id . '.stage';
+        $last_stage = HTTP_Session2::get($stage_id);
+
+        if (!$this->_form->isSubmitted() ||     // First submission
+            isset($last_stage) && $last_stage < $this->_stage) {
+            HTTP_Session2::set($stage_id, $this->_stage);
+            $valid = false;
+        } elseif (is_null($last_stage)) {       // No last stage defined
+            TIP::notifyError('double');
+            $valid = null;
+        } else {                                // Validation
+            $this->_form->applyFilter('__ALL__', array('TIP', 'extendedTrim'));
+            $valid = $this->_form->validate();
+        }
+
+        if ($valid !== false) {
+            $this->_form->freeze();
+            // Hack to avoid freezing of next elements
+            $this->_form->_freezeAll = false;
+        }
+
+        return $valid;
+    }
+
     /**
      * Append action buttons to the end of this form
      *
      * Executes the requested action, accordling to the properties values set
      * in the constructor.
      *
-     * @param bool|null $processed Whether the form was processed
+     * @param bool|null $valid Whether the form was validated
      */
-    private function _addButtons($processed)
+    private function _addButtons($valid)
     {
-        $buttons = $processed ? TIP_FORM_BUTTON_CLOSE : $this->buttons;
+        $buttons = $valid === false ? $this->buttons : TIP_FORM_BUTTON_CLOSE;
         $group = array();
 
         if ($buttons & TIP_FORM_BUTTON_SUBMIT) {
