@@ -34,14 +34,42 @@ class TIP_Class extends TIP_Content
     protected $class_field = 'class';
 
     /**
-     * The field in the implementation content to be joined
-     * to the class primary key
+     * The field in the child module to be joined to this class primary key
      * @var string
      */
     protected $master_field = '_master';
 
+    /**
+     * The summary view path to use for browsing
+     * @var string
+     */
+    protected $summary_view = null;
+
     //}}}
     //{{{ Constructor/destructor
+
+    static protected function checkOptions(&$options)
+    {
+        if (!parent::checkOptions($options)) {
+            return false;
+        }
+
+        if (is_array($options['summary_view'])) {
+            if (!array_key_exists('path', $options['summary_view']))
+                return false;
+            TIP::arrayDefault($options['summary_view'], 'type', array('data'));
+        } elseif (is_string($options['summary_view'])) {
+            $options['summary_view'] = array(
+                'type' => array('data'),
+                'path' => $options['summary_view']
+            );
+        } elseif (isset($options['summary_view'])) {
+            // Unhandled summary_view format
+            return false;
+        }
+
+        return true;
+    }
 
     /**
      * Constructor
@@ -96,6 +124,28 @@ class TIP_Class extends TIP_Content
             $form->process();
 
         return $form->render($valid);
+    }
+
+    protected function actionBrowse(&$conditions)
+    {
+        // Chain-up the parent method on no summary view defined
+        if (is_null($this->summary_view))
+            return parent::actionBrowse($conditions);
+
+        // Set the new data source
+        $old_data =& $this->data;
+        unset($this->data);
+        $this->data =& TIP_Type::singleton($this->summary_view);
+
+        // Call the template
+        $this->_browse_conditions =& $conditions;
+        $this->appendToPage($this->browse_template);
+
+        // Reset to the old data source
+        unset($this->data);
+        $this->data =& $old_data;
+
+        return true;
     }
 
     //}}}

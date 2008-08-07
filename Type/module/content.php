@@ -1264,7 +1264,7 @@ class TIP_Content extends TIP_Module
      * @var array
      * @internal
      */
-    private $_browse_conditions = null;
+    protected $_browse_conditions = null;
 
     //}}}
     //{{{ Callbacks
