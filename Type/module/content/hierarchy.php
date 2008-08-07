@@ -152,6 +152,7 @@ class TIP_Hierarchy extends TIP_Content
         }
         foreach (array_keys($rows) as $id) {
             $row =& $rows[$id];
+            isset($row['id']) || $row['id'] = $id;
             isset($row['CLASS']) || $row['CLASS'] = 'item';
 
             // Use the custom title_field or
