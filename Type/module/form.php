@@ -662,11 +662,10 @@ class TIP_Form extends TIP_Module
             break;
         }
 
-        if (!$processed) {
-            // Error in processing the row
-            TIP::notifyError('fatal');
-        } else {
+        if ($processed) {
             TIP::notifyInfo('done');
+        } else {
+            TIP::notifyError('fatal');
         }
     }
 

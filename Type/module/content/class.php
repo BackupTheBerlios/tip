@@ -75,7 +75,7 @@ class TIP_Class extends TIP_Content
             $options = array_merge($this->form_options['add'], (array) $options);
         }
 
-        TIP::arrayDefault($options, 'on_process', false);
+        TIP::arrayDefault($options, 'on_process', array(&$this, '_onAdd'));
         TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '-lastid-'));
 
         $options['type']   = array('module', 'form');
@@ -87,9 +87,9 @@ class TIP_Class extends TIP_Content
         $valid = $form->validate();
         if ($valid) {
             $child_name = $this->id . '-' . TIP::getPost($this->class_field, 'string');
-            if ($child =& TIP_Type::getInstance($child_name, false)) {
+            if ($this->_child =& TIP_Type::getInstance($child_name, false)) {
                 // Child module found: chain-up the child form
-                $valid = $form->validateAlso($child);
+                $valid = $form->validateAlso($this->_child);
             }
         }
         if ($valid)
@@ -102,63 +102,58 @@ class TIP_Class extends TIP_Content
     //{{{ Internal properties
 
     /**
-     * The validated class row
-     * @var array
+     * The child module
+     * @var TIP_Content
      * @internal
      */
-    private $_class_row = null;
+    private $_child = null;
 
     //}}}
     //{{{ Callbacks
 
     /**
-     * Chain-up the child form
-     * @param  array &$row The validated class row to add
-     * @return bool        true on success, false on errors
-     */
-    public function _onClassAdd(&$row)
-    {
-        $field = $this->class_field;
-        if (!array_key_exists($field, $row) || empty($row[$field])) {
-            TIP::error("undefined class (field '$field')");
-            return false;
-        }
-
-        $child_name = $this->id . '-' . $row[$field];
-        if ($child =& TIP_Type::getInstance($child_name, false)) {
-            // Child module found: chain-up the child form
-            $options = array(
-                'on_process', array(&$this, '_onAdd')
-            );
-            return $child->actionAdd($options);
-        }
-
-        // Child module not found: fallback to the default behaviour
-        return parent::_onAdd($row);
-    }
-
-    /**
      * Save both class and child rows
-     * @param  array &$row The child row to add
-     * @return bool        true on success, false on errors
+     *
+     * TODO: this operation must be transaction protected!
+     *
+     * @param  array &$row The joined row to add
+     * @return bool        true to chain-up the default action, false otherwise
      */
     public function _onAdd(&$row)
     {
-        /* TODO */
-        return true;
-        return parent::_onAdd($row);
+        if (is_null($this->_child)) {
+            // No child module: fallback to the default behaviour
+            return true;
+        }
+
+        // Save the row, also because putRow() is destructive
+        $child_data =& $this->_child->getProperty('data');
+        $child_row = $row;
+
+        $processed = $this->data->putRow($row);
+        if ($processed) {
+            $child_row[$this->master_field] = $this->data->getLastId();
+            $processed = $processed && $child_data->putRow($child_row);
+        }
+
+        if ($processed) {
+            TIP::notifyInfo('done');
+        } else {
+            TIP::notifyError('fatal');
+        }
+
+        return false;
     }
 
     /**
      * Provide additional statistic update on the master module
      * @param  array &$row The data row to add
-     * @return bool        true on success, false on errors
+     * @return bool        false, to avoid chaining the default method
      */
     public function _onDelete(&$row)
     {
         /* TODO */
-        return true;
-        return parent::_onDelete($row);
+        return false;
     }
 
     //}}}
