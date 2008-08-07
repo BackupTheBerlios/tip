@@ -85,7 +85,7 @@ class TIP_Poll extends TIP_Content
         $expiration = @HTTP_Session2::get($this->id . '.expiration');
         $voting = @HTTP_Session2::get($this->id . '.voting');
         if ($voting && time() < $expiration) {
-            TIP::notifyError('doublevote');
+            TIP::notifyError('double');
             return false;
         }
 
