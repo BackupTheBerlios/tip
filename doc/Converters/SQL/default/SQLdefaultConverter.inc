@@ -222,6 +222,12 @@ class SQLdefaultConverter extends Converter
                 $text .= $type;
             }
             $text .= '}}';
+
+            if (isset($element->linenumber)) {
+                $range = $element->linenumber . ' - ' . $element->endlinenumber;
+                $text .= "\n: Lines : {{{$range}}}";
+            }
+
             break;
         default:
             print_r($element);die();
