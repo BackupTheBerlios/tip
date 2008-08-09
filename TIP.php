@@ -230,7 +230,7 @@ class TIP
      *
      * @param  string   $locale The locale name (such as 'en_US' or 'it_IT')
      * @return boolean          true on success or false if not possible
-     * @throw  exception        If the locale could not be set
+     * @uses   exception        If the locale could not be set
      *                          or the encoding will is not UTF-8
      */
     function setLocaleId($locale)

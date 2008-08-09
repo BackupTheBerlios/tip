@@ -22,7 +22,6 @@
  * Request module
  *
  * @package TIP
- * @subpackage Module
  */
 class TIP_Request extends TIP_Content
 {

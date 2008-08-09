@@ -27,8 +27,7 @@
  * non-static to avoid confusion (for instance, preparedName() could be
  * static but preparedValue not, because the connection property is needed).
  *
- * @package    TIP
- * @subpackage DataEngine
+ * @package TIP
  */
 class TIP_Mysql extends TIP_Data_Engine
 {

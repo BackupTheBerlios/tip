@@ -25,7 +25,6 @@
  * 256 bytes).
  *
  * @package TIP
- * @subpackage Module
  */
 class TIP_Locale extends TIP_Content
 {

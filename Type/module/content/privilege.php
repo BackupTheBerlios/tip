@@ -50,7 +50,6 @@
  * application module.
  *
  * @package TIP
- * @subpackage Module
  */
 class TIP_Privilege extends TIP_Content
 {
@@ -103,9 +102,8 @@ class TIP_Privilege extends TIP_Content
     //{{{ Tags
 
     /**#@+
-     * @param      string       $params Parameters of the tag
-     * @return     string|null          The string result or null
-     * @subpackage SourceEngine
+     * @param  string      $params Parameters of the tag
+     * @return string|null         The string result or null
      */
 
     /**

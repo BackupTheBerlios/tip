@@ -24,7 +24,6 @@
  * Provides a way to log messages to a data source.
  *
  * @package TIP
- * @subpackage Module
  */
 class TIP_Logger extends TIP_Content
 {

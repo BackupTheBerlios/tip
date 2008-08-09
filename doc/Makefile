@@ -1,4 +1,4 @@
-PHPDOC = phpdoc --filename $(doc_list) --title "TIP manual" --directory tutorials --defaultcategoryname "HTML" --defaultpackagename "TIP" --readmeinstallchangelog $(extra_list) --sourcecode off
+PHPDOC = phpdoc --filename $(doc_list) --title "TIP manual" --defaultcategoryname "HTML" --defaultpackagename "TIP" --readmeinstallchangelog $(extra_list) --sourcecode off
 FORMATS = html
 
 srcdir = ..

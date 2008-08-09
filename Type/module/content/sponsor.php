@@ -24,7 +24,6 @@
  * Provides a basic implementation for a sponsor module.
  *
  * @package TIP
- * @subpackage Module
  */
 class TIP_Sponsor extends TIP_Content
 {

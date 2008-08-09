@@ -497,9 +497,8 @@ class TIP_Application extends TIP_Module
     //{{{ Tags
 
     /**#@+
-     * @param      string       $params Parameters of the tag
-     * @return     string|null          The string result or null on errors
-     * @subpackage TemplateEngine
+     * @param  string      $params Parameters of the tag
+     * @return string|null         The string result or null on errors
      */
 
     /**

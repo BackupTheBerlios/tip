@@ -22,7 +22,6 @@
  * Poll module
  *
  * @package TIP
- * @subpackage Module
  */
 class TIP_Poll extends TIP_Content
 {

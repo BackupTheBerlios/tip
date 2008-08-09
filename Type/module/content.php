@@ -655,9 +655,8 @@ class TIP_Content extends TIP_Module
     //{{{ Tags
 
     /**#@+
-     * @param      string       $params Parameters of the tag
-     * @return     string|null          The string result or null
-     * @subpackage TemplateEngine
+     * @param  string      $params Parameters of the tag
+     * @return string|null         The string result or null
      */
 
     /**

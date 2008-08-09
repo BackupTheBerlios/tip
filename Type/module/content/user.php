@@ -33,7 +33,6 @@
  *          In anonymous sections, this field is not defined (it is null).
  *
  * @package TIP
- * @subpackage Module
  */
 class TIP_User extends TIP_Content
 {

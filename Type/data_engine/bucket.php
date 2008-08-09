@@ -26,7 +26,6 @@
  * warning message for debugging purpose.
  *
  * @package TIP
- * @subpackage DataEngine
  *
  * @todo Must be implemented a function to show the row context, so you
  *       can see it in the logged warnings.

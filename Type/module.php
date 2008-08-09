@@ -524,9 +524,8 @@ abstract class TIP_Module extends TIP_Type
     //{{{ Tags
 
     /**#@+
-     * @param      string       $params Parameters of the tag
-     * @return     string|null          The string result or null
-     * @subpackage TemplateEngine
+     * @param  string      $params Parameters of the tag
+     * @return string|null         The string result or null
      */
 
     /**

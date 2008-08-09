@@ -24,8 +24,7 @@
  * The TIP_RcbtNG implementation, to be used instead of the deprecated
  * TIP_Rcbt engine.
  *
- * @package    TIP
- * @subpackage TemplateEngine
+ * @package TIP
  */
 class TIP_RcbtNG_Instance
 {
@@ -77,10 +76,9 @@ class TIP_RcbtNG_Instance
     //{{{ Predefined tags
 
     /**#@+
-     * @param      string   $module The module to use
-     * @param      string   $params Tag parameters
-     * @return     bool             true on success or false on errors
-     * @subpackage TemplateEngine
+     * @param  string $module The module to use
+     * @param  string $params Tag parameters
+     * @return bool           true on success or false on errors
      */
 
     protected function tag($module, $params)
@@ -462,8 +460,7 @@ class TIP_RcbtNG_Instance
  *
  * Simple implementation of TIP_Template_Engine.
  *
- * @package    TIP
- * @subpackage TemplateEngine
+ * @package TIP
  */
 class TIP_RcbtNG extends TIP_Template_Engine
 {

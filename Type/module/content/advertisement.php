@@ -22,7 +22,6 @@
  * Advertisement module
  *
  * @package TIP
- * @subpackage Module
  */
 class TIP_Advertisement extends TIP_Content
 {
