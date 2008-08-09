@@ -203,17 +203,20 @@ class SQLdefaultConverter extends Converter
             break;
         case 'method':
             $type = @$doc->return->returnType;
-            $params = array();
+            $params = array_key_exists('params', $doc) ? $doc->params : array();
+            $tags = array_key_exists('tags', $doc) ? $doc->tags : array();
+
+            $args = array();
             foreach($element->listParams() as $param) {
                 if ($param[1] !== false) {
-                    $params[] = "[$param[0] = $param[1]]";
+                    $args[] = "[$param[0]]";
                 } else {
-                    $params[] = $param[0];
+                    $args[] = $param[0];
                 }
             }
-            $params = implode(', ', $params);
+            $args = implode(', ', $args);
 
-            $text = "\n\n+++ $name {{($params)";
+            $text = "\n\n+++ $name {{($args)";
             if (isset($type)) {
                 $text .= ' : ';
                 if ($element->getReturnsReference()) {
@@ -222,6 +225,23 @@ class SQLdefaultConverter extends Converter
                 $text .= $type;
             }
             $text .= '}}';
+
+            foreach($element->listParams() as $param) {
+                $name = $param[0];
+                $type = 'mixed';
+                $default = '';
+
+                if (array_key_exists($name, $params)) {
+                    $pblock = $params[$name];
+                    $type = $pblock->returnType;
+                }
+
+                if ($param[1] !== false) {
+                    $default = " [ = $param[1]]";
+                }
+
+                $text .= "\n: $name : {{" . $type . $default . '}}';
+            }
 
             if (isset($element->linenumber)) {
                 $range = $element->linenumber . ' - ' . $element->endlinenumber;
