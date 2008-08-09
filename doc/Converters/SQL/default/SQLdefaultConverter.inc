@@ -204,7 +204,6 @@ class SQLdefaultConverter extends Converter
         case 'method':
             $type = @$doc->return->returnType;
             $params = array_key_exists('params', $doc) ? $doc->params : array();
-            $tags = array_key_exists('tags', $doc) ? $doc->tags : array();
 
             $args = array();
             foreach($element->listParams() as $param) {
@@ -245,12 +244,23 @@ class SQLdefaultConverter extends Converter
 
             if (isset($element->linenumber)) {
                 $range = $element->linenumber . ' - ' . $element->endlinenumber;
-                $text .= "\n: Lines : {{{$range}}}";
+                $text .= "\n: lines : {{{$range}}}";
             }
 
             break;
         default:
             print_r($element);die();
+        }
+
+        if (!empty($doc->tags)) {
+            foreach ($doc->tags as $name => &$tag) {
+                // The PhpDocumentor is really a piece of crap...
+                if (is_object($tag[0])) {
+                    $value = $tag[0]->getString();
+                    empty($value) && $value = 'yes';
+                    $text .= "\n: $name : {{{$value}}}";
+                }
+            }
         }
 
         if (isset($doc)) {
