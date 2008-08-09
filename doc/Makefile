@@ -33,4 +33,7 @@ mostlyclean:
 clean: mostlyclean
 	@rm -fr tip.sql stats $(FORMATS)
 
+install: all
+	mysql -Dntd -uroot -p < tip.sql
+
 .PHONY:	old-stats stats html mostlyclean clean

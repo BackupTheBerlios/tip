@@ -35,6 +35,18 @@
 define('PHPDOC_TYPE_CLASS', 1);
 define('PHPDOC_TYPE_VAR', 2);
 define('PHPDOC_TYPE_METHOD', 3);
+define('PHPDOC_SQL_PREAMBLE', "DROP TABLE IF EXISTS `tip_api`;
+CREATE TABLE IF NOT EXISTS `tip_api` (
+  `id` char(40) character set latin1 NOT NULL,
+  `parent` char(40) character set latin1 NOT NULL,
+  `content` text NOT NULL COMMENT 'widget_args=Delimiter,Code,Raw,Anchor,Heading,Toc,Horiz,Blockquote,List,Deflist,Table,Image,Center,Newline,Url,Strong,Emphasis,Tt,Superscript,Subscript,Freelink',
+  PRIMARY KEY  (`id`),
+  KEY `parent` (`parent`)
+) DEFAULT CHARSET=utf8;
+
+INSERT INTO `tip_api`
+  (`id`,`parent`,`content`)
+  VALUES ");
 
 /**
  * SQL output converter.
@@ -153,10 +165,7 @@ class SQLdefaultConverter extends Converter
         }
 
         $handle = fopen('tip.sql', 'w');
-        fwrite($handle,
-            "INSERT INTO `tip_api`\n" .
-            "(`id`,`parent`,`content`)\n" .
-            "VALUES " . implode(",\n", $this->_rows));
+        fwrite($handle, PHPDOC_SQL_PREAMBLE .implode(",\n", $this->_rows));
         fclose($handle);
     }
 
