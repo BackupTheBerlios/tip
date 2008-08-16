@@ -182,7 +182,7 @@ class TIP_Class extends TIP_Content
             return false;
         }
 
-        // Save the row fot $child_data: putRow() is destructive
+        // Copy the row for $child_data: putRow() is destructive
         $child_row = $row;
 
         $processed = parent::_onAdd($row) && $this->data->putRow($row);
