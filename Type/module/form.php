@@ -320,15 +320,23 @@ class TIP_Form extends TIP_Module
             $this->action == TIP_FORM_ACTION_CUSTOM) {
             // GET driven form: this action could be called more than once
             $this->_processRow($this->defaults);
+            $lastid = TIP_Application::getGlobalItem('ID');
         } else {
             // POST driven form: called only once
             HTTP_Session2::set($this->id . '.stage', null);
             $this->_form->process(array(&$this, '_processRow'));
-            $last_id = $this->_data->getLastId();
-            isset($last_id) || $last_id = '';
-            $this->referer = str_replace('-lastid-', $last_id, $this->referer);
-            $this->follower = str_replace('-lastid-', $last_id, $this->follower);
+
+            $data =& $this->master->getProperty('data');
+            $primary_key = $data->getProperty('primary_key');
+            $lastid = $this->_form->getSubmitValue($primary_key);
+            if (is_null($lastid)) {
+                $lastid = $data->getLastId();
+            }
         }
+
+        isset($lastid) || $lastid = '';
+        $this->referer = str_replace('-lastid-', $lastid, $this->referer);
+        $this->follower = str_replace('-lastid-', $lastid, $this->follower);
     }
 
     /**
@@ -514,7 +522,7 @@ class TIP_Form extends TIP_Module
     //{{{ Internal properties
 
     /**
-     * A reference to the TIP_Data object of the master module
+     * A reference to the TIP_Data object of the current module in validation
      * @var TIP_Data
      * @internal
      */
@@ -650,19 +658,20 @@ class TIP_Form extends TIP_Module
 
         // Process the row
         $processed = false;
+        $data = &$this->master->getProperty('data');
 
         switch ($this->action) {
 
         case TIP_FORM_ACTION_ADD:
-            $processed = $this->_data->putRow($row);
+            $processed = $data->putRow($row);
             break;
 
         case TIP_FORM_ACTION_EDIT:
-            $processed = $this->_data->updateRow($row);
+            $processed = $data->updateRow($row);
             break;
 
         case TIP_FORM_ACTION_DELETE:
-            $processed = $this->_data->deleteRow($row[$this->_data->getProperty('primary_key')]);
+            $processed = $data->deleteRow($row[$data->getProperty('primary_key')]);
             break;
 
         case TIP_FORM_ACTION_CUSTOM:
@@ -997,7 +1006,8 @@ class TIP_Form extends TIP_Module
             $group[] =& $element;
         }
         if ($buttons & TIP_FORM_BUTTON_DELETE && $this->action_id != TIP_FORM_ACTION_DELETE) {
-            $primary_key = $this->_data->getProperty('primary_key');
+            $data =& $this->master->getProperty('data');
+            $primary_key = $data->getProperty('primary_key');
             $uri = TIP::buildActionUri($this->id, 'delete', $this->_form->getElementValue($primary_key));
             $element =& $this->_form->createElement('link', 'delete', null, $uri, $this->getLocale('button.delete'), array('class' => 'delete'));
             $element->removeAttribute('name');
