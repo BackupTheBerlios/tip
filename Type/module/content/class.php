@@ -295,6 +295,13 @@ class TIP_Class extends TIP_Content
         }
 
         $engine = &$this->data->getProperty('engine');
+        $child_data =& $this->_child->getProperty('data');
+        if ($child_data->getProperty('engine') != $engine) {
+            // Transaction not possible on different data engines
+            TIP::error('master and child data must share the data engine');
+            return null;
+        }
+
         if (!$engine->startTransaction()) {
             // This error must be catched here to avoid the rollback
             TIP::notifyError('fatal');
@@ -304,28 +311,16 @@ class TIP_Class extends TIP_Content
         // Copy the row for $child_data: putRow() is destructive
         $child_row = $row;
 
-        $processed = parent::_onAdd($row) && $this->data->putRow($row);
+        $processed = parent::_onAdd($row) &&
+            $this->data->putRow($row) &&
+            !is_null($child_row[$this->master_field] = $this->data->getLastId()) &&
+            $child_data->putRow($child_row);
+
         if ($processed) {
-            $child_data =& $this->_child->getProperty('data');
-
-            if ($child_data->getProperty('engine') != $engine) {
-                // Master and child data must share the same data engine,
-                // otherwise no transaction is possible
-                TIP::error('master and child data must share the data engine');
-                $processed = false;
-            } else {
-                $child_row[$this->master_field] = $this->data->getLastId();
-                $processed = $child_data->putRow($child_row);
-            }
-        }
-
-        if (!$processed) {
-            $engine->cancelTransaction();
-            TIP::notifyError('fatal');
-        } elseif ($engine->endTransaction()) {
+            $engine->endTransaction();
             TIP::notifyInfo('done');
         } else {
-            // Error in committing: no rollback needed
+            $engine->cancelTransaction();
             TIP::notifyError('fatal');
         }
 
@@ -347,6 +342,13 @@ class TIP_Class extends TIP_Content
         }
 
         $engine = &$this->data->getProperty('engine');
+        $child_data =& $this->_child->getProperty('data');
+        if ($child_data->getProperty('engine') != $engine) {
+            // Transaction not possible on different data engines
+            TIP::error('master and child data must share the data engine');
+            return null;
+        }
+
         if (!$engine->startTransaction()) {
             // This error must be catched here to avoid the rollback
             TIP::notifyError('fatal');
@@ -359,27 +361,15 @@ class TIP_Class extends TIP_Content
         // Copy the row for $child_data: updateRow() is destructive
         $child_row = $row;
 
-        $processed = parent::_onEdit($row) && $this->data->updateRow($row);
+        $processed = parent::_onEdit($row) &&
+            $this->data->updateRow($row) &&
+            $child_data->updateRow($child_row);
+
         if ($processed) {
-            $child_data =& $this->_child->getProperty('data');
-
-            if ($child_data->getProperty('engine') != $engine) {
-                // Master and child data must share the same data engine,
-                // otherwise no transaction is possible
-                TIP::error('master and child data must share the data engine');
-                $processed = false;
-            } else {
-                $processed = $child_data->updateRow($child_row);
-            }
-        }
-
-        if (!$processed) {
-            $engine->cancelTransaction();
-            TIP::notifyError('fatal');
-        } elseif ($engine->endTransaction()) {
+            $engine->endTransaction();
             TIP::notifyInfo('done');
         } else {
-            // Error in committing: no rollback needed
+            $engine->cancelTransaction();
             TIP::notifyError('fatal');
         }
 
