@@ -46,9 +46,27 @@ class TIP_User extends TIP_Content
 
     /**
      * The default expiration for the cookie
+     *
+     * Any value accepted by the strtotime() function is valid.
+     * The expiration is the time **from the first login** after which the
+     * cookie will expire. The "idle" property has higher precedence over
+     * this "expiration" value.
+     *
      * @var string
      */
     protected $expiration = '+1 year';
+
+    /**
+     * The idle time for the cookie or null if only "expiration" is used
+     *
+     * Any value accepted by the strtotime() function is valid.
+     * The idle is the time **from the last activity** after which the
+     * cookie will expire. This means if you set "idle" the cookie will
+     * be set on every hit to posticipate the expiration.
+     *
+     * @var string
+     */
+    protected $idle = null;
 
     //}}}
     //{{{ Constructor/destructor
@@ -124,9 +142,12 @@ class TIP_User extends TIP_Content
             TIP::notifyError($this->_constructor_error);
             $this->_constructor_error = null;
             $this->_row = null;
-        } elseif (is_array($this->_row)) {
-            $this->_activateUser();
         }
+
+        // This update should be overwritten on login, logout
+        // and password change
+        $this->_updateCookie();
+
         parent::postConstructor();
     }
 
@@ -173,7 +194,6 @@ class TIP_User extends TIP_Content
         }
 
         $this->_updateCookie();
-        $this->_activateUser();
         $this->_refreshUser();
         return true;
     }
@@ -192,7 +212,6 @@ class TIP_User extends TIP_Content
         HTTP_Session2::destroy();
         $this->_row = null;
         $this->_updateCookie();
-        $this->_activateUser();
         $this->_refreshUser();
         return true;
     }
@@ -483,7 +502,7 @@ class TIP_User extends TIP_Content
         $this->_row = $row;
         $this->_old_row = $row;
 
-        // Update the cookie on password change: the expiration is reset
+        // The cookie must be updated on password change
         if (array_key_exists('password', $row) && array_key_exists('password', $old_row) &&
             strcmp($row['password'], $old_row['password']) != 0) {
             $this->_updateCookie();
@@ -513,35 +532,35 @@ class TIP_User extends TIP_Content
     //{{{ Internal methods
 
     /**
-     * Update the authentication cookie using the $_row internal property
+     * Update the authentication cookie and update internal stuff
      */
     private function _updateCookie()
     {
+        $primary_key = $this->data->getProperty('primary_key');
+        $logged = array_key_exists('TIP_User', $_COOKIE);
+
         if (is_array($this->_row)) {
-            // Registered user request
-            $id = $this->_row[$this->data->getProperty('primary_key')];
-            $password = crypt($this->_row['password']);
-            $expiration = strtotime($this->expiration);
-            setcookie('TIP_User', $id . ',' . $password, $expiration, '/');
-        } else {
-            // Anonymous request
+            // Registered user: update the cookie
+            if (isset($this->idle)) {
+                // idle time specified: posticipate the cookie
+                $expiration = strtotime($this->idle);
+            } elseif (!$logged && isset($this->expiration)) {
+                // First login and idle time not specified: use "expiration"
+                $expiration = strtotime($this->expiration);
+            }
+
+            if (isset($expiration)) {
+                $id = $this->_row[$primary_key];
+                $password = crypt($this->_row['password']);
+                setcookie('TIP_User', $id . ',' . $password, $expiration, '/');
+            }
+        } elseif ($logged) {
+            // Anonymous user: delete the cookie (if it exists)
             setcookie('TIP_User', '', time()-3600, '/');
         }
-    }
 
-    /**
-     * Activate the current user
-     *
-     * Simply copies the '_row' internal property in '_old_row' and sets the
-     * 'CID' global key. This means the user data must resides in the '_row'
-     * internal property.
-     *
-     * If the '_row' property is not set, all the values are unset.
-     */
-    private function _activateUser()
-    {
         $this->_old_row = $this->_row;
-        $this->keys['CID'] = @$this->_row[$this->data->getProperty('primary_key')];
+        $this->keys['CID'] = @$this->_row[$primary_key];
     }
 
     /**
