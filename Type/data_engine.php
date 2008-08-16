@@ -149,6 +149,27 @@ abstract class TIP_Data_Engine extends TIP_Type
      */
     abstract public function dump($root);
 
+    /**
+     * Start a transaction
+     *
+     * @return bool true on success or false on errors
+     */
+    abstract public function startTransaction();
+
+    /**
+     * Commit (end) a transaction
+     *
+     * @return bool true on success or false on errors
+     */
+    abstract public function endTransaction();
+
+    /**
+     * Rollback (cancel) a transaction
+     *
+     * @return bool true on success or false on errors
+     */
+    abstract public function cancelTransaction();
+
     //}}}
 }
 ?>

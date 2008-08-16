@@ -277,6 +277,21 @@ class TIP_Mysql extends TIP_Data_Engine
         return true;
     }
 
+    public function startTransaction()
+    {
+        return $this->_query('START TRANSACTION');
+    }
+
+    public function endTransaction()
+    {
+        return $this->_query('COMMIT');
+    }
+
+    public function cancelTransaction()
+    {
+        return $this->_query('ROLLBACK');
+    }
+
     //}}}
     //{{{ Internal properties
 

@@ -49,32 +49,32 @@ class TIP_Bucket extends TIP_Data_Engine
     //}}}
     //{{{ TIP_Data_Engine implementation
 
-    function fillFields(&$data)
+    public function fillFields(&$data)
     {
         TIP::warning("fillFields($data)");
         return true;
     }
 
-    function& select(&$data, $filter, $fields)
+    public function &select(&$data, $filter, $fields)
     {
         TIP::warning("get($data, $filter, $fields)");
         $fake_result = array();
         return $fake_result;
     }
 
-    function insert(&$data, &$row)
+    public function insert(&$data, &$row)
     {
         TIP::warning("insert(row, $data)");
         return true;
     }
 
-    function update(&$data, $filter, &$row)
+    public function update(&$data, $filter, &$row)
     {
         TIP::warning("update($data, $filter, row)");
         return true;
     }
 
-    function delete(&$data, $filter)
+    public function delete(&$data, $filter)
     {
         TIP::warning("delete($data, $filter)");
         return true;
@@ -83,6 +83,24 @@ class TIP_Bucket extends TIP_Data_Engine
     public function dump($root)
     {
         TIP::warning("dump($root)");
+        return true;
+    }
+
+    public function startTransaction()
+    {
+        TIP::warning('startTransaction()');
+        return true;
+    }
+
+    public function endTransaction()
+    {
+        TIP::warning('endTransaction()');
+        return true;
+    }
+
+    public function cancelTransaction()
+    {
+        TIP::warning('cancelTransaction()');
         return true;
     }
 
