@@ -15,13 +15,14 @@
  * @copyright Copyright &copy; 2006-2008 Nicola Fontana
  * @license   http://www.opensource.org/licenses/bsd-license.php New BSD License
  * @package   TIP
- * @since     0.0.1
+ * @since     0.3.0
  */
 
 /**
  * Class module
  *
  * @package TIP
+ * @since   0.3.0
  */
 class TIP_Class extends TIP_Content
 {
