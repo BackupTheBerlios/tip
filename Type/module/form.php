@@ -306,6 +306,8 @@ class TIP_Form extends TIP_Module
      */
     public function process()
     {
+        $this->_form->freeze();
+
         if ($this->action == TIP_FORM_ACTION_DELETE ||
             $this->action == TIP_FORM_ACTION_CUSTOM) {
             // GET driven form: this action could be called more than once
@@ -933,12 +935,6 @@ class TIP_Form extends TIP_Module
         } else {                                // Validation
             $this->_form->applyFilter('__ALL__', array('TIP', 'extendedTrim'));
             $valid = $this->_form->validate();
-        }
-
-        if ($valid !== false) {
-            $this->_form->freeze();
-            // Hack to avoid freezing of next elements
-            $this->_form->_freezeAll = false;
         }
 
         return $valid;
