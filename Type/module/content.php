@@ -1004,10 +1004,10 @@ class TIP_Content extends TIP_Module
      * Notice also that $options['on_process'], if not specified, will be set
      * to the _onAdd() default callback.
      *
-     * @param  array|null $options Options to pass to the form() call
-     * @return bool                true on success or false on errors
+     * @param  array $options Options to pass to the form() call
+     * @return bool           true on success or false on errors
      */
-    protected function actionAdd($options = null)
+    protected function actionAdd($options = array())
     {
         // Merge the argument options with the configuration options, if found
         // The argument options have higher priority...
@@ -1045,9 +1045,9 @@ class TIP_Content extends TIP_Module
      * Notice also that $options['on_process'], if not specified, will be set
      * to the _onEdit() default callback.
      *
-     * @param  mixed      $id      The identifier of the row to edit
-     * @param  array|null $options Options to pass to the form() call
-     * @return bool                true on success or false on errors
+     * @param  mixed $id      The identifier of the row to edit
+     * @param  array $options Options to pass to the form() call
+     * @return bool           true on success or false on errors
      */
     protected function actionEdit($id, $options = array())
     {
@@ -1071,9 +1071,9 @@ class TIP_Content extends TIP_Module
      * Notice also that $options['on_process'], if not specified, will be set
      * to the _onDelete() default callback.
      *
-     * @param  mixed      $id      The identifier of the row to delete
-     * @param  array|null $options Options to pass to the form() call
-     * @return bool                true on success or false on errors
+     * @param  mixed $id      The identifier of the row to delete
+     * @param  array $options Options to pass to the form() call
+     * @return bool           true on success or false on errors
      */
     protected function actionDelete($id, $options = array())
     {
