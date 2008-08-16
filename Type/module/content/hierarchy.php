@@ -177,7 +177,7 @@ class TIP_Hierarchy extends TIP_Content
                 $total_count += $count;
             }
 
-            if ($row[$this->parent_field]) {
+            if (isset($this->parent_field) && $row[$this->parent_field]) {
                 while ($parent_id = $row[$this->parent_field]) {
                     $parent =& $rows[$parent_id];
                     if (@$parent['CLASS'] != 'folder') {
