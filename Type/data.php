@@ -19,17 +19,6 @@
  */
 
 /**
- * Ascending order, used by TIP_Data::order()
- */
-define('TIP_ORDER_ASCENDING', false);
-
-/**
- * Descending order, used by TIP_Data::order()
- */
-define('TIP_ORDER_DESCENDING', true);
-
-
-/**
  * A generic data provider
  *
  * @package  TIP

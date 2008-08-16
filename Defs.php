@@ -55,6 +55,12 @@ define('TIP_SEVERITY_WARNING',    'warning');
 define('TIP_SEVERITY_ERROR',      'error');
 /**#@-*/
 
+/**#@+ Sorting orders, used by TIP_Data::order() */
+define('TIP_ORDER_ASCENDING',     false);
+define('TIP_ORDER_DESCENDING',    true);
+/**#@-*/
+
+
 
 /**#@+ Form related constants */
 
