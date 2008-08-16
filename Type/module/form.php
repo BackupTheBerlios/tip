@@ -64,12 +64,20 @@ class TIP_Form extends TIP_Module
     protected $action_id = null;
 
     /**
-     * A list of field ids to be used by the form: leave null for full automatic
-     * field management
+     * An array of fields structures, as returned by TIP_Data::getFields()
+     *
+     * Setting this property you can choose the fields to manipulate.
+     * Leave it null for full automatic fields management.
      *
      * @var array
      */
     protected $fields = null;
+
+    /**
+     * An array of field ids to keep frozen
+     * @var array
+     */
+    protected $readonly = array();
 
     /**
      * Wheter to include a captcha element in the form
@@ -734,6 +742,9 @@ class TIP_Form extends TIP_Module
                 $method = '_widgetText';
             }
             $element =& $this->$method($field, @$field['widget_args']);
+            if (in_array($id, $this->readonly)) {
+                $element->freeze();
+            }
         }
     }
 
