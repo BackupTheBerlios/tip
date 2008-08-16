@@ -127,6 +127,65 @@ class TIP_Class extends TIP_Content
         return $form->render($valid);
     }
 
+    /**
+     * Perform an edit action
+     *
+     * Overrides the default edit action, merging master and child
+     * fields to build an unique form. The class field is freezed.
+     *
+     * @param  mixed $id      The identifier of the row to edit
+     * @param  array $options Options to pass to the form() call
+     * @return bool           true on success or false on errors
+     */
+    protected function actionEdit($id, $options = array())
+    {
+        // Merge the argument options with the configuration options, if found
+        // The argument options have higher priority...
+        if (@is_array($this->form_options['edit'])) {
+            $options = array_merge($this->form_options['edit'], (array) $options);
+        }
+
+        TIP::arrayDefault($options, 'on_process', array(&$this, '_onEdit'));
+        TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '-lastid-'));
+
+        // Populate "defaults" with master field values
+        if (is_null($row = $this->fromRow($id))) {
+            return null;
+        }
+        if (@is_array($options['defaults'])) {
+            $options['defaults'] = array_merge($row, $options['defaults']);
+        } else {
+            $options['defaults'] =& $row;
+        }
+
+        // Populate "defaults" with child field values
+        $child_name = $this->id . '-' . $row[$this->class_field];
+        if ($this->_child =& TIP_Type::getInstance($child_name, false)) {
+            if (is_null($child_row = $this->_child->fromRow($id))) {
+                return null;
+            }
+            $options['defaults'] = array_merge($child_row, $options['defaults']);
+        }
+
+        $options['type']   = array('module', 'form');
+        $options['master'] =& $this;
+        $options['action'] = TIP_FORM_ACTION_EDIT;
+        $options['readonly'] = array($this->class_field);
+
+        $form =& TIP_Type::singleton($options);
+        $valid = $form->validate();
+
+        // On edit, the child form is chained-up also if $valid==false
+        if ($this->_child && !$form->validateAlso($this->_child)) {
+            $valid = false;
+        }
+
+        if ($valid)
+            $form->process();
+
+        return $form->render($valid);
+    }
+
     protected function actionBrowse(&$conditions)
     {
         // Chain-up the parent method on no summary view defined
@@ -163,10 +222,11 @@ class TIP_Class extends TIP_Content
     //{{{ Callbacks
 
     /**
-     * Add both class and child rows
+     * Add both master and child rows
      *
      * @param  array &$row The joined row to add
-     * @return bool        true to chain-up the default action, false otherwise
+     * @return bool        always false, to avoid chaining-up
+     *                     the default action
      */
     public function _onAdd(&$row)
     {
@@ -197,6 +257,60 @@ class TIP_Class extends TIP_Content
             } else {
                 $child_row[$this->master_field] = $this->data->getLastId();
                 $processed = $child_data->putRow($child_row);
+            }
+        }
+
+        if (!$processed) {
+            $engine->cancelTransaction();
+            TIP::notifyError('fatal');
+        } elseif ($engine->endTransaction()) {
+            TIP::notifyInfo('done');
+        } else {
+            // Error in committing: no rollback needed
+            TIP::notifyError('fatal');
+        }
+
+        return false;
+    }
+
+    /**
+     * Update master and child rows
+     *
+     * @param  array &$row The joined row to update
+     * @return bool        always false, to avoid chaining-up
+     *                     the default action
+     */
+    public function _onEdit(&$row)
+    {
+        if (is_null($this->_child)) {
+            // No child module: chain-up the parent method
+            return parent::_onEdit($row);
+        }
+
+        $engine = &$this->data->getProperty('engine');
+        if (!$engine->startTransaction()) {
+            // This error must be catched here to avoid the rollback
+            TIP::notifyError('fatal');
+            return false;
+        }
+
+        // The class_field MUST NOT be changed (only deleting allowed)
+        unset($row[$this->class_field]);
+
+        // Copy the row for $child_data: updateRow() is destructive
+        $child_row = $row;
+
+        $processed = parent::_onEdit($row) && $this->data->updateRow($row);
+        if ($processed) {
+            $child_data =& $this->_child->getProperty('data');
+
+            if ($child_data->getProperty('engine') != $engine) {
+                // Master and child data must share the same data engine,
+                // otherwise no transaction is possible
+                TIP::error('master and child data must share the data engine');
+                $processed = false;
+            } else {
+                $processed = $child_data->updateRow($child_row);
             }
         }
 
