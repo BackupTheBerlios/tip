@@ -163,7 +163,7 @@ class TIP_Class extends TIP_Content
     //{{{ Callbacks
 
     /**
-     * Save both class and child rows
+     * Add both class and child rows
      *
      * TODO: this operation must be transaction protected!
      *
@@ -173,18 +173,18 @@ class TIP_Class extends TIP_Content
     public function _onAdd(&$row)
     {
         if (is_null($this->_child)) {
-            // No child module: fallback to the default behaviour
-            return true;
+            // No child module: chain-up the parent method
+            return parent::_onAdd($row);
         }
 
-        // Save the row, also because putRow() is destructive
-        $child_data =& $this->_child->getProperty('data');
+        // Save the row fot $child_data: putRow() is destructive
         $child_row = $row;
 
-        $processed = $this->data->putRow($row);
+        $processed = parent::_onAdd($row) && $this->data->putRow($row);
         if ($processed) {
+            $child_data =& $this->_child->getProperty('data');
             $child_row[$this->master_field] = $this->data->getLastId();
-            $processed = $processed && $child_data->putRow($child_row);
+            $processed = $child_data->putRow($child_row);
         }
 
         if ($processed) {
