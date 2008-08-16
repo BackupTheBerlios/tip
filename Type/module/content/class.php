@@ -165,8 +165,6 @@ class TIP_Class extends TIP_Content
     /**
      * Add both class and child rows
      *
-     * TODO: this operation must be transaction protected!
-     *
      * @param  array &$row The joined row to add
      * @return bool        true to chain-up the default action, false otherwise
      */
@@ -177,19 +175,38 @@ class TIP_Class extends TIP_Content
             return parent::_onAdd($row);
         }
 
+        $engine = &$this->data->getProperty('engine');
+        if (!$engine->startTransaction()) {
+            // This error must be catched here to avoid the rollback
+            TIP::notifyError('fatal');
+            return false;
+        }
+
         // Save the row fot $child_data: putRow() is destructive
         $child_row = $row;
 
         $processed = parent::_onAdd($row) && $this->data->putRow($row);
         if ($processed) {
             $child_data =& $this->_child->getProperty('data');
-            $child_row[$this->master_field] = $this->data->getLastId();
-            $processed = $child_data->putRow($child_row);
+
+            if ($child_data->getProperty('engine') != $engine) {
+                // Master and child data must share the same data engine,
+                // otherwise no transaction is possible
+                TIP::error('master and child data must share the data engine');
+                $processed = false;
+            } else {
+                $child_row[$this->master_field] = $this->data->getLastId();
+                $processed = $child_data->putRow($child_row);
+            }
         }
 
-        if ($processed) {
+        if (!$processed) {
+            $engine->cancelTransaction();
+            TIP::notifyError('fatal');
+        } elseif ($engine->endTransaction()) {
             TIP::notifyInfo('done');
         } else {
+            // Error in committing: no rollback needed
             TIP::notifyError('fatal');
         }
 
