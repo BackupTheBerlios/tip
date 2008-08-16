@@ -131,7 +131,7 @@ class TIP_Class extends TIP_Content
      * Perform an edit action
      *
      * Overrides the default edit action, merging master and child
-     * fields to build an unique form. The class field is freezed.
+     * fields to build an unique form. The class field is frozen.
      *
      * @param  mixed $id      The identifier of the row to edit
      * @param  array $options Options to pass to the form() call
@@ -176,6 +176,65 @@ class TIP_Class extends TIP_Content
         $valid = $form->validate();
 
         // On edit, the child form is chained-up also if $valid==false
+        if ($this->_child && !$form->validateAlso($this->_child)) {
+            $valid = false;
+        }
+
+        if ($valid)
+            $form->process();
+
+        return $form->render($valid);
+    }
+
+    /**
+     * Perform a delete action
+     *
+     * Overrides the default delete action by showing a merged form
+     * between master and child data.
+     *
+     * @param  mixed $id      The identifier of the row to delete
+     * @param  array $options Options to pass to the form() call
+     * @return bool           true on success or false on errors
+     */
+    protected function actionDelete($id, $options = array())
+    {
+        // Merge the argument options with the configuration options, if found
+        // The argument options have higher priority...
+        if (@is_array($this->form_options['delete'])) {
+            $options = array_merge($this->form_options['delete'], (array) $options);
+        }
+
+        TIP::arrayDefault($options, 'on_process', array(&$this, '_onDelete'));
+        TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '-lastid-'));
+
+        // Populate "defaults" with master field values
+        if (is_null($row = $this->fromRow($id))) {
+            return null;
+        }
+        if (@is_array($options['defaults'])) {
+            $options['defaults'] = array_merge($row, $options['defaults']);
+        } else {
+            $options['defaults'] =& $row;
+        }
+
+        // Populate "defaults" with child field values
+        $child_name = $this->id . '-' . $row[$this->class_field];
+        if ($this->_child =& TIP_Type::getInstance($child_name, false)) {
+            if (is_null($child_row = $this->_child->fromRow($id))) {
+                return null;
+            }
+            $options['defaults'] = array_merge($child_row, $options['defaults']);
+        }
+
+        $options['type']   = array('module', 'form');
+        $options['master'] =& $this;
+        $options['action'] = TIP_FORM_ACTION_DELETE;
+        $options['readonly'] = array($this->class_field);
+
+        $form =& TIP_Type::singleton($options);
+        $valid = $form->validate();
+
+        // On delete, the child form is chained-up also if $valid==false
         if ($this->_child && !$form->validateAlso($this->_child)) {
             $valid = false;
         }
@@ -328,13 +387,51 @@ class TIP_Class extends TIP_Content
     }
 
     /**
-     * Provide additional statistic update on the master module
-     * @param  array &$row The data row to add
-     * @return bool        false, to avoid chaining the default method
+     * Delete master and child rows
+     *
+     * @param  array &$row The joined row to delete
+     * @return bool        always false, to avoid chaining-up
+     *                     the default action
      */
     public function _onDelete(&$row)
     {
-        /* TODO */
+        if (is_null($this->_child)) {
+            // No child module: chain-up the parent method
+            return parent::_onEdit($row);
+        }
+
+        $primary_key = $this->data->getProperty('primary_key');
+        if (!array_key_exists($primary_key, $row) ||
+            is_null($id = $row[$primary_key])) {
+            TIP::error("no primary key defined (field $primary_key)");
+            return null;
+        }
+
+        $engine = &$this->data->getProperty('engine');
+        $child_data =& $this->_child->getProperty('data');
+        if ($child_data->getProperty('engine') != $engine) {
+            // Transaction not possible on different data engines
+            TIP::error('master and child data must share the data engine');
+            return null;
+        }
+
+        if (!$engine->startTransaction()) {
+            // This error must be catched here to avoid the rollback
+            TIP::notifyError('fatal');
+            return false;
+        }
+
+        $processed = parent::_onDelete($row) &&
+            $this->data->deleteRow($id) && $child_data->deleteRow($id);
+
+        if ($processed) {
+            $engine->endTransaction();
+            TIP::notifyInfo('done');
+        } else {
+            $engine->cancelTransaction();
+            TIP::notifyError('fatal');
+        }
+
         return false;
     }
 
