@@ -649,7 +649,8 @@ class TIP
 
     /**
      * Recursively remove a directory
-     * @param string $dir The directory to delete
+     * @param string  $dir         The directory to delete
+     * @param boolean $self_remove Whether to remove $dir itsself
      */
     static public function removeDir($dir, $self_remove = true)
     {
@@ -675,8 +676,8 @@ class TIP
      * Constructs a path from the argument list and prepending the application
      * base path.
      *
-     * @param  string|array $subpath,... A list of partial paths
-     * @return string                    The constructed path
+     * @param  string|array $varargs A list of partial paths
+     * @return string                The constructed path
      */
     static public function buildPath()
     {
@@ -694,8 +695,8 @@ class TIP
      *
      * Shortcut for building a path prepending the application 'logic_root'.
      *
-     * @param  string|array $subpath,... A list of partial paths
-     * @return string                    The constructed path
+     * @param  string|array $varargs A list of partial paths
+     * @return string                The constructed path
      */
     static public function buildLogicPath()
     {
@@ -712,8 +713,8 @@ class TIP
      *
      * Shortcut for building a path prepending the application 'template_root'.
      *
-     * @param  string|array $subpath,... A list of partial paths
-     * @return string                    The constructed path
+     * @param  string|array $varargs A list of partial paths
+     * @return string                The constructed path
      */
     static public function buildTemplatePath()
     {
@@ -730,8 +731,8 @@ class TIP
      *
      * Shortcut for building a path prepending the application 'fallback_root'.
      *
-     * @param  string|array $subpath,... A list of partial paths
-     * @return string                    The constructed path
+     * @param  string|array $varargs A list of partial paths
+     * @return string                The constructed path
      */
     static public function buildFallbackPath()
     {
@@ -748,8 +749,8 @@ class TIP
      *
      * Shortcut for building a path prepending the application 'data_root'.
      *
-     * @param  string|array $subpath,... A list of partial paths
-     * @return string                    The constructed path
+     * @param  string|array $varargs A list of partial paths
+     * @return string                The constructed path
      */
     static public function buildDataPath()
     {
@@ -765,8 +766,8 @@ class TIP
      *
      * Shortcut for building a path prepending the application 'cache_root'.
      *
-     * @param  string|array $subpath,... A list of partial paths
-     * @return string                    The constructed path
+     * @param  string|array $varargs A list of partial paths
+     * @return string                The constructed path
      */
     static public function buildCachePath()
     {
@@ -811,8 +812,8 @@ class TIP
 
     /**
      * Build a relative URI
-     * @param  string|array $suburi,... A list of partial URIs
-     * @return string                   The constructed URI
+     * @param  string|array $varargs A list of partial URIs
+     * @return string                The constructed URI
      */
     static public function buildUri()
     {
@@ -828,8 +829,8 @@ class TIP
 
     /**
      * Build a data (relative) URI
-     * @param  string|array $suburi,... A list of partial URIs
-     * @return string                   The constructed URI
+     * @param  string|array $varargs A list of partial URIs
+     * @return string                The constructed URI
      */
     static public function buildDataUri()
     {
@@ -842,8 +843,8 @@ class TIP
 
     /**
      * Build a template (relative) URI
-     * @param  string|array $suburi,... A list of partial URIs
-     * @return string                   The constructed URI
+     * @param  string|array $varargs A list of partial URIs
+     * @return string                The constructed URI
      */
     static public function buildTemplateUri()
     {
@@ -857,8 +858,8 @@ class TIP
 
     /**
      * Build a template fallback (relative) URI
-     * @param  string|array $suburi,... A list of partial URIs
-     * @return string                   The constructed URI
+     * @param  string|array $varargs A list of partial URIs
+     * @return string                The constructed URI
      */
     static public function buildFallbackUri()
     {
