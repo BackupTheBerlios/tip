@@ -187,12 +187,17 @@ class SQLdefaultConverter extends Converter
         }
 
         $doc = $element->docblock;
+        if (isset($doc)) {
+            $sdesc = $doc->getSDesc($this);
+            $desc = $doc->getDesc($this);
+        }
 
         switch ($element->type) {
         case 'class':
             $file = $element->sourceLocation;
             $extends = $element->extends;
             $text = "\n";
+            empty($sdesc) || $text .= "\n\n//$sdesc//\n";
             empty($file) || $text .= "\n: Source file : {{{$file}}}";
             empty($extends) || $text .= "\n: Extends : (($extends))";
             break;
@@ -200,10 +205,12 @@ class SQLdefaultConverter extends Converter
             $type = @$doc->var->returnType;
             $text = "\n\n+++ " . $name;
             empty($type) || $text .= '{{ : ' . $type . '}}';
+            empty($sdesc) || $text .= "\n\n//$sdesc//\n";
             break;
         case 'method':
             $type = @$doc->return->returnType;
             $params = array_key_exists('params', $doc) ? $doc->params : array();
+            $has_varargs = array_key_exists('$varargs', $params);
 
             $args = array();
             foreach($element->listParams() as $param) {
@@ -213,9 +220,11 @@ class SQLdefaultConverter extends Converter
                     $args[] = $param[0];
                 }
             }
+            $has_varargs && $args[] = "}} \xE2\x80\xA6 {{";
             $args = implode(', ', $args);
 
             $text = "\n\n+++ $name {{($args)";
+
             if (isset($type)) {
                 $text .= ' : ';
                 if ($element->getReturnsReference()) {
@@ -225,21 +234,34 @@ class SQLdefaultConverter extends Converter
             }
             $text .= '}}';
 
-            foreach($element->listParams() as $param) {
+            empty($sdesc) || $text .= "\n\n//$sdesc//\n";
+
+            foreach ($element->listParams() as $param) {
                 $name = $param[0];
                 $type = 'mixed';
+                $pdesc = '';
                 $default = '';
 
                 if (array_key_exists($name, $params)) {
                     $pblock = $params[$name];
                     $type = $pblock->returnType;
+                    $pdesc = $pblock->getString();
                 }
 
                 if ($param[1] !== false) {
-                    $default = " [ = $param[1]]";
+                    $default = " [ = $param[1] ]";
                 }
 
                 $text .= "\n: $name : {{" . $type . $default . '}}';
+                empty($pdesc) || $text .= " _\n//$pdesc//";
+            }
+
+            if ($has_varargs) {
+                $pblock = $params['$varargs'];
+                $type = $pblock->returnType;
+                $pdesc = $pblock->getString();
+                $text .= "\n: \xE2\x80\xA6 : {{{$type}}}";
+                empty($pdesc) || $text .= " _\n//$pdesc//";
             }
 
             if (isset($element->linenumber)) {
@@ -249,7 +271,8 @@ class SQLdefaultConverter extends Converter
 
             break;
         default:
-            print_r($element);die();
+            print_r($element);
+            die();
         }
 
         if (!empty($doc->tags)) {
@@ -263,15 +286,8 @@ class SQLdefaultConverter extends Converter
             }
         }
 
-        if (isset($doc)) {
-            $sdesc = $doc->getSDesc($this);
-            $desc = $doc->getDesc($this);
-
-            empty($sdesc) || $text .= "\n\n//" . $sdesc . '//';
-            empty($desc) || $text .= "\n\n" . $desc;
-        }
-
-        return mysql_escape_string($text) . "\n\n";
+        empty($desc) || $text .= "\n\n$desc\n\n";
+        return addslashes($text) . "\n";
     }
 
     function renderClass(&$element, $parent = null)
