@@ -418,6 +418,33 @@ class TIP
     }
 
     /**
+     * Pick one or more elements from an array
+     *
+     * In the simplest case, this is equivalent to $source[$keys] but if
+     * $keys is an array, the result is an implode() of $source values
+     * having the keys specified in the $keys array. The $glue is used
+     * to join these values.
+     *
+     * @param  string|array $keys   A key or an array of keys
+     * @param  array       &$source The source array
+     * @param  string       $glue   The optional glue
+     * @return string               The requested value
+     */
+    static public function pickElement($keys, &$source, $glue = ' ')
+    {
+        if (is_string($keys)) {
+            return $source[$keys];
+        }
+
+        $values = array();
+        foreach ($keys as $key) {
+            array_key_exists($key, $source) && $values[] = $source[$key];
+        }
+
+        return implode($glue, $values);
+    }
+
+    /**
      * Gets a $_GET in a typesafe manner
      *
      * Gets a value from the superglobal $_GET array, forcing the result to
