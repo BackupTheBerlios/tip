@@ -140,7 +140,7 @@ class TIP_Hierarchy extends TIP_Content
             return true;
         }
 
-        // By default, counting is enable if the 'count_field' property is set
+        // By default, counting is enable if the "count_field" property is set
         isset($this->count_field) && $total_count = 0;
 
         $primary_key = $this->data->getProperty('primary_key');
@@ -155,13 +155,15 @@ class TIP_Hierarchy extends TIP_Content
             isset($row['id']) || $row['id'] = $id;
             isset($row['CLASS']) || $row['CLASS'] = 'item';
 
-            // Use the custom title_field or
+            // Use the custom "title_field" or
             // leave the default $row['title'] untouched
-            isset($this->title_field) && $row['title'] = $row[$this->title_field];
+            if (isset($this->title_field) && @$this->title_field != 'title') {
+                $row['title'] = TIP::pickElement($this->title_field, $row);
+            }
 
             // Try to set the custom tooltip field
-            if (isset($this->tooltip_field) && array_key_exists($this->tooltip_field, $row)) {
-                $row['tooltip'] = $row[$this->tooltip_field];
+            if (isset($this->tooltip_field) && @$this->tooltip_field != 'tooltip') {
+                $row['tooltip'] = TIP::pickElement($this->tooltip_field, $row);
             }
 
             if (!isset($row['url'])) {
