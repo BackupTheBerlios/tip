@@ -85,6 +85,64 @@ class TIP_Class extends TIP_Content
     }
 
     //}}}
+    //{{{ Tags
+
+    /**#@+
+     * @param  string      $params Parameters of the tag
+     * @return string|null         The string result or null
+     */
+
+    /**
+     * Switch the data to summary view
+     *
+     * Changes the internal TIP_Data object to the summary view.
+     * This means all subsequential queries are applied to this
+     * view instead of the default data object.
+     *
+     * tagStartSummary() calls cannot be nested and must be followed
+     * by tagEndSummary() to restore the default data.
+     *
+     * The $params arg is not used.
+     */
+    protected function tagStartSummary($params)
+    {
+        if (isset($this->_old_data)) {
+            TIP::error('nested startSummary tags not allowed');
+            return null;
+        }
+
+        $this->_old_data =& $this->data;
+        unset($this->data);
+        $this->data =& TIP_Type::singleton($this->summary_view);
+        return '';
+    }
+
+    /**
+     * Restore the default data
+     *
+     * Changes the internal TIP_Data object to the default data,
+     * that is restore the situation before to the tagStartSummary()
+     * call.
+     *
+     * Every tagStartSummary() call must be followed by tagEndSummary().
+     *
+     * The $params arg is not used.
+     */
+    protected function tagEndSummary($params)
+    {
+        if (!isset($this->_old_data)) {
+            TIP::error('no previous startSummary tag called');
+            return null;
+        }
+
+        unset($this->data);
+        $this->data =& $this->_old_data;
+        return '';
+    }
+
+    /**#@-*/
+
+    //}}}
     //{{{ Actions
 
     /**
@@ -251,20 +309,15 @@ class TIP_Class extends TIP_Content
         if (is_null($this->summary_view))
             return parent::actionBrowse($conditions);
 
-        // Set the new data source
-        $old_data =& $this->data;
-        unset($this->data);
-        $this->data =& TIP_Type::singleton($this->summary_view);
+        if (is_null($this->tagStartSummary(''))) {
+            return false;
+        }
 
         // Call the template
         $this->_browse_conditions =& $conditions;
         $this->appendToPage($this->browse_template);
 
-        // Reset to the old data source
-        unset($this->data);
-        $this->data =& $old_data;
-
-        return true;
+        return !is_null($this->tagEndSummary(''));
     }
 
     //}}}
@@ -276,6 +329,13 @@ class TIP_Class extends TIP_Content
      * @internal
      */
     private $_child = null;
+
+    /**
+     * The "official" TIP_Data object stored by tagStartSummary()
+     * @var TIP_Data
+     * @internal
+     */
+    private $_old_data = null;
 
     //}}}
     //{{{ Callbacks
