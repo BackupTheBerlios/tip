@@ -188,14 +188,15 @@ class TIP_Mysql extends TIP_Data_Engine
         $joins = $data->getProperty('joins');
 
         if (isset($joins)) {
-            // Compute the joins (the main table is manually prepended)
-            array_walk($joins, create_function('&$v,$s', '$v["slave_table"]=$s; $v["master_table"]="'.$table.'";'));
+            $tables = array($table);
+            $sets = array($fields);
 
-            // Get the joined tables and prepend the main one
-            $tables = array_keys($joins);
-            $sets = array_map(create_function('$v', 'return @$v["fieldset"];'), $joins);
-            array_unshift($tables, $table);
-            array_unshift($sets, $fields);
+            foreach ($joins as $slave_table => &$join) {
+                $join['master_table'] = $table;
+                $join['slave_table'] = $slave_table;
+                $tables[] = isset($join['alias']) ? $join['alias'] : $slave_table;
+                $sets[] = @$join['fieldset'];
+            }
 
             $fieldset = $this->_preparedFieldset($sets, $tables);
             $source = $this->preparedName($table) . $this->_preparedJoin($joins);
@@ -572,7 +573,7 @@ class TIP_Mysql extends TIP_Data_Engine
      * same order of the $table array.
      *
      * @param  array|string      $fields A field or an array of fields
-     * @param  array|string|null $table  Table where the field is
+     * @param  array|string|null $table  Table where the fields are
      * @return string                    The prepared fieldset
      */
     private function _preparedFieldset($fields, $table = null)
@@ -592,15 +593,18 @@ class TIP_Mysql extends TIP_Data_Engine
      *
      * Prepares a join definition to be used in a SELECT... query.
      *
-     * The $join argument is an associative array which has at least for keys:
+     * The $join argument is an associative array, or an array of
+     * associative arrays, which has at least for keys:
      *
-     * - 'master_table', containing the name of the master table
-     * - 'master_field', containing a field name in the master table
-     * - 'slave_table',  containing the name of the slave table
-     * - 'slave_field',  containing a field name in the slave table
+     * - 'master_table' containing the name of the master table
+     * - 'master'       containing the field id in the master table to join
+     * - 'slave_table'  containing the name of the slave table
+     * - 'slave         containing the field id in the slave table to join
+     * - 'alias'        alias name for the slave table (optional)
      *
-     * Also, $join can be an array of such structure, in which key the return
-     * value will include all the join definitions.
+     * The alias property comes in handy if you are using the same table as
+     * master and slave. In this case, alias provides a way to differentiate
+     * the two tables.
      *
      * @param  array  $join An array of join definitions
      * @return string       The prepared join structure
@@ -615,9 +619,18 @@ class TIP_Mysql extends TIP_Data_Engine
         }
 
         extract($join, EXTR_REFS);
-        return 'LEFT JOIN ' . $this->preparedName($slave_table) .
-               ' ON ' . $this->_preparedField($master, $master_table) . '=' .
-                        $this->_preparedField($slave, $slave_table);
+
+        $result = ' LEFT JOIN ' . $this->preparedName($slave_table);
+
+        if (isset($alias)) {
+            $result .= ' AS ' . $this->preparedName($alias);
+            $slave_table = $alias;
+        }
+
+        $result .= ' ON ' . $this->_preparedField($master, $master_table);
+        $result .= '=' . $this->_preparedField($slave, $slave_table);
+
+        return $result;
     }
 
     //}}}
