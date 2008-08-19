@@ -111,7 +111,8 @@ class TIP_User extends TIP_Content
             return;
         }
 
-        // Get user id and password from the data source
+        // Get user id and password from the data source: this view is
+        // never ended to keep the current user as default row
         $view = $this->startDataView($this->data->rowFilter((int) $id));
         if (is_null($view)) {
             $this->_constructor_error = 'select';
@@ -119,8 +120,6 @@ class TIP_User extends TIP_Content
         }
 
         $this->_row =& $view->current();
-        $this->endView();
-
         if (is_null($this->_row)) {
             // User id not found in the data source
             $this->_constructor_error = 'notfound';
@@ -144,8 +143,7 @@ class TIP_User extends TIP_Content
             $this->_row = null;
         }
 
-        // This update should be overwritten on login, logout
-        // and password change
+        // This update should work on login, logout and password change
         $this->_updateCookie();
 
         parent::postConstructor();
@@ -214,24 +212,6 @@ class TIP_User extends TIP_Content
         $this->_updateCookie();
         $this->_refreshUser();
         return true;
-    }
-
-    /**
-     * Get a field value
-     *
-     * Overrides the default method accessing the _row private property
-     * if there is no current view.
-     *
-     * @param  string     $field The field id
-     * @return mixed|null        The field value or null on errors
-     */
-    public function getField($field)
-    {
-        if (is_null($result = parent::getField($field))) {
-            $result = $this->getLoggedField($field);
-        }
-
-        return $result;
     }
 
     /**
