@@ -27,6 +27,59 @@
  */
 abstract class TIP_Data_Engine extends TIP_Type
 {
+    //{{{ Methods
+
+    /**
+     * Start a transaction
+     *
+     * If a transaction is yet started, simply returns true without
+     * starting a new transaction (nested transactions are not allowed).
+     *
+     * @return bool true on success or false on errors
+     */
+    public function startTransaction()
+    {
+        ++ $this->_transaction_ref;
+        if ($this->_transaction_ref > 1) {
+            return true;
+        }
+
+        return $this->transaction(TIP_TRANSACTION_START);
+    }
+
+    /**
+     * End a transaction
+     *
+     * End the current transaction. If there's no active transaction,
+     * raise an error and return false.
+     *
+     * The transaction is really ended when the last started transaction
+     * is closed. For instance, if you call startTransaction() twice and
+     * endTransaction() once, the data will be never committed.
+     * 
+     * The error flag indicates if the transaction must be rolled back
+     * ($commit = true) of committed ($commit = false).
+     *
+     * @param  bool $commit Commit (if true) or rollback (if false)
+     * @return bool         true on success or false on errors
+     */
+    public function endTransaction($commit)
+    {
+        if ($this->_transaction_ref == 0) {
+            TIP::error('ending a never started transaction');
+            return false;
+        }
+
+        -- $this->_transaction_ref;
+        if ($this->_transaction_ref > 0) {
+            return true;
+        }
+
+        $action = $commit ? TIP_TRANSACTION_COMMIT : TIP_TRANSACTION_ROLLBACK;
+        return $this->transaction($action);
+    }
+
+    //}}}
     //{{{ Interface
 
     /**
@@ -152,30 +205,20 @@ abstract class TIP_Data_Engine extends TIP_Type
     /**
      * Start a transaction
      *
-     * @return bool true on success or false on errors
+     * @param  TIP_TRANSACTION_... $action The action to perform
+     * @return bool                        true on success or false on errors
      */
-    abstract public function startTransaction();
+    abstract protected function transaction($action);
+
+    //}}}
+    //{{{ Internal properties
 
     /**
-     * Check if the engine is within a transaction
-     *
-     * @return bool true if a transaction is active or false otherwise
+     * Transaction reference counter
+     * @var int
+     * @internal
      */
-    abstract public function inTransaction();
-
-    /**
-     * Commit (end) a transaction
-     *
-     * @return bool true on success or false on errors
-     */
-    abstract public function endTransaction();
-
-    /**
-     * Rollback (cancel) a transaction
-     *
-     * @return bool true on success or false on errors
-     */
-    abstract public function cancelTransaction();
+    private $_transaction_ref = 0;
 
     //}}}
 }

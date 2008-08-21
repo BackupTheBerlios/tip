@@ -60,6 +60,11 @@ define('TIP_ORDER_ASCENDING',     false);
 define('TIP_ORDER_DESCENDING',    true);
 /**#@-*/
 
+/**#@+ Transaction actions, used by TIP_Data_Engine */
+define('TIP_TRANSACTION_START',   1);
+define('TIP_TRANSACTION_COMMIT',  2);
+define('TIP_TRANSACTION_ROLLBACK',3);
+/**#@-*/
 
 
 /**#@+ Form related constants */

@@ -278,46 +278,14 @@ class TIP_Mysql extends TIP_Data_Engine
         return true;
     }
 
-    public function startTransaction()
+    protected function transaction($action)
     {
-        if ($this->_transaction) {
-            TIP::error('transaction nesting not allowed');
-            return false;
-        }
-
-        if (!$this->_query('START TRANSACTION')) {
-            return false;
-        }
-
-        $this->_transaction = true;
-        return true;
-    }
-
-    public function inTransaction()
-    {
-        return $this->_transaction;
-    }
-
-    public function endTransaction()
-    {
-        if (!$this->_transaction) {
-            TIP::error('ending a transaction never started');
-            return false;
-        }
-
-        $this->_transaction = false;
-        return $this->_query('COMMIT');
-    }
-
-    public function cancelTransaction()
-    {
-        if (!$this->_transaction) {
-            TIP::error('cancelling a transaction never started');
-            return false;
-        }
-
-        $this->_transaction = false;
-        return $this->_query('ROLLBACK');
+        $query = array(
+            TIP_TRANSACTION_START    => 'START TRANSACTION',
+            TIP_TRANSACTION_COMMIT   => 'COMMIT',
+            TIP_TRANSACTION_ROLLBACK => 'ROLLBACK'
+        );
+        return $this->_query($query[$action]);
     }
 
     //}}}
@@ -329,13 +297,6 @@ class TIP_Mysql extends TIP_Data_Engine
      * @internal
      */
     private $_connection = null;
-
-    /**
-     * Flag indicating if the engine is inside a transaction
-     * @var bool
-     * @internal
-     */
-    private $_transaction = false;
 
     //}}}
     //{{{ Internal methods
