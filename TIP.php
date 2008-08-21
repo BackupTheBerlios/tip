@@ -425,23 +425,29 @@ class TIP
      * having the keys specified in the $keys array. The $glue is used
      * to join these values.
      *
+     * This function also adds some checking on $source so return null
+     * if $source is not an array or $keys is not found.
+     *
      * @param  string|array $keys   A key or an array of keys
      * @param  array       &$source The source array
      * @param  string       $glue   The optional glue
-     * @return string               The requested value
+     * @return string|null          The requested value or null if not found
      */
     static public function pickElement($keys, &$source, $glue = ' ')
     {
-        if (is_string($keys)) {
-            return $source[$keys];
+        if (!is_array($source)) {
+            return null;
         }
 
-        $values = array();
+        if (is_string($keys)) {
+            return array_key_exists($keys, $source) ? $source[$keys] : null;
+        }
+
         foreach ($keys as $key) {
             array_key_exists($key, $source) && $values[] = $source[$key];
         }
 
-        return implode($glue, $values);
+        return isset($values) ? implode($glue, $values) : null;
     }
 
     /**
