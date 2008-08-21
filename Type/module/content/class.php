@@ -341,23 +341,6 @@ class TIP_Class extends TIP_Content
     }
 
     //}}}
-    //{{{ Internal properties
-
-    /**
-     * The child module
-     * @var TIP_Content
-     * @internal
-     */
-    private $_child = null;
-
-    /**
-     * The "official" TIP_Data object stored by tagStartSummary()
-     * @var TIP_Data
-     * @internal
-     */
-    private $_old_data = null;
-
-    //}}}
     //{{{ Callbacks
 
     /**
@@ -483,6 +466,23 @@ class TIP_Class extends TIP_Content
 
         return false;
     }
+
+    //}}}
+    //{{{ Internal properties
+
+    /**
+     * The child module
+     * @var TIP_Content
+     * @internal
+     */
+    private $_child = null;
+
+    /**
+     * The "official" TIP_Data object stored by tagStartSummary()
+     * @var TIP_Data
+     * @internal
+     */
+    private $_old_data = null;
 
     //}}}
     //{{{ Internal methods
