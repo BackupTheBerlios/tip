@@ -358,7 +358,8 @@ class TIP_Class extends TIP_Content
         }
 
         $engine = &$this->data->getProperty('engine');
-        if (!$engine->startTransaction()) {
+        $do_transaction = !$engine->inTransaction();
+        if ($do_transaction && !$engine->startTransaction()) {
             // This error must be catched here to avoid the rollback
             TIP::notifyError('fatal');
             return false;
@@ -373,10 +374,10 @@ class TIP_Class extends TIP_Content
             $this->_child->getProperty('data')->putRow($child_row);
 
         if ($processed) {
-            $engine->endTransaction();
+            $do_transaction && $engine->endTransaction();
             TIP::notifyInfo('done');
         } else {
-            $engine->cancelTransaction();
+            $do_transaction && $engine->cancelTransaction();
             TIP::notifyError('fatal');
         }
 
