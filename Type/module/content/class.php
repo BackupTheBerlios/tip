@@ -358,8 +358,7 @@ class TIP_Class extends TIP_Content
         }
 
         $engine = &$this->data->getProperty('engine');
-        $do_transaction = !$engine->inTransaction();
-        if ($do_transaction && !$engine->startTransaction()) {
+        if (!$engine->startTransaction()) {
             // This error must be catched here to avoid the rollback
             TIP::notifyError('fatal');
             return false;
@@ -368,16 +367,15 @@ class TIP_Class extends TIP_Content
         // Copy the row: putRow() is destructive
         $child_row = $row;
 
-        $processed = parent::_onAdd($row) &&
+        $done = parent::_onAdd($row) &&
             $this->data->putRow($row) &&
             !is_null($child_row[$this->master_field] = $this->data->getLastId()) &&
             $this->_child->getProperty('data')->putRow($child_row);
+        $done = $engine->endTransaction($done) && $done;
 
-        if ($processed) {
-            $do_transaction && $engine->endTransaction();
+        if ($done) {
             TIP::notifyInfo('done');
         } else {
-            $do_transaction && $engine->cancelTransaction();
             TIP::notifyError('fatal');
         }
 
@@ -411,15 +409,14 @@ class TIP_Class extends TIP_Content
         // Copy the row: updateRow() is destructive
         $child_row = $row;
 
-        $processed = parent::_onEdit($row) &&
+        $done = parent::_onEdit($row) &&
             $this->data->updateRow($row) &&
             $this->_child->getProperty('data')->updateRow($child_row);
+        $done = $engine->endTransaction($done) && $done;
 
-        if ($processed) {
-            $engine->endTransaction();
+        if ($done) {
             TIP::notifyInfo('done');
         } else {
-            $engine->cancelTransaction();
             TIP::notifyError('fatal');
         }
 
@@ -454,14 +451,14 @@ class TIP_Class extends TIP_Content
             return false;
         }
 
-        $processed = parent::_onDelete($row) && $this->data->deleteRow($id) &&
+        $done = parent::_onDelete($row) &&
+            $this->data->deleteRow($id) &&
             $this->_child->getProperty('data')->deleteRow($id);
+        $done = $engine->endTransaction($done) && $done;
 
-        if ($processed) {
-            $engine->endTransaction();
+        if ($done) {
             TIP::notifyInfo('done');
         } else {
-            $engine->cancelTransaction();
             TIP::notifyError('fatal');
         }
 
