@@ -89,7 +89,7 @@ class TIP_Class extends TIP_Content
 
     /**#@+
      * @param  string      $params Parameters of the tag
-     * @return string|null         The string result or null
+     * @return string|null         The string result or null on errors
      */
 
     /**
@@ -175,10 +175,15 @@ class TIP_Class extends TIP_Content
         if ($valid) {
             $child_name = $this->id . '-' . TIP::getPost($this->class_field, 'string');
             if ($this->_child =& TIP_Type::getInstance($child_name, false)) {
-                // Child module found: chain-up the child form
+                if (!$this->_validEngine()) {
+                    return false;
+                }
+
+                // Child module valid: chain-up the child form
                 $valid = $form->validateAlso($this->_child);
             }
         }
+
         if ($valid)
             $form->process();
 
@@ -208,8 +213,10 @@ class TIP_Class extends TIP_Content
 
         // Populate "defaults" with master field values
         if (is_null($row = $this->fromRow($id))) {
-            return null;
+            TIP::notifyError('notfound');
+            return false;
         }
+
         if (@is_array($options['defaults'])) {
             $options['defaults'] = array_merge($row, $options['defaults']);
         } else {
@@ -219,9 +226,15 @@ class TIP_Class extends TIP_Content
         // Populate "defaults" with child field values
         $child_name = $this->id . '-' . $row[$this->class_field];
         if ($this->_child =& TIP_Type::getInstance($child_name, false)) {
-            if (is_null($child_row = $this->_child->fromRow($id))) {
-                return null;
+            if (!$this->_validEngine()) {
+                return false;
             }
+
+            if (is_null($child_row = $this->_child->fromRow($id))) {
+                TIP::notifyError('notfound');
+                return false;
+            }
+
             $options['defaults'] = array_merge($child_row, $options['defaults']);
         }
 
@@ -267,7 +280,8 @@ class TIP_Class extends TIP_Content
 
         // Populate "defaults" with master field values
         if (is_null($row = $this->fromRow($id))) {
-            return null;
+            TIP::notifyError('notfound');
+            return false;
         }
         if (@is_array($options['defaults'])) {
             $options['defaults'] = array_merge($row, $options['defaults']);
@@ -278,9 +292,15 @@ class TIP_Class extends TIP_Content
         // Populate "defaults" with child field values
         $child_name = $this->id . '-' . $row[$this->class_field];
         if ($this->_child =& TIP_Type::getInstance($child_name, false)) {
-            if (is_null($child_row = $this->_child->fromRow($id))) {
-                return null;
+            if (!$this->_validEngine()) {
+                return false;
             }
+
+            if (is_null($child_row = $this->_child->fromRow($id))) {
+                TIP::notifyError('notfound');
+                return false;
+            }
+
             $options['defaults'] = array_merge($child_row, $options['defaults']);
         }
 
@@ -355,26 +375,19 @@ class TIP_Class extends TIP_Content
         }
 
         $engine = &$this->data->getProperty('engine');
-        $child_data =& $this->_child->getProperty('data');
-        if ($child_data->getProperty('engine') != $engine) {
-            // Transaction not possible on different data engines
-            TIP::error('master and child data must share the data engine');
-            return null;
-        }
-
         if (!$engine->startTransaction()) {
             // This error must be catched here to avoid the rollback
             TIP::notifyError('fatal');
             return false;
         }
 
-        // Copy the row for $child_data: putRow() is destructive
+        // Copy the row: putRow() is destructive
         $child_row = $row;
 
         $processed = parent::_onAdd($row) &&
             $this->data->putRow($row) &&
             !is_null($child_row[$this->master_field] = $this->data->getLastId()) &&
-            $child_data->putRow($child_row);
+            $this->_child->getProperty('data')->putRow($child_row);
 
         if ($processed) {
             $engine->endTransaction();
@@ -402,13 +415,6 @@ class TIP_Class extends TIP_Content
         }
 
         $engine = &$this->data->getProperty('engine');
-        $child_data =& $this->_child->getProperty('data');
-        if ($child_data->getProperty('engine') != $engine) {
-            // Transaction not possible on different data engines
-            TIP::error('master and child data must share the data engine');
-            return null;
-        }
-
         if (!$engine->startTransaction()) {
             // This error must be catched here to avoid the rollback
             TIP::notifyError('fatal');
@@ -418,12 +424,12 @@ class TIP_Class extends TIP_Content
         // The class_field MUST NOT be changed (only deleting allowed)
         unset($row[$this->class_field]);
 
-        // Copy the row for $child_data: updateRow() is destructive
+        // Copy the row: updateRow() is destructive
         $child_row = $row;
 
         $processed = parent::_onEdit($row) &&
             $this->data->updateRow($row) &&
-            $child_data->updateRow($child_row);
+            $this->_child->getProperty('data')->updateRow($child_row);
 
         if ($processed) {
             $engine->endTransaction();
@@ -458,21 +464,14 @@ class TIP_Class extends TIP_Content
         }
 
         $engine = &$this->data->getProperty('engine');
-        $child_data =& $this->_child->getProperty('data');
-        if ($child_data->getProperty('engine') != $engine) {
-            // Transaction not possible on different data engines
-            TIP::error('master and child data must share the data engine');
-            return null;
-        }
-
         if (!$engine->startTransaction()) {
             // This error must be catched here to avoid the rollback
             TIP::notifyError('fatal');
             return false;
         }
 
-        $processed = parent::_onDelete($row) &&
-            $this->data->deleteRow($id) && $child_data->deleteRow($id);
+        $processed = parent::_onDelete($row) && $this->data->deleteRow($id) &&
+            $this->_child->getProperty('data')->deleteRow($id);
 
         if ($processed) {
             $engine->endTransaction();
@@ -483,6 +482,35 @@ class TIP_Class extends TIP_Content
         }
 
         return false;
+    }
+
+    //}}}
+    //{{{ Internal methods
+
+    /**
+     * Check if the child module has the same data engine
+     *
+     * If the child module does not share the same data engine,
+     * the transaction is not applicable and an error is raised.
+     *
+     * @return bool true on success or false on errors
+     * @internal
+     */
+    private function _validEngine()
+    {
+        $child_data =& $this->_child->getProperty('data');
+        if (!$child_data instanceof TIP_Data) {
+            TIP::error('the child module has no data');
+            return false;
+        }
+
+        $this_engine =& $this->data->getProperty('engine');
+        if ($child_data->getProperty('engine') != $this_engine) {
+            TIP::error('master and child data must share the same data engine');
+            return false;
+        }
+
+        return true;
     }
 
     //}}}
