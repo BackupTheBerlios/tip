@@ -157,6 +157,13 @@ abstract class TIP_Data_Engine extends TIP_Type
     abstract public function startTransaction();
 
     /**
+     * Check if the engine is within a transaction
+     *
+     * @return bool true if a transaction is active or false otherwise
+     */
+    abstract public function inTransaction();
+
+    /**
      * Commit (end) a transaction
      *
      * @return bool true on success or false on errors
