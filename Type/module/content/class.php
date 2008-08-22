@@ -166,27 +166,52 @@ class TIP_Class extends TIP_Content
         TIP::arrayDefault($options, 'on_process', array(&$this, '_onAdd'));
         TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '-lastid-'));
 
+        // Populate "defaults" if $id is specified
+        if (isset($id)) {
+            if (is_null($row = $this->fromRow($id))) {
+                return false;
+            }
+
+            // Unset the primary_key: this is an add action
+            unset($row[$this->data->getProperty('primary_key')]);
+
+            if (@is_array($options['defaults'])) {
+                $options['defaults'] = array_merge($row, $options['defaults']);
+            } else {
+                $options['defaults'] =& $row;
+            }
+        }
+
         $options['type']   = array('module', 'form');
         $options['master'] =& $this;
         $options['action'] = TIP_FORM_ACTION_ADD;
 
         $form =& TIP_Type::singleton($options);
-
         $valid = $form->validate();
-        if ($valid) {
-            $child_name = $this->id . '-' . TIP::getPost($this->class_field, 'string');
-            if ($this->_child =& TIP_Type::getInstance($child_name, false)) {
-                if (!$this->_validEngine()) {
-                    return false;
-                }
 
-                // Child module valid: chain-up the child form
-                $valid = $form->validateAlso($this->_child);
-            }
+        if (isset($id)) {
+            // If $id is set, the child module is chained-up also on 
+            // $valid==false: this module was already retrieved by fromRow()
+            $child =& $this->_getChildModule();
+        } elseif ($valid) {
+            // Here fromRow() was never called, so $class must be specified
+            $class = TIP::getPost($this->class_field, 'string');
+            $child =& $this->_getChildModule($class);
+        } else {
+            $child = null;
         }
 
-        if ($valid)
+        if ($child === false) {
+            // Errors on child module
+            return false;
+        } elseif ($child) {
+            // Child module found and valid: chain-up the child form
+            $valid = $form->validateAlso($child);
+        }
+
+        if ($valid) {
             $form->process();
+        }
 
         return $form->render($valid);
     }
@@ -230,13 +255,20 @@ class TIP_Class extends TIP_Content
         $form =& TIP_Type::singleton($options);
         $valid = $form->validate();
 
-        // On edit, the child form is chained-up also if $valid==false
-        if ($this->_child && !$form->validateAlso($this->_child)) {
-            $valid = false;
+        // On edit, the child form is chained-up also if $valid==false:
+        // this module was already retrieved by fromRow()
+        $child =& $this->_getChildModule();
+        if ($child === false) {
+            // Errors on child module
+            return false;
+        } elseif ($child) {
+            // Child module found and valid: chain-up the child form
+            $valid = $form->validateAlso($child);
         }
 
-        if ($valid)
+        if ($valid) {
             $form->process();
+        }
 
         return $form->render($valid);
     }
@@ -275,18 +307,24 @@ class TIP_Class extends TIP_Content
         $options['type']   = array('module', 'form');
         $options['master'] =& $this;
         $options['action'] = TIP_FORM_ACTION_DELETE;
-        $options['readonly'] = array($this->class_field);
 
         $form =& TIP_Type::singleton($options);
         $valid = $form->validate();
 
-        // On delete, the child form is chained-up also if $valid==false
-        if ($this->_child && !$form->validateAlso($this->_child)) {
-            $valid = false;
+        // On delete, the child form is chained-up also if $valid==false:
+        // this module was already retrieved by fromRow()
+        $child =& $this->_getChildModule();
+        if ($child === false) {
+            // Errors on child module
+            return false;
+        } elseif ($child) {
+            // Child module found and valid: chain-up the child form
+            $valid = $form->validateAlso($child);
         }
 
-        if ($valid)
+        if ($valid) {
             $form->process();
+        }
 
         return $form->render($valid);
     }
@@ -329,17 +367,20 @@ class TIP_Class extends TIP_Content
      */
     public function &fromRow($id = null, $end_view = true)
     {
-        // Get the current row for this instance
+        // Get the current "master" row
         if (is_null($row = parent::fromRow($id, $end_view))) {
             return $row;
         }
 
-        // Try to get the child row, if possible
-        $child_name = $this->id . '-' . $row[$this->class_field];
-        $this->_child =& TIP_Type::getInstance($child_name, false);
-        if (!$this->_validEngine()) {
+        // Try to get the child row, if possible: the class name is
+        // retrieved from the post (if found) or from the current $row
+        if (is_null($class = TIP::getPost($this->class_field, 'string'))) {
+            $class = $row[$this->class_field];
+        }
+        $child =& $this->_getChildModule($class);
+        if ($child === false) {
             $row = null;
-        } elseif (!is_null($child_row = $this->_child->fromRow($id, $end_view))) {
+        } elseif ($child && !is_null($child_row = $child->fromRow($id, $end_view))) {
             $row = array_merge($child_row, $row);
         }
 
@@ -358,9 +399,13 @@ class TIP_Class extends TIP_Content
      */
     public function _onAdd(&$row)
     {
-        if (is_null($this->_child)) {
+        $child =& $this->_getChildModule();
+        if (is_null($child)) {
             // No child module: chain-up the parent method
             return parent::_onAdd($row);
+        } elseif (!$child) {
+            // An error occurred somewhere: do nothing
+            return false;
         }
 
         $engine = &$this->data->getProperty('engine');
@@ -376,7 +421,7 @@ class TIP_Class extends TIP_Content
         $done = parent::_onAdd($row) &&
             $this->data->putRow($row) &&
             !is_null($child_row[$this->master_field] = $this->data->getLastId()) &&
-            $this->_child->getProperty('data')->putRow($child_row);
+            $child->getProperty('data')->putRow($child_row);
         $done = $engine->endTransaction($done) && $done;
 
         if ($done) {
@@ -397,9 +442,13 @@ class TIP_Class extends TIP_Content
      */
     public function _onEdit(&$row)
     {
-        if (is_null($this->_child)) {
+        $child =& $this->_getChildModule();
+        if (is_null($child)) {
             // No child module: chain-up the parent method
             return parent::_onEdit($row);
+        } elseif (!$child) {
+            // An error occurred somewhere: do nothing
+            return false;
         }
 
         $engine = &$this->data->getProperty('engine');
@@ -417,7 +466,7 @@ class TIP_Class extends TIP_Content
 
         $done = parent::_onEdit($row) &&
             $this->data->updateRow($row) &&
-            $this->_child->getProperty('data')->updateRow($child_row);
+            $child->getProperty('data')->updateRow($child_row);
         $done = $engine->endTransaction($done) && $done;
 
         if ($done) {
@@ -438,9 +487,13 @@ class TIP_Class extends TIP_Content
      */
     public function _onDelete(&$row)
     {
-        if (is_null($this->_child)) {
+        $child =& $this->_getChildModule();
+        if (is_null($child)) {
             // No child module: chain-up the parent method
-            return parent::_onEdit($row);
+            return parent::_onDelete($row);
+        } elseif (!$child) {
+            // An error occurred somewhere: do nothing
+            return false;
         }
 
         $primary_key = $this->data->getProperty('primary_key');
@@ -459,7 +512,7 @@ class TIP_Class extends TIP_Content
 
         $done = parent::_onDelete($row) &&
             $this->data->deleteRow($id) &&
-            $this->_child->getProperty('data')->deleteRow($id);
+            $child->getProperty('data')->deleteRow($id);
         $done = $engine->endTransaction($done) && $done;
 
         if ($done) {
@@ -475,13 +528,6 @@ class TIP_Class extends TIP_Content
     //{{{ Internal properties
 
     /**
-     * The child module
-     * @var TIP_Content
-     * @internal
-     */
-    private $_child = null;
-
-    /**
      * The "official" TIP_Data object stored by tagStartSummary()
      * @var TIP_Data
      * @internal
@@ -492,29 +538,57 @@ class TIP_Class extends TIP_Content
     //{{{ Internal methods
 
     /**
-     * Check if the child module has the same data engine
+     * Get the child module
      *
-     * If the child module does not share the same data engine,
-     * the transaction is not applicable and an error is raised.
+     * Checks for the child module existence and caches the request.
+     * If $class is not specified, no attempts are made to get the
+     * child module: only the cache is returned or an error is raised.
      *
-     * @return bool true on success or false on errors
+     * This method provides also a way to validate the data engine,
+     * that **must** be shared between this module and the child one
+     * to allow //transation protected// commits.
+     *
+     * @param  string|null            $class The class to use
+     * @return TIP_Content|null|false        The requested child module,
+     *                                       null if not needed or
+     *                                       false on errors
      * @internal
      */
-    private function _validEngine()
+    private function &_getChildModule($class = null)
     {
-        $child_data =& $this->_child->getProperty('data');
+        // The true value is used as "uncached" value
+        static $child = true;
+
+        // Check for cached result
+        if ($child !== true) {
+            return $child;
+        }
+
+        // Check for request without $class (no autodiscovering)
+        if (is_null($class)) {
+            TIP::error('No previous child request performed');
+            $error = false;
+            return $error;
+        }
+
+        // Check if the child module is required
+        $child = TIP_Type::getInstance($this->id . '-' . $class, false);
+        if (is_null($child)) {
+            // No child module needed
+            return $child;
+        }
+
+        // Get and check the child module
+        $child_data = $child->getProperty('data');
         if (!$child_data instanceof TIP_Data) {
-            TIP::error('the child module has no data');
-            return false;
+            TIP::error("the child module has no data (child = $class)");
+            $child = false;
+        } elseif ($child_data->getProperty('engine') != $this->data->getProperty('engine')) {
+            TIP::error("master and child data must share the same data engine (child = $class)");
+            $child = false;
         }
 
-        $this_engine =& $this->data->getProperty('engine');
-        if ($child_data->getProperty('engine') != $this_engine) {
-            TIP::error('master and child data must share the same data engine');
-            return false;
-        }
-
-        return true;
+        return $child;
     }
 
     //}}}
