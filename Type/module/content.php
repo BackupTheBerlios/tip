@@ -651,6 +651,20 @@ class TIP_Content extends TIP_Module
         return $this->data->filter($this->owner_field, $user);
     }
 
+    /**
+     * Update the magic fields
+     *
+     * Fills the magic fields (if found and not set) with their magic
+     * values.
+     *
+     * @param array &$row The row to check
+     */
+    public function setMagicFields(&$row)
+    {
+        TIP::arrayDefault($row, $this->creation_field, TIP::formatDate('datetime_sql'));
+        TIP::arrayDefault($row, $this->owner_field, TIP::getUserId());
+    }
+
     //}}}
     //{{{ Tags
 
@@ -1284,15 +1298,7 @@ class TIP_Content extends TIP_Module
      */
     public function _onAdd(&$row)
     {
-        isset($this->creation_field) &&
-            array_key_exists($this->creation_field, $row) &&
-            empty($row[$this->creation_field]) &&
-            $row[$this->creation_field] = TIP::formatDate('datetime_sql');
-        isset($this->owner_field) &&
-            array_key_exists($this->owner_field, $row) &&
-            empty($row[$this->owner_field]) &&
-            $row[$this->owner_field] = TIP::getUserId();
-
+        $this->setMagicFields($row);
         return $this->_onDbAction('Add', $row, $row);
     }
 
