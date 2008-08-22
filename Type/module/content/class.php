@@ -212,31 +212,14 @@ class TIP_Class extends TIP_Content
         TIP::arrayDefault($options, 'on_process', array(&$this, '_onEdit'));
         TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '-lastid-'));
 
-        // Populate "defaults" with master field values
+        // Populate "defaults" with master and child values
         if (is_null($row = $this->fromRow($id))) {
-            TIP::notifyError('notfound');
             return false;
         }
-
         if (@is_array($options['defaults'])) {
             $options['defaults'] = array_merge($row, $options['defaults']);
         } else {
             $options['defaults'] =& $row;
-        }
-
-        // Populate "defaults" with child field values
-        $child_name = $this->id . '-' . $row[$this->class_field];
-        if ($this->_child =& TIP_Type::getInstance($child_name, false)) {
-            if (!$this->_validEngine()) {
-                return false;
-            }
-
-            if (is_null($child_row = $this->_child->fromRow($id))) {
-                TIP::notifyError('notfound');
-                return false;
-            }
-
-            $options['defaults'] = array_merge($child_row, $options['defaults']);
         }
 
         $options['type']   = array('module', 'form');
@@ -279,30 +262,14 @@ class TIP_Class extends TIP_Content
         TIP::arrayDefault($options, 'on_process', array(&$this, '_onDelete'));
         TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '-lastid-'));
 
-        // Populate "defaults" with master field values
+        // Populate "defaults" with master and child values
         if (is_null($row = $this->fromRow($id))) {
-            TIP::notifyError('notfound');
             return false;
         }
         if (@is_array($options['defaults'])) {
             $options['defaults'] = array_merge($row, $options['defaults']);
         } else {
             $options['defaults'] =& $row;
-        }
-
-        // Populate "defaults" with child field values
-        $child_name = $this->id . '-' . $row[$this->class_field];
-        if ($this->_child =& TIP_Type::getInstance($child_name, false)) {
-            if (!$this->_validEngine()) {
-                return false;
-            }
-
-            if (is_null($child_row = $this->_child->fromRow($id))) {
-                TIP::notifyError('notfound');
-                return false;
-            }
-
-            $options['defaults'] = array_merge($child_row, $options['defaults']);
         }
 
         $options['type']   = array('module', 'form');
@@ -339,6 +306,44 @@ class TIP_Class extends TIP_Content
         $this->appendToPage($this->browse_template);
 
         return !is_null($this->tagEndSummary(''));
+    }
+
+    //}}}
+    //{{{ Methods
+
+    /**
+     * Get a specific row
+     *
+     * Gets a reference to a specific row. If $id is not specified, the current
+     * row is assumed.
+     *
+     * This is an high level method that notify errors to the user if the row
+     * is not found.
+     *
+     * The method starts (and ends) a view to find a row, so every further
+     * requests will be cached.
+     *
+     * @param  mixed      $id       The row id
+     * @param  bool       $end_view Whether to end the view or not
+     * @return array|null           The row or null on errors
+     */
+    public function &fromRow($id = null, $end_view = true)
+    {
+        // Get the current row for this instance
+        if (is_null($row = parent::fromRow($id, $end_view))) {
+            return $row;
+        }
+
+        // Try to get the child row, if possible
+        $child_name = $this->id . '-' . $row[$this->class_field];
+        $this->_child =& TIP_Type::getInstance($child_name, false);
+        if (!$this->_validEngine()) {
+            $row = null;
+        } elseif (!is_null($child_row = $this->_child->fromRow($id, $end_view))) {
+            $row = array_merge($child_row, $row);
+        }
+
+        return $row;
     }
 
     //}}}
