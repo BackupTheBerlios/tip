@@ -1029,7 +1029,7 @@ class TIP_Content extends TIP_Module
         // Merge the argument options with the configuration options, if found
         // The argument options have higher priority...
         if (@is_array($this->form_options['add'])) {
-            $options = array_merge($this->form_options['add'], (array) $options);
+            $options = array_merge($this->form_options['add'], $options);
         }
 
         TIP::arrayDefault($options, 'on_process', array(&$this, '_onAdd'));

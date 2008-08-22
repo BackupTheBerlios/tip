@@ -143,7 +143,7 @@ class TIP_Comments extends TIP_Content
         // Merge the argument before the parent actionAdd(), so also
         // the defaults here defined can be overriden in configuration
         if (isset($this->form_options['add'])) {
-            $options = array_merge($this->form_options['add'], (array) $options);
+            $options = array_merge($this->form_options['add'], $options);
         }
 
         // Check for the default value of 'browse_field' (the parent id)

@@ -160,7 +160,7 @@ class TIP_Class extends TIP_Content
         // Merge the argument options with the configuration options, if found
         // The argument options have higher priority...
         if (@is_array($this->form_options['add'])) {
-            $options = array_merge($this->form_options['add'], (array) $options);
+            $options = array_merge($this->form_options['add'], $options);
         }
 
         TIP::arrayDefault($options, 'on_process', array(&$this, '_onAdd'));
@@ -206,7 +206,7 @@ class TIP_Class extends TIP_Content
         // Merge the argument options with the configuration options, if found
         // The argument options have higher priority...
         if (@is_array($this->form_options['edit'])) {
-            $options = array_merge($this->form_options['edit'], (array) $options);
+            $options = array_merge($this->form_options['edit'], $options);
         }
 
         TIP::arrayDefault($options, 'on_process', array(&$this, '_onEdit'));
@@ -273,7 +273,7 @@ class TIP_Class extends TIP_Content
         // Merge the argument options with the configuration options, if found
         // The argument options have higher priority...
         if (@is_array($this->form_options['delete'])) {
-            $options = array_merge($this->form_options['delete'], (array) $options);
+            $options = array_merge($this->form_options['delete'], $options);
         }
 
         TIP::arrayDefault($options, 'on_process', array(&$this, '_onDelete'));
