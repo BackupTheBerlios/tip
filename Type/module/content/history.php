@@ -99,13 +99,7 @@ class TIP_History extends TIP_Content
      */
     protected function actionUpdate($id, $options = array())
     {
-        // Merge the argument options with the configuration options, if found
-        // The argument options have higher priority...
-        if (@is_array($this->form_options['update'])) {
-            $options = array_merge($this->form_options['update'], $options);
-        }
-
-        // Enable the history by setting _row_id
+        // Enable the history
         $this->_row_id = $id;
 
         TIP::arrayDefault($options, 'action_id', 'update');
@@ -113,7 +107,6 @@ class TIP_History extends TIP_Content
 
         // Disable the history
         unset($this->_row_id);
-
         return $done;
     }
 
@@ -153,39 +146,50 @@ class TIP_History extends TIP_Content
     //{{{ Callbacks
 
     /**
-     * Update the history on a master row update
+     * Add a new history row on a new master row
      *
-     * Adds the new row in the history of $_row_id. If $_row_id is not
-     * set this callback does nothing, allowing a normal edit operation.
+     * Adds the new row version after the $this->_row_id row. If the
+     * row id to update is not set, this callback does nothing,
+     * allowing a normal add operation.
      *
      * @param  array &$row The row to be updated from the master module
      * @return bool        true on success, false on errors
      */
-    public function _onMasterEdit(&$row)
+    public function _onMasterAdd(&$row)
     {
-        if (is_null($this->_row_id)) {
+        $previous_id = $this->_row_id;
+        if (is_null($previous_id)) {
             // History management disabled
             return true;
         }
 
+        $master_data =& $this->master->getProperty('data');
+        $id = $row[$master_data->getProperty('primary_key')];
+        $engine =& $this->data->getProperty('engine');
+        $query = $this->data->rowFilter($previous_id);
+
+        // Start the transaction here, to avoid race conditions
+        if (!$engine->startTransaction()) {
+            // This error must be catched here to avoid the rollback
+            return false;
+        }
+
         // Get the previous version row
-        $query = $this->data->rowFilter($this->_row_id);
         if (!$view =& $this->startDataView($query)) {
+            $engine->endTransaction(false);
             return false;
         }
         $previous_row = $view->current();
         $this->endView();
         if (empty($previous_row)) {
-            TIP::error("no previous row to update ($this->_row_id)");
+            $engine->endTransaction(false);
+            TIP::warning("no previous row to update ($previous_id)");
+            TIP::notifyError('notfound');
             return false;
         }
 
-        $master_data =& $this->master->getProperty('data');
-        $id = $row[$master_data->getProperty('primary_key')];
-        $primary_key = $this->data->getProperty('primary_key');
-
         // Build the current version row
-        $new_row[$primary_key] = $id;
+        $new_row[$this->data->getProperty('primary_key')] = $id;
         $new_row[$this->origin_field] = $previous_row[$this->origin_field];
         $new_row[$this->next_field] = $previous_row[$this->next_field];
         $this->setMagicFields($new_row);
@@ -194,18 +198,12 @@ class TIP_History extends TIP_Content
         $new_previous_row = $previous_row;
         $new_previous_row[$this->next_field] = $id;
 
-        $engine =& $this->data->getProperty('engine');
-        if (!$engine->startTransaction()) {
-            // This error must be catched here to avoid the rollback
-            TIP::notifyError('fatal');
-            return false;
-        }
-
         // Perform the operations
         $done = $this->data->putRow($new_row) &&
             $this->data->updateRow($new_previous_row, $previous_row);
-        $done = $engine->endTransaction($done) && $done;
 
+        // Close the transaction
+        $done = $engine->endTransaction($done) && $done;
         return $done;
     }
 
@@ -222,48 +220,49 @@ class TIP_History extends TIP_Content
     {
         $master_data =& $this->master->getProperty('data');
         $id = $row[$master_data->getProperty('primary_key')];
+        $engine =& $this->data->getProperty('engine');
+        $query = $this->data->rowFilter($id);
+
+        // Start the transaction here to avoid race conditions
+        if (!$engine->startTransaction()) {
+            // This error must be catched here to avoid the rollback
+            return false;
+        }
 
         // Get the current version row
-        $query = $this->data->rowFilter($id);
         if (!$view =& $this->startDataView($query)) {
+            $engine->endTransaction(false);
             return false;
         }
         $current_row = $view->current();
         $this->endView();
         if (empty($current_row)) {
             // No history found: return operation done (just in case...)
-            return true;
+            return $engine->endTransaction(true);
         }
 
         // Get the previous version row
         $query = $this->data->filter($this->next_field, $id);
         if (!$view =& $this->startDataView($query)) {
+            $engine->endTransaction(false);
+            TIP::warning("no row to delete ($id)");
+            TIP::notifyError('notfound');
             return false;
         }
         $previous_row = $view->current();
         $this->endView();
 
-        if (empty($previous_row)) {
-            // Previous row not found: simply delete current_row
-            return $this->data->deleteRow($id);
-        }
-
-        $engine =& $this->data->getProperty('engine');
-        if (!$engine->startTransaction()) {
-            // This error must be catched here to avoid the rollback
-            TIP::notifyError('fatal');
-            return false;
-        }
-
-        // Update the next_field of previous_row
-        $new_previous_row = $previous_row;
-        $new_previous_row[$this->next_field] = $current_row[$this->next_field];
-
         // Perform the operations
-        $done = $this->data->deleteRow($id) &&
-            $this->data->updateRow($new_previous_row, $previous_row);
-        $done = $engine->endTransaction($done) && $done;
+        $done = $this->data->deleteRow($id);
+        if ($done && is_array($previous_row)) {
+            // Update the next_field of previous_row
+            $new_previous_row = $previous_row;
+            $new_previous_row[$this->next_field] = $current_row[$this->next_field];
+            $done = $this->data->updateRow($new_previous_row, $previous_row);
+        }
 
+        // Close the transaction
+        $done = $engine->endTransaction($done) && $done;
         return $done;
     }
 
@@ -271,12 +270,12 @@ class TIP_History extends TIP_Content
     //{{{ Internal properties
 
     /**
-     * The row id
+     * The id of the row to update
      *
-     * If not null, it specifies the row to be updated and the
-     * _onMasterAdd() callback will generate the properly history.
+     * If specified it contains the id of the original row to update:
+     * the _onMasterAdd() callback will generate the proper history.
      *
-     * @var mixed
+     * @var int|null
      * @internal
      */
     private $_row_id = null;
