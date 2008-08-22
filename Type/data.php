@@ -505,11 +505,18 @@ class TIP_Data extends TIP_Type
      *
      * Deletes the row with the specified $id.
      *
-     * @param  mixed $id The row id
+     * @param  mixed $id The row id or the row array
      * @return bool      true on success or false on errors
      */
     public function deleteRow($id)
     {
+        if (is_array($id)) {
+            if (!array_key_exists($this->primary_key, $id)) {
+                TIP::error('no primary key found to delete');
+                return false;
+            }
+            $id = $id[$this->primary_key];
+        }
         return $this->engine->delete($this, $this->rowFilter($id));
     }
 
