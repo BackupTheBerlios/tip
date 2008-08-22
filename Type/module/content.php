@@ -1285,64 +1285,106 @@ class TIP_Content extends TIP_Module
     //}}}
     //{{{ Callbacks
 
-    /**
-     * Overridable 'add' callback
+    /**#@+
+     * This callback is transaction protected to avoid data corruptions.
      *
-     * Called by a TIP_Form instance before performing the 'add' action.
-     * The default handler calls the _onMasterAdd signal for every configured
-     * module that has this module as 'master' and updates 'creation_field'
-     * and 'owner_field', if they exists.
-     *
-     * @param  array &$row The subject row
-     * @return bool        true on success, false on errors
+     * @param  array      &$row     The subject row
+     * @param  array|null  $old_row The old row or null on no old row
+     * @return bool                 true on success or false on error
      */
-    public function _onAdd(&$row)
+
+    /**
+     * Overridable add callback
+     *
+     * Called by a TIP_Form instance to process the add action.
+     * The default handler updates the "magic" fields, inserts a
+     * new row in the $data object and calls the _onMasterAdd signal
+     * for every configured module that has this module as 'master'.
+     *
+     * The new primary key of the inserted row is updated in $row
+     * **before** calling the _onMasterAdd() signals, so it is
+     * available from these callbacks. No other changes are made to
+     * $row, so it could contain merged data.
+     */
+    public function _onAdd(&$row, $old_row)
     {
         $this->setMagicFields($row);
-        return $this->_onDbAction('Add', $row, $row);
+
+        $engine = &$this->data->getProperty('engine');
+        $primary_key = $this->data->getProperty('primary_key');
+
+        if (!$engine->startTransaction()) {
+            // This error must be catched here to avoid the rollback
+            return false;
+        }
+
+        // Work on a copy of $row because putRow() is destructive
+        $new_row = $row;
+
+        // Process the row
+        $done = $this->data->putRow($new_row) &&
+            !is_null($row[$primary_key] = $new_row[$primary_key]) &&
+            $this->_onDbAction('Add', $row, $old_row);
+        $done = $engine->endTransaction($done) && $done;
+
+        return $done;
     }
 
     /**
-     * Overridable 'edit' callback
+     * Overridable edit callback
      *
-     * Called by a TIP_Form instance before performing the 'edit' action.
-     * The default handler calls the _onMasterEdit signal for every configured
-     * module that has this module as 'master' and updates 'editor_field',
-     * 'last_edit_field' and 'edit_count', if they exist.
-     *
-     * @param  array &$row     The subject row
-     * @param  array  $old_row The old row
-     * @return bool            true on success, false on errors
+     * Called by a TIP_Form instance to process the edit action.
+     * The default handler updates the "magic" fields, updates the
+     * row in the $data object and calls the _onMasterEdit signal
+     * for every configured module that has this module as 'master'.
      */
-    public function _onEdit(&$row, $old_row = null)
+    public function _onEdit(&$row, $old_row)
     {
-        isset($this->last_edit_field) &&
-            array_key_exists($this->last_edit_field, $row) &&
-            $row[$this->last_edit_field] = TIP::formatDate('datetime_sql');
-        isset($this->editor_field) &&
-            array_key_exists($this->editor_field, $row) &&
-            $row[$this->editor_field] = TIP::getUserId();
+        TIP::arrayDefault($row, $this->last_edit_field, TIP::formatDate('datetime_sql'));
+        TIP::arrayDefault($row, $this->editor_field, TIP::getUserId());
         isset($this->edits_field) &&
             array_key_exists($this->edits_field, $row) &&
             ++ $row[$this->edits_field];
 
-        return $this->_onDbAction('Edit', $row, $old_row);
+        $engine = &$this->data->getProperty('engine');
+        if (!$engine->startTransaction()) {
+            // This error must be catched here to avoid the rollback
+            return false;
+        }
+
+        // Process the row
+        $done = $this->data->updateRow($row, $old_row) &&
+            $this->_onDbAction('Edit', $row, $old_row);
+        $done = $engine->endTransaction($done) && $done;
+
+        return $done;
     }
 
     /**
-     * Overridable 'delete' callback
+     * Overridable delete callback
      *
-     * Called by a TIP_Form instance before performing the 'delete' action.
-     * The default handler calls the _onMasterDelete signal for every configured
-     * module that has this module as 'master'.
-     *
-     * @param  array &$row The subject row
-     * @return bool        true on success, false on errors
+     * Called by a TIP_Form instance to process the delete action.
+     * The default handler deletes the row and calls the
+     * _onMasterDelete() signal for every configured module that has
+     * this module as 'master'.
      */
-    public function _onDelete(&$row)
+    public function _onDelete(&$row, $old_row)
     {
-        return $this->_onDbAction('Delete', $row, $row);
+        $engine = &$this->data->getProperty('engine');
+        if (!$engine->startTransaction()) {
+            // This error must be catched here to avoid the rollback
+            return false;
+        }
+
+        // Process the row
+        $done = $this->data->deleteRow($row) &&
+            $this->_onDbAction('Delete', $row, $old_row);
+        $done = $engine->endTransaction($done) && $done;
+
+        return $done;
     }
+
+    /**#@-*/
 
     /**
      * Overridable 'view' callback
