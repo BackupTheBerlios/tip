@@ -122,21 +122,22 @@ class TIP_Form extends TIP_Module
     /**
      * Process callback
      *
-     * Function to call while processing the data. It takes one argument:
-     * the associative array of validated values. This callback must return
-     * true to process the record, or false to skip the processing.
+     * Function to call to process the data. This callback should take
+     * two arguments:
      *
-     * By default, if the value with the primary field key is not found in the
-     * array this callback will add a new row to the data object of the master
-     * module or will update an existing row if the primary key field is found.
+     * - &$row: The associative array of validated values
+     * - $old_row: The old associative array (the defaults) or null
      *
-     * This callback can be set to true or false, in which case it acts as a
-     * boolean predicate: default processing if true (default behaviour) or
-     * no processing at all if false.
+     * By default this callback is null. If the form needs to process
+     * the form and "on_process" is still undefined, an error is raised.
      *
-     * @var boolean|callback
+     * The return value must be %true on success or %false on error.
+     * Accordling to the return value, a notification message (error or
+     * info) will be generated.
+     *
+     * @var callback
      */
-    protected $on_process = true;
+    protected $on_process = null;
 
     /**
      * The render mode for not-validated form
@@ -640,49 +641,23 @@ class TIP_Form extends TIP_Module
 
     public function _processRow(&$row)
     {
+        // Check "on_process" callback validity
+        if (!is_callable($this->on_process)) {
+            TIP::error("no on_process callback defined in TIP_Form ($this->id)");
+            return;
+        }
+
         // Apply the converters on every field of $row
         foreach ($this->_converter as $field => $type) {
             $method = '_converter' . $type;
             $this->$method($row, $field);
         }
 
-        // Check if the row needs to be processed
-        if (is_bool($this->on_process)) {
-            $to_process = $this->on_process;
-        } else {
-            $to_process = call_user_func_array($this->on_process, array(&$row, &$this->defaults));
-        }
-
-        if (!$to_process)
-            return;
-
-        // Process the row
-        $processed = false;
-        $data = &$this->master->getProperty('data');
-
-        switch ($this->action) {
-
-        case TIP_FORM_ACTION_ADD:
-            $processed = $data->putRow($row);
-            break;
-
-        case TIP_FORM_ACTION_EDIT:
-            $processed = $data->updateRow($row);
-            break;
-
-        case TIP_FORM_ACTION_DELETE:
-            $processed = $data->deleteRow($row[$data->getProperty('primary_key')]);
-            break;
-
-        case TIP_FORM_ACTION_CUSTOM:
-            $processed = true;
-            break;
-        }
-
-        if ($processed) {
+        // Run the process callback
+        if (call_user_func_array($this->on_process, array(&$row, $this->defaults))) {
             TIP::notifyInfo('done');
         } else {
-            TIP::notifyError('fatal');
+            TIP::notifyError($this->action_id);
         }
     }
 
