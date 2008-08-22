@@ -155,7 +155,7 @@ class TIP_Class extends TIP_Content
      * @param  array $options Options to pass to the form() call
      * @return bool           true on success or false on errors
      */
-    protected function actionAdd($id, $options = array())
+    protected function actionAdd($id = null, $options = array())
     {
         // Merge the argument options with the configuration options, if found
         // The argument options have higher priority...
@@ -390,62 +390,59 @@ class TIP_Class extends TIP_Content
     //}}}
     //{{{ Callbacks
 
-    /**
-     * Add both master and child rows
+    /**#@+
+     * This callback is transaction protected to avoid data corruptions.
      *
-     * @param  array &$row The joined row to add
-     * @return bool        always false, to avoid chaining-up
-     *                     the default action
+     * @param  array      &$row     The subject row
+     * @param  array|null  $old_row The old row or null on no old row
+     * @return bool                 true on success or false on error
      */
-    public function _onAdd(&$row)
+
+    /**
+     * Process an add action
+     *
+     * Overrides the default add action inserting both master and child rows.
+     */
+    public function _onAdd(&$row, $old_row)
     {
         $child =& $this->_getChildModule();
         if (is_null($child)) {
             // No child module: chain-up the parent method
-            return parent::_onAdd($row);
+            return parent::_onAdd($row, $old_row);
         } elseif (!$child) {
             // An error occurred somewhere: do nothing
             return false;
         }
 
+        $child_data =& $child->getProperty('data');
+        $key = $this->data->getProperty('primary_key');
+        $child_key = $child_data->getProperty('primary_key');
+
         $engine = &$this->data->getProperty('engine');
         if (!$engine->startTransaction()) {
             // This error must be catched here to avoid the rollback
-            TIP::notifyError('fatal');
             return false;
         }
 
-        // Copy the row: putRow() is destructive
-        $child_row = $row;
-
-        $done = parent::_onAdd($row) &&
-            $this->data->putRow($row) &&
-            !is_null($child_row[$this->master_field] = $this->data->getLastId()) &&
-            $child->getProperty('data')->putRow($child_row);
+        $done = parent::_onAdd($row, $old_row) &&
+            !is_null($row[$child_key] = $row[$key]) &&
+            $child_data->putRow($row);
         $done = $engine->endTransaction($done) && $done;
 
-        if ($done) {
-            TIP::notifyInfo('done');
-        } else {
-            TIP::notifyError('fatal');
-        }
-
-        return false;
+        return $done;
     }
 
     /**
-     * Update master and child rows
+     * Process an edit action
      *
-     * @param  array &$row The joined row to update
-     * @return bool        always false, to avoid chaining-up
-     *                     the default action
+     * Overrides the default edit action updating both master and child rows.
      */
-    public function _onEdit(&$row)
+    public function _onEdit(&$row, $old_row)
     {
         $child =& $this->_getChildModule();
         if (is_null($child)) {
             // No child module: chain-up the parent method
-            return parent::_onEdit($row);
+            return parent::_onEdit($row, $old_row);
         } elseif (!$child) {
             // An error occurred somewhere: do nothing
             return false;
@@ -454,43 +451,30 @@ class TIP_Class extends TIP_Content
         $engine = &$this->data->getProperty('engine');
         if (!$engine->startTransaction()) {
             // This error must be catched here to avoid the rollback
-            TIP::notifyError('fatal');
             return false;
         }
 
         // The class_field MUST NOT be changed (only deleting allowed)
         unset($row[$this->class_field]);
 
-        // Copy the row: updateRow() is destructive
-        $child_row = $row;
-
-        $done = parent::_onEdit($row) &&
-            $this->data->updateRow($row) &&
-            $child->getProperty('data')->updateRow($child_row);
+        $done = parent::_onEdit($row, $old_row) &&
+            $child->getProperty('data')->updateRow($row);
         $done = $engine->endTransaction($done) && $done;
 
-        if ($done) {
-            TIP::notifyInfo('done');
-        } else {
-            TIP::notifyError('fatal');
-        }
-
-        return false;
+        return $done;
     }
 
     /**
-     * Delete master and child rows
+     * Process a delete action
      *
-     * @param  array &$row The joined row to delete
-     * @return bool        always false, to avoid chaining-up
-     *                     the default action
+     * Overrides the default delete action erasing both master and child rows.
      */
-    public function _onDelete(&$row)
+    public function _onDelete(&$row, $old_row)
     {
         $child =& $this->_getChildModule();
         if (is_null($child)) {
             // No child module: chain-up the parent method
-            return parent::_onDelete($row);
+            return parent::_onDelete($row, $old_row);
         } elseif (!$child) {
             // An error occurred somewhere: do nothing
             return false;
@@ -499,30 +483,24 @@ class TIP_Class extends TIP_Content
         $primary_key = $this->data->getProperty('primary_key');
         if (!array_key_exists($primary_key, $row) ||
             is_null($id = $row[$primary_key])) {
-            TIP::error("no primary key defined (field $primary_key)");
-            return null;
+            TIP::warning("no primary key defined (field $primary_key)");
+            return false;
         }
 
         $engine = &$this->data->getProperty('engine');
         if (!$engine->startTransaction()) {
             // This error must be catched here to avoid the rollback
-            TIP::notifyError('fatal');
             return false;
         }
 
-        $done = parent::_onDelete($row) &&
-            $this->data->deleteRow($id) &&
+        $done = parent::_onDelete($row, $old_row) &&
             $child->getProperty('data')->deleteRow($id);
         $done = $engine->endTransaction($done) && $done;
 
-        if ($done) {
-            TIP::notifyInfo('done');
-        } else {
-            TIP::notifyError('fatal');
-        }
-
-        return false;
+        return $done;
     }
+
+    /**#@-*/
 
     //}}}
     //{{{ Internal properties
