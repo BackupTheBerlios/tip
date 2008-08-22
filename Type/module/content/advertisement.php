@@ -16,12 +16,14 @@
  * @license   http://www.opensource.org/licenses/bsd-license.php New BSD License
  * @package   TIP
  * @since     0.0.1
+ * @todo      This module is outdated and must be reworked
  */
 
 /**
  * Advertisement module
  *
  * @package TIP
+ * @todo    This module is outdated and must be reworked
  */
 class TIP_Advertisement extends TIP_Content
 {
