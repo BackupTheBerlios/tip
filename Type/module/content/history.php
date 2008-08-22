@@ -166,7 +166,7 @@ class TIP_History extends TIP_Content
         // Start the transaction here, to avoid race conditions
         $engine =& $this->data->getProperty('engine');
         if (!$engine->startTransaction()) {
-            // This error must be catched here to avoid the rollback
+            // This error must be caught here to avoid the rollback
             return false;
         }
 
@@ -225,7 +225,7 @@ class TIP_History extends TIP_Content
 
         // Start the transaction here to avoid race conditions
         if (!$engine->startTransaction()) {
-            // This error must be catched here to avoid the rollback
+            // This error must be caught here to avoid the rollback
             return false;
         }
 

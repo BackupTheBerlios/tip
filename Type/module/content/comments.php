@@ -227,7 +227,7 @@ class TIP_Comments extends TIP_Content
     {
         $engine = &$this->data->getProperty('engine');
         if (!$engine->startTransaction()) {
-            // This error must be catched here to avoid the rollback
+            // This error must be caught here to avoid the rollback
             return false;
         }
 
@@ -246,7 +246,7 @@ class TIP_Comments extends TIP_Content
     {
         $engine = &$this->data->getProperty('engine');
         if (!$engine->startTransaction()) {
-            // This error must be catched here to avoid the rollback
+            // This error must be caught here to avoid the rollback
             return false;
         }
 

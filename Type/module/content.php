@@ -1314,7 +1314,7 @@ class TIP_Content extends TIP_Module
         $primary_key = $this->data->getProperty('primary_key');
 
         if (!$engine->startTransaction()) {
-            // This error must be catched here to avoid the rollback
+            // This error must be caught here to avoid the rollback
             return false;
         }
 
@@ -1348,7 +1348,7 @@ class TIP_Content extends TIP_Module
 
         $engine = &$this->data->getProperty('engine');
         if (!$engine->startTransaction()) {
-            // This error must be catched here to avoid the rollback
+            // This error must be caught here to avoid the rollback
             return false;
         }
 
@@ -1372,7 +1372,7 @@ class TIP_Content extends TIP_Module
     {
         $engine = &$this->data->getProperty('engine');
         if (!$engine->startTransaction()) {
-            // This error must be catched here to avoid the rollback
+            // This error must be caught here to avoid the rollback
             return false;
         }
 
