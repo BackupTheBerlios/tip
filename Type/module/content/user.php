@@ -455,13 +455,14 @@ class TIP_User extends TIP_Content
 
     /**
      * Called by the login form to process the login
-     * @param  array      &$row The data row
-     * @return false            Always false, to not execute the form action
+     *
+     * @param  array      &$row     The subject row
+     * @param  array|null  $old_row The old row or null on no old row
+     * @return bool                 true on successful login, false on errors
      */
-    public function _onLogin(&$row)
+    public function _onLogin(&$row, $old_row)
     {
-        $this->login();
-        return false;
+        return $this->login();
     }
 
     /**
