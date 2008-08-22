@@ -115,7 +115,7 @@ class TIP_Comments extends TIP_Content
         $options['valid_render'] = TIP_FORM_RENDER_IN_PAGE;
 
         ob_start();
-        if ($this->actionAdd($options)) {
+        if ($this->actionAdd(null, $options)) {
             return ob_get_clean();
         }
 
@@ -134,12 +134,13 @@ class TIP_Comments extends TIP_Content
      * Overrides the default add action, assuring the 'browse_field' has a
      * valid value.
      *
+     * @param  mixed $id      The identifier of the row to duplicate
      * @param  array $options Options to pass to the form() call
      * @return bool           true on success or false on errors
      */
-    protected function actionAdd($options = array())
+    protected function actionAdd($id, $options = array())
     {
-        // Merge the argument before the parent actionAdd, so also
+        // Merge the argument before the parent actionAdd(), so also
         // the defaults here defined can be overriden in configuration
         if (isset($this->form_options['add'])) {
             $options = array_merge($this->form_options['add'], (array) $options);
@@ -160,7 +161,7 @@ class TIP_Comments extends TIP_Content
             $options['follower'] = TIP::buildActionUri($this->id, 'browse', $parent_id);
         }
 
-        return parent::actionAdd($options);
+        return parent::actionAdd($id, $options);
     }
 
     //}}}

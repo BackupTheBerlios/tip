@@ -996,6 +996,8 @@ class TIP_Content extends TIP_Module
      * Perform an add action
      *
      * Generates and executes a TIP_Form instance to add a new row.
+     * The $id argument can be used to duplicate an existing row.
+     * If left null, an empty row is used as default.
      *
      * If no $options are specified, the default behaviour is to render the
      * form in the page and to try to call actionView() on the result when the
@@ -1004,10 +1006,11 @@ class TIP_Content extends TIP_Module
      * Notice also that $options['on_process'], if not specified, will be set
      * to the _onAdd() default callback.
      *
+     * @param  mixed $id      The identifier of the row to duplicate
      * @param  array $options Options to pass to the form() call
      * @return bool           true on success or false on errors
      */
-    protected function actionAdd($options = array())
+    protected function actionAdd($id = null, $options = array())
     {
         // Merge the argument options with the configuration options, if found
         // The argument options have higher priority...
@@ -1018,7 +1021,7 @@ class TIP_Content extends TIP_Module
         TIP::arrayDefault($options, 'on_process', array(&$this, '_onAdd'));
         TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '-lastid-'));
 
-        $processed = $this->form(TIP_FORM_ACTION_ADD, null, $options);
+        $processed = $this->form(TIP_FORM_ACTION_ADD, $id, $options);
         if (is_null($processed)) {
             return false;
         } elseif (!$processed) {

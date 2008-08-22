@@ -151,10 +151,11 @@ class TIP_Class extends TIP_Content
      * Overrides the default add action, chaining the child module
      * form if the class form validates.
      *
+     * @param  mixed $id      The identifier of the row to duplicate (not used)
      * @param  array $options Options to pass to the form() call
      * @return bool           true on success or false on errors
      */
-    protected function actionAdd($options = array())
+    protected function actionAdd($id, $options = array())
     {
         // Merge the argument options with the configuration options, if found
         // The argument options have higher priority...

@@ -276,10 +276,11 @@ class TIP_User extends TIP_Content
      * Overrides the default add action, showing the conditions to accept
      * before registering a new user and performing the autologin.
      *
+     * @param  mixed $id      The identifier of the row to duplicate
      * @param  array $options Options to pass to the form() call
      * @return bool           true on success or false on errors
      */
-    protected function actionAdd($options = array())
+    protected function actionAdd($id, $options = array())
     {
         if (TIP::getGet('accept', 'int') == 1) {
             $this->appendToPage($this->conditions_template);
@@ -288,7 +289,7 @@ class TIP_User extends TIP_Content
 
         TIP::arrayDefault($options, 'on_process', array(&$this, '_onAdd'));
 
-        $processed = $this->form(TIP_FORM_ACTION_ADD, null, $options);
+        $processed = $this->form(TIP_FORM_ACTION_ADD, $id, $options);
         if ($processed &&
             !is_null($id = $this->data->getLastId()) &&
             !is_null($filter = $this->data->rowFilter($id)) &&
