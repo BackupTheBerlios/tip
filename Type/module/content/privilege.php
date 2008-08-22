@@ -261,7 +261,7 @@ class TIP_Privilege extends TIP_Content
                         $rows[$row['id']] = $row;
                     }
                 } else {
-                    TIP::notifyError('insert');
+                    TIP::notifyError('add');
                 }
             }
 
