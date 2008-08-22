@@ -130,19 +130,24 @@ class TIP_Sponsor extends TIP_Content
     }
 
     /**
-     * Overridable 'add' callback
+     * Process an add action
      *
-     * Overrides the default 'add' callback setting 'count_field' and
+     * Overrides the default add callback setting 'count_field' and
      * 'counted_field' to the current sponsor count.
      *
-     * @param  array &$row The data row to add
-     * @return bool        true on success, false on errors
+     * @param  array      &$row     The subject row
+     * @param  array|null  $old_row The old row or null on no old row
+     * @return bool                 true on success, false on errors
      */
-    public function _onAdd(&$row)
+    public function _onAdd(&$row, $old_row)
     {
-        $row[$this->count_field] = $this->_row[$this->count_field];
-        $row[$this->counted_field] = $this->_row[$this->count_field];
-        return parent::_onAdd($row);
+        if (isset($this->count_field)) {
+            $row[$this->count_field] = $this->_row[$this->count_field];
+        }
+        if (isset(this->counted_field)) {
+            $row[$this->counted_field] = $this->_row[$this->count_field];
+        }
+        return parent::_onAdd($row, $old_row);
     }
 
     //}}}
