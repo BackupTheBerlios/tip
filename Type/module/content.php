@@ -1423,13 +1423,13 @@ class TIP_Content extends TIP_Module
      *
      * Internal method used by _onAdd(), _onEdit() and _onDelete().
      *
-     * @param  string $action 'Add', 'Edit' or 'Delete'
-     * @param  array &$row    The subject row
-     * @param  array &$data   Additional data to pass to the callbacks
-     * @return bool           true on success or false on errors
+     * @param  string      $action  'Add', 'Edit' or 'Delete'
+     * @param  array      &$row     The subject row
+     * @param  array|null  $old_row The old row or null on no old row
+     * @return bool                 true on success or false on error
      * @internal
      */
-    protected function _onDbAction($action, &$row, &$data)
+    private function _onDbAction($action, &$row, $old_row)
     {
         // Dispatch the signal to all children modules
         $callback = create_function('$a', 'return @$a[\'master\'] == \'' . $this->id . '\';');
@@ -1438,7 +1438,7 @@ class TIP_Content extends TIP_Module
             foreach (array_keys($children) as $child_id) {
                 $child = TIP_Type::getInstance($child_id);
                 if (method_exists($child, $method) &&
-                    !$child->$method($row, $data)) {
+                    !$child->$method($row, $old_row)) {
                     return false;
                 }
             }
