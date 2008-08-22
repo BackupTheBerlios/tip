@@ -100,17 +100,23 @@ class TIP_Request extends TIP_Content
     //{{{ Callbacks
 
     /**
-     * Override the default callback providing email notification when requested
-     * @param  array &$row The subject row
-     * @return bool        true on success, false on errors
+     * Process an add action
+     *
+     * Overrides the default callback providing email notification
+     * when requested.
+     *
+     * @param  array      &$row     The subject row
+     * @param  array|null  $old_row The old row or null on no old row
+     * @return bool                 true on success, false on errors
      */
-    public function _onAdd(&$row)
+    public function _onAdd(&$row, $old_row)
     {
-        if (!parent::_onAdd($row)) {
+        if (!parent::_onAdd($row, $old_row)) {
             return false;
         }
 
         if (empty($this->notify_to)) {
+            // No notification required
             return true;
         }
 
@@ -138,10 +144,9 @@ class TIP_Request extends TIP_Content
         }
 
         $message = wordwrap(utf8_decode($message), 66);
-
         if (!mail($this->notify_to, $this->subject_text, $message, $headers)) {
             TIP::warning("Unable to send an email message to $this->notify_to");
-            TIP::notifyError('nosend');
+            return false;
         }
 
         return true;
