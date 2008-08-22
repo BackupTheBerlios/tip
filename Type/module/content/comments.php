@@ -182,65 +182,102 @@ class TIP_Comments extends TIP_Content
      */
     private function _updateMaster(&$comment_row, $offset)
     {
-        $id = $comment_row[$this->parent_field];
+        if (!isset($this->master_count)) {
+            // No count field to update
+            return true;
+        }
+
+        $id = @$comment_row[$this->parent_field];
         if (empty($id)) {
-            TIP::notifyError('notfound');
-            TIP::warning("master row not specified ($id)");
-            return false;
+            // No master row specified: don't update anything
+            return true;
         }
 
         if (is_null($row =& $this->master->fromRow($id, false))) {
+            // Error: master row specified but not found
             return false;
         }
 
-        $old_row = $row;
-        if (array_key_exists($this->master_count, $row)) {
-            $row[$this->master_count] += $offset;
+        if (!array_key_exists($this->master_count, $row)) {
+            // No count field found in master: don't update anything
+            return true;
         }
 
+        $old_row = $row;
+        $row[$this->master_count] += $offset;
         if (!$this->master->getProperty('data')->updateRow($row, $old_row)) {
-            TIP::notifyError('update');
-            TIP::warning("no way to update comments counter on master row ($id)");
             return false;
         }
 
         return true;
     }
 
+    /**#@+
+     * This callback is transaction protected to avoid data corruptions.
+     *
+     * @param  array      &$row     The subject row
+     * @param  array|null  $old_row The old row or null on no old row
+     * @return bool                 true on success or false on error
+     */
+
     /**
      * Provide additional statistic update on the master module
-     * @param  array &$row The data row to add
-     * @return bool        true on success, false on errors
      */
-    public function _onAdd(&$row)
+    public function _onAdd(&$row, $old_row)
     {
-        return $this->_updateMaster($row, +1) && parent::_onAdd($row);
+        $engine = &$this->data->getProperty('engine');
+        if (!$engine->startTransaction()) {
+            // This error must be catched here to avoid the rollback
+            return false;
+        }
+
+        // Process the row
+        $done = parent::_onAdd($row, $old_row) &&
+            $this->_updateMaster($row, +1);
+        $done = $engine->endTransaction($done) && $done;
+
+        return $done;
     }
 
     /**
      * Provide additional statistic update on the master module
-     * @param  array &$row The data row to add
-     * @return bool        true on success, false on errors
      */
-    public function _onDelete(&$row)
+    public function _onDelete(&$row, $old_row)
     {
-        return $this->_updateMaster($row, -1) && parent::_onDelete($row);
+        $engine = &$this->data->getProperty('engine');
+        if (!$engine->startTransaction()) {
+            // This error must be catched here to avoid the rollback
+            return false;
+        }
+
+        // Process the row
+        $done = parent::_onDelete($row, $old_row) &&
+            $this->_updateMaster($row, -1);
+        $done = $engine->endTransaction($done) && $done;
+
+        return $done;
     }
+
+    /**#@-*/
 
     /**
      * Remove all comments linked to a master row
-     * @param  array &$row The row deleted from the master module
-     * @return bool        true on success, false on errors
+     *
+     * @param  array      &$row     The subject row
+     * @param  array|null  $old_row The old row or null on no old row
+     * @return bool                 true on success or false on error
      */
-    public function _onMasterDelete(&$row)
+    public function _onMasterDelete(&$row, $old_row)
     {
-        $primary_key = $this->master->getProperty('data')->getProperty('primary_key');
+        $data =& $this->getProperty('data');
+        $master_data =& $this->master->getProperty('data');
+        $primary_key = $master_data->getProperty('primary_key');
         if (!isset($row[$primary_key])) {
             return false;
         }
 
-        $filter = $this->getProperty('data')->filter($this->parent_field, $row[$primary_key]);
-        return $this->getProperty('data')->deleteRows($filter);
+        $filter = $data->filter($this->parent_field, $row[$primary_key]);
+        return $data->deleteRows($filter);
     }
 
     //}}}
