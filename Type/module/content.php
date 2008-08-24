@@ -424,18 +424,12 @@ class TIP_Content extends TIP_Module
     public function &startView($type, $options = array())
     {
         $options['type'] = array('view', strtolower($type) . '_view');
-        array_key_exists('data', $options) || $options['data'] =& $this->data;
-        array_key_exists('fields', $options) || $options['fields'] = $this->_subset;
-
-        if (!array_key_exists('on_row', $options) &&
-            method_exists($this, '_on' . $type . 'Row')) {
-            $options['on_row'] = array(&$this, '_on' . $type . 'Row');
-        }
-
-        if (!array_key_exists('on_view', $options) &&
-            method_exists($this, '_on' . $type . 'View')) {
-            $options['on_view'] = array(&$this, '_on' . $type . 'View');
-        }
+        TIP::arrayDefault($options, 'data', $this->data);
+        TIP::arrayDefault($options, 'fields', $this->_subset);
+        $callback = array(&$this, '_on' . $type . 'Row');
+        is_callable($callback) && TIP::arrayDefault($options, 'on_row', $callback);
+        $callback = array(&$this, '_on' . $type . 'View');
+        is_callable($callback) && TIP::arrayDefault($options, 'on_view', $callback);
 
         if (is_null($view =& TIP_Type::singleton($options))) {
             TIP::error("view type does not exist ($type)");
@@ -1400,9 +1394,7 @@ class TIP_Content extends TIP_Module
     {
         $old_row = $row;
 
-        isset($this->last_hit_field) &&
-            array_key_exists($this->last_hit_field, $row) &&
-            $row[$this->last_hit_field] = TIP::formatDate('datetime_sql');
+        TIP::arrayDefault($row, $this->last_hit_field, TIP::formatDate('datetime_sql'));
         isset($this->hits_field) &&
             array_key_exists($this->hits_field, $row) &&
             ++ $row[$this->hits_field];
