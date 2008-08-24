@@ -189,9 +189,13 @@ class TIP_Data extends TIP_Type
             $condition = $condition == '=' ? 'IS' : 'IS NOT';
         }
 
-        $name = $this->engine->preparedName($name);
-        $path = $this->engine->preparedName($this->path);
-        $name = $path . '.' . $name;
+        if ($name{0} == '@') {
+            $name = substr($name, 1);
+        } else {
+            $name = $this->engine->preparedName($name);
+            $path = $this->engine->preparedName($this->path);
+            $name = $path . '.' . $name;
+        }
 
         $value = is_array($value) ? reset($value) : $this->engine->preparedValue($value);
         return ' ' . $connector . ' '. $name . ' ' . $condition . ' ' . $value;
