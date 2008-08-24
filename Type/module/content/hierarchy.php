@@ -276,7 +276,18 @@ class TIP_Hierarchy extends TIP_Content
      */
     public function &startDataView($filter = null)
     {
-        $model_filter = $this->data->order($this->order_field);
+        $model_filter = '';
+        if (!empty($this->default_conditions)) {
+            foreach ($this->default_conditions as $id => $value) {
+                if (empty($model_filter)) {
+                    $model_filter = $this->data->filter($id, $value);
+                } else {
+                    $model_filter .= $this->data->addFilter('AND', $id, $value);
+                }
+            }
+        }
+
+        $model_filter .= $this->data->order($this->order_field);
 
         if (empty($filter)) {
             $filter = $model_filter;
