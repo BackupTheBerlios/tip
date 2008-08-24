@@ -1226,9 +1226,9 @@ class TIP_Content extends TIP_Module
             $fields = $this->data->getFields();
             foreach ($browsable as $id) {
                 $get = $id == $this->browse_field ? 'id' : $id;
-                if (array_key_exists($id, $fields) &&
-                    !is_null($value = TIP::getGet($get, $fields[$id]['type']))) {
-                    $conditions[$id] = $value;
+                if (array_key_exists($get, $_GET) &&
+                    !is_null($type = $this->data->getFieldType($id))) {
+                    $conditions[$id] = TIP::getGet($get, $type);
                 }
             }
 
