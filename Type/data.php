@@ -21,6 +21,13 @@
 /**
  * A generic data provider
  *
+ * All the queries are "prepared" accordling to the data engine used.
+ * This means the parameters are modified by calling preparedName() and
+ * preparedValue() of the TIP_Data_Engine object.
+ *
+ * Prepending the at symbol (@) to a name means that name must be
+ * passed-throught without modification (a raw name).
+ *
  * @package  TIP
  */
 class TIP_Data extends TIP_Type
@@ -217,7 +224,12 @@ class TIP_Data extends TIP_Type
             return '';
         }
 
-        $name = $this->engine->preparedName($name);
+        if ($name{0} == '@') {
+            $name = substr($name, 1);
+        } else {
+            $name = $this->engine->preparedName($name);
+        }
+
         $tail = $descending ? ' DESC' : '';
         return ' ORDER BY ' . $name . $tail;
     }
