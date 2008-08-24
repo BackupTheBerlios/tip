@@ -1208,7 +1208,9 @@ class TIP_Form extends TIP_Module
         $hierarchy =& TIP_Type::getInstance($hierarchy_id);
 
         // Populate the option list, prepending an empty option
-        $items = array(' ' => '&#160;') + $hierarchy->toRows();
+        $items = array(' ' => '&#160;');
+        $rows =& $hierarchy->toRows();
+        is_null($rows =& $hierarchy->toRows()) || $items += $rows;
 
         ++ $this->_tabindex;
         $element =& $this->_form->addElement('select', $id, $label, $items, array('tabindex' => $this->_tabindex, 'class' => 'expand'));
