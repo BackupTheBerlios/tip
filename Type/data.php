@@ -278,6 +278,47 @@ class TIP_Data extends TIP_Type
     }
 
     /**
+     * Get a field type
+     *
+     * Gets the field type by updating the internal field structure and
+     * searching for $id. If it is not found, a recursive search is
+     * performed on the joined TIP_Data objects (if any).
+     *
+     * @param    mixed       $id A field identifier
+     * @return   string|null     The requested field type or null on errors
+     */
+    public function getFieldType($id)
+    {
+        // Update the fields structure (no details needed)
+        if (is_null($this->getFields(false))) {
+            return null;
+        }
+
+        // Check if the field is found in the current structure
+        if (array_key_exists($id, $this->_fields)) {
+            return @$this->_fields[$id]['type'];
+        }
+
+        // Check if there are defined joins (the requested field could
+        // be found in a joined table)
+        if (!is_array($this->joins)) {
+            return null;
+        }
+
+        // Recurse into the joined TIP_Data
+        $options = array('type' => array('data'));
+        foreach (array_keys($this->joins) as $path) {
+            $options['path'] = $path;
+            $data = TIP_Type::singleton($options);
+            if (!is_null($type = $data->getFieldType($id))) {
+                return $type;
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * Read one row
      *
      * Retrieves the content of the row with the specified $id.
