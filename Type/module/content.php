@@ -152,6 +152,16 @@ class TIP_Content extends TIP_Module
     );
 
     /**
+     * Default browse conditions
+     *
+     * An array of "field id" => value used as base conditions for
+     * any browse action.
+     *
+     * @var array
+     */
+    protected $default_conditions = array();
+
+    /**
      * Browsable fields
      *
      * An array of field ids enabled in the 'browse' action, specified for
@@ -163,7 +173,6 @@ class TIP_Content extends TIP_Module
         TIP_PRIVILEGE_NONE  => array('group', '_parent', '_user'),
         TIP_PRIVILEGE_ADMIN => array('__ALL__')
     );
-
 
     /**
      * Explicit options to pass to the form
@@ -1211,7 +1220,7 @@ class TIP_Content extends TIP_Module
                 $this->actionView($id);
 
         case 'browse':
-            $conditions = array();
+            $conditions = $this->default_conditions;
 
             // Merge all browsable fields for this privilege level
             $browsable = array();
