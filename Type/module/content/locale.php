@@ -174,7 +174,9 @@ class TIP_Locale extends TIP_Content
     public function _onDataRow(&$row)
     {
         $row['MESSAGE'] = $row[$this->locale];
-        return true;
+
+        // Chain-up the parent callback
+        return parent::_onDataRow($row);
     }
 
     //}}}

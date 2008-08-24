@@ -170,7 +170,9 @@ class TIP_Poll extends TIP_Content
         $row['PERCENT4'] = round($row['votes4'] * 100 / $total);
         $row['PERCENT5'] = round($row['votes5'] * 100 / $total);
         $row['PERCENT6'] = round($row['votes6'] * 100 / $total);
-        return true;
+
+        // Chain-up the parent callback
+        return parent::_onDataRow($row);
     }
 
     //}}}

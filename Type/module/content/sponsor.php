@@ -126,7 +126,9 @@ class TIP_Sponsor extends TIP_Content
     {
         $row['COUNT'] = $row[$this->count_field] - $row[$this->counted_field];
         $row['HITS'] = $row[$this->hits_field] - $row[$this->hitted_field];
-        return true;
+
+        // Chain-up the parent callback
+        return parent::_onDataRow($row);
     }
 
     /**
