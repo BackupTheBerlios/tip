@@ -59,23 +59,11 @@ class TIP_Hierarchy extends TIP_Content
     protected $action = null;
 
     /**
-     * The field specifying the title or null to use the default 'title' field
+     * Default order field: use "default_order" instead
      * @var string
+     * @deprecated
      */
-    protected $title_field = 'title';
-
-    /**
-     * The field specifying the tooltip to use or null to try to use the
-     * default 'tooltip' field
-     * @var string
-     */
-    protected $tooltip_field = null;
-
-    /**
-     * The field that forces a specified order
-     * @var string
-     */
-    protected $order_field = 'order';
+    protected $order_field = null;
 
     /**
      * Maximum number of levels to keep online (before enabling AJAX)
@@ -114,6 +102,9 @@ class TIP_Hierarchy extends TIP_Content
         }
 
         isset($options['action']) || $options['action'] = 'browse,-id-';
+        TIP::arrayDefault($options, 'order_field', 'order');
+        TIP::arrayDefault($options, 'default_order', $options['order_field']);
+
         return true;
     }
 
@@ -243,79 +234,6 @@ class TIP_Hierarchy extends TIP_Content
     }
 
     //}}}
-    //{{{ Methods
-
-    /**
-     * Start a data view
-     *
-     * Overrides the default method to force global queries (that is with
-     * empty $filter) to be sorted by 'order_field', so the query can also be
-     * used to build the hierarchy model.
-     *
-     * @param  string|null       $filter  The filter conditions
-     * @param  array             $options The constructor arguments to pass
-     *                                    to the TIP_Data_View instance
-     * @return TIP_Data_View|null         The view instance or null on errors
-     */
-    public function &startDataView($filter = null)
-    {
-        $model_filter = '';
-        if (!empty($this->default_conditions)) {
-            foreach ($this->default_conditions as $id => $value) {
-                if (empty($model_filter)) {
-                    $model_filter = $this->data->filter($id, $value);
-                } else {
-                    $model_filter .= $this->data->addFilter('AND', $id, $value);
-                }
-            }
-        }
-
-        $model_filter .= $this->data->order($this->order_field);
-
-        if (empty($filter)) {
-            $filter = $model_filter;
-        } elseif ($filter != $model_filter) {
-            // No way to use this query to build the model
-            return parent::startDataView($filter);
-        }
-
-        return parent::startDataView($filter, array('on_view' => array(&$this, '_createModel')));
-    }
-
-    /**
-     * Render as XHTML hierarchy
-     *
-     * @param  string      $action The action template string
-     * @return string|null         The rendered HTML or null on errors
-     */
-    public function toHtml($action = null)
-    {
-        if (is_null($renderer = $this->_getRenderer($action))) {
-            return null;
-        }
-
-        return $renderer->toHtml();
-    }
-
-    /**
-     * Get the hierarchy rows
-     *
-     * Builds an array of rows from this hierarchy. Useful to automatically
-     * define the options of a <select> item in a TIP_Form instance.
-     *
-     * @param  string     $action The action template string
-     * @return array|null         The rendered rows or null on errors
-     */
-    public function toRows($action = null)
-    {
-        if (is_null($renderer = $this->_getRenderer($action))) {
-            return null;
-        }
-
-        return $renderer->toArray();
-    }
-
-    //}}}
     //{{{ Tags
 
     /**#@+
@@ -350,7 +268,8 @@ class TIP_Hierarchy extends TIP_Content
     /**
      * Echo the hierarchy
      *
-     * Outputs the XHTML hierarchy of this instance.
+     * Overrides the default tagShow() to disable the page indexing
+     * if the current selected row is a container.
      */
     protected function tagShow($params)
     {
@@ -372,52 +291,25 @@ class TIP_Hierarchy extends TIP_Content
     /**#@-*/
 
     //}}}
-    //{{{ Internal properties
-
-    /**
-     * The model for rows rendering
-     * @var string
-     * @internal
-     */
-    private $_model = null;
-
-    //}}}
     //{{{ Internal methods
 
-    private function &_getRenderer($action)
+    /**
+     * Get the data rows and return a renderer ready to be used
+     *
+     * Overrides the default method to customize the levels to be
+     * returned by the renderer.
+     *
+     * @param  string                     $action The action template string
+     * @return HTML_Menu_TipRenderer|null         The renderer or
+     *                                            null on errors
+     */
+    protected function &_getRenderer($action)
     {
-        if (is_null($this->_model)) {
-            $this->startDataView() && $this->endView();
+        if (is_null($renderer = parent::_getRenderer($action))) {
+            return $renderer;
         }
 
-        if (is_null($this->_model)) {
-            return null;
-        }
-
-        // Work on a copy
-        $model = $this->_model;
-        foreach ($model as $id => &$row) {
-            if (isset($row['url'])) {
-                // Explicit action set
-                continue;
-            }
-
-            $url = array_key_exists('action', $row) ? $row['action'] : $action;
-            if (empty($url)) {
-                // No action specified
-                $row['url'] = null;
-                continue;
-            }
-
-            $url = str_replace('-id-', $id, $url);
-            $row['url'] = TIP::buildActionUriFromTag($url, (string) $module);
-        }
-
-        require_once 'HTML/Menu.php';
-        $menu = new HTML_Menu($model);
-        empty($action) || $menu->forceCurrentUrl(TIP::getRequestUri());
-        $renderer =& TIP_Renderer::getMenu($this->levels);
-        $menu->render($renderer, 'sitemap');
+        $renderer->setLevels($this->levels);
         return $renderer;
     }
 

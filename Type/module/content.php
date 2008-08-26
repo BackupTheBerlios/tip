@@ -131,6 +131,18 @@ class TIP_Content extends TIP_Module
     protected $hits_field = '_hits';
 
     /**
+     * The field specifying the title for rendering operations
+     * @var string
+     */
+    protected $title_field = 'title';
+
+    /**
+     * The field specifying the tooltip for rendering operations
+     * @var string|null
+     */
+    protected $tooltip_field = null;
+
+    /**
      * The field containing the date of the last actionView
      * @var string
      */
@@ -160,6 +172,12 @@ class TIP_Content extends TIP_Module
      * @var array
      */
     protected $default_conditions = array();
+
+    /**
+     * Default order field
+     * @var string
+     */
+    protected $default_order = null;
 
     /**
      * Browsable fields
@@ -451,8 +469,14 @@ class TIP_Content extends TIP_Module
     /**
      * Start a data view
      *
-     * A shortcut for often used TIP_Data_View calls. Also, it provides an
-     * easy way to specify the filter instead of setting $options['filter'].
+     * Creates a TIP_Data_View instance, providing also an easy way
+     * to specify the filter instead of setting $options['filter'].
+     *
+     * The main difference between this function and using startView()
+     * directly is that here "default_conditions" and "default_order"
+     * properties are automatically applied on global queries (that is,
+     * whenever $filter is empty). In this case, the model used by the
+     * rendering operations is populated too.
      *
      * See startView() for further details.
      *
@@ -461,8 +485,40 @@ class TIP_Content extends TIP_Module
      *                                    to the TIP_Data_View instance
      * @return TIP_Data_View|null         The view instance or null on errors
      */
-    public function &startDataView($filter, $options = array())
+    public function &startDataView($filter = null, $options = array())
     {
+        $model_filter = '';
+        if (!empty($this->default_conditions)) {
+            foreach ($this->default_conditions as $id => $value) {
+                if (empty($model_filter)) {
+                    $model_filter = $this->data->filter($id, $value);
+                } else {
+                    $model_filter .= $this->data->addFilter('AND', $id, $value);
+                }
+            }
+        }
+        $model_filter .= $this->data->order($this->default_order);
+
+        // Apply default conditions and order if $filter is empty
+        empty($filter) && $filter = $model_filter;
+
+        if ($filter == $model_filter) {
+            // This query can be used to build the model
+            if (isset($options['on_view'])) {
+                $old_callback = $options['on_view'];
+            } else {
+                $old_callback = array(&$this, '_onDataView');
+            }
+
+            $callback = array(&$this, '_createModel');
+            if (is_callable($old_callback)) {
+                $this->_on_view_callbacks = array($old_callback, $callback);
+                $options['on_view'] = array($this, '_onViewHook');
+            } else {
+                $options['on_view'] = $callback;
+            }
+        }
+
         $options['filter'] = $filter;
         return $this->startView('Data', $options);
     }
@@ -666,6 +722,40 @@ class TIP_Content extends TIP_Module
     {
         TIP::arrayDefault($row, $this->creation_field, TIP::formatDate('datetime_sql'));
         TIP::arrayDefault($row, $this->owner_field, TIP::getUserId());
+    }
+
+    /**
+     * Render to XHTML
+     *
+     * @param  string      $action The action template string
+     * @return string|null         The rendered HTML or null on errors
+     */
+    public function toHtml($action = null)
+    {
+        if (is_null($renderer = $this->_getRenderer($action))) {
+            return null;
+        }
+
+        return $renderer->toHtml();
+    }
+
+    /**
+     * Render to rows
+     *
+     * Builds an array of rows from this content data. Useful to
+     * automatically define the options of a <select> item for a
+     * TIP_Form instance.
+     *
+     * @param  string     $action The action template string
+     * @return array|null         The rendered rows or null on errors
+     */
+    public function toRows($action = null)
+    {
+        if (is_null($renderer = $this->_getRenderer($action))) {
+            return null;
+        }
+
+        return $renderer->toArray();
     }
 
     //}}}
@@ -1004,6 +1094,17 @@ class TIP_Content extends TIP_Module
         return ob_get_clean();
     }
 
+    /**
+     * Echo the rendered XHTML
+     *
+     * Outputs the XHTML for this TIP_Content. In $params there should be
+     * the template action string to use to build the links.
+     */
+    protected function tagShow($params)
+    {
+        return $this->toHtml($params);
+    }
+
     /**#@-*/
 
     //}}}
@@ -1255,37 +1356,6 @@ class TIP_Content extends TIP_Module
     }
 
     //}}}
-    //{{{ Internal properties
-
-    /**
-     * Fields to use in SELECT queries (null for all fields)
-     * @var array
-     * @internal
-     */
-    private $_subset = null;
-
-    /**
-     * The stack of performed views
-     * @var array
-     * @internal
-     */
-    private $_views = array();
-
-    /**
-     * A reference to the current view or null for no current views
-     * @var TIP_View
-     * @internal
-     */
-    private $_view = null;
-
-    /**
-     * The browse conditions, as specified in actionBrowse()
-     * @var array
-     * @internal
-     */
-    protected $_browse_conditions = null;
-
-    //}}}
     //{{{ Callbacks
 
     /**#@+
@@ -1423,7 +1493,7 @@ class TIP_Content extends TIP_Module
      * - 'IS_OWNER': true if the current user owns the row or false otherwise
      *
      * @param  array &$row The row as generated by TIP_Data_View
-     * @return bool        always true
+     * @return bool        true to continue, false to stop
      */
     public function _onDataRow(&$row)
     {
@@ -1433,6 +1503,113 @@ class TIP_Content extends TIP_Module
             $row[$this->owner_field] == TIP::getUserId();
         return true;
     }
+ 
+    /**
+     * 'on_view' callback helper
+     *
+     * Calls the sequence of on_view callbacks registered in the
+     * $_on_view_callbacks array.
+     *
+     * All the callbacks are executed also if someone of them returns
+     * false but the returned value is still the logical AND of all
+     * the collected results.
+     *
+     * @param  TIP_Data_View &$view The view
+     * @return bool                 true to continue, false to stop
+     */
+    public function _onViewHook(&$view)
+    {
+        $done = true;
+        foreach ($this->_on_view_callbacks as $callback) {
+            if (!call_user_func_array($callback, array(&$view))) {
+                $done = false;
+            }
+        }
+
+        return $done;
+    }
+
+    /**
+     * 'on_view' callback for global TIP_Data_View queries
+     *
+     * Called whenever a global query runs: this callback automatically
+     * populates the model used by rendering operations (toRows() and
+     * toHtml()).
+     *
+     * @param  TIP_Data_View &$view The view
+     * @return bool                 true to continue, false to stop
+     */
+    public function _createModel(&$view)
+    {
+        if (!is_null($this->_model)) {
+            // Model yet created
+            return true;
+        }
+
+        // Map the custom fields to HTML_Menu id
+        $this->_model =& $view->getProperty('rows');
+        foreach ($this->_model as $id => &$row) {
+            isset($row['id']) || $row['id'] = $id;
+
+            // Use the custom "title_field" or
+            // leave the default $row['title'] untouched
+            if (isset($this->title_field) && $this->title_field != 'title') {
+                $row['title'] = TIP::pickElement($this->title_field, $row);
+            }
+
+            // Try to set the custom tooltip field
+            if (isset($this->tooltip_field) && $this->tooltip_field != 'tooltip') {
+                $row['tooltip'] = TIP::pickElement($this->tooltip_field, $row);
+            }
+        }
+
+        return true;
+    }
+
+    //}}}
+    //{{{ Internal properties
+
+    /**
+     * Fields to use in SELECT queries (null for all fields)
+     * @var array
+     * @internal
+     */
+    private $_subset = null;
+
+    /**
+     * The stack of performed views
+     * @var array
+     * @internal
+     */
+    private $_views = array();
+
+    /**
+     * A reference to the current view or null for no current views
+     * @var TIP_View
+     * @internal
+     */
+    private $_view = null;
+
+    /**
+     * The browse conditions, as specified in actionBrowse()
+     * @var array
+     * @internal
+     */
+    protected $_browse_conditions = null;
+
+    /**
+     * The model used by rendering operations
+     * @var array
+     * @internal
+     */
+    protected $_model = null;
+
+    /**
+     * An array of view callbacks to be called in sequence
+     * @var array
+     * @internal
+     */
+    private $_on_view_callbacks = null;
 
     //}}}
     //{{{ Internal methods
@@ -1480,6 +1657,51 @@ class TIP_Content extends TIP_Module
         }
 
         return true;
+    }
+
+    /**
+     * Get the data rows and return a renderer ready to be used
+     *
+     * @param  string                     $action The action template string
+     * @return HTML_Menu_TipRenderer|null         The renderer or
+     *                                            null on errors
+     */
+    protected function &_getRenderer($action)
+    {
+        if (is_null($this->_model)) {
+            $this->startDataView() && $this->endView();
+        }
+
+        if (is_null($this->_model)) {
+            $fake_null = null;
+            return $fake_null;
+        }
+
+        // Work on a copy
+        $model = $this->_model;
+        foreach ($model as $id => &$row) {
+            if (isset($row['url'])) {
+                // Explicit action set
+                continue;
+            }
+
+            $url = array_key_exists('action', $row) ? $row['action'] : $action;
+            if (empty($url)) {
+                // No action specified
+                $row['url'] = null;
+                continue;
+            }
+
+            $url = str_replace('-id-', $id, $url);
+            $row['url'] = TIP::buildActionUriFromTag($url, (string) $module);
+        }
+
+        require_once 'HTML/Menu.php';
+        $menu = new HTML_Menu($model);
+        empty($action) || $menu->forceCurrentUrl(TIP::getRequestUri());
+        $renderer =& TIP_Renderer::getMenu();
+        $menu->render($renderer, 'sitemap');
+        return $renderer;
     }
 
     //}}}
