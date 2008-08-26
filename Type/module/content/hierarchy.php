@@ -28,28 +28,35 @@ class TIP_Hierarchy extends TIP_Content
     //{{{ Properties
 
     /**
-     * An optional reference to the master module
+     * The reference to the master module
      * @var TIP_Content
      */
     protected $master = null;
 
     /**
-     * The default action (if not specified in the row)
-     * @var string
-     */
-    protected $action = null;
-
-    /**
-     * The field in $master to join to the primary key of this hierarchy
+     * The field in "master" to join to the primary key of this hierarchy
      * @var string
      */
     protected $master_field = 'group';
 
     /**
-     * The field specifying the parent of a row
+     * The field in this hierarchy that specifies the parent of a row
      * @var string
      */
     protected $parent_field = 'parent';
+
+    /**
+     * The field in "master" that keeps track of the number of children rows
+     * @var string
+     */
+    protected $count_field = '_count';
+
+    /**
+     * The action to be used by toRows()(if not specified in the row)
+     * @var string
+     * @deprecated
+     */
+    protected $action = null;
 
     /**
      * The field specifying the title or null to use the default 'title' field
@@ -69,12 +76,6 @@ class TIP_Hierarchy extends TIP_Content
      * @var string
      */
     protected $order_field = 'order';
-
-    /**
-     * The field that forces a specified order
-     * @var string
-     */
-    protected $count_field = '_count';
 
     /**
      * Maximum number of levels to keep online (before enabling AJAX)
@@ -133,23 +134,19 @@ class TIP_Hierarchy extends TIP_Content
 
     public function _createModel(&$view)
     {
+        if (!is_null($this->_model)) {
+            return true;
+        }
+
+        $this->_model = array();
         $rows = $view->getProperty('rows');
         if (empty($rows)) {
-            $this->_html = '';
-            $this->_rows = array();
             return true;
         }
 
         // By default, counting is enable if the "count_field" property is set
         isset($this->count_field) && $total_count = 0;
-
         $primary_key = $this->data->getProperty('primary_key');
-        $tree = array();
-        if (isset($this->master)) {
-            $module =& $this->master;
-        } else {
-            $module =& $this;
-        }
         foreach (array_keys($rows) as $id) {
             $row =& $rows[$id];
             isset($row['id']) || $row['id'] = $id;
@@ -166,12 +163,6 @@ class TIP_Hierarchy extends TIP_Content
                 $row['tooltip'] = TIP::pickElement($this->tooltip_field, $row);
             }
 
-            if (!isset($row['url'])) {
-                $action = @$row['action'];
-                $action || $action = $this->action;
-                $action = str_replace('-id-', $id, $action);
-                $row['url'] = TIP::buildActionUriFromTag($action, (string) $module);
-            }
             if (isset($this->count_field)) {
                 $count = @$row[$this->count_field];
                 isset($row['COUNT']) || $row['COUNT'] = 0;
@@ -197,7 +188,7 @@ class TIP_Hierarchy extends TIP_Content
                     $row =& $parent;
                 }
             } else {
-                $tree[$id] =& $row;
+                $this->_model[$id] =& $row;
             }
         }
 
@@ -205,14 +196,6 @@ class TIP_Hierarchy extends TIP_Content
             $view->setSummary('TOTAL_COUNT', $total_count);
         }
 
-        require_once 'HTML/Menu.php';
-        $model =& new HTML_Menu($tree);
-        $model->forceCurrentUrl(TIP::getRequestUri());
-        $renderer =& TIP_Renderer::getMenu($this->levels);
-        $model->render($renderer, 'sitemap');
-        $this->_html = $renderer->toHtml();
-        $this->_rows = $renderer->toArray();
-        $this->_is_current_container = $renderer->isCurrentContainer();
         return true;
     }
 
@@ -302,12 +285,16 @@ class TIP_Hierarchy extends TIP_Content
     /**
      * Render as XHTML hierarchy
      *
-     * @return string|null The rendered HTML or null on errors
+     * @param  string      $action The action template string
+     * @return string|null         The rendered HTML or null on errors
      */
-    public function &toHtml()
+    public function toHtml($action = null)
     {
-        $this->_render();
-        return $this->_html;
+        if (is_null($renderer = $this->_getRenderer($action))) {
+            return null;
+        }
+
+        return $renderer->toHtml();
     }
 
     /**
@@ -316,12 +303,16 @@ class TIP_Hierarchy extends TIP_Content
      * Builds an array of rows from this hierarchy. Useful to automatically
      * define the options of a <select> item in a TIP_Form instance.
      *
-     * @return array|null The rendered rows or null on errors
+     * @param  string     $action The action template string
+     * @return array|null         The rendered rows or null on errors
      */
-    public function &toRows()
+    public function toRows($action = null)
     {
-        $this->_render();
-        return $this->_rows;
+        if (is_null($renderer = $this->_getRenderer($action))) {
+            return null;
+        }
+
+        return $renderer->toArray();
     }
 
     //}}}
@@ -343,16 +334,17 @@ class TIP_Hierarchy extends TIP_Content
         if (empty($params)) {
             TIP::error('no row specified');
             return null;
-        } elseif (!$this->_render()) {
+        } elseif (is_null($renderer = $this->_getRenderer())) {
             return null;
         }
 
-        if (!array_key_exists($params, $this->_rows)) {
+        $rows =& $renderer->toArray();
+        if (!array_key_exists($params, $rows)) {
             TIP::error("row not found ($params)");
             return null;
         }
 
-        return $this->_rows[$params];
+        return $rows[$params];
     }
 
     /**
@@ -362,16 +354,19 @@ class TIP_Hierarchy extends TIP_Content
      */
     protected function tagShow($params)
     {
-        if (!$this->_render()) {
+        // Backward compatibility
+        empty($params) && $params = $this->action;
+
+        if (is_null($renderer = $this->_getRenderer($params))) {
             return null;
         }
 
-        if ($this->_is_current_container) {
+        if ($renderer->isCurrentContainer()) {
             // If the current row is a container, don't index this page
             TIP_Application::setRobots(false, null);
         }
 
-        return $this->_html;
+        return $renderer->toHtml();
     }
 
     /**#@-*/
@@ -380,36 +375,50 @@ class TIP_Hierarchy extends TIP_Content
     //{{{ Internal properties
 
     /**
-     * The generated html content
+     * The model for rows rendering
      * @var string
      * @internal
      */
-    private $_html = null;
-
-    /**
-     * The generated rows content
-     * @var array
-     * @internal
-     */
-    private $_rows = null;
-
-    /**
-     * Is the current row a container?
-     * @var boolean
-     * @internal
-     */
-    private $_is_current_container = false;
+    private $_model = null;
 
     //}}}
     //{{{ Internal methods
 
-    private function _render()
+    private function &_getRenderer($action)
     {
-        if (is_null($this->_html)) {
+        if (is_null($this->_model)) {
             $this->startDataView() && $this->endView();
         }
 
-        return !empty($this->_html);
+        if (is_null($this->_model)) {
+            return null;
+        }
+
+        // Work on a copy
+        $model = $this->_model;
+        foreach ($model as $id => &$row) {
+            if (isset($row['url'])) {
+                // Explicit action set
+                continue;
+            }
+
+            $url = array_key_exists('action', $row) ? $row['action'] : $action;
+            if (empty($url)) {
+                // No action specified
+                $row['url'] = null;
+                continue;
+            }
+
+            $url = str_replace('-id-', $id, $url);
+            $row['url'] = TIP::buildActionUriFromTag($url, (string) $module);
+        }
+
+        require_once 'HTML/Menu.php';
+        $menu = new HTML_Menu($model);
+        empty($action) || $menu->forceCurrentUrl(TIP::getRequestUri());
+        $renderer =& TIP_Renderer::getMenu($this->levels);
+        $menu->render($renderer, 'sitemap');
+        return $renderer;
     }
 
     private function _updateCount($id, $offset)
