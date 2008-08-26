@@ -52,7 +52,7 @@ class TIP_Hierarchy extends TIP_Content
     protected $count_field = '_count';
 
     /**
-     * The action to be used by toRows()(if not specified in the row)
+     * The action to be used by the renderer
      * @var string
      * @deprecated
      */
