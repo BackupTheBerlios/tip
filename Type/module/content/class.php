@@ -512,6 +512,24 @@ class TIP_Class extends TIP_Content
     //{{{ Internal methods
 
     /**
+     * Get the data rows and return a renderer ready to be used
+     *
+     * Overrides the default method to force this query to be applied
+     * in the "summary_view" TIP_Data.
+     *
+     * @param  string                     $action The action template string
+     * @return HTML_Menu_TipRenderer|null         The renderer or
+     *                                            null on errors
+     */
+    protected function &_getRenderer($action)
+    {
+        $this->tagStartSummary('');
+        $result =& parent::_getRenderer($action);
+        $this->tagEndSummary('');
+        return $result;
+    }
+
+    /**
      * Get the child module
      *
      * Checks for the child module existence and caches the request.
