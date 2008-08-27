@@ -161,6 +161,11 @@ class TIP_Class extends TIP_Content
                 return false;
             }
 
+            // On non-add actions, freeze the class field
+            if ($options['action_id'] != TIP_FORM_ACTION_ADD) {
+                $options['readonly'] = array($this->class_field);
+            }
+
             // Unset the primary_key: this is an add action
             unset($row[$this->data->getProperty('primary_key')]);
 
