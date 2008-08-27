@@ -55,18 +55,17 @@ class TIP_Class extends TIP_Content
             return false;
         }
 
-        if (is_array($options['summary_view'])) {
-            if (!array_key_exists('path', $options['summary_view']))
-                return false;
-            TIP::arrayDefault($options['summary_view'], 'type', array('data'));
-        } elseif (is_string($options['summary_view'])) {
-            $options['summary_view'] = array(
+        $default_summary = $options['id'] . '-summary';
+        TIP::arrayDefault($options, 'summary_view', $default_summary);
+        if (is_string($options['summary_view'])) {
+            $options['summary_view'] =& TIP_Type::singleton(array(
                 'type' => array('data'),
                 'path' => $options['summary_view']
-            );
-        } elseif (isset($options['summary_view'])) {
-            // Unhandled summary_view format
-            return false;
+            ));
+        } elseif (is_array($options['summary_view'])) {
+            TIP::arrayDefault($options['summary_view'], 'type', array('data'));
+            TIP::arrayDefault($options['summary_view'], 'path', $default_summary);
+            $options['summary_view'] =& TIP_Type::singleton($options['summary_view']);
         }
 
         return true;
@@ -82,6 +81,7 @@ class TIP_Class extends TIP_Content
     protected function __construct($options)
     {
         parent::__construct($options);
+        $this->_current_data =& $this->data;
     }
 
     //}}}
@@ -106,14 +106,8 @@ class TIP_Class extends TIP_Content
      */
     protected function tagStartSummary($params)
     {
-        if (isset($this->_old_data)) {
-            TIP::error('nested startSummary tags not allowed');
-            return null;
-        }
-
-        $this->_old_data =& $this->data;
-        unset($this->data);
-        $this->data =& TIP_Type::singleton($this->summary_view);
+        unset($this->_current_data);
+        $this->_current_data =& $this->summary_view;
         return '';
     }
 
@@ -130,13 +124,8 @@ class TIP_Class extends TIP_Content
      */
     protected function tagEndSummary($params)
     {
-        if (!isset($this->_old_data)) {
-            TIP::error('no previous startSummary tag called');
-            return null;
-        }
-
-        unset($this->data);
-        $this->data =& $this->_old_data;
+        unset($this->_current_data);
+        $this->_current_data =& $this->data;
         return '';
     }
 
@@ -331,10 +320,6 @@ class TIP_Class extends TIP_Content
 
     protected function actionBrowse(&$conditions)
     {
-        // Chain-up the parent method on no summary view defined
-        if (is_null($this->summary_view))
-            return parent::actionBrowse($conditions);
-
         if (is_null($this->tagStartSummary(''))) {
             return false;
         }
@@ -352,14 +337,8 @@ class TIP_Class extends TIP_Content
     /**
      * Get a specific row
      *
-     * Gets a reference to a specific row. If $id is not specified, the current
-     * row is assumed.
-     *
-     * This is an high level method that notify errors to the user if the row
-     * is not found.
-     *
-     * The method starts (and ends) a view to find a row, so every further
-     * requests will be cached.
+     * Overrides the default method to merge also the child row fields
+     * to the returned array.
      *
      * @param  mixed      $id       The row id
      * @param  bool       $end_view Whether to end the view or not
@@ -385,6 +364,23 @@ class TIP_Class extends TIP_Content
         }
 
         return $row;
+    }
+
+    /**
+     * Start a data view
+     *
+     * Overrides the default method to run queries on the summary_view
+     * data by default. Instead, the startView() method works as usual.
+     *
+     * @param  string            $filter  The filter conditions
+     * @param  array             $options The constructor arguments to pass
+     *                                    to the TIP_Data_View instance
+     * @return TIP_Data_View|null         The view instance or null on errors
+     */
+    public function &startDataView($filter = null, $options = array())
+    {
+        TIP::arrayDefault($options, 'data', $this->_current_data);
+        return parent::startDataView($filter, $options);
     }
 
     //}}}
@@ -506,11 +502,11 @@ class TIP_Class extends TIP_Content
     //{{{ Internal properties
 
     /**
-     * The "official" TIP_Data object stored by tagStartSummary()
+     * The "current" TIP_Data object stored to use ("data" or "summary_view")
      * @var TIP_Data
      * @internal
      */
-    private $_old_data = null;
+    private $_current_data = null;
 
     //}}}
     //{{{ Internal methods
