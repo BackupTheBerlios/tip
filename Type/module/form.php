@@ -682,7 +682,7 @@ class TIP_Form extends TIP_Module
         }
     }
 
-    private function& _addElement($type, $id, $attributes = false)
+    private function& _addElement($widget, $id, $attributes = false)
     {
         $label = $this->getLocale('label.' . $id);
         $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
@@ -691,8 +691,9 @@ class TIP_Form extends TIP_Module
         }
         $attributes['tabindex'] = ++ $this->_tabindex;
 
-        $element =& $this->_form->addElement($type, $id, $label, $attributes);
+        $element =& $this->_form->addElement($widget, $id, $label, $attributes);
         $element->setComment($comment);
+
         return $element;
     }
 
@@ -709,24 +710,35 @@ class TIP_Form extends TIP_Module
 
     private function _addWidget($id)
     {
+        // Avoid duplicates
         if ($this->_form->elementExists($id))
             return;
 
         $field =& $this->fields[$id];
 
+        // By default, fields starting with '_' and automatic fields
+        // cannot be edited, so are included as hidden (if defined)
         if (substr($id, 0, 1) == '_' || $field['automatic']) {
-            // By default, fields starting with '_' and automatic fields
-            // cannot be edited, so are included as hidden (if defined)
             if (@array_key_exists($id, $this->defaults)) {
                 $this->_form->addElement('hidden', $id, $this->defaults[$id]);
             }
-        } else {
-            $method = '_widget' . @$field['widget'];
-            if (!method_exists($this, $method)) {
-                $method = '_widgetText';
-            }
-            $element =& $this->$method($field, @$field['widget_args']);
-            if (in_array($id, $this->readonly)) {
+            return;
+        }
+
+        $method = '_widget' . @$field['widget'];
+        if (!method_exists($this, $method)) {
+            $method = '_widgetText';
+        }
+
+        $element =& $this->$method($field, @$field['widget_args']);
+        if (in_array($id, $this->readonly)) {
+            $element->freeze();
+        } elseif (!$this->_form->isSubmitted()) {
+            // Check for a value specified by GET
+            $type = @$this->fields[$id]['type'];
+            isset($type) || $type = 'string';
+            if (!is_null($value = TIP::getGet($id, $type))) {
+                $this->defaults[$id] = $value;
                 $element->freeze();
             }
         }
