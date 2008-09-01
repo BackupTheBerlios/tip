@@ -292,12 +292,15 @@ class TIP_Form extends TIP_Module
         array_walk(array_keys($this->fields), array(&$this, '_addWidget'));
 
         // Set the default content
-        if (is_array($this->defaults)) {
-            $defaults =& $this->defaults;
-        } else {
-            $defaults = array_map(create_function('&$f', 'return $f["default"];'), $this->fields);
+        $defaults = array_map(create_function('&$f', 'return $f[\'default\'];'), $this->fields);
+        if (!empty($defaults)) {
+            if (is_array($this->defaults)) {
+                $this->defaults = array_merge($defaults, $this->defaults);
+            } else {
+                $this->defaults =& $defaults;
+            }
         }
-        $this->_form->setDefaults($defaults);
+        $this->_form->setDefaults($this->defaults);
 
         if ($this->captcha) {
             $this->_addCaptcha();
