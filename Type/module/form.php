@@ -94,10 +94,15 @@ class TIP_Form extends TIP_Module
     protected $buttons = null;
 
     /**
-     * An associative array of default element values
+     * An associative array of default values provided by the application
+     *
+     * To this array, that initially will contain the defaults explicitely
+     * set in the configuration options or directly by the module, will be
+     * merged (with higher precedence) the default values provided by GETs.
+     *
      * @var array
      */
-    protected $defaults = null;
+    protected $defaults = array();
 
     /**
      * Validation type, as described in HTML_QuickForm
@@ -125,8 +130,9 @@ class TIP_Form extends TIP_Module
      * Function to call to process the data. This callback should take
      * two arguments:
      *
-     * - &$row: The associative array of validated values
-     * - $old_row: The old associative array (the defaults) or null
+     * - &$row:    The associative array of validated values
+     * - $old_row: The old associative array
+     *             (usually the $this->_defaults array) or null
      *
      * By default this callback is null. If the form needs to process
      * the form and "on_process" is still undefined, an error is raised.
@@ -283,24 +289,19 @@ class TIP_Form extends TIP_Module
         }
 
         $this->keys['HEADER'] = $module->getLocale('header.' . $this->action_id);
-        $this->_form->addElement('header', '__set_' . $module, 'data');
+        $this->_form->addElement('header', '__tiph_' . $module, 'data');
 
+        // Fill $this->_defaults
+        $this->_addDatabaseDefaults();
         if ($this->action == TIP_FORM_ACTION_ADD) {
-            $this->_addAutomaticDefaults($this->fields);
+            $this->_addAutomaticDefaults();
         }
+        $this->_addApplicationDefaults();
 
         array_walk(array_keys($this->fields), array(&$this, '_addWidget'));
 
         // Set the default content
-        $defaults = array_map(create_function('&$f', 'return $f[\'default\'];'), $this->fields);
-        if (!empty($defaults)) {
-            if (is_array($this->defaults)) {
-                $this->defaults = array_merge($defaults, $this->defaults);
-            } else {
-                $this->defaults =& $defaults;
-            }
-        }
-        $this->_form->setDefaults($this->defaults);
+        $this->_form->setDefaults($this->_defaults);
 
         if ($this->captcha) {
             $this->_addCaptcha();
@@ -323,7 +324,7 @@ class TIP_Form extends TIP_Module
         if ($this->action == TIP_FORM_ACTION_DELETE ||
             $this->action == TIP_FORM_ACTION_CUSTOM) {
             // GET driven form: this action could be called more than once
-            $this->_processRow($this->defaults);
+            $this->_processRow($this->_defaults);
             $lastid = TIP_Application::getGlobalItem('ID');
         } else {
             // POST driven form: called only once
@@ -583,6 +584,21 @@ class TIP_Form extends TIP_Module
      */
     private $_element_view = null;
 
+    /**
+     * Complete collection of default values
+     *
+     * This array includes, in order from highest precedence:
+     *
+     * - GET defaults
+     * - explicitely set defaults
+     * - automatic defaults
+     * - database defaults
+     *
+     * @var array
+     * @internal
+     */
+    private $_defaults = array();
+
     //}}}
     //{{{ Callbacks
 
@@ -606,7 +622,7 @@ class TIP_Form extends TIP_Module
             // Check if the row edited by this form has the same primary key of
             // the found row
             $primary_key = $form->_data->getProperty('primary_key');
-            $valid = @array_key_exists($form->defaults[$primary_key], $rows);
+            $valid = @array_key_exists($form->_defaults[$primary_key], $rows);
         }
 
         return $valid;
@@ -639,7 +655,7 @@ class TIP_Form extends TIP_Module
 
     private function _converterCancel(&$row, $field)
     {
-        $row[$field] = @$this->defaults[$field];
+        $row[$field] = @$this->_defaults[$field];
     }
 
     public function _processRow(&$row)
@@ -657,7 +673,7 @@ class TIP_Form extends TIP_Module
         }
 
         // Run the process callback
-        if (call_user_func_array($this->on_process, array(&$row, $this->defaults))) {
+        if (call_user_func_array($this->on_process, array(&$row, $this->_defaults))) {
             TIP::notifyInfo('done');
         } else {
             TIP::notifyError($this->action_id);
@@ -667,22 +683,97 @@ class TIP_Form extends TIP_Module
     //}}}
     //{{{ Internal methods
 
-    private function _addAutomaticDefaults(&$fields)
+    /**
+     * Add database defaults to $this->_defaults
+     */
+    private function _addDatabaseDefaults()
     {
-        if (array_key_exists('_creation', $fields) &&
-            @empty($this->defaults['_creation'])) {
-            $this->defaults['_creation'] = TIP::formatDate('datetime_sql');
+        foreach ($this->fields as $id => &$field) {
+            isset($field['default']) && $this->_defaults[$id] = $field['default'];
+        }
+    }
+
+    /**
+     * Add automatic defaults to $this->_defaults
+     */
+    private function _addAutomaticDefaults()
+    {
+        if (array_key_exists('_creation', $this->fields)) {
+            $this->_defaults['_creation'] = TIP::formatDate('datetime_sql');
         }
 
-        if (array_key_exists('_lasthit', $fields) &&
-            @empty($this->defaults['_lasthit'])) {
-            $this->defaults['_lasthit'] = TIP::formatDate('datetime_sql');
+        if (array_key_exists('_lasthit', $this->fields)) {
+            $this->_defaults['_lasthit'] = TIP::formatDate('datetime_sql');
         }
 
-        if (array_key_exists('_user', $fields) &&
-            @empty($this->defaults['_user'])) {
-            $this->defaults['_user'] = TIP::getUserId();
+        if (array_key_exists('_user', $this->fields)) {
+            $this->_defaults['_user'] = TIP::getUserId();
         }
+    }
+
+    /**
+     * Add GET defaults to $this->defaults and merge them to $this->_defaults
+     *
+     * This default values will be merged to $this->defaults with
+     * higher precedence.
+     *
+     * Default values provided by GET must be treated specially,
+     * otherwise will be lost in a POST submission. A special hidden
+     * input is used for such purpose.
+     */
+    private function _addApplicationDefaults()
+    {
+        // Check for GET default values
+        $get_defaults = array();
+        if ($this->_form->isSubmitted()) {
+            // Get default values from the special POST (if present)
+            $value = TIP::getPost('__tipd', 'string');
+            empty($value) || $get_defaults = unserialize($value);
+        } else {
+            // Check for default values provided via GET
+            foreach ($this->fields as $id => &$field) {
+                // Skip application specific GETs
+                if ($id == 'module' || $id == 'action' || $id == 'id') {
+                    continue;
+                }
+
+                $type = isset($field['type']) ? $field['type'] : 'string';
+                $value = TIP::getGet($id, $type);
+                isset($value) && $get_defaults[$id] = $value;
+            }
+
+            $value = serialize($get_defaults);
+        }
+
+        if (!empty($get_defaults)) {
+            // Merge GET defaults with explicitely set defaults
+            if (is_array($this->defaults)) {
+                $this->defaults = array_merge($this->defaults, $get_defaults);
+            } else {
+                $this->defaults = $get_defaults;
+            }
+
+            // Manage the __tipd special element
+            if (!$this->_form->elementExists('__tipd')) {
+                // No previous "__tipd" element found
+                $this->_form->addElement('hidden', '__tipd', $value);
+            } else {
+                // The "__tipd" element is present: the new defaults
+                // must be merged to its value with higher precedence
+                $element =& $this->_form->getElement('__tipd');
+                $old_value = $element->getValue();
+                $old_defaults = unserialize($old_value);
+                $get_defaults = array_merge($old_defaults, $get_defaults);
+                $value = serialize($get_defaults);
+                $element->setValue($value);
+                // No needs to update $this->defaults: this must be
+                // yet done by the previous operation that set '__tipd'
+            }
+        }
+
+        // Finally merge the application defaults ($this->defaults) with
+        // the global defaults ($this->_defaults)
+        $this->_defaults = array_merge($this->_defaults, $this->defaults);
     }
 
     private function& _addElement($widget, $id, $attributes = false)
@@ -722,8 +813,8 @@ class TIP_Form extends TIP_Module
         // By default, fields starting with '_' and automatic fields
         // cannot be edited, so are included as hidden (if defined)
         if (substr($id, 0, 1) == '_' || $field['automatic']) {
-            if (@array_key_exists($id, $this->defaults)) {
-                $this->_form->addElement('hidden', $id, $this->defaults[$id]);
+            if (@array_key_exists($id, $this->_defaults)) {
+                $this->_form->addElement('hidden', $id, $this->_defaults[$id]);
             }
             return;
         }
@@ -733,17 +824,20 @@ class TIP_Form extends TIP_Module
             $method = '_widgetText';
         }
 
+        // Create the widget
         $element =& $this->$method($field, @$field['widget_args']);
-        if (in_array($id, $this->readonly)) {
-            $element->freeze();
-        } elseif (!$this->_form->isSubmitted()) {
-            // Check for a value specified by GET
-            $type = @$this->fields[$id]['type'];
-            isset($type) || $type = 'string';
-            if (!is_null($value = TIP::getGet($id, $type))) {
-                $this->defaults[$id] = $value;
+
+        // Check for "immutable" flag
+        if (isset($field['flags'])) {
+            $flags = explode(',', strtolower($field['flags']));
+            if (in_array('immutable', $flags) && isset($this->defaults[$id])) {
                 $element->freeze();
             }
+        }
+
+        // Check if "readonly" field
+        if (in_array($id, $this->readonly)) {
+            $element->freeze();
         }
     }
 
@@ -1042,8 +1136,8 @@ class TIP_Form extends TIP_Module
             }
 
             $this->_addRule(array($reid, $id), 'compare');
-            if (@array_key_exists($id, $this->defaults) && !array_key_exists($reid, $this->defaults)) {
-                $this->defaults[$reid] = $this->defaults[$id];
+            if (@array_key_exists($id, $this->_defaults) && !array_key_exists($reid, $this->_defaults)) {
+                $this->_defaults[$reid] = $this->_defaults[$id];
             }
         }
 
@@ -1084,20 +1178,20 @@ class TIP_Form extends TIP_Module
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
         $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
-        $default = @explode(',', $this->defaults[$id]);
+        $default = @explode(',', $this->_defaults[$id]);
         $items = array();
         foreach ($field['choices'] as $choice) {
             $items[$choice] = $this->getLocale('label.' . $choice);
         }
 
         // Reset the defaults (a comma separated list of flags that are set):
-        // the $this->defaults[$id] variable will be defined in the foreach
+        // the $this->_defaults[$id] variable will be defined in the foreach
         // cycle in the proper HTML_QuickForm format
-        unset($this->defaults[$id]);
+        unset($this->_defaults[$id]);
 
         $group = array();
         foreach ($items as $i_value => $i_label) {
-            $this->defaults[$id][$i_value] = in_array($i_value, $default);
+            $this->_defaults[$id][$i_value] = in_array($i_value, $default);
             ++ $this->_tabindex;
             $item =& $this->_form->createElement('checkbox', $i_value, $label, $i_label, array('tabindex' => $this->_tabindex));
             $group[] =& $item;
@@ -1140,11 +1234,11 @@ class TIP_Form extends TIP_Module
         $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
 
         // Set the date in a format suitable for HTML_QuickForm_date
-        $sql_date = @$this->defaults[$id];
+        $sql_date = @$this->_defaults[$id];
         $timestamp = empty($sql_date) ? time() : TIP::getTimestamp($sql_date, 'sql');
-        $this->defaults[$id] = $timestamp;
+        $this->_defaults[$id] = $timestamp;
 
-        $field_year = date('Y', $this->defaults[$id]);
+        $field_year = date('Y', $this->_defaults[$id]);
         $this_year = date('Y');
 
         // $min_year > $max_year, so the year list is properly sorted in reversed
