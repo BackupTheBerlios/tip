@@ -245,6 +245,21 @@ class TIP_Content extends TIP_Module
     //{{{ Methods
 
     /**
+     * Create a filter to access a single row
+     *
+     * Shortcut to create a filter  to access only the first row
+     * with the primary key matching $id. Useful when the
+     * primary key is unique to access records by id.
+     *
+     * @param  mixed  $id The primary key value
+     * @return string     The requested filter in the proper engine format
+     */
+    public function rowFilter($id)
+    {
+        return $this->data->rowFilter($id);
+    }
+
+    /**
      * Get the current view
      *
      * @return TIP_View|null The current view or null

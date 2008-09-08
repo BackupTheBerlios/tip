@@ -340,6 +340,20 @@ class TIP_Class extends TIP_Content
     //{{{ Methods
 
     /**
+     * Create a filter to access a single row
+     *
+     * Overrides the default rowFilter() method to use $_current_data
+     * instead of $data.
+     *
+     * @param  mixed  $id The primary key value
+     * @return string     The requested filter in the proper engine format
+     */
+    public function rowFilter($id)
+    {
+        return $this->_current_data->rowFilter($id);
+    }
+
+    /**
      * Get a specific row
      *
      * Overrides the default method to merge also the child row fields
