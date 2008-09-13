@@ -194,7 +194,7 @@ class TIP_Mysql extends TIP_Data_Engine
             foreach ($joins as $slave_table => &$join) {
                 $join['master_table'] = $table;
                 $join['slave_table'] = $slave_table;
-                $tables[] = isset($join['alias']) ? $join['alias'] : $slave_table;
+                $tables[] = $slave_table;
                 $sets[] = @$join['fieldset'];
             }
 
@@ -596,11 +596,14 @@ class TIP_Mysql extends TIP_Data_Engine
      * - 'master'       containing the field id in the master table to join
      * - 'slave_table'  containing the name of the slave table
      * - 'slave         containing the field id in the slave table to join
-     * - 'alias'        alias name for the slave table (optional)
+     * - 'path'         (optional) the real slave table
      *
-     * The alias property comes in handy if you are using the same table as
-     * master and slave. In this case, alias provides a way to differentiate
-     * the two tables.
+     * The 'path' property is used to do aliases, so you can provide
+     * different slave tables with the same path. This is useful if you
+     * want to build a query connected to the same table more than once.
+     *
+     * If 'path' is not specified, no aliases will be used (that is
+     * 'slave_table' is assumed to be the path to the slave table).
      *
      * @param  array  $join An array of join definitions
      * @return string       The prepared join structure
@@ -616,15 +619,11 @@ class TIP_Mysql extends TIP_Data_Engine
 
         extract($join, EXTR_REFS);
 
-        $result = ' LEFT JOIN ' . $this->preparedName($slave_table);
-
-        if (isset($alias)) {
-            $result .= ' AS ' . $this->preparedName($alias);
-            $slave_table = $alias;
-        }
-
-        $result .= ' ON ' . $this->_preparedField($master, $master_table);
-        $result .= '=' . $this->_preparedField($slave, $slave_table);
+        $result = ' LEFT JOIN ';
+        isset($path) && $result .= $this->preparedName($path) . ' AS ';
+        $result .= $this->preparedName($slave_table) .
+            ' ON ' . $this->_preparedField($master, $master_table) .
+            '=' . $this->_preparedField($slave, $slave_table);
 
         return $result;
     }
