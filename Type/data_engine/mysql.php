@@ -545,10 +545,16 @@ class TIP_Mysql extends TIP_Data_Engine
             return implode(',', array_map($self, $field, $table, $alias));
         }
 
-        $result = $this->preparedName($field);
-        if (!empty($table)) {
-            $result = $this->preparedName($table) . '.' . $result;
+        if ($field{0} == '@') {
+            // Raw field
+            $result = substr($field, 1);
+        } else {
+            $result = $this->preparedName($field);
+            if (!empty($table)) {
+                $result = $this->preparedName($table) . '.' . $result;
+            }
         }
+
         if (is_string($alias)) {
             $result .= ' AS ' . $this->preparedName($alias);
         }
