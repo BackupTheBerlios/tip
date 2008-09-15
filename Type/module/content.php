@@ -810,16 +810,22 @@ class TIP_Content extends TIP_Module
         }
 
         $fields =& $this->data->getFields();
-        $field =& $fields[$params];
 
-        // Get the wiki rules
-        if (array_key_exists('widget_args', $field)) {
-            $rules = explode(',', $field['widget_args']);
-        } elseif (array_key_exists('wiki_rules', $field)) {
-            // DEPRECATED: now use widget args instead of "wiki_rules" option
-            $rules = explode(',', $field['wiki_rules']);
-        } else {
+        if (!array_key_exists($params, $fields)) {
+            // Field not found $this->data: it is probably a joined field
             $rules = null;
+        } else {
+            $field =& $fields[$params];
+
+            // Get the wiki rules
+            if (array_key_exists('widget_args', $field)) {
+                $rules = explode(',', $field['widget_args']);
+            } elseif (array_key_exists('wiki_rules', $field)) {
+                // DEPRECATED: now use widget args instead of "wiki_rules" option
+                $rules = explode(',', $field['wiki_rules']);
+            } else {
+                $rules = null;
+            }
         }
 
         $wiki_base = TIP::buildActionUri($this->id, 'view');
@@ -851,16 +857,22 @@ class TIP_Content extends TIP_Module
         }
 
         $fields =& $this->data->getFields();
-        $field =& $fields[$field_id];
 
-        // Get the wiki rules
-        if (array_key_exists('widget_args', $field)) {
-            $rules = explode(',', $field['widget_args']);
-        } elseif (array_key_exists('wiki_rules', $field)) {
-            // DEPRECATED: now use "widget_args" instead of "wiki_rules" option
-            $rules = explode(',', $field['wiki_rules']);
-        } else {
+        if (!array_key_exists($field_id, $fields)) {
+            // Field not found $this->data: it is probably a joined field
             $rules = null;
+        } else {
+            $field =& $fields[$field_id];
+
+            // Get the wiki rules
+            if (array_key_exists('widget_args', $field)) {
+                $rules = explode(',', $field['widget_args']);
+            } elseif (array_key_exists('wiki_rules', $field)) {
+                // DEPRECATED: now use "widget_args" instead of "wiki_rules" option
+                $rules = explode(',', $field['wiki_rules']);
+            } else {
+                $rules = null;
+            }
         }
 
         $max > 0 || $max = 100;
