@@ -839,6 +839,11 @@ class TIP_Form extends TIP_Module
         if (in_array($id, $this->readonly)) {
             $element->freeze();
         }
+
+        // Remove comment if the element is frozen
+        if ($element->isFrozen()) {
+            $element->setComment(null);
+        }
     }
 
     private function _addRule($id, $type, $format = '')
