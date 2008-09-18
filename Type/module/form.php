@@ -599,6 +599,13 @@ class TIP_Form extends TIP_Module
      */
     private $_defaults = array();
 
+    /**
+     * Wheter the processRow() callback must be transaction protected
+     * @var array
+     * @boolean
+     */
+    private $_transaction_protected = false;
+
     //}}}
     //{{{ Callbacks
 
@@ -634,28 +641,52 @@ class TIP_Form extends TIP_Module
         return checkdate($month, $day, $year);
     }
 
-    private function _converterTimestamp(&$row, $field)
+    private function _converterTimestamp(&$row, $field_id)
     {
-        list($day, $month, $year) = array_values($row[$field]);
-        $row[$field] = mktime(0, 0, 0, $month, $day, $year);
+        list($day, $month, $year) = array_values($row[$field_id]);
+        $row[$field_id] = mktime(0, 0, 0, $month, $day, $year);
+        return true;
     }
 
-    private function _converterSqlDate(&$row, $field)
+    private function _converterSqlDate(&$row, $field_id)
     {
-        list($day, $month, $year) = array_values($row[$field]);
-        $row[$field] = sprintf('%04d-%02d-%02d', $year, $month, $day);
+        list($day, $month, $year) = array_values($row[$field_id]);
+        $row[$field_id] = sprintf('%04d-%02d-%02d', $year, $month, $day);
+        return true;
     }
 
-    private function _converterSet(&$row, $field)
+    private function _converterSet(&$row, $field_id)
     {
-        if (@is_array($row[$field])) {
-            $row[$field] = implode(',', array_keys($row[$field]));
+        if (@is_array($row[$field_id])) {
+            $row[$field_id] = implode(',', array_keys($row[$field_id]));
         }
+        return true;
     }
 
-    private function _converterCancel(&$row, $field)
+    private function _converterCancel(&$row, $field_id)
     {
-        $row[$field] = @$this->_defaults[$field];
+        $row[$field_id] = @$this->_defaults[$field_id];
+        return true;
+    }
+
+    private function _converterPlaceholder(&$row, $field_id)
+    {
+        if (!empty($row[$field_id])) {
+            return;
+        }
+
+        $dummy_row = array();
+        $data =& TIP_Type::singleton(array(
+            'type' => array('data'),
+            'path' => $this->fields[$field_id]['widget_args']
+        ));
+
+        if (is_null($data) || !$data->putRow($dummy_row)) {
+            return false;
+        }
+
+        $row[$field_id] = $data->getLastId();
+        return true;
     }
 
     public function _processRow(&$row)
@@ -666,18 +697,37 @@ class TIP_Form extends TIP_Module
             return;
         }
 
+        if ($this->_transaction_protected) {
+            if (is_null($engine =& $this->_data->getProperty('engine'))) {
+                return;
+            }
+        } else {
+            $engine = null;
+        }
+
+        if ($engine && !$engine->startTransaction()) {
+            // This error must be caught here to avoid the rollback
+            return;
+        }
+
         // Apply the converters on every field of $row
+        $done = true;
         foreach ($this->_converter as $field => $type) {
-            $method = '_converter' . $type;
-            $this->$method($row, $field);
+            if (!$this->{'_converter' . $type}($row, $field)) {
+                $done = false;
+                break;
+            }
         }
 
         // Run the process callback
-        if (call_user_func_array($this->on_process, array(&$row, $this->_defaults))) {
+        $done = $done && call_user_func_array($this->on_process, array(&$row, $this->_defaults));
+        if ($done) {
             TIP::notifyInfo('done');
         } else {
             TIP::notifyError($this->action_id);
         }
+
+        $engine && $engine->endTransaction($done);
     }
 
     //}}}
@@ -809,33 +859,39 @@ class TIP_Form extends TIP_Module
             return;
 
         $field =& $this->fields[$id];
+        $default = TIP::pickElement($id, $this->_defaults);
 
         // By default, fields starting with '_' and automatic fields
         // cannot be edited, so are included as hidden (if defined)
         if (substr($id, 0, 1) == '_' || $field['automatic']) {
-            if (@array_key_exists($id, $this->_defaults)) {
-                $this->_form->addElement('hidden', $id, $this->_defaults[$id]);
-            }
+            is_null($default) || $this->_form->addElement('hidden', $id, $default);
             return;
         }
 
-        $method = '_widget' . @$field['widget'];
-        if (!method_exists($this, $method)) {
-            $method = '_widgetText';
+        $flags = isset($field['flags']) ? explode(',', strtolower($field['flags'])) : array();
+        $explicit_default = TIP::pickElement($id, $this->defaults);
+
+        // Check for "placeholder" flag
+        if (is_null($explicit_default) && in_array('placeholder', $flags)) {
+            // Special case: placeholder flag and no default value provided
+            // The widget must not be built. The value will be automagically
+            // handled by _converterPlaceholder()
+            $this->_transaction_protected = true;
+            $this->_addConverter($id, 'Placeholder');
+            return;
         }
 
         // Create the widget
+        $method = '_widget' . @$field['widget'];
+        method_exists($this, $method) || $method = '_widgetText';
         $element =& $this->$method($field, @$field['widget_args']);
 
-        // Check for "immutable" flag
-        if (isset($field['flags'])) {
-            $flags = explode(',', strtolower($field['flags']));
-            if (in_array('immutable', $flags) && isset($this->defaults[$id])) {
-                $element->freeze();
-            }
+        // Check for "immutable" flag and explicit default value provided
+        if (!is_null($explicit_default) && in_array('immutable', $flags)) {
+            $element->freeze();
         }
 
-        // Check if "readonly" field
+        // Check if the field is in the "readonly" list
         if (in_array($id, $this->readonly)) {
             $element->freeze();
         }
