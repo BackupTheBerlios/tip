@@ -226,8 +226,14 @@ class TIP_Mysql extends TIP_Data_Engine
 
     public function insert(&$data, &$rows)
     {
+        if (@is_array($rows[0])) {
+            $fields = $this->preparedName(array_keys($rows[0]));
+        } else {
+            $fields = '';
+        }
+
         $result = $this->_query('INSERT INTO', $this->preparedName($data->getProperty('path')),
-                                '(' . $this->preparedName(array_keys($rows[0])) . ')',
+                                '(' . $fields . ')',
                                 'VALUES', $this->_preparedContent($rows));
         if ($result === false) {
             return null;
