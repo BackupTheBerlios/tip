@@ -630,8 +630,9 @@ class TIP_Mysql extends TIP_Data_Engine
         }
 
         extract($join, EXTR_REFS);
+        isset($mode) || $mode = 'LEFT JOIN';
 
-        $result = ' LEFT JOIN ';
+        $result = ' ' . $mode . ' ';
         isset($path) && $result .= $this->preparedName($path) . ' AS ';
         $result .= $this->preparedName($slave_table) .
             ' ON ' . $this->_preparedField($master, $master_table) .
