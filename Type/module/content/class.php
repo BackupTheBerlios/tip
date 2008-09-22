@@ -330,7 +330,7 @@ class TIP_Class extends TIP_Content
         }
 
         // Call the template
-        $this->_browse_conditions =& $conditions;
+        $this->_pager_conditions =& $conditions;
         $this->appendToPage($this->browse_template);
 
         return !is_null($this->tagEndSummary(''));

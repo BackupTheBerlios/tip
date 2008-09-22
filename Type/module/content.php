@@ -205,6 +205,12 @@ class TIP_Content extends TIP_Module
      */
     protected $id_type = 'integer';
 
+    /**
+     * The search field to be scanned
+     * @var string
+     */
+    protected $search_field = null;
+
     //}}}
     //{{{ Construction/destruction
 
@@ -1039,23 +1045,38 @@ class TIP_Content extends TIP_Module
      */
     protected function tagPager($params)
     {
-        if (is_null($this->_browse_conditions)) {
+        if (is_null($this->_pager_conditions)) {
             TIP::error('no active browse action');
             return null;
         }
 
-        @list($quanto, $query_adds) = explode(',', $params);
+        @list($quanto, $query_adds) = explode(',', $params, 2);
         $quanto = (int) $quanto;
         $pager = $quanto > 0;
 
-        if (empty($this->_browse_conditions)) {
-            $filter = $query_adds;
-        } else {
+        if (empty($this->_pager_conditions)) {
+        } elseif (is_array($this->_pager_conditions)) {
             $conditions = array();
-            foreach ($this->_browse_conditions as $id => $value) {
+            foreach ($this->_pager_conditions as $id => $value) {
                 $conditions[] = $this->data->addFilter('', $id, $value);
             }
-            $filter = 'WHERE ' . implode(' AND ', $conditions) . ' ' . $query_adds;
+            $filter = 'WHERE ' . implode(' AND ', $conditions);
+        } elseif (is_string($this->_pager_conditions)) {
+            if (is_null($this->search_field)) {
+                TIP::error('no search field specified');
+                return null;
+            }
+            $filter = $this->data->filter(
+                $this->search_field,
+                '%' . str_replace(' ', '%', $this->_pager_conditions) . '%',
+                'LIKE'
+            );
+        }
+
+        if (isset($filter)) {
+            $filter .= ' ' . $query_adds;
+        } else {
+            $filter = $query_adds;
         }
 
         if ($pager) {
@@ -1276,7 +1297,25 @@ class TIP_Content extends TIP_Module
             return true;
         }
 
-        $this->_browse_conditions =& $conditions;
+        $this->_pager_conditions =& $conditions;
+        $this->appendToPage($this->browse_template);
+        return true;
+    }
+
+    /**
+     * Perform a search action
+     *
+     * @param  string $pattern The search pattern
+     * @return bool            true on success or false on errors
+     */
+    protected function actionSearch($pattern)
+    {
+        // If no browse template defined, simply does nothing (without errors)
+        if (empty($this->browse_template)) {
+            return true;
+        }
+
+        $this->_pager_conditions = trim($pattern);
         $this->appendToPage($this->browse_template);
         return true;
     }
@@ -1377,6 +1416,11 @@ class TIP_Content extends TIP_Module
             }
 
             return $this->actionBrowse($conditions);
+
+        case 'search':
+            return
+                !is_null($pattern = $this->fromGetOrPost('id', 'string')) &&
+                $this->actionSearch($pattern);
         }
 
         return null;
@@ -1618,11 +1662,11 @@ class TIP_Content extends TIP_Module
     private $_view = null;
 
     /**
-     * The browse conditions, as specified in actionBrowse()
-     * @var array
+     * The pager conditions, as specified by actionBrowse() or actionSearch()
+     * @var array|string
      * @internal
      */
-    protected $_browse_conditions = null;
+    protected $_pager_conditions = null;
 
     /**
      * The model used by rendering operations
