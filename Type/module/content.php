@@ -206,8 +206,8 @@ class TIP_Content extends TIP_Module
     protected $id_type = 'integer';
 
     /**
-     * The search field to be scanned
-     * @var string
+     * The search field(s) to be scanned
+     * @var string|array
      */
     protected $search_field = null;
 
@@ -788,6 +788,38 @@ class TIP_Content extends TIP_Module
      */
 
     /**
+     * Htmlize the first defined request
+     *
+     * Overrides the default tagHtml() providing highlighting on
+     * requests of search fields.
+     */
+    protected function tagHtml($params)
+    {
+        $requests = explode(',', $params);
+        $value = $this->getValidRequest($requests);
+        if (is_null($value)) {
+            TIP::error("no valid request found ($params)");
+            return null;
+        }
+
+        $result = TIP::toHtml($value);
+        if (empty($this->_search_tokens)) {
+            // No search active
+            return $result;
+        }
+
+        $fields = is_array($this->search_field) ? $this->search_field : array($this->search_field);
+        foreach ($requests as &$request) {
+            if (in_array($request, $fields)) {
+                $result = str_ireplace($this->_search_tokens, $this->_search_spans, $result);
+                break;
+            }
+        }
+
+        return $result;
+    }
+
+    /**
      * Fields to use in the next queries
      *
      * Changes the field subset in SELECT queries. $params must be a comma
@@ -1066,9 +1098,10 @@ class TIP_Content extends TIP_Module
                 TIP::error('no search field specified');
                 return null;
             }
+            $this->_search_tokens = str_word_count($this->_pager_conditions, 1, '0123456789');
             $filter = $this->data->filter(
                 $this->search_field,
-                '%' . str_replace(' ', '%', $this->_pager_conditions) . '%',
+                '%' . implode('%', $this->_search_tokens) . '%',
                 'LIKE'
             );
         }
@@ -1089,11 +1122,21 @@ class TIP_Content extends TIP_Module
 
         if (is_null($view = $this->startDataView($filter))) {
             TIP::notifyError('select');
+            $this->_search_tokens = null;
             return null;
         }
 
+        if (!empty($this->_search_tokens)) {
+            $this->_search_spans = array();
+            foreach ($this->_search_tokens as &$token) {
+                $this->_search_spans[] = '<span class="highlight">' . $token . '</span>';
+            }
+        }
+
         ob_start();
-        if ($view->isValid()) {
+        if (!$view->isValid()) {
+            $this->tryRun(array($main_id, $this->pager_empty_template));
+        } else {
             $main_id = TIP_Application::getGlobal('id');
             $partial = $pager && $view->nRows() == $quanto+1;
             if ($partial) {
@@ -1134,11 +1177,11 @@ class TIP_Content extends TIP_Module
 
             // Pager rendering AFTER the rows
             $pager && $this->tryRun(array($main_id, $this->pager_post_template));
-        } else {
-            $this->tryRun(array($main_id, $this->pager_empty_template));
         }
 
         $this->endView();
+        $this->_search_tokens = null;
+        $this->_search_spans = null;
         return ob_get_clean();
     }
 
@@ -1667,6 +1710,20 @@ class TIP_Content extends TIP_Module
      * @internal
      */
     protected $_pager_conditions = null;
+
+    /**
+     * List of tokens to search for
+     * @var array|null
+     * @internal
+     */
+    private $_search_tokens = null;
+
+    /**
+     * List of spans to be substituted to the tokens
+     * @var array|null
+     * @internal
+     */
+    private $_search_spans = null;
 
     /**
      * The model used by rendering operations
