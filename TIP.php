@@ -926,7 +926,7 @@ class TIP
         if (is_null($namespace)) {
             $args['module'] = $module;
             $args['action'] = $action;
-            empty($id) || $args['id'] = $id;
+            is_null($id) || $args['id'] = $id;
             $uri .= '?' . http_build_query($args, '', '&');
             return $uri;
         }
@@ -937,7 +937,7 @@ class TIP
         }
 
         $uri .= $module . '/' . $action . '/';
-        empty($id) || $uri .= $id . '/';
+        is_null($id) || $uri .= $id . '/';
         empty($args) || $uri .= '?' . http_build_query($args, '', '&');
         return $uri;
     }
