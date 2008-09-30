@@ -434,9 +434,14 @@ class TIP_Class extends TIP_Content
             return false;
         }
 
-        $done = parent::_onAdd($row, $old_row) &&
-            !is_null($row[$child_key] = $row[$key]) &&
-            $child_data->putRow($row);
+        $done = parent::_onAdd($row, $old_row);
+        if ($done) {
+            // Work on a copy of $row because putRow() is destructive
+            $new_row = $row;
+            $done = !is_null($new_row[$child_key] = $new_row[$key]) &&
+                $child_data->putRow($new_row) &&
+                ($row = array_merge($row, $new_row));
+        }
         $done = $engine->endTransaction($done) && $done;
 
         return $done;
