@@ -189,11 +189,12 @@ class TIP_Form extends TIP_Module
         }
 
         // Default values
-        $options['id'] = $options['master']->getProperty('id');
-        $options['locale_prefix'] = 'form';
-        isset($options['action_id']) || $options['action_id'] = $options['action'];
-        isset($options['referer']) || $options['referer'] = TIP::getRefererUri();
-        isset($options['follower']) || $options['follower'] = $options['referer'];
+        TIP::arrayDefault($options, 'id', $options['master']->getProperty('id'));
+        TIP::arrayDefault($options, 'locale_prefix', 'form');
+        TIP::arrayDefault($options, 'action_id', $options['action']);
+        TIP::arrayDefault($options, 'referer', TIP::getRefererUri());
+        TIP::arrayDefault($options, 'follower', $options['referer']);
+
         if (!isset($options['buttons'])) {
             switch ($options['action']) {
 
@@ -739,7 +740,9 @@ class TIP_Form extends TIP_Module
     private function _addDatabaseDefaults()
     {
         foreach ($this->fields as $id => &$field) {
-            isset($field['default']) && $this->_defaults[$id] = $field['default'];
+            if (isset($field['default']) && !$field['automatic']) {
+                $this->_defaults[$id] = $field['default'];
+            }
         }
     }
 
