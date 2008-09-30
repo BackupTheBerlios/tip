@@ -1498,8 +1498,6 @@ class TIP_Content extends TIP_Module
         $this->setMagicFields($row);
 
         $engine = &$this->data->getProperty('engine');
-        $primary_key = $this->data->getProperty('primary_key');
-
         if (!$engine->startTransaction()) {
             // This error must be caught here to avoid the rollback
             return false;
@@ -1510,7 +1508,7 @@ class TIP_Content extends TIP_Module
 
         // Process the row
         $done = $this->data->putRow($new_row) &&
-            !is_null($row[$primary_key] = $new_row[$primary_key]) &&
+            ($row = array_merge($row, $new_row)) &&
             $this->_onDbAction('Add', $row, $old_row);
         $done = $engine->endTransaction($done) && $done;
 
