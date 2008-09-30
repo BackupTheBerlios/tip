@@ -152,33 +152,29 @@ class TIP_Class extends TIP_Content
             $options = array_merge($this->form_options['add'], $options);
         }
 
-        TIP::arrayDefault($options, 'on_process', array(&$this, '_onAdd'));
-        TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '-lastid-'));
-
-        // Populate "defaults" if $id is specified
+        // Populate "defaults" if $id is specified (= duplicate row)
         if (isset($id)) {
             if (is_null($row = $this->fromRow($id))) {
                 return false;
             }
-
-            // On non-add actions, freeze the class field
-            if ($options['action_id'] != TIP_FORM_ACTION_ADD) {
-                $options['readonly'] = array($this->class_field);
-            }
-
-            // Unset the primary_key: this is an add action
-            unset($row[$this->data->getProperty('primary_key')]);
 
             if (@is_array($options['defaults'])) {
                 $options['defaults'] = array_merge($row, $options['defaults']);
             } else {
                 $options['defaults'] =& $row;
             }
+
+            // Unset the primary_key: this is an add action
+            $primary_key = $this->data->getProperty('primary_key');
+            unset($options['defaults'][$primary_key]);
         }
 
-        $options['type']   = array('module', 'form');
+        $options['type'] = array('module', 'form');
         $options['master'] =& $this;
-        $options['action'] = TIP_FORM_ACTION_ADD;
+
+        TIP::arrayDefault($options, 'action', TIP_FORM_ACTION_ADD);
+        TIP::arrayDefault($options, 'on_process', array(&$this, '_onAdd'));
+        TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '-lastid-'));
 
         $form =& TIP_Type::singleton($options);
         $valid = $form->validate();
@@ -228,14 +224,10 @@ class TIP_Class extends TIP_Content
             $options = array_merge($this->form_options['edit'], $options);
         }
 
-        TIP::arrayDefault($options, 'on_process', array(&$this, '_onEdit'));
-        TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '-lastid-'));
-
         // Populate "defaults" with master and child values
         if (is_null($row = $this->fromRow($id))) {
             return false;
-        }
-        if (@is_array($options['defaults'])) {
+        } elseif (@is_array($options['defaults'])) {
             $options['defaults'] = array_merge($row, $options['defaults']);
         } else {
             $options['defaults'] =& $row;
@@ -243,8 +235,11 @@ class TIP_Class extends TIP_Content
 
         $options['type']   = array('module', 'form');
         $options['master'] =& $this;
-        $options['action'] = TIP_FORM_ACTION_EDIT;
-        $options['readonly'] = array($this->class_field);
+
+        TIP::arrayDefault($options, 'action', TIP_FORM_ACTION_EDIT);
+        TIP::arrayDefault($options, 'on_process', array(&$this, '_onEdit'));
+        TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '-lastid-'));
+        TIP::arrayDefault($options, 'readonly', array($this->class_field));
 
         $form =& TIP_Type::singleton($options);
         $valid = $form->validate();
