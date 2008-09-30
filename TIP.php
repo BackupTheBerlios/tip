@@ -952,6 +952,7 @@ class TIP
     static public function buildActionUriFromTag($tag, $default_module)
     {
         @list($action, $id, $list) = explode(',', $tag, 3);
+        empty($id) && $id = null;
 
         if (is_string($list)) {
             $list = explode(',', $list);
