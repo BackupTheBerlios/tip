@@ -158,22 +158,24 @@ class TIP_Form extends TIP_Module
     protected $valid_render = TIP_FORM_RENDER_IN_PAGE;
 
     /**
-     * The uri where turn back
+     * The URI to follow on cancel
      *
      * Leaves it null to use the default referer. If the action is processed,
-     * all occurrences of '-lastid-' inside this string will be replaced by the
-     * last id (if any).
+     * all occurrences of {field} (where field is any valid field id) are
+     * expanded to their own value. If the action fails but this URI
+     * requires an expanded field, the default referer is used.
      *
      * @var string|null
      */
     protected $referer = null;
 
     /**
-     * The uri where go on: leave it null to use the referer as default value
+     * The URI to chain up at the end of the action
      *
-     * Leaves it null to use the referer as default value. If the action is
-     * processed, all occurrences of '-lastid-' inside this string will be
-     * replaced by the last id (if any).
+     * Leaves it null to use the default referer. If the action is processed,
+     * all occurrences of {field} (where field is any valid field id) are
+     * expanded to their own value. If the action fails but the URI
+     * requires an expanded field, the default referer is used.
      *
      * @var string|null
      */
@@ -326,23 +328,36 @@ class TIP_Form extends TIP_Module
             $this->action == TIP_FORM_ACTION_CUSTOM) {
             // GET driven form: this action could be called more than once
             $this->_processRow($this->_defaults);
-            $lastid = TIP_Application::getGlobalItem('ID');
         } else {
             // POST driven form: called only once
             HTTP_Session2::set($this->id . '.stage', null);
             $this->_form->process(array(&$this, '_processRow'));
-
-            $data =& $this->master->getProperty('data');
-            $primary_key = $data->getProperty('primary_key');
-            $lastid = $this->_form->getSubmitValue($primary_key);
-            if (is_null($lastid)) {
-                $lastid = $data->getLastId();
-            }
         }
 
-        isset($lastid) || $lastid = '';
-        $this->referer = str_replace('-lastid-', $lastid, $this->referer);
-        $this->follower = str_replace('-lastid-', $lastid, $this->follower);
+        if (strpos($this->referer, '-lastid-') !== false ||
+            strpos($this->follower, '-lastid-') !== false) {
+            // Deprecated use of '-lastid-', kept for compatibility
+            $data =& $this->master->getProperty('data');
+            $primary_key = $data->getProperty('primary_key');
+            $lastid = @$this->_row[$primary_key];
+            $this->referer = str_replace('-lastid-', $lastid, $this->referer);
+            $this->follower = str_replace('-lastid-', $lastid, $this->follower);
+        } elseif (is_null($this->_row)) {
+            // Operation failed, no expansion possible: provide fallbacks
+            if (strpos($this->referer, '{') !== false) {
+                $this->referer = TIP::getRefererUri();
+            }
+            if (strpos($this->follower, '{') !== false) {
+                $this->follower = TIP::getRefererUri();
+            }
+        } else {
+            // New field expansion
+            foreach ($this->_row as $key => &$value) {
+                $id = '{' . $key . '}';
+                $this->referer = str_replace($id, $value, $this->referer);
+                $this->follower = str_replace($id, $value, $this->follower);
+            }
+        }
     }
 
     /**
@@ -602,10 +617,17 @@ class TIP_Form extends TIP_Module
 
     /**
      * Wheter the processRow() callback must be transaction protected
-     * @var array
-     * @boolean
+     * @var boolean
+     * @internal
      */
     private $_transaction_protected = false;
+
+    /**
+     * The content of the processed row, if the process succeeded
+     * @var array|null
+     * @internal
+     */
+    private $_row = null;
 
     //}}}
     //{{{ Callbacks
@@ -692,6 +714,9 @@ class TIP_Form extends TIP_Module
 
     public function _processRow(&$row)
     {
+        // Processed row null by default
+        $this->_row = null;
+
         // Check "on_process" callback validity
         if (!is_callable($this->on_process)) {
             TIP::error("no on_process callback defined in TIP_Form ($this->id)");
@@ -724,6 +749,7 @@ class TIP_Form extends TIP_Module
         $done = $done && call_user_func_array($this->on_process, array(&$row, $this->_defaults));
         if ($done) {
             TIP::notifyInfo('done');
+            $this->_row =& $row;
         } else {
             TIP::notifyError($this->action_id);
         }
