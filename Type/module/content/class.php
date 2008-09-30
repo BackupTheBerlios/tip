@@ -146,6 +146,8 @@ class TIP_Class extends TIP_Content
      */
     protected function actionAdd($id = null, $options = array())
     {
+        $primary_key = $this->data->getProperty('primary_key');
+
         // Merge the argument options with the configuration options, if found
         // The argument options have higher priority...
         if (@is_array($this->form_options['add'])) {
@@ -165,7 +167,6 @@ class TIP_Class extends TIP_Content
             }
 
             // Unset the primary_key: this is an add action
-            $primary_key = $this->data->getProperty('primary_key');
             unset($options['defaults'][$primary_key]);
         }
 
@@ -174,7 +175,7 @@ class TIP_Class extends TIP_Content
 
         TIP::arrayDefault($options, 'action', TIP_FORM_ACTION_ADD);
         TIP::arrayDefault($options, 'on_process', array(&$this, '_onAdd'));
-        TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '-lastid-'));
+        TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '') . '{' . $primary_key . '}');
 
         $form =& TIP_Type::singleton($options);
         $valid = $form->validate();
@@ -218,6 +219,8 @@ class TIP_Class extends TIP_Content
      */
     protected function actionEdit($id, $options = array())
     {
+        $primary_key = $this->data->getProperty('primary_key');
+
         // Merge the argument options with the configuration options, if found
         // The argument options have higher priority...
         if (@is_array($this->form_options['edit'])) {
@@ -238,7 +241,7 @@ class TIP_Class extends TIP_Content
 
         TIP::arrayDefault($options, 'action', TIP_FORM_ACTION_EDIT);
         TIP::arrayDefault($options, 'on_process', array(&$this, '_onEdit'));
-        TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '-lastid-'));
+        TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '') . '{' . $primary_key . '}');
         TIP::arrayDefault($options, 'readonly', array($this->class_field));
 
         $form =& TIP_Type::singleton($options);
@@ -281,7 +284,6 @@ class TIP_Class extends TIP_Content
         }
 
         TIP::arrayDefault($options, 'on_process', array(&$this, '_onDelete'));
-        TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '-lastid-'));
 
         // Populate "defaults" with master and child values
         if (is_null($row = $this->fromRow($id))) {

@@ -1221,6 +1221,8 @@ class TIP_Content extends TIP_Module
      */
     protected function actionAdd($id = null, $options = array())
     {
+        $primary_key = $this->data->getProperty('primary_key');
+
         // Merge the argument options with the configuration options, if found
         // The argument options have higher priority...
         if (@is_array($this->form_options['add'])) {
@@ -1228,7 +1230,7 @@ class TIP_Content extends TIP_Module
         }
 
         TIP::arrayDefault($options, 'on_process', array(&$this, '_onAdd'));
-        TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '-lastid-'));
+        TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '') . '{' . $primary_key . '}');
 
         $processed = $this->form(TIP_FORM_ACTION_ADD, $id, $options);
         if (is_null($processed)) {
