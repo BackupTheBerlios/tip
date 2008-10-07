@@ -1188,12 +1188,51 @@ class TIP_Content extends TIP_Module
     /**
      * Echo the rendered XHTML
      *
-     * Outputs the XHTML for this TIP_Content. In $params there should be
-     * the template action string to use to build the links.
+     * Renders the whole TIP_Content rows in XHTML. In $params there
+     * should be the template action string to use to build the links.
      */
     protected function tagShow($params)
     {
         return $this->toHtml($params);
+    }
+
+    /**
+     * View the current row content
+     *
+     * Shows the current row using a standard frozen form. If $params is
+     * specified, the row with $params as primary key is shown instead.
+     */
+    protected function tagView($params)
+    {
+        if (empty($params)) {
+            // No param id specified: use the current row
+            if (is_null($this->_view) || is_null($row = $this->_view->current())) {
+                // No current row
+                TIP::notifyError('noparams');
+                return null;
+            }
+        } elseif (is_null($row = $this->fromRow($params))) {
+            return null;
+        }
+
+        if (@is_array($this->form_options['view'])) {
+            $options = $this->form_options['view'];
+        }
+
+        TIP::arrayDefault($options, 'buttons', 0);
+        $options['defaults'] =& $row;
+        $options['valid_render'] = TIP_FORM_RENDER_HERE;
+        $options['invalid_render'] = TIP_FORM_RENDER_HERE;
+        $options['type'] = array('module', 'form');
+        $options['master'] =& $this;
+        $options['action'] = TIP_FORM_ACTION_VIEW;
+
+        ob_start();
+        $form =& TIP_Type::singleton($options);
+        $form->validate();
+        $form->process();
+        $form->render(false);
+        return ob_get_clean();
     }
 
     /**#@-*/
