@@ -718,8 +718,10 @@ class TIP_Form extends TIP_Module
         $this->_row = null;
 
         // Check "on_process" callback validity
-        if (!is_callable($this->on_process)) {
-            TIP::error("no on_process callback defined in TIP_Form ($this->id)");
+        if (is_null($this->on_process)) {
+            return;
+        } elseif (!is_callable($this->on_process)) {
+            TIP::error("invalid on_process callback passed to TIP_Form ($this->id)");
             return;
         }
 
@@ -1136,9 +1138,6 @@ class TIP_Form extends TIP_Module
 
     /**
      * Append action buttons to the end of this form
-     *
-     * Executes the requested action, accordling to the properties values set
-     * in the constructor.
      *
      * @param bool|null $valid Whether the form was validated
      */
