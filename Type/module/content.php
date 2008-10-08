@@ -1204,14 +1204,7 @@ class TIP_Content extends TIP_Module
      */
     protected function tagView($params)
     {
-        if (empty($params)) {
-            // No param id specified: use the current row
-            if (is_null($this->_view) || is_null($row = $this->_view->current())) {
-                // No current row
-                TIP::notifyError('noparams');
-                return null;
-            }
-        } elseif (is_null($row = $this->fromRow($params))) {
+        if (is_null($row = $this->fromRow($params == '' ? null : $params))) {
             return null;
         }
 
@@ -1220,17 +1213,18 @@ class TIP_Content extends TIP_Module
         }
 
         TIP::arrayDefault($options, 'buttons', 0);
+        TIP::arrayDefault($options, 'valid_render', TIP_FORM_RENDER_HERE);
+        TIP::arrayDefault($options, 'invalid_render', TIP_FORM_RENDER_HERE);
         $options['defaults'] =& $row;
-        $options['valid_render'] = TIP_FORM_RENDER_HERE;
-        $options['invalid_render'] = TIP_FORM_RENDER_HERE;
         $options['type'] = array('module', 'form');
         $options['master'] =& $this;
         $options['action'] = TIP_FORM_ACTION_VIEW;
 
-        ob_start();
         $form =& TIP_Type::singleton($options);
         $form->validate();
         $form->process();
+
+        ob_start();
         $form->render(false);
         return ob_get_clean();
     }
