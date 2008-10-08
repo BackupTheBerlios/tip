@@ -129,6 +129,40 @@ class TIP_Class extends TIP_Content
         return '';
     }
 
+    /**
+     * Overriden method including the child fields in the frozen form
+     */
+    protected function tagView($params)
+    {
+        $child =& $this->_getChildModule();
+        if ($child === false ||
+            is_null($row = $this->fromRow($params == '' ? null : $params))) {
+            // Errors on child module
+            return null;
+        }
+
+        if (@is_array($this->form_options['view'])) {
+            $options = $this->form_options['view'];
+        }
+
+        TIP::arrayDefault($options, 'buttons', 0);
+        TIP::arrayDefault($options, 'valid_render', TIP_FORM_RENDER_HERE);
+        TIP::arrayDefault($options, 'invalid_render', TIP_FORM_RENDER_HERE);
+        $options['defaults'] =& $row;
+        $options['type'] = array('module', 'form');
+        $options['master'] =& $this;
+        $options['action'] = TIP_FORM_ACTION_VIEW;
+
+        $form =& TIP_Type::singleton($options);
+        $form->validate();
+        $child && $form->validateAlso($child);
+        $form->process();
+
+        ob_start();
+        $form->render(false);
+        return ob_get_clean();
+    }
+
     /**#@-*/
 
     //}}}
