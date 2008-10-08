@@ -792,12 +792,14 @@ class TIP_Content extends TIP_Module
      *
      * Overrides the default tagHtml() providing highlighting on
      * requests of search fields.
+     *
+     * @param boolean $raise_error Whether to generate an error
      */
-    protected function tagHtml($params)
+    protected function tagHtml($params, $raise_error = false)
     {
         $requests = explode(',', $params);
         $value = $this->getValidRequest($requests);
-        if (is_null($value)) {
+        if ($raise_error && is_null($value)) {
             TIP::error("no valid request found ($params)");
             return null;
         }

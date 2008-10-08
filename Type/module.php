@@ -596,12 +596,14 @@ abstract class TIP_Module extends TIP_Type
      *
      * Equals to tagRaw(), but the result is converted throught TIP::toHtml()
      * before the output.
+     *
+     * @param boolean $raise_error Whether to generate an error
      */
-    protected function tagHtml($params)
+    protected function tagHtml($params, $raise_error = true)
     {
         $requests = explode(',', $params);
         $value = $this->getValidRequest($requests);
-        if (is_null($value)) {
+        if ($raise_error && is_null($value)) {
             TIP::error("no valid request found ($params)");
             return null;
         }
@@ -619,9 +621,7 @@ abstract class TIP_Module extends TIP_Type
      */
     protected function tagTryHtml($params)
     {
-        $requests = explode(',', $params);
-        $value = $this->getValidRequest($requests);
-        return TIP::toHtml($value);
+        return $this->tagHtml($params, false);
     }
 
     /**
