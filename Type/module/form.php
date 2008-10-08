@@ -1238,10 +1238,7 @@ class TIP_Form extends TIP_Module
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
         $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
-        $items = array();
-        foreach ($field['choices'] as $choice) {
-            $items[$choice] = $this->getLocale('label.' . $choice);
-        }
+        $items = $this->_getChoices($field['choices'], $args, @$this->_defaults[$id]);
 
         if (count($items) > 3) {
             // On lot of available choices, use a select menu
@@ -1268,10 +1265,7 @@ class TIP_Form extends TIP_Module
         $label = $this->getLocale('label.' . $id);
         $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
         $default = @explode(',', $this->_defaults[$id]);
-        $items = array();
-        foreach ($field['choices'] as $choice) {
-            $items[$choice] = $this->getLocale('label.' . $choice);
-        }
+        $items = $this->_getChoices($field['choices'], $args, $default);
 
         // Reset the defaults (a comma separated list of flags that are set):
         // the $this->_defaults[$id] variable will be defined in the foreach
@@ -1414,6 +1408,56 @@ class TIP_Form extends TIP_Module
         $element =& $this->_form->addElement('select', $id, $label, $items, array('tabindex' => $this->_tabindex, 'class' => 'expand'));
         $element->setComment($comment);
         return $element;
+    }
+
+    /**
+     * Filter and localize a set of choices given a well-known filter string
+     *
+     * Applies the filter rules specified by $filter to the $choices array. 
+     * $filter can contain an "allow" rule in the form
+     * "allow(choice1 choice2 ...)", in which case only the specified choices
+     * found in $choices will be returned, or a "deny" rule in the form
+     * "deny(choice1 choice2 ...)", in which case the specified choices will
+     * be stripped from the $choices array.
+     *
+     * The filtered array is then combined (as key) with its localized label
+     * (as value).
+     *
+     * Keep in mind the default value (either explicit or defined by design)
+     * should not be filtered.
+     *
+     * @param  array  $choices The subject array
+     * @param  string $filter  The filter string
+     * @param  mixed  $default The default value (or values if it is an array)
+     * @return array           The filtered choices
+     */
+    private function _getChoices($choices, $filter, $default)
+    {
+        // Force default to be an array
+        is_array($default) || $default = array($default);
+
+        if (empty($filter)) {
+            $keys = $choices;
+        } elseif (($from = strpos($filter, 'allow(')) !== false) {
+            $from += 6;
+            $len = strpos($filter, ')') - $from;
+            $specified = explode(' ', substr($filter, $from, $len));
+            $specified = array_merge($specified, $default);
+            $keys = array_intersect($choices, $specified);
+        } elseif (($from = strpos($filter, 'deny(')) !== false) {
+            $from += 5;
+            $len = strpos($filter, ')') - $from;
+            $specified = explode(' ', substr($filter, $from, $len));
+            $specified = array_diff($specified, $default);
+            $keys = array_diff($choices, $specified);
+        }
+
+        // Localize the keys, implicitily removing duplicated $keys
+        foreach ($keys as $key) {
+            $labels[$key] = $this->getLocale('label.' . $key);
+        }
+
+        return $labels;
     }
 
     //}}}
