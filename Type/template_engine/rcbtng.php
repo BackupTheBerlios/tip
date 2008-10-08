@@ -126,7 +126,7 @@ class TIP_RcbtNG_Instance
     protected function tagSelectRow($module, $params)
     {
         $view = '$view' . count($this->_stack) . '_' . $this->_level;
-        $this->_code .= "$view =& {$module}->startDataView({$module}->rowFilter($params));\n";
+        $this->_code .= "$view =& {$module}->startDataView({$module}->getData()->rowFilter($params));\n";
         $this->_code .= "if ($view && {$view}->rewind()) {\n";
         return $this->_push($module, $view);
     }

@@ -371,17 +371,13 @@ class TIP_Class extends TIP_Content
     //{{{ Methods
 
     /**
-     * Create a filter to access a single row
+     * Overrides the default getData() returning $_current_data
      *
-     * Overrides the default rowFilter() method to use $_current_data
-     * instead of $data.
-     *
-     * @param  mixed  $id The primary key value
-     * @return string     The requested filter in the proper engine format
+     * @return TIP_Data The active TIP_Data instance
      */
-    public function rowFilter($id)
+    public function getData()
     {
-        return $this->_current_data->rowFilter($id);
+        return $this->_current_data;
     }
 
     /**

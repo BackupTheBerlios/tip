@@ -251,18 +251,13 @@ class TIP_Content extends TIP_Module
     //{{{ Methods
 
     /**
-     * Create a filter to access a single row
+     * Get the active TIP_Data instance
      *
-     * Shortcut to create a filter  to access only the first row
-     * with the primary key matching $id. Useful when the
-     * primary key is unique to access records by id.
-     *
-     * @param  mixed  $id The primary key value
-     * @return string     The requested filter in the proper engine format
+     * @return TIP_Data The active TIP_Data instance
      */
-    public function rowFilter($id)
+    public function &getData()
     {
-        return $this->data->rowFilter($id);
+        return $this->data;
     }
 
     /**
@@ -386,7 +381,7 @@ class TIP_Content extends TIP_Module
             }
 
             if ($action == TIP_FORM_ACTION_ADD) {
-                unset($row[$this->data->getProperty('primary_key')]);
+                unset($row[$this->getData()->getProperty('primary_key')]);
             }
 
             if (@is_array($options['defaults'])) {
@@ -472,7 +467,7 @@ class TIP_Content extends TIP_Module
     public function &startView($type, $options = array())
     {
         $options['type'] = array('view', strtolower($type) . '_view');
-        TIP::arrayDefault($options, 'data', $this->data);
+        TIP::arrayDefault($options, 'data', $this->getData());
         TIP::arrayDefault($options, 'fields', $this->_subset);
         $callback = array(&$this, '_on' . $type . 'Row');
         is_callable($callback) && TIP::arrayDefault($options, 'on_row', $callback);
@@ -508,17 +503,22 @@ class TIP_Content extends TIP_Module
      */
     public function &startDataView($filter = null, $options = array())
     {
+        if (!isset($options['data'])) {
+            $options['data'] =& $this->getData();
+        }
+        $data =& $options['data'];
+
         $model_filter = '';
         if (!empty($this->default_conditions)) {
             foreach ($this->default_conditions as $id => $value) {
                 if (empty($model_filter)) {
-                    $model_filter = $this->data->filter($id, $value);
+                    $model_filter = $data->filter($id, $value);
                 } else {
-                    $model_filter .= $this->data->addFilter('AND', $id, $value);
+                    $model_filter .= $data()->addFilter('AND', $id, $value);
                 }
             }
         }
-        $model_filter .= $this->data->order($this->default_order);
+        $model_filter .= $data->order($this->default_order);
 
         // Apply default conditions and order if $filter is empty
         empty($filter) && $filter = $model_filter;
@@ -640,7 +640,7 @@ class TIP_Content extends TIP_Module
         $start_view = isset($id);
 
         if ($start_view) {
-            if (is_null($view =& $this->startDataView($this->data->rowFilter($id)))) {
+            if (is_null($view =& $this->startDataView($this->getData()->rowFilter($id)))) {
                 TIP::notifyError('select');
                 return $row;
             }
@@ -728,7 +728,7 @@ class TIP_Content extends TIP_Module
      */
     public function filterOwnedBy($user)
     {
-        return $this->data->filter($this->owner_field, $user);
+        return $this->getData()->filter($this->owner_field, $user);
     }
 
     /**
@@ -1090,7 +1090,7 @@ class TIP_Content extends TIP_Module
         } elseif (is_array($this->_pager_conditions)) {
             $conditions = array();
             foreach ($this->_pager_conditions as $id => $value) {
-                $conditions[] = $this->data->addFilter('', $id, $value);
+                $conditions[] = $this->getData()->addFilter('', $id, $value);
             }
             $filter = 'WHERE ' . implode(' AND ', $conditions);
         } elseif (is_string($this->_pager_conditions)) {
@@ -1099,7 +1099,7 @@ class TIP_Content extends TIP_Module
                 return null;
             }
             $this->_search_tokens = str_word_count($this->_pager_conditions, 1, '0123456789');
-            $filter = $this->data->filter(
+            $filter = $this->getData()->filter(
                 $this->search_field,
                 '%' . implode('%', $this->_search_tokens) . '%',
                 'LIKE'
@@ -1115,7 +1115,7 @@ class TIP_Content extends TIP_Module
         if ($pager) {
             $offset = TIP::getGet('pg_offset', 'int');
             $offset > 0 || $offset = 0;
-            $filter .= $this->data->limit($quanto+1, $offset);
+            $filter .= $this->getData()->limit($quanto+1, $offset);
         } else {
             $offset = 0;
         }
