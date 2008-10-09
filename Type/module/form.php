@@ -525,6 +525,14 @@ class TIP_Form extends TIP_Module
         return method_exists($section, $params) ? $section->$params() : null;
     }
 
+    /**
+     * Call an element method
+     *
+     * Runs the method specified in $params on the current element.
+     *
+     * @deprecated
+     * @see tagHtmlMethod
+     */
     protected function tagElement($params)
     {
         if (!isset($this->_element_view) ||
@@ -535,6 +543,17 @@ class TIP_Form extends TIP_Module
         $element_rows =& $this->_element_view->getProperty('rows');
         $element =& $element_rows[$element_id]['object'];
         return method_exists($element, $params) ? $element->$params() : null;
+    }
+
+    /**
+     * Call an element method and htmlize the result
+     *
+     * Runs the method specified in $params on the current element. The
+     * result is passed throught TIP::toHtml() before being returned.
+     */
+    protected function tagHtmlMethod($params)
+    {
+        return TIP::toHtml($this->tagElement($params));
     }
 
     /**#@-*/
