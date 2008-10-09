@@ -1059,6 +1059,9 @@ class TIP
             return (string) $value;
         } elseif (is_string($value)) {
             return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+        } elseif (is_array($value)) {
+            // Canonicalize the name
+            return TIP::toHtml(implode(',', $value));
         }
 
         return '';
