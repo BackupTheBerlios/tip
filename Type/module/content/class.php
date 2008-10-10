@@ -40,36 +40,8 @@ class TIP_Class extends TIP_Content
      */
     protected $master_field = '_master';
 
-    /**
-     * The summary view path to use for browsing
-     * @var string
-     */
-    protected $summary_view = null;
-
     //}}}
     //{{{ Constructor/destructor
-
-    static protected function checkOptions(&$options)
-    {
-        if (!parent::checkOptions($options)) {
-            return false;
-        }
-
-        $default_summary = $options['id'] . '-summary';
-        TIP::arrayDefault($options, 'summary_view', $default_summary);
-        if (is_string($options['summary_view'])) {
-            $options['summary_view'] =& TIP_Type::singleton(array(
-                'type' => array('data'),
-                'path' => $options['summary_view']
-            ));
-        } elseif (is_array($options['summary_view'])) {
-            TIP::arrayDefault($options['summary_view'], 'type', array('data'));
-            TIP::arrayDefault($options['summary_view'], 'path', $default_summary);
-            $options['summary_view'] =& TIP_Type::singleton($options['summary_view']);
-        }
-
-        return true;
-    }
 
     /**
      * Constructor
@@ -91,43 +63,6 @@ class TIP_Class extends TIP_Content
      * @param  string      $params Parameters of the tag
      * @return string|null         The string result or null on errors
      */
-
-    /**
-     * Switch the data to summary view
-     *
-     * Changes the internal TIP_Data object to the summary view.
-     * This means all subsequential queries are applied to this
-     * view instead of the default data object.
-     *
-     * tagStartSummary() calls cannot be nested and must be followed
-     * by tagEndSummary() to restore the default data.
-     *
-     * The $params arg is not used.
-     */
-    protected function tagStartSummary($params)
-    {
-        unset($this->_current_data);
-        $this->_current_data =& $this->summary_view;
-        return '';
-    }
-
-    /**
-     * Restore the default data
-     *
-     * Changes the internal TIP_Data object to the default data,
-     * that is restore the situation before to the tagStartSummary()
-     * call.
-     *
-     * Every tagStartSummary() call must be followed by tagEndSummary().
-     *
-     * The $params arg is not used.
-     */
-    protected function tagEndSummary($params)
-    {
-        unset($this->_current_data);
-        $this->_current_data =& $this->data;
-        return '';
-    }
 
     /**
      * Overriden method including the child fields in the frozen form
@@ -354,19 +289,6 @@ class TIP_Class extends TIP_Content
         return $form->render($valid);
     }
 
-    protected function actionBrowse(&$conditions)
-    {
-        if (is_null($this->tagStartSummary(''))) {
-            return false;
-        }
-
-        // Call the template
-        $this->_pager_conditions =& $conditions;
-        $this->appendToPage($this->browse_template);
-
-        return !is_null($this->tagEndSummary(''));
-    }
-
     //}}}
     //{{{ Methods
 
@@ -410,23 +332,6 @@ class TIP_Class extends TIP_Content
         }
 
         return $row;
-    }
-
-    /**
-     * Start a data view
-     *
-     * Overrides the default method to run queries on the summary_view
-     * data by default. Instead, the startView() method works as usual.
-     *
-     * @param  string            $filter  The filter conditions
-     * @param  array             $options The constructor arguments to pass
-     *                                    to the TIP_Data_View instance
-     * @return TIP_Data_View|null         The view instance or null on errors
-     */
-    public function &startDataView($filter = null, $options = array())
-    {
-        TIP::arrayDefault($options, 'data', $this->_current_data);
-        return parent::startDataView($filter, $options);
     }
 
     //}}}
@@ -550,35 +455,7 @@ class TIP_Class extends TIP_Content
     /**#@-*/
 
     //}}}
-    //{{{ Internal properties
-
-    /**
-     * The "current" TIP_Data object stored to use ("data" or "summary_view")
-     * @var TIP_Data
-     * @internal
-     */
-    private $_current_data = null;
-
-    //}}}
     //{{{ Internal methods
-
-    /**
-     * Get the data rows and return a renderer ready to be used
-     *
-     * Overrides the default method to force this query to be applied
-     * in the "summary_view" TIP_Data.
-     *
-     * @param  string                     $action The action template string
-     * @return HTML_Menu_TipRenderer|null         The renderer or
-     *                                            null on errors
-     */
-    protected function &_getRenderer($action)
-    {
-        $this->tagStartSummary('');
-        $result =& parent::_getRenderer($action);
-        $this->tagEndSummary('');
-        return $result;
-    }
 
     /**
      * Get the child module
