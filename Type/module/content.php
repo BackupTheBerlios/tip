@@ -810,9 +810,9 @@ class TIP_Content extends TIP_Module
             return $result;
         }
 
-        $fields = is_array($this->search_field) ? $this->search_field : array($this->search_field);
         foreach ($requests as &$request) {
-            if (in_array($request, $fields)) {
+            if (array_key_exists($request, $this->search_field) ||
+                in_array($request, $this->search_field)) {
                 $result = str_ireplace($this->_search_tokens, $this->_search_spans, $result);
                 break;
             }
@@ -1096,16 +1096,18 @@ class TIP_Content extends TIP_Module
             }
             $filter = 'WHERE ' . implode(' AND ', $conditions);
         } elseif (is_string($this->_pager_conditions)) {
-            if (is_null($this->search_field)) {
+            if (empty($this->search_field)) {
                 TIP::error('no search field specified');
                 return null;
             }
+            is_string($this->search_field) && $this->search_field = array($this->search_field);
             $this->_search_tokens = str_word_count($this->_pager_conditions, 1, '0123456789');
-            $filter = $this->getData()->filter(
-                $this->search_field,
-                '%' . implode('%', $this->_search_tokens) . '%',
-                'LIKE'
-            );
+            $pattern = '%' . implode('%', $this->_search_tokens) . '%';
+            $conditions = array();
+            foreach ($this->search_field as $id) {
+                $conditions[] = $this->getData()->addFilter('', $id, $pattern, 'LIKE');
+            }
+            $filter = 'WHERE ' . implode(' OR ', $conditions);
         }
 
         if (isset($filter)) {
