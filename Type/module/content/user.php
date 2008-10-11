@@ -77,7 +77,7 @@ class TIP_User extends TIP_Content
             return false;
         }
 
-        TIP::arrayDefault($options, 'owner_field', 'id');
+        TIP::arrayDefault($options, 'owner_field', null);
         TIP::arrayDefault($options, 'statistics', array());
         TIP::arrayDefault($options, 'browsable_fields', array(
             TIP_PRIVILEGE_ADMIN => array('__ALL__')
@@ -425,7 +425,7 @@ class TIP_User extends TIP_Content
     public function _onDataRow(&$row)
     {
         array_key_exists('sex', $row) && $row['OA'] = $row['sex'] == 'female' ? 'a' : 'o';
-        return true;
+        return parent::_onDataRow($row);
     }
 
     /**
