@@ -1433,10 +1433,10 @@ class TIP_Form extends TIP_Module
      * Filter and localize a set of choices given a well-known filter string
      *
      * Applies the filter rules specified by $filter to the $choices array. 
-     * $filter can contain an "allow" rule in the form
-     * "allow(choice1 choice2 ...)", in which case only the specified choices
-     * found in $choices will be returned, or a "deny" rule in the form
-     * "deny(choice1 choice2 ...)", in which case the specified choices will
+     * $filter can contain a "show" rule in the form
+     * "show(choice1 choice2 ...)", in which case only the specified choices
+     * found in $choices will be returned, or a "hide" rule in the form
+     * "hide(choice1 choice2 ...)", in which case the specified choices will
      * be stripped from the $choices array.
      *
      * The filtered array is then combined (as key) with its localized label
@@ -1457,13 +1457,13 @@ class TIP_Form extends TIP_Module
 
         if (empty($filter)) {
             $keys = $choices;
-        } elseif (($from = strpos($filter, 'allow(')) !== false) {
+        } elseif (($from = strpos($filter, 'show(')) !== false) {
             $from += 6;
             $len = strpos($filter, ')') - $from;
             $specified = explode(' ', substr($filter, $from, $len));
             $specified = array_merge($specified, $default);
             $keys = array_intersect($choices, $specified);
-        } elseif (($from = strpos($filter, 'deny(')) !== false) {
+        } elseif (($from = strpos($filter, 'hide(')) !== false) {
             $from += 5;
             $len = strpos($filter, ')') - $from;
             $specified = explode(' ', substr($filter, $from, $len));
