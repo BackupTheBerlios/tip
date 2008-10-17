@@ -149,6 +149,12 @@ class TIP_Content extends TIP_Module
     protected $last_hit_field = '_lasthit';
 
     /**
+     * The search field(s) to be scanned
+     * @var string|array
+     */
+    protected $search_field = null;
+
+    /**
      * Statistic user fields
      *
      * An associative array of field ids in TIP_User to increment whenever a
@@ -206,10 +212,18 @@ class TIP_Content extends TIP_Module
     protected $id_type = 'integer';
 
     /**
-     * The search field(s) to be scanned
-     * @var string|array
+     * Enable expiration time for row ownership
+     *
+     * If set, the isOwner() and related methods will return true **only**
+     * if the request is done before this time is elapsed after the creation
+     * of the row. Obviously, this means the "creation_field" property must
+     * be set and work properly.
+     *
+     * Any value accepted by the strtotime() function is valid.
+     *
+     * @var string
      */
-    protected $search_field = null;
+    protected $ownership_expiration = null;
 
     //}}}
     //{{{ Construction/destruction
@@ -686,8 +700,7 @@ class TIP_Content extends TIP_Module
             return false;
         }
 
-        if (array_key_exists($this->owner_field, $row) &&
-            $row[$this->owner_field] != TIP::getUserId()) {
+        if ($this->_isOwner($row) === false) {
             TIP::warning("not an owned row ($id)");
             TIP::notifyError('denied');
             return false;
@@ -711,8 +724,7 @@ class TIP_Content extends TIP_Module
             return false;
         }
 
-        if (array_key_exists($this->owner_field, $row) &&
-            $row[$this->owner_field] == TIP::getUserId()) {
+        if ($this->_isOwner($row) === true) {
             TIP::warning("owned row ($id)");
             TIP::notifyError('denied');
             return false;
@@ -1648,10 +1660,7 @@ class TIP_Content extends TIP_Module
      */
     public function _onDataRow(&$row)
     {
-        $row['IS_OWNER'] =
-            isset($this->owner_field) &&
-            array_key_exists($this->owner_field, $row) &&
-            $row[$this->owner_field] == TIP::getUserId();
+        $row['IS_OWNER'] = $this->_isOwner($row) ? true : false;
         return true;
     }
  
@@ -1867,6 +1876,57 @@ class TIP_Content extends TIP_Module
         $renderer =& TIP_Renderer::getMenu();
         $menu->render($renderer, 'sitemap');
         return $renderer;
+    }
+
+    /**
+     * Check if a row is owned by a user
+     *
+     * Abstracts the //owned by// operation. It works properly also on
+     * missing info and fully supports the "ownership_expiration" property.
+     *
+     * @param  array   &$row  The subject row
+     * @param  int|null $user A user id or null to use the logged user
+     * @return bool           true if $row is owned by $user, false if it is
+     *                        not owned, null on errors
+     */
+    private function _isOwner(&$row, $user = null)
+    {
+        if (!array_key_exists($this->owner_field, $row)) {
+            // No owner field found: error
+            return null;
+        }
+
+        isset($user) || $user = TIP::getUserId();
+        if ($row[$this->owner_field] != $user) {
+            // Owner and user do not match: return "not owned row" condition
+            return false;
+        }
+
+        if (is_null($this->ownership_expiration)) {
+            // Ownership does not expire: return "owned row" condition
+            return true;
+        }
+
+        if (!array_key_exists($this->creation_field, $row)) {
+            // Ownership expiration set but creation field not found: error
+            return null;
+        }
+
+        // Check if the ownership expired
+        $creation = TIP::getTimestamp($row[$this->creation_field], 'sql');
+        if (is_null($creation)) {
+            // TIP::getTimestamp() failed: error
+            return null;
+        }
+
+        $expiration = strtotime($this->ownership_expiration, $creation);
+        if ($expiration === false) {
+            // strtotime() failed (wrong expiration format?): error
+            return null;
+        }
+
+        // The row is owned only if now is before the expiration time
+        return time() < $expiration;
     }
 
     //}}}
