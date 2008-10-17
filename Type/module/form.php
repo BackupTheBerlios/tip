@@ -883,7 +883,8 @@ class TIP_Form extends TIP_Module
         if (is_string($attributes)) {
             $attributes = array('class' => $attributes);
         }
-        $attributes['tabindex'] = ++ $this->_tabindex;
+        ++ $this->_tabindex;
+        $attributes['tabindex'] = $this->_tabindex;
 
         $element =& $this->_form->addElement($widget, $id, $label, $attributes);
         $element->setComment($comment);
@@ -1261,8 +1262,8 @@ class TIP_Form extends TIP_Module
 
         if (count($items) > 3) {
             // On lot of available choices, use a select menu
-            $element =& $this->_form->addElement('select', $id, $label, $items);
-            $element->setAttribute('class', 'expand');
+            ++ $this->_tabindex;
+            $element =& $this->_form->addElement('select', $id, $label, $items, array('tabindex' => $this->_tabindex, 'class' => 'expand'));
         } else {
             // On few available choices, use radio button
             $group = array();
