@@ -1902,7 +1902,9 @@ class TIP_Content extends TIP_Module
             return false;
         }
 
-        if (is_null($this->ownership_expiration)) {
+        if ($this->privilege == TIP_PRIVILEGE_MANAGER ||
+            $this->privilege == TIP_PRIVILEGE_ADMIN ||
+            is_null($this->ownership_expiration)) {
             // Ownership does not expire: return "owned row" condition
             return true;
         }
