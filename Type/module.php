@@ -680,7 +680,11 @@ abstract class TIP_Module extends TIP_Type
     protected function tagAddToProperty($params)
     {
         list($property, $string) = explode(',', $params, 2);
-        $this->$property .= $string;
+        if (is_array($this->$property)) {
+            array_push($this->$property, $string);
+        } else {
+            $this->$property .= $string;
+        }
         return '';
     }
 
