@@ -1096,7 +1096,7 @@ class TIP_Content extends TIP_Module
             return null;
         }
 
-        @list($quanto, $query_adds) = explode(',', $params, 2);
+        @list($quanto, $query_template) = explode(',', $params, 2);
         $quanto = (int) $quanto;
         $pager = $quanto > 0;
 
@@ -1112,7 +1112,7 @@ class TIP_Content extends TIP_Module
                 TIP::error('no search field specified');
                 return null;
             }
-            is_string($this->search_field) && $this->search_field = array($this->search_field);
+            is_string($this->search_field) && $this->search_field = explode(',', $this->search_field);
             $this->_search_tokens = str_word_count($this->_pager_conditions, 1, '0123456789');
             $pattern = '%' . implode('%', $this->_search_tokens) . '%';
             $conditions = array();
@@ -1123,9 +1123,9 @@ class TIP_Content extends TIP_Module
         }
 
         if (isset($filter)) {
-            $filter .= ' ' . $query_adds;
+            $filter .= ' ' . $query_template;
         } else {
-            $filter = $query_adds;
+            $filter = $query_template;
         }
 
         if ($pager) {
