@@ -1106,7 +1106,7 @@ class TIP_Content extends TIP_Module
             foreach ($this->_pager_conditions as $id => $value) {
                 $conditions[] = $this->getData()->addFilter('', $id, $value);
             }
-            $filter = 'WHERE ' . implode(' AND ', $conditions);
+            $filter = 'WHERE (' . implode(' AND ', $conditions) . ')';
         } elseif (is_string($this->_pager_conditions)) {
             if (empty($this->search_field)) {
                 TIP::error('no search field specified');
@@ -1119,7 +1119,7 @@ class TIP_Content extends TIP_Module
             foreach ($this->search_field as $id) {
                 $conditions[] = $this->getData()->addFilter('', $id, $pattern, 'LIKE');
             }
-            $filter = 'WHERE ' . implode(' OR ', $conditions);
+            $filter = 'WHERE (' . implode(' OR ', $conditions) . ')';
         }
 
         if (isset($filter)) {
