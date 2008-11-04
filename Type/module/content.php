@@ -1107,11 +1107,9 @@ class TIP_Content extends TIP_Module
                 $conditions[] = $this->getData()->addFilter('', $id, $value);
             }
             $filter = 'WHERE (' . implode(' AND ', $conditions) . ')';
-        } elseif (is_string($this->_pager_conditions)) {
-            if (empty($this->search_field)) {
-                TIP::error('no search field specified');
-                return null;
-            }
+        } elseif (empty($this->search_field)) {
+            $filter = $this->_pager_conditions;
+        } else {
             is_string($this->search_field) && $this->search_field = explode(',', $this->search_field);
             $this->_search_tokens = str_word_count($this->_pager_conditions, 1, '0123456789');
             $pattern = '%' . implode('%', $this->_search_tokens) . '%';
