@@ -181,6 +181,12 @@ class TIP_Form extends TIP_Module
      */
     protected $follower = null;
 
+    /**
+     * Whether to notify if an action exited succesfully
+     * @var boolean
+     */
+    protected $notify_done = true;
+
     //}}}
     //{{{ Constructor/destructor
 
@@ -769,7 +775,7 @@ class TIP_Form extends TIP_Module
         // Run the process callback
         $done = $done && call_user_func_array($this->on_process, array(&$row, $this->_defaults));
         if ($done) {
-            TIP::notifyInfo('done');
+            $this->notify_done && TIP::notifyInfo('done');
             $this->_row =& $row;
         } else {
             TIP::notifyError($this->action_id);
