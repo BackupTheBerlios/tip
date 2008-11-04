@@ -287,6 +287,12 @@ class TIP_User extends TIP_Content
             return true;
         }
 
+        // Merge the argument options with the configuration options, if found
+        // The argument options have higher priority...
+        if (@is_array($this->form_options['add'])) {
+            $options = array_merge($this->form_options['add'], $options);
+        }
+
         TIP::arrayDefault($options, 'on_process', array(&$this, '_onAdd'));
 
         $processed = $this->form(TIP_FORM_ACTION_ADD, $id, $options);
@@ -311,6 +317,12 @@ class TIP_User extends TIP_Content
      */
     protected function actionLogin($options = array())
     {
+        // Merge the argument options with the configuration options, if found
+        // The argument options have higher priority...
+        if (@is_array($this->form_options['login'])) {
+            $options = array_merge($this->form_options['login'], $options);
+        }
+
         if (!array_key_exists('fields', $options)) {
             $fields =& $this->data->getFields();
             $options['fields'] = array(
