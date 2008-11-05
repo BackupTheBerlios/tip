@@ -200,8 +200,8 @@ class TIP_Form extends TIP_Module
         TIP::arrayDefault($options, 'id', $options['master']->getProperty('id'));
         TIP::arrayDefault($options, 'locale_prefix', 'form');
         TIP::arrayDefault($options, 'action_id', $options['action']);
-        TIP::arrayDefault($options, 'referer', TIP::getRefererUri());
-        TIP::arrayDefault($options, 'follower', $options['referer']);
+        isset($options['referer']) || $options['referer'] = TIP::getRefererUri();
+        isset($options['follower']) || $options['follower'] = $options['referer'];
 
         if (!isset($options['buttons'])) {
             switch ($options['action']) {
