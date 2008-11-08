@@ -372,17 +372,6 @@ class TIP_User extends TIP_Content
         return parent::runTrustedAction($action);
     }
 
-    protected function runUntrustedAction($action)
-    {
-        switch ($action) {
-
-        case 'login':
-            return $this->actionLogin();
-        }
-
-        return parent::runUntrustedAction($action);
-    }
-
     protected function runAction($action)
     {
         switch ($action) {
@@ -390,6 +379,9 @@ class TIP_User extends TIP_Content
         case 'view':
             // In the user module, the view action requires 'admin' privileges
             return null;
+
+        case 'login':
+            return $this->actionLogin();
         }
 
         return parent::runAction($action);
