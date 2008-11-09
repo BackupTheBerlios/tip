@@ -274,7 +274,7 @@ class TIP_User extends TIP_Content
      * Perform an add action
      *
      * Overrides the default add action, showing the conditions to accept
-     * before registering a new user and performing the autologin.
+     * before registering a new user and performing the autologin (if needed).
      *
      * @param  mixed $id      The identifier of the row to duplicate
      * @param  array $options Options to pass to the form() call
@@ -296,15 +296,26 @@ class TIP_User extends TIP_Content
         TIP::arrayDefault($options, 'on_process', array(&$this, '_onAdd'));
 
         $processed = $this->form(TIP_FORM_ACTION_ADD, $id, $options);
-        if ($processed &&
-            !is_null($id = $this->data->getLastId()) &&
+        if (is_null($processed)) {
+            return false;
+        } elseif (!$processed) {
+            return true;
+        }
+
+        if (isset($this->keys['CID'])) {
+            // User added by an administrator
+            return true;
+        }
+
+        // User added anonymously: autologin
+        if (!is_null($id = $this->data->getLastId()) &&
             !is_null($filter = $this->data->rowFilter($id)) &&
             !is_null($view = $this->startDataView($filter)) &&
             !is_null($this->_row = $view->current())) {
             $this->login();
         }
 
-        return !is_null($processed);
+        return true;
     }
 
     /**
