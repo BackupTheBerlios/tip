@@ -129,7 +129,7 @@ class TIP_History extends TIP_Content
         return $master->actionDelete($id, $options);
     }
 
-    protected function runTrustedAction($action)
+    protected function runUntrustedAction($action)
     {
         switch ($action) {
 
