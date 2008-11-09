@@ -361,17 +361,6 @@ class TIP_User extends TIP_Content
         return parent::runAdminAction($action);
     }
 
-    protected function runTrustedAction($action)
-    {
-        switch ($action) {
-
-        case 'logout':
-            return $this->actionLogout();
-        }
-
-        return parent::runTrustedAction($action);
-    }
-
     protected function runAction($action)
     {
         switch ($action) {
@@ -381,7 +370,16 @@ class TIP_User extends TIP_Content
             return null;
 
         case 'login':
-            return $this->actionLogin();
+            return isset($this->keys['CID']) ? null : $this->actionLogin();
+
+        case 'edit':
+            return
+                !is_null($id = $this->fromGetOrPost()) &&
+                $this->isOwner($id) &&
+                $this->actionEdit($id);
+
+        case 'logout':
+            return isset($this->keys['CID']) ? $this->actionLogout() : null;
         }
 
         return parent::runAction($action);
