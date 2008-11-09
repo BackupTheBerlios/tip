@@ -361,6 +361,45 @@ class TIP_User extends TIP_Content
         return parent::runAdminAction($action);
     }
 
+    protected function runTrustedAction($action)
+    {
+        switch ($action) {
+
+        case 'add':
+            // For trusted users, add actions are always valid
+            return $this->actionAdd();
+        }
+
+        return null;
+    }
+
+    protected function runUntrustedAction($action)
+    {
+        switch ($action) {
+
+        case 'add':
+            // Add action valid only for anonymous users
+            return isset($this->keys['CID']) ? null : $this->actionAdd();
+
+        case 'edit':
+            return
+                !is_null($id = $this->fromGetOrPost(null, $this->id_type)) &&
+                $this->isOwner($id) &&
+                $this->actionEdit($id);
+
+        case 'delete':
+            return
+                !is_null($id = $this->fromGet(null, $this->id_type)) &&
+                $this->isOwner($id) &&
+                $this->actionDelete($id);
+
+        case 'logout':
+            return isset($this->keys['CID']) ? $this->actionLogout() : null;
+        }
+
+        return parent::runUntrustedAction($action);
+    }
+
     protected function runAction($action)
     {
         switch ($action) {
@@ -371,15 +410,6 @@ class TIP_User extends TIP_Content
 
         case 'login':
             return isset($this->keys['CID']) ? null : $this->actionLogin();
-
-        case 'edit':
-            return
-                !is_null($id = $this->fromGetOrPost()) &&
-                $this->isOwner($id) &&
-                $this->actionEdit($id);
-
-        case 'logout':
-            return isset($this->keys['CID']) ? $this->actionLogout() : null;
         }
 
         return parent::runAction($action);
