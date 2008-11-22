@@ -35,7 +35,7 @@ error_reporting(E_ALL);
 mb_internal_encoding('UTF-8');
 
 /**
- * Defs.php must precede anything because of TIP_ROOT
+ * Defs.php must precede anything
  */
 require_once 'Defs.php';
 require_once 'Renderer.php';
