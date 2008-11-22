@@ -146,7 +146,7 @@ class TIP_Sponsor extends TIP_Content
         if (isset($this->count_field)) {
             $row[$this->count_field] = $this->_row[$this->count_field];
         }
-        if (isset(this->counted_field)) {
+        if (isset($this->counted_field)) {
             $row[$this->counted_field] = $this->_row[$this->count_field];
         }
         return parent::_onAdd($row, $old_row);
