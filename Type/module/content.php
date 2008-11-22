@@ -1865,7 +1865,7 @@ class TIP_Content extends TIP_Module
             }
 
             $url = str_replace('-id-', $id, $url);
-            $row['url'] = TIP::buildActionUriFromTag($url, (string) $module);
+            $row['url'] = TIP::buildActionUriFromTag($url, $this->id);
         }
 
         require_once 'HTML/Menu.php';
