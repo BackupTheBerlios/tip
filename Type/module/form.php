@@ -1041,8 +1041,8 @@ class TIP_Form extends TIP_Module
     private function &_configAttachment(&$element, $args)
     {
         // Common base path and uri
-        $element->setBasePath(TIP::buildDataPath($this->id));
-        $element->setBaseUrl(TIP::buildDataUri($this->id));
+        $element->setBasePath(TIP::buildDataPath((string) $this->master));
+        $element->setBaseUrl(TIP::buildDataUri((string) $this->master));
 
         // Unload the element data, if needed
         $unload_id = 'unload_' . $element->getName();
