@@ -157,6 +157,9 @@ class TIP_Class extends TIP_Content
             // Here fromRow() was never called, so $class must be specified
             $class = TIP::getPost($this->class_field, 'string');
             $child =& $this->_getChildModule($class);
+        } elseif (!is_null($class = TIP::getGet($this->class_field, 'string'))) {
+            // Special case: the class is specified by the URI
+            $child =& $this->_getChildModule($class);
         } else {
             $child = null;
         }
