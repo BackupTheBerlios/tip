@@ -795,6 +795,13 @@ class TIP_Form extends TIP_Module
         foreach ($this->fields as $id => &$field) {
             if (isset($field['default']) && !$field['automatic']) {
                 $this->_defaults[$id] = $field['default'];
+            } elseif (!$field['can_be_null']) {
+                $type = strtoupper($field['type']);
+                switch ($type) {
+                case 'DATE':
+                case 'DATETIME':
+                    $this->_defaults[$id] = TIP::formatDate('datetime_sql');
+                }
             }
         }
     }
@@ -804,14 +811,6 @@ class TIP_Form extends TIP_Module
      */
     private function _addAutomaticDefaults()
     {
-        if (array_key_exists('_creation', $this->fields)) {
-            $this->_defaults['_creation'] = TIP::formatDate('datetime_sql');
-        }
-
-        if (array_key_exists('_lasthit', $this->fields)) {
-            $this->_defaults['_lasthit'] = TIP::formatDate('datetime_sql');
-        }
-
         if (array_key_exists('_user', $this->fields)) {
             $this->_defaults['_user'] = TIP::getUserId();
         }
