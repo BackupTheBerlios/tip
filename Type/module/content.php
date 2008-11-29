@@ -791,6 +791,36 @@ class TIP_Content extends TIP_Module
         return $renderer->toArray();
     }
 
+    /**
+     * Render specific rows
+     *
+     * Works in the same way of toRows(), but rendering only the
+     * rows with the id specified in the $ids array.
+     *
+     * @param  mixed|array $ids    The id/ids of the rows to render
+     * @param  string      $action The action template string
+     * @return array|null          The rendered rows or null on errors
+     */
+    public function toRow($ids, $action = null)
+    {
+        is_array($ids) || $ids = array($id);
+        if (empty($ids)) {
+            return null;
+        }
+
+        $rows = array();
+
+        foreach ($ids as $id) {
+            // Render the rows one per one
+            $row =& $this->data->getRow($id);
+            $this->_rowToArray($row, $id);
+            $rows[$id] = $row['title'];
+            unset($row);
+        }
+
+        return $rows;
+    }
+
     //}}}
     //{{{ Tags
 
@@ -1707,18 +1737,7 @@ class TIP_Content extends TIP_Module
         // Map the custom fields to HTML_Menu id
         $this->_model =& $view->getProperty('rows');
         foreach ($this->_model as $id => &$row) {
-            isset($row['id']) || $row['id'] = $id;
-
-            // Use the custom "title_field" or
-            // leave the default $row['title'] untouched
-            if (isset($this->title_field) && $this->title_field != 'title') {
-                $row['title'] = TIP::pickElement($this->title_field, $row);
-            }
-
-            // Try to set the custom tooltip field
-            if (isset($this->tooltip_field) && $this->tooltip_field != 'tooltip') {
-                $row['tooltip'] = TIP::pickElement($this->tooltip_field, $row);
-            }
+            $this->_rowToArray($row, $id);
         }
 
         return true;
@@ -1837,6 +1856,7 @@ class TIP_Content extends TIP_Module
      * @param  string                     $action The action template string
      * @return HTML_Menu_TipRenderer|null         The renderer or
      *                                            null on errors
+     * @internal
      */
     protected function &_getRenderer($action)
     {
@@ -1886,6 +1906,7 @@ class TIP_Content extends TIP_Module
      * @param  int|null $user A user id or null to use the logged user
      * @return bool           true if $row is owned by $user, false if it is
      *                        not owned, null on errors
+     * @internal
      */
     private function _isOwner(&$row, $user = null)
     {
@@ -1927,6 +1948,32 @@ class TIP_Content extends TIP_Module
 
         // The row is owned only if now is before the expiration time
         return time() < $expiration;
+    }
+
+    /**
+     * Render a row to an array
+     *
+     * Renders $row as required by toArray(), that is append to the row
+     * data some missing info (the {{id}}, {{title}} and {{tooltip}} fields).
+     *
+     * @param  array   &$row  The subject row
+     * @param  mixed    $id   The id of the row
+     * @internal
+     */
+    private function _rowToArray(&$row, $id)
+    {
+        isset($row['id']) || $row['id'] = $id;
+
+        // Use the custom "title_field" or
+        // leave the default $row['title'] untouched
+        if (isset($this->title_field) && $this->title_field != 'title') {
+            $row['title'] = TIP::pickElement($this->title_field, $row);
+        }
+
+        // Try to set the custom tooltip field
+        if (isset($this->tooltip_field) && $this->tooltip_field != 'tooltip') {
+            $row['tooltip'] = TIP::pickElement($this->tooltip_field, $row);
+        }
     }
 
     //}}}
