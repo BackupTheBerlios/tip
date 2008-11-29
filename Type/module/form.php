@@ -94,7 +94,7 @@ class TIP_Form extends TIP_Module
     protected $buttons = null;
 
     /**
-     * An associative array of default values provided by the application
+     * An associative array of explicit defaults provided by the application
      *
      * To this array, that initially will contain the defaults explicitely
      * set in the configuration options or directly by the module, will be
@@ -103,6 +103,21 @@ class TIP_Form extends TIP_Module
      * @var array
      */
     protected $defaults = array();
+
+    /**
+     * An associative array of implicit defaults provided by the application
+     *
+     * This array provides the same information of the {{defaults}} property
+     * but using the //implicit// way. This means for immutable fields the
+     * form element will be //preselected// instead of be frozen.
+     *
+     * Also the fallback values have lower precedence in the default
+     * assignment stack: if you provide both {{defaults}} and {{fallbacks}},
+     * the latter value will not be used.
+     *
+     * @var array
+     */
+    protected $fallbacks = array();
 
     /**
      * Validation type, as described in HTML_QuickForm
@@ -300,8 +315,9 @@ class TIP_Form extends TIP_Module
         $this->keys['HEADER'] = $module->getLocale('header.' . $this->action_id);
         $this->_form->addElement('header', '__tiph_' . $module, 'data');
 
-        // Fill $this->_defaults
+        // Build the $this->_defaults array
         $this->_addDatabaseDefaults();
+        $this->_addFallbackDefaults();
         if ($this->action == TIP_FORM_ACTION_ADD) {
             $this->_addAutomaticDefaults();
         }
@@ -633,6 +649,7 @@ class TIP_Form extends TIP_Module
      * - GET defaults
      * - explicitely set defaults
      * - automatic defaults
+     * - fallback defaults
      * - database defaults
      *
      * @var array
@@ -804,6 +821,14 @@ class TIP_Form extends TIP_Module
                 }
             }
         }
+    }
+
+    /**
+     * Add fallback defaults to $this->_defaults
+     */
+    private function _addFallbackDefaults()
+    {
+        $this->_defaults = array_merge($this->_defaults, $this->fallbacks);
     }
 
     /**
