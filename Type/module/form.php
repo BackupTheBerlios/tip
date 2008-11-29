@@ -396,6 +396,11 @@ class TIP_Form extends TIP_Module
             return true;
         }
 
+        // Execute the prerender callbacks
+        foreach ($this->_prerender as $field => $data) {
+            call_user_func_array($data['callback'], $data['args']);
+        }
+
         // Add buttons
         $this->_addButtons($valid);
 
@@ -596,6 +601,19 @@ class TIP_Form extends TIP_Module
      * @internal
      */
     private $_form = null;
+
+    /**
+     * An associative array of element => array('callback' => , 'args' => )
+     * that will be executed before the rendering process. The callback will
+     * be called using call_user_func_array().
+     *
+     * Useful to provide customization based on the element state (frozen
+     * or not), such as done for the hierarchy element.
+     *
+     * @var array
+     * @internal
+     */
+    private $_prerender = array();
 
     /**
      * An associative array of element_id => callback that convert the
@@ -1048,6 +1066,19 @@ class TIP_Form extends TIP_Module
         }
     }
 
+    private function _addPrerender($id, $callback, $args)
+    {
+        is_array($args) || $args = array($args);
+
+        // Prepend the element id to the args
+        array_unshift($args, $id);
+
+        $this->_prerender[$id] = array(
+            'callback' => $callback,
+            'args'     => $args
+        );
+    }
+
     private function _addConverter($id, $type)
     {
         $this->_converter[$id] = $type;
@@ -1447,17 +1478,37 @@ class TIP_Form extends TIP_Module
         // by appending '_hierarchy' to this module id
         isset($hierarchy_id) || $hierarchy_id = $this->id . '_hierarchy';
 
+        /*
         $hierarchy =& TIP_Type::getInstance($hierarchy_id);
 
         // Populate the option list, prepending an empty option
         $items = array(' ' => '&#160;');
         $rows =& $hierarchy->toRows();
-        is_null($rows =& $hierarchy->toRows()) || $items += $rows;
+        is_null($rows =& $hierarchy->toRows()) || $items += $rows;*/
 
         ++ $this->_tabindex;
-        $element =& $this->_form->addElement('select', $id, $label, $items, array('tabindex' => $this->_tabindex, 'class' => 'expand'));
+        $element =& $this->_form->addElement('select', $id, $label, null, array('tabindex' => $this->_tabindex, 'class' => 'expand'));
         $element->setComment($comment);
+        $this->_addPrerender($id, array(&$this, '_populateHierarchy'), $hierarchy_id);
         return $element;
+    }
+
+    private function _populateHierarchy($id, $master_module)
+    {
+        $element =& $this->_form->getElement($id);
+        $hierarchy =& TIP_Type::getInstance($master_module);
+
+        if ($element->isFrozen()) {
+            // No need to execute a complete query: get only the selected row(s)
+            $selected = $element->getSelected();
+            $items = $hierarchy->toRow($selected);
+        } else {
+            // Populate the option list, prepending an empty option
+            $items = array(' ' => '&#160;');
+            is_null($rows =& $hierarchy->toRows()) || $items += $rows;
+        }
+
+        $element->loadArray($items);
     }
 
     /**
