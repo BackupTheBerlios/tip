@@ -164,8 +164,10 @@ class TIP_Mysql extends TIP_Data_Engine
                 $field['length'] = (int) $flags;
             }
 
-            $field['default'] = $row['Default'];
-            settype($field['default'], $field['type']);
+            if ($row['Default'] !== '') {
+                $field['default'] = $row['Default'];
+                settype($field['default'], $field['type']);
+            }
 
             $field['automatic'] = strpos($row['Extra'], 'auto_increment') !== false;
 
