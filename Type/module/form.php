@@ -1032,7 +1032,7 @@ class TIP_Form extends TIP_Module
 
         if ($is_upload) {
             $this->_addRule($id, 'uploaded');
-        } elseif (is_numeric($this->fields[$id]['default'])) {
+        } elseif (in_array($this->fields[$id]['type'], array('int', 'float'))) {
             $this->_addRule($id, 'numeric');
         }
     }
