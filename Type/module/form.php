@@ -202,6 +202,18 @@ class TIP_Form extends TIP_Module
      */
     protected $notify_done = true;
 
+    /**
+     * Default cols value for textarea items
+     * @var int
+     */
+    protected $text_cols = 30;
+
+    /**
+     * Default rows value for textarea items
+     * @var int
+     */
+    protected $text_rows = 10;
+
     //}}}
     //{{{ Constructor/destructor
 
@@ -1377,14 +1389,14 @@ class TIP_Form extends TIP_Module
         if (!empty($args)) {
             $rules = explode(',', $args);
         } elseif (array_key_exists('wiki_rules', $field)) {
-            // DEPRECATED: use the "wiki_rules" option instead of widget args
+            // DEPRECATED use of "wiki_rules" option instead of "widget_args"
             $rules = explode(',', $field['wiki_rules']);
         } else {
             $rules = null;
         }
         $element->setWiki(TIP_Renderer::getWiki($rules));
-        $element->setCols('30');
-        $element->setRows('10');
+        $element->setCols($this->text_cols);
+        $element->setRows($this->text_rows);
 
         return $element;
     }
