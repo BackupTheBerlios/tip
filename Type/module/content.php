@@ -1141,7 +1141,7 @@ class TIP_Content extends TIP_Module
             $filter = $this->_pager_conditions;
         } else {
             is_string($this->search_field) && $this->search_field = explode(',', $this->search_field);
-            $this->_search_tokens = str_word_count($this->_pager_conditions, 1, '0123456789');
+            $this->_search_tokens = explode(' ', $this->_pager_conditions);
             $pattern = '%' . implode('%', $this->_search_tokens) . '%';
             $conditions = array();
             foreach ($this->search_field as $id) {
