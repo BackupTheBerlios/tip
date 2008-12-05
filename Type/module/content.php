@@ -852,10 +852,15 @@ class TIP_Content extends TIP_Module
             return $result;
         }
 
+        $patterns = array();
+        foreach ($this->_search_tokens as $search_token) {
+            $patterns[] = '/(' . preg_quote($search_token, '/') . ')/i';
+        }
+
         foreach ($requests as &$request) {
             if (array_key_exists($request, $this->search_field) ||
                 in_array($request, $this->search_field)) {
-                $result = str_ireplace($this->_search_tokens, $this->_search_spans, $result);
+                $result = preg_replace($patterns, '<span class="highlight">$1</span>', $result);
                 break;
             }
         }
@@ -1170,13 +1175,6 @@ class TIP_Content extends TIP_Module
             return null;
         }
 
-        if (!empty($this->_search_tokens)) {
-            $this->_search_spans = array();
-            foreach ($this->_search_tokens as &$token) {
-                $this->_search_spans[] = '<span class="highlight">' . $token . '</span>';
-            }
-        }
-
         ob_start();
         if (!$view->isValid()) {
             $this->tryRun(array($main_id, $this->pager_empty_template));
@@ -1225,7 +1223,6 @@ class TIP_Content extends TIP_Module
 
         $this->endView();
         $this->_search_tokens = null;
-        $this->_search_spans = null;
         return ob_get_clean();
     }
 
@@ -1780,13 +1777,6 @@ class TIP_Content extends TIP_Module
      * @internal
      */
     private $_search_tokens = null;
-
-    /**
-     * List of spans to be substituted to the tokens
-     * @var array|null
-     * @internal
-     */
-    private $_search_spans = null;
 
     /**
      * The model used by rendering operations
