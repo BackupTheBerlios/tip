@@ -494,6 +494,24 @@ class TIP
     }
 
     /**
+     * Get a $_GET or $_POST in a typesafe manner
+     *
+     * Calls getGet() to retrieve the specified item and fallback to
+     * getPost() on no item found in $_GET.
+     *
+     * @param  string     $id   The get/post identifier
+     * @param  string     $type The expected type
+     * @return mixed|null       The requested item or null on errors
+     * @see                     getGet(),getPost()
+     */
+    static public function getGetOrPost($id, $type)
+    {
+        $result = TIP::_getTyped($id, $type, $_GET);
+        is_null($result) && $result = TIP::_getTyped($id, $type, $_POST);
+        return $result;
+    }
+
+    /**
      * Get a $_COOKIE in a typesafe manner
      *
      * Performs the same job as getGet(), but using the superglobal $_COOKIE
