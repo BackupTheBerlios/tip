@@ -319,6 +319,7 @@ class TIP_Form extends TIP_Module
 
         // Initialize or merge the new fields in "fields" property
         if ($module == $this->master) {
+            $this->_stage = 0;
             isset($this->fields) || $this->fields = $this->_data->getFields();
         } else {
             $this->fields += $this->_data->getFields();
@@ -340,6 +341,7 @@ class TIP_Form extends TIP_Module
         // Set the default content
         $this->_form->setDefaults($this->_defaults);
 
+        // Append the captcha field
         if ($this->captcha) {
             $this->_addCaptcha();
         }
@@ -406,6 +408,15 @@ class TIP_Form extends TIP_Module
         $mode = $valid === false ? $this->invalid_render : $this->valid_render;
         if ($mode == TIP_FORM_RENDER_NOTHING) {
             return true;
+        }
+
+        if ($this->_stage > 1) {
+            foreach ($this->_trailing_elements as &$element) {
+                // Update the tabindex property
+                ++ $this->_tabindex;
+                $element->setAttribute('tabindex', $this->_tabindex);
+                $this->_form->addElement($element);
+            }
         }
 
         // Execute the prerender callbacks
@@ -701,6 +712,13 @@ class TIP_Form extends TIP_Module
      */
     private $_row = null;
 
+    /**
+     * The trailing elements to be appended at the end of the form, if any
+     * @var array
+     * @internal
+     */
+    private $_trailing_elements = array();
+
     //}}}
     //{{{ Callbacks
 
@@ -993,6 +1011,7 @@ class TIP_Form extends TIP_Module
         }
 
         // Create the widget
+        $old_tabindex = $this->_tabindex;
         $method = '_widget' . @$field['widget'];
         method_exists($this, $method) || $method = '_widgetText';
         $element =& $this->$method($field, @$field['widget_args']);
@@ -1010,6 +1029,14 @@ class TIP_Form extends TIP_Module
         // Remove comment if the element is frozen
         if ($element->isFrozen()) {
             $element->setComment(null);
+        }
+
+        // Remove the element on "trailing" flag set:
+        // the element will be appended in the render() method
+        if (in_array('trailing', $flags)) {
+            $this->_trailing_elements[$id] =& $element;
+            $this->_form->removeElement($id, false);
+            $this->_tabindex = $old_tabindex;
         }
     }
 
