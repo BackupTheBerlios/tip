@@ -145,6 +145,10 @@ class TIP_Class extends TIP_Content
         TIP::arrayDefault($options, 'action', TIP_FORM_ACTION_ADD);
         TIP::arrayDefault($options, 'on_process', array(&$this, '_onAdd'));
         TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->id, 'view', '') . '{' . $primary_key . '}');
+        if (!is_null($class = TIP::getGetOrPost($this->class_field, 'string'))) {
+            // Class selected: by default, freeze the form element
+            TIP::arrayDefault($options, 'readonly', array($this->class_field));
+        }
 
         $form =& TIP_Type::singleton($options);
         $valid = $form->validate();
@@ -153,12 +157,8 @@ class TIP_Class extends TIP_Content
             // If $id is set, the child module is chained-up also on 
             // $valid==false: this module was already retrieved by fromRow()
             $child =& $this->_getChildModule();
-        } elseif ($valid) {
-            // Here fromRow() was never called, so $class must be specified
-            $class = TIP::getPost($this->class_field, 'string');
-            $child =& $this->_getChildModule($class);
-        } elseif (!is_null($class = TIP::getGet($this->class_field, 'string'))) {
-            // Special case: the class is specified by the URI
+        } elseif (!is_null($class)) {
+            // "class_field" defined: get the specific child module
             $child =& $this->_getChildModule($class);
         } else {
             $child = null;
