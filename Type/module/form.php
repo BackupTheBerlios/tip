@@ -954,20 +954,65 @@ class TIP_Form extends TIP_Module
         $this->_defaults = array_merge($this->_defaults, $this->defaults);
     }
 
-    private function& _addElement($widget, $id, $attributes = false)
+    /**
+     * Shortcut to create a new element
+     *
+     * Provides a common interface to create elements. This method localizes
+     * the label from the $id and automatically set the "tabindex" property.
+     *
+     * @param  string $type       The new element type
+     * @param  string $id         The widget id, used as id of the element and
+     *                            to localize the label
+     * @param  array  $attributes Associative array of HTML attributes
+     * @return HTML_QuickForm_Element The newly created element
+     */
+    private function &_createElement($type, $id = null, $attributes = null)
     {
+        isset($id) || $id = $type;
         $label = $this->getLocale('label.' . $id);
-        $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
+
         if (is_string($attributes)) {
             $attributes = array('class' => $attributes);
         }
         ++ $this->_tabindex;
         $attributes['tabindex'] = $this->_tabindex;
 
-        $element =& $this->_form->addElement($widget, $id, $label, $attributes);
+        switch ($type) {
+        case 'link':
+            if (isset($attributes['href'])) {
+                $href = $attributes['href'];
+                unset($attributes['href']);
+            } else {
+                $href = $this->referer;
+            }
+            return $this->_form->createElement($type, $id, null, $href, $label, $attributes);
+        default:
+            return $this->_form->createElement($type, $id, $label, $attributes);
+        }
+    }
+
+    /**
+     * Shortcut to add a new element to the current form
+     *
+     * Performs the same operations of _createElement() but also add the
+     * newly created widget to the current form. Furthermore, if a localized
+     * string comment is found (looking for the "form.comment.$id" tag on
+     * the locale module), the comment is set on the returned element.
+     *
+     * @param  string $type       The new element type
+     * @param  string $id         The widget id, used as id of the element and
+     *                            to localize the label
+     * @param  array  $attributes Associative array of HTML attributes
+     * @return HTML_QuickForm_Element The newly created element
+     */
+    private function &_addElement($type, $id, $attributes = null)
+    {
+        $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
+
+        $element =& $this->_createElement($type, $id, $attributes);
         $element->setComment($comment);
 
-        return $element;
+        return $this->_form->addElement($element);
     }
 
     private function _addCaptcha()
@@ -1267,44 +1312,30 @@ class TIP_Form extends TIP_Module
         $group = array();
 
         if ($buttons & TIP_FORM_BUTTON_SUBMIT) {
-            $element =& $this->_form->createElement('submit', null, $this->getLocale('button.submit'), array('class' => 'ok'));
-            $element->removeAttribute('name');
-            $group[] =& $element;
+            $group[] =& $this->_createElement('submit');
         }
         if ($buttons & TIP_FORM_BUTTON_RESET) {
-            $element =& $this->_form->createElement('reset', null, $this->getLocale('button.reset'), array('class' => 'restore'));
-            $element->removeAttribute('name');
-            $group[] =& $element;
+            $group[] =& $this->_createElement('reset');
         }
         if ($buttons & TIP_FORM_BUTTON_OK) {
             $uri = TIP::modifyActionUri(null, null, null, array('process' => 1));
-            $element =& $this->_form->createElement('link', 'ok', null, $uri, $this->getLocale('button.ok'), array('class' => 'ok'));
-            $element->removeAttribute('name');
-            $group[] =& $element;
+            $group[] =& $this->_createElement('link', 'ok', array('href' => $uri));
         }
         if ($buttons & TIP_FORM_BUTTON_DELETE && $this->action_id == TIP_FORM_ACTION_DELETE) {
             $uri = TIP::modifyActionUri(null, null, null, array('process' => 1));
-            $element =& $this->_form->createElement('link', 'delete', null, $uri, $this->getLocale('button.delete'), array('class' => 'delete'));
-            $element->removeAttribute('name');
-            $group[] =& $element;
+            $group[] =& $this->_createElement('link', 'delete', array('href' => $uri));
         }
         if ($buttons & TIP_FORM_BUTTON_CANCEL) {
-            $element =& $this->_form->createElement('link', 'cancel', null, $this->referer, $this->getLocale('button.cancel'), array('class' => 'cancel'));
-            $element->removeAttribute('name');
-            $group[] =& $element;
+            $group[] =& $this->_createElement('link', 'cancel', array('href' => $this->referer));
         }
         if ($buttons & TIP_FORM_BUTTON_CLOSE) {
-            $element =& $this->_form->createElement('link', 'close', null, $this->follower, $this->getLocale('button.close'), array('class' => 'close'));
-            $element->removeAttribute('name');
-            $group[] =& $element;
+            $group[] =& $this->_createElement('link', 'close', array('href' => $this->follower));
         }
         if ($buttons & TIP_FORM_BUTTON_DELETE && $this->action_id != TIP_FORM_ACTION_DELETE) {
             $data =& $this->master->getProperty('data');
             $primary_key = $data->getProperty('primary_key');
             $uri = TIP::buildActionUri($this->id, 'delete', $this->_form->getElementValue($primary_key));
-            $element =& $this->_form->createElement('link', 'delete', null, $uri, $this->getLocale('button.delete'), array('class' => 'delete'));
-            $element->removeAttribute('name');
-            $group[] =& $element;
+            $group[] =& $this->_createElement('link', 'delete', array('href' => $uri));
         }
 
         // Append the group of buttons to the form
@@ -1314,7 +1345,7 @@ class TIP_Form extends TIP_Module
     private function &_widgetText(&$field, $args)
     {
         $id = $field['id'];
-        $element =& $this->_addElement('text', $id, 'expand');
+        $element =& $this->_addElement('text', $id, array('class' => 'expand'));
 
         if (@$field['length'] > 0) {
             $element->setMaxLength($field['length']);
@@ -1327,7 +1358,7 @@ class TIP_Form extends TIP_Module
     private function &_widgetPassword(&$field, $args)
     {
         $id = $field['id'];
-        $element =& $this->_addElement('password', $id, 'expand');
+        $element =& $this->_addElement('password', $id, array('class' => 'expand'));
 
         if (@$field['length'] > 0) {
             $element->setMaxLength($field['length']);
@@ -1336,7 +1367,7 @@ class TIP_Form extends TIP_Module
 
         if ($this->action_id == TIP_FORM_ACTION_ADD || $this->action_id == TIP_FORM_ACTION_EDIT) {
             $reid = 're' . $id;
-            $reelement =& $this->_addElement('password', $reid, 'expand');
+            $reelement =& $this->_addElement('password', $reid, array('class' => 'expand'));
 
             // The repetition field must have the same features of the original,
             // so the field structure is copyed
@@ -1411,7 +1442,7 @@ class TIP_Form extends TIP_Module
         HTML_QuickForm::registerElementType('wikiarea', 'HTML/QuickForm/wikiarea.php', 'HTML_QuickForm_wikiarea');
 
         $id = $field['id'];
-        $element =& $this->_addElement('wikiarea', $id, 'expand');
+        $element =& $this->_addElement('wikiarea', $id, array('class' => 'expand'));
 
         if (!empty($args)) {
             $rules = explode(',', $args);
