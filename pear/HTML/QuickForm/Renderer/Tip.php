@@ -86,8 +86,18 @@ class HTML_QuickForm_Renderer_Tip extends HTML_QuickForm_Renderer
         $this->_elements = null;
         $this->_in_group = false;
         $this->_frozen = $form->isFrozen();
-        if ($this->_frozen) {
-            // Remove "Required note" from frozen forms
+        $this->_required = false;
+    }
+
+    /**
+     * Called when visiting a form, after processing all form elements
+     * 
+     * @param  HTML_QuickForm &$form The form being visited
+     */
+    function finishForm(&$form)
+    {
+        // Clear the required note, if not needed
+        if (!$this->_required) {
             $form->setRequiredNote(null);
         }
     }
@@ -134,7 +144,7 @@ class HTML_QuickForm_Renderer_Tip extends HTML_QuickForm_Renderer
     /**
      * Render an element
      * @param  HTML_QuickForm_element &$element  The element to be rendered
-     * @param  bool                    $required Whether an element is required
+     * @param  bool                    $required Whether the element is required
      * @param  string                  $error    The error message
      * @param  bool                    $group    Whether the element is a group
      * @access public
@@ -164,8 +174,13 @@ class HTML_QuickForm_Renderer_Tip extends HTML_QuickForm_Renderer
             break;
         }
 
-        // Remove comments from frozen forms
-        $this->_frozen && $element->setComment(null);
+        // Remove comments on frozen elements
+        $element->isFrozen() && $element->setComment(null);
+
+        // Set the required note flag to true if this element is required
+        if ($required) {
+            $this->_required = true;
+        }
 
         // Set the 'id' attribute (for label target)
         $name = $element->getName();
@@ -205,7 +220,7 @@ class HTML_QuickForm_Renderer_Tip extends HTML_QuickForm_Renderer
     }
 
     /**
-     * Returns the array generated for the form
+     * Returns the array generated from the form
      * @return array
      */
     function toArray()
@@ -243,6 +258,13 @@ class HTML_QuickForm_Renderer_Tip extends HTML_QuickForm_Renderer
      * @internal
      */
     var $_frozen = false;
+
+    /**
+     * Whether the form needs a required note
+     * @var bool
+     * @internal
+     */
+    var $_required = false;
 
     //}}}
     //{{{ Internal methods
