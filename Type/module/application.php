@@ -430,8 +430,9 @@ class TIP_Application extends TIP_Module
             } else {
                 // AJAX request without module specified: perform a test
                 header('Content-Type: application/xml');
-                echo '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
-                echo "\n<xml>\n\n<div>\nAJAX test\n</div>\n\n</xml>";
+                echo "<pre>\n";
+                echo TIP::toHtml(print_r($_SERVER, true));
+                echo "\n</pre>\n";
             }
             return;
         }
