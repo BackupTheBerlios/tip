@@ -860,13 +860,13 @@ class TIP_Form extends TIP_Module
     private function _addDatabaseDefaults()
     {
         foreach ($this->fields as $id => &$field) {
-            if (isset($field['default']) && !$field['automatic']) {
+            if (isset($field['default']) && $field['default'] != '' && !$field['automatic']) {
                 $this->_defaults[$id] = $field['default'];
             } elseif (!$field['can_be_null']) {
-                $type = strtoupper($field['type']);
-                switch ($type) {
-                case 'DATE':
-                case 'DATETIME':
+                $widget = strtolower($field['widget']);
+                switch ($widget) {
+                case 'date':
+                case 'datetime':
                     $this->_defaults[$id] = TIP::formatDate('datetime_sql');
                 }
             }
