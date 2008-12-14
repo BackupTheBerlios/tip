@@ -427,6 +427,11 @@ class TIP_Application extends TIP_Module
             $module = key($_GET);
             if ($module && $module =& TIP_Type::getInstance($module, false)) {
                 $module->ajax($id);
+            } else {
+                // AJAX request without module specified: perform a test
+                header('Content-Type: application/xml');
+                echo '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+                echo "\n<xml>\n\n<div>\nAJAX test\n</div>\n\n</xml>";
             }
             return;
         }
