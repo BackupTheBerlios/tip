@@ -421,22 +421,6 @@ class TIP_Application extends TIP_Module
             date_default_timezone_set(TIP::getOption($locale_module, 'timezone'));
         }
 
-        // Check for ajax requests
-        if (TIP_AJAX) {
-            $id = end($_GET);
-            $module = key($_GET);
-            if ($module && $module =& TIP_Type::getInstance($module, false)) {
-                $module->ajax($id);
-            } else {
-                // AJAX request without module specified: perform a test
-                header('Content-Type: application/xml');
-                echo "<pre>\n";
-                echo TIP::toHtml(print_r($_SERVER, true));
-                echo "\n</pre>\n";
-            }
-            return;
-        }
-
         // Executes the action
         if ($this->_request['module'] && $this->_request['action']) {
             if (is_null($module =& TIP_Type::getInstance($this->_request['module'], false))) {
@@ -448,6 +432,16 @@ class TIP_Application extends TIP_Module
             TIP::notifyError('noaction');
         } elseif ($this->_request['action']) {
             TIP::notifyError('nomodule');
+        } elseif (TIP_AJAX) {
+            // AJAX request without module/action specified: perform a test
+            $this->content = "<pre>\n" . TIP::toHtml(print_r($_SERVER, true)) . "\n</pre>\n";
+        }
+
+        if (TIP_AJAX) {
+            // AJAX request: output the page and return
+            header('Content-Type: application/xml');
+            echo $this->content;
+            return;
         }
 
         // Generates the page: body must be called before the head because
