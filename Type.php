@@ -187,7 +187,7 @@ abstract class TIP_Type
 
         if ($dont_store) {
             $instance = new $class($options);
-            TIP_AJAX || $instance->postConstructor();
+            $instance->postConstructor();
         } else {
             $id = $options['id'];
             if (!array_key_exists($id, $list)) {
@@ -199,7 +199,7 @@ abstract class TIP_Type
 
                 // postConstructor() call: must be done after the registration
                 // to avoid circular dependency
-                TIP_AJAX || $instance->postConstructor();
+                $instance->postConstructor();
             } else {
                 $instance =& $list[$id];
             }
