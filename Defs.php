@@ -105,6 +105,6 @@ define('TIP_FORM_RENDER_NOTHING', 3);
  * I think the following approach is apache specific.
  */
 
-define('TIP_AJAX', strcasecmp(@$_SERVER["HTTP_X_REQUESTED_WITH"], 'XMLHttpRequest') == 0);
+define('TIP_AHAH', strcasecmp(@$_SERVER["HTTP_X_REQUESTED_WITH"], 'XMLHttpRequest') == 0);
 
 ?>

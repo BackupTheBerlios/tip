@@ -66,9 +66,9 @@ class TIP_Hierarchy extends TIP_Content
     protected $order_field = null;
 
     /**
-     * Maximum number of levels to keep online (before enabling AJAX)
+     * Maximum number of levels to keep online (before enabling AHAH)
      *
-     * Leave it null to not use AJAX at all. This means the whole tree is
+     * Leave it null to not use AHAH at all. This means the whole tree is
      * generated on every page.
      *
      * @var int

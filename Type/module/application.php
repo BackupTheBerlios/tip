@@ -269,7 +269,7 @@ class TIP_Application extends TIP_Module
         $this->keys['ID']      = $this->_request['id'];
 
         // Start the session
-        TIP_AJAX || $this->_startSession();
+        TIP_AHAH || $this->_startSession();
     }
 
     //}}}
@@ -432,13 +432,13 @@ class TIP_Application extends TIP_Module
             TIP::notifyError('noaction');
         } elseif ($this->_request['action']) {
             TIP::notifyError('nomodule');
-        } elseif (TIP_AJAX) {
-            // AJAX request without module/action specified: perform a test
+        } elseif (TIP_AHAH) {
+            // AHAH request without module/action specified: perform a test
             $this->content = "<pre>\n" . TIP::toHtml(print_r($_SERVER, true)) . "\n</pre>\n";
         }
 
-        if (TIP_AJAX) {
-            // AJAX request: output the page and return
+        if (TIP_AHAH) {
+            // AHAH request: output the page and return
             header('Content-Type: application/xml');
             echo $this->content;
             return;
