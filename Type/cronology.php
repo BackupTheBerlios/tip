@@ -143,10 +143,27 @@ class TIP_Cronology extends TIP_Type
         return $html;
     }
 
-    public function ajax($id)
-    {
-        sscanf($id, '%04s%02s', $year, $month);
+    //}}}
+    //{{{ Actions
 
+    /**
+     * Perform a browse action
+     *
+     * In $conditions, you must specify an associative array of
+     * 'field_id' => 'value' to impose for this browse action. Only equal
+     * conditions are allowed.
+     *
+     * @param  array &$conditions The browse conditions
+     * @return bool               true on success or false on errors
+     */
+    protected function actionBrowse($id)
+    {
+        if (!TIP_AHAH) {
+            // Browse actions implemented only as AHAH response
+            return false;
+        }
+
+        sscanf($id, '%04s%02s', $year, $month);
         if (!$year || !$this->_render()) {
             return false;
         }
@@ -165,17 +182,29 @@ class TIP_Cronology extends TIP_Type
         
         require_once 'HTML/Menu.php';
         $model =& new HTML_Menu($tree);
-
         $renderer =& TIP_Renderer::getMenu(0);
         $model->render($renderer, 'sitemap');
 
-        header('Content-Type: application/xml');
-        echo '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
-        echo "\n<xml>\n\n<ul class=\"opened\">";
-        echo $renderer->toHtml();
-        echo "\n</ul>\n\n</xml>";
-
+        $content =& TIP_Application::getGlobal('content');
+        $content .= $renderer->toHtml();
         return true;
+    }
+
+    protected function runAction($action)
+    {
+        switch ($action) {
+
+        case 'browse':
+            if (is_null($id = TIP::getGet('id', 'string'))) {
+                TIP::warning('GET not found (id)');
+                TIP::notifyError('noparams');
+                return false;
+            }
+
+            return $this->actionBrowse($id);
+        }
+
+        return null;
     }
 
     //}}}
