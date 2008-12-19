@@ -999,7 +999,7 @@ class TIP_Form extends TIP_Module
      * Performs the same operations of _createElement() but also add the
      * newly created widget to the current form. Furthermore, if a localized
      * string comment is found (looking for the "form.comment.$id" tag on
-     * the locale module), the comment is set on the returned element.
+     * the locale module), it is set as "info" on the returned element.
      *
      * @param  string $type       The new element type
      * @param  string $id         The widget id, used as id of the element and
@@ -1009,10 +1009,10 @@ class TIP_Form extends TIP_Module
      */
     private function &_addElement($type, $id, $attributes = null)
     {
-        $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
+        $info = TIP::getLocale('comment.' . $id, $this->locale_prefix);
 
         $element =& $this->_createElement($type, $id, $attributes);
-        $element->setComment($comment);
+        $element->setInfo($info);
 
         return $this->_form->addElement($element);
     }
@@ -1073,9 +1073,9 @@ class TIP_Form extends TIP_Module
             $element->freeze();
         }
 
-        // Remove comment if the element is frozen
+        // Remove info if the element is frozen
         if ($element->isFrozen()) {
-            $element->setComment(null);
+            $element->setInfo(null);
         }
 
         // Remove the element on "trailing" flag set:
@@ -1220,13 +1220,13 @@ class TIP_Form extends TIP_Module
         // Set the autoresize feature, if requested
         $element->setAutoresize($args && strpos($args, 'autoresize') !== false);
 
-        // Variable substitution in the element comment, if needed
-        $comment = $element->getComment();
-        if ($comment && strpos($comment, '|0|') !== false) {
+        // Variable substitution in the element info, if needed
+        $info = $element->getInfo();
+        if ($info && strpos($info, '|0|') !== false) {
             foreach ($range as $n => $value) {
-                $comment = str_replace('|'.$n.'|', $value, $comment);
+                $info = str_replace('|'.$n.'|', $value, $info);
             }
-            $element->setComment($comment);
+            $element->setInfo($info);
         }
 
         return $element;
@@ -1390,7 +1390,7 @@ class TIP_Form extends TIP_Module
     {
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
-        $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
+        $info = TIP::getLocale('comment.' . $id, $this->locale_prefix);
         $items = $this->_getChoices($field['choices'], $args, @$this->_defaults[$id]);
 
         if (count($items) > 3) {
@@ -1408,7 +1408,7 @@ class TIP_Form extends TIP_Module
             $element =& $this->_form->addElement('group', $id, $label, $group, null, false);
         }
 
-        $element->setComment($comment);
+        $element->setInfo($info);
         return $element;
     }
 
@@ -1416,7 +1416,7 @@ class TIP_Form extends TIP_Module
     {
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
-        $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
+        $info = TIP::getLocale('comment.' . $id, $this->locale_prefix);
         $default = @explode(',', $this->_defaults[$id]);
         $items = $this->_getChoices($field['choices'], $args, $default);
 
@@ -1435,7 +1435,7 @@ class TIP_Form extends TIP_Module
 
         $this->_addConverter($id, 'set');
         $element =& $this->_form->addElement('group', $id, $label, $group);
-        $element->setComment($comment);
+        $element->setInfo($info);
         return $element;
     }
 
@@ -1467,7 +1467,7 @@ class TIP_Form extends TIP_Module
 
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
-        $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
+        $info = TIP::getLocale('comment.' . $id, $this->locale_prefix);
 
         // Set the date in a format suitable for HTML_QuickForm_date
         $sql_date = @$this->_defaults[$id];
@@ -1488,7 +1488,7 @@ class TIP_Form extends TIP_Module
 
         ++ $this->_tabindex;
         $element =& $this->_form->addElement('date', $id, $label, $options, array('tabindex' => $this->_tabindex));
-        $element->setComment($comment);
+        $element->setInfo($info);
         $this->_addRule($id, 'date');
         $this->_addConverter($id, 'SqlDate');
         return $element;
@@ -1530,30 +1530,30 @@ class TIP_Form extends TIP_Module
     {
         $id = $field['id'];
         $label = $this->getLocale('label.' . $id);
-        $comment = TIP::getLocale('comment.' . $id, $this->locale_prefix);
+        $info = TIP::getLocale('comment.' . $id, $this->locale_prefix);
 
         if (empty($args)) {
             // Try to get the hierarchy master module from the $cfg array
             global $cfg;
             foreach ($cfg as $module_id => &$options) {
                 if (isset($options['master']) && $options['master'] == $this->id) {
-                    $hierarchy_id = $module_id;
+                    $master_id = $module_id;
                     break;
                 }
             }
         } else {
             // Explicitely defined in the widget args
-            $hierarchy_id = $args;
+            $master_id = $args;
         }
 
         // On master field not found, build a default one
         // by appending '_hierarchy' to this module id
-        isset($hierarchy_id) || $hierarchy_id = $this->id . '_hierarchy';
+        isset($master_id) || $master_id = $this->id . '_hierarchy';
 
         ++ $this->_tabindex;
         $element =& $this->_form->addElement('select', $id, $label, null, array('tabindex' => $this->_tabindex, 'class' => 'expand'));
-        $element->setComment($comment);
-        $this->_addPrerender($id, array(&$this, '_populateHierarchy'), $hierarchy_id);
+        $element->setInfo($info);
+        $this->_addPrerender($id, array(&$this, '_populateHierarchy'), $master_id);
         return $element;
     }
 
@@ -1574,6 +1574,38 @@ class TIP_Form extends TIP_Module
 
         $element->loadArray($items);
     }
+
+    private function &_widgetLookup(&$field, $args)
+    {
+        $id = $field['id'];
+        $label = $this->getLocale('label.' . $id);
+        $info = TIP::getLocale('comment.' . $id, $this->locale_prefix);
+
+        if (empty($args)) {
+            // Try to get the lookup master module from the $cfg array
+            global $cfg;
+            foreach ($cfg as $module_id => &$options) {
+                if (isset($options['master']) && $options['master'] == $this->id) {
+                    $master_id = $module_id;
+                    break;
+                }
+            }
+        } else {
+            // Explicitely defined in the widget args
+            $master_id = $args;
+        }
+
+        // On master field not found, build a default one
+        // by appending '_hierarchy' to this module id
+        isset($master_id) || $master_id = $this->id . '_hierarchy';
+
+        ++ $this->_tabindex;
+        $element =& $this->_addElement('text', $id, array('class' => 'ahahLookup', 'size' => 8, 'maxlength' => 8));
+        $element->setInfo($info);
+        $element->setComment('{"master":"' . $master_id . '"}');
+        return $element;
+    }
+
 
     /**
      * Filter and localize a set of choices given a well-known filter string
