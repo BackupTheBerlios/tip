@@ -61,6 +61,13 @@ class HTML_QuickForm_element extends HTML_Common
     var $_type = '';
 
     /**
+     * Optional info to bind to this element
+     * @var     string
+     * @access  private
+     */
+    var $_info = null;
+
+    /**
      * Flag to tell if element is frozen
      * @var       boolean
      * @since     1.0
@@ -192,6 +199,35 @@ class HTML_QuickForm_element extends HTML_Common
         // interface
         return null;
     } // end func getValue
+    
+    // }}}
+    // {{{ setInfo()
+
+    /**
+     * Set an info string on this object
+     * 
+     * @param  string $info The info text
+     * @access public
+     * @return void
+     */
+    function setInfo($info)
+    {
+        $this->_info = $info;
+    } //end func setInfo
+    
+    // }}}
+    // {{{ getInfo()
+
+    /**
+     * Return the info string binded to this element
+     * 
+     * @access public
+     * @return string
+     */
+    function getInfo()
+    {
+        return $this->_info;
+    } //end func getInfo
     
     // }}}
     // {{{ freeze()

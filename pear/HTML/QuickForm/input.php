@@ -150,9 +150,16 @@ class HTML_QuickForm_input extends HTML_QuickForm_element
     {
         if ($this->_flagFrozen) {
             return $this->getFrozenHtml();
-        } else {
-            return $this->_getTabs() . '<input' . $this->_getAttrString($this->_attributes) . ' />';
         }
+
+        $tabs = $this->_getTabs();
+        $attributes = $this->_getAttrString($this->_attributes);
+        $comment = $this->getComment();
+
+        $html = "$tabs<input$attributes />";
+        $comment != '' && $html .= "\n$tabs<!--$comment-->";
+
+        return $html;
     } //end func toHtml
 
     // }}}

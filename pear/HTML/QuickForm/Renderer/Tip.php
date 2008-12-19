@@ -174,9 +174,6 @@ class HTML_QuickForm_Renderer_Tip extends HTML_QuickForm_Renderer
             break;
         }
 
-        // Remove comments on frozen elements
-        $element->isFrozen() && $element->setComment(null);
-
         // Set the required note flag to true if this element is required
         if ($required) {
             $this->_required = true;
