@@ -280,7 +280,7 @@ class TIP_User extends TIP_Content
      * @param  array $options Options to pass to the form() call
      * @return bool           true on success or false on errors
      */
-    protected function actionAdd($id, $options = array())
+    protected function actionAdd($id = null, $options = array())
     {
         if (TIP::getGet('accept', 'int') == 1) {
             $this->appendToPage($this->conditions_template);
