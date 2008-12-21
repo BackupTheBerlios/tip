@@ -1603,7 +1603,7 @@ class TIP_Form extends TIP_Module
         $element =& $this->_addElement('text', $id, array('class' => 'ahahLookup', 'size' => 8, 'maxlength' => 8));
         $element->setInfo($info);
         $uri = TIP::buildActionUri($master_id, 'view', '') . '{id}';
-        $element->setComment('{"sURI":"' . $uri . '"}');
+        $element->setComment('{"sUri":"' . $uri . '"}');
         return $element;
     }
 
