@@ -1385,15 +1385,6 @@ class TIP_Content extends TIP_Module
      */
     protected function actionView($id)
     {
-        if (TIP_AHAH) {
-            if (!is_null($id = $this->fromGet(null, $this->id_type)) &&
-                !is_null($row =& $this->fromRow($id))) {
-                $content =& TIP_Application::getGlobal('content');
-                $content .= TIP::pickElement($this->title_field, $row);
-            }
-            return true;
-        }
-
         // If no view template defined, simply does nothing (without errors)
         if (empty($this->view_template)) {
             return true;
