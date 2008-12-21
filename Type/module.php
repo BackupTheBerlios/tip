@@ -551,6 +551,14 @@ abstract class TIP_Module extends TIP_Type
     }
 
     /**
+     * Expand to 'true' if the current request is an AHAH request
+     */
+    protected function tagIsAhah($params)
+    {
+        return TIP_AHAH ? 'true' : 'false';
+    }
+
+    /**
      * Output the first defined request
      *
      * $params is a string in the form "request,request,...".
