@@ -1602,7 +1602,8 @@ class TIP_Form extends TIP_Module
         ++ $this->_tabindex;
         $element =& $this->_addElement('text', $id, array('class' => 'ahahLookup', 'size' => 8, 'maxlength' => 8));
         $element->setInfo($info);
-        $element->setComment('{"master":"' . $master_id . '"}');
+        $uri = TIP::buildActionUri($master_id, 'view', '') . '{id}';
+        $element->setComment('{"sURI":"' . $uri . '"}');
         return $element;
     }
 
