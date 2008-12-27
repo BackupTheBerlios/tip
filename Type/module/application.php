@@ -67,6 +67,12 @@ class TIP_Application extends TIP_Module
     protected $namespace = null;
 
     /**
+     * Flag to enable global JSON infrastructure for unobtrusive javascript
+     * @var boolean
+     */
+    protected $json = false;
+
+    /**
      * Page title
      * @var string
      */
