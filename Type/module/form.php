@@ -52,6 +52,16 @@ class TIP_Form extends TIP_Module
     protected $action = null;
 
     /**
+     * Local flag to enable JSON on this form instance
+     *
+     * If left undefined, the global json flag (got from the TIP_Application
+     * instance) is used.
+     *
+     * @var boolean
+     */
+    protected $json = null;
+
+    /**
      * Action name
      *
      * Action identifier to use in localizing the title.
@@ -229,6 +239,7 @@ class TIP_Form extends TIP_Module
         TIP::arrayDefault($options, 'action_id', $options['action']);
         isset($options['referer']) || $options['referer'] = TIP::getRefererUri();
         isset($options['follower']) || $options['follower'] = $options['referer'];
+        isset($options['json']) || $options['json'] = TIP_Application::getGlobal('json');
 
         if (!isset($options['buttons'])) {
             switch ($options['action']) {
@@ -1600,10 +1611,20 @@ class TIP_Form extends TIP_Module
         isset($master_id) || $master_id = $this->id . '_hierarchy';
 
         ++ $this->_tabindex;
-        $element =& $this->_addElement('text', $id, array('class' => 'ahahLookup', 'size' => 8, 'maxlength' => 8));
+        $element =& $this->_addElement('text', $id, array('size' => 8, 'maxlength' => 8));
         $element->setInfo($info);
-        $uri = TIP::buildActionUri($master_id, 'view', '') . '{id}';
-        $element->setComment('{"sUri":"' . $uri . '"}');
+
+        if ($this->json) {
+            // Add JSON params, if needed
+            $params = array(
+                'widget' => 'lookup',
+                'sUri'   => TIP::buildActionUri($master_id, 'view', '') . '{id}'
+            );
+
+            $element->setAttribute('class', 'json');
+            $element->setComment(json_encode($params));
+        }
+
         return $element;
     }
 
