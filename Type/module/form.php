@@ -1617,12 +1617,19 @@ class TIP_Form extends TIP_Module
         if ($this->json) {
             // Add JSON params, if needed
             $params = array(
-                'widget' => 'lookup',
-                'sUri'   => TIP::buildActionUri($master_id, 'view', '') . '{id}'
+                'sWidget'  => 'lookup',
+                'sUriView' => TIP::buildActionUri($master_id, 'view')
             );
 
-            $element->setAttribute('class', 'json');
+            if (!is_null(TIP::getOption($master_id, 'search_field'))) {
+                // Enable search URI
+                $params['sUriSearch'] = TIP::buildActionUri($master_id, 'search');
+            }
+
             $element->setComment(json_encode($params));
+
+            // Enable AHAH interactivity
+            $element->setAttribute('class', 'ahah');
         }
 
         return $element;
