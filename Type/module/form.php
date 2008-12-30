@@ -574,7 +574,11 @@ class TIP_Form extends TIP_Module
     protected function tagForm($params)
     {
         $form =& $this->_form;
-        return method_exists($form, $params) ? $form->$params() : null;
+        if (!method_exists($form, $params)) {
+            return null;
+        }
+
+        return TIP::toRaw($form->$params());
     }
 
     protected function tagSection($params)
@@ -585,16 +589,17 @@ class TIP_Form extends TIP_Module
         }
 
         $section =& $this->_array[$section_id]['object'];
-        return method_exists($section, $params) ? $section->$params() : null;
+        if (!method_exists($section, $params)) {
+            return null;
+        }
+
+        return TIP::toRaw($section->$params());
     }
 
     /**
      * Call an element method
      *
      * Runs the method specified in $params on the current element.
-     *
-     * @deprecated
-     * @see tagHtmlMethod
      */
     protected function tagElement($params)
     {
@@ -605,18 +610,11 @@ class TIP_Form extends TIP_Module
 
         $element_rows =& $this->_element_view->getProperty('rows');
         $element =& $element_rows[$element_id]['object'];
-        return method_exists($element, $params) ? $element->$params() : null;
-    }
+        if (!method_exists($element, $params)) {
+            return null;
+        }
 
-    /**
-     * Call an element method and htmlize the result
-     *
-     * Runs the method specified in $params on the current element. The
-     * result is passed throught TIP::toHtml() before being returned.
-     */
-    protected function tagHtmlMethod($params)
-    {
-        return TIP::toHtml($this->tagElement($params));
+        return TIP::toRaw($element->$params());
     }
 
     /**#@-*/
@@ -1082,11 +1080,6 @@ class TIP_Form extends TIP_Module
         // Check if the field is in the "readonly" list
         if (in_array($id, $this->readonly)) {
             $element->freeze();
-        }
-
-        // Remove info if the element is frozen
-        if ($element->isFrozen()) {
-            $element->setInfo(null);
         }
 
         // Remove the element on "trailing" flag set:
