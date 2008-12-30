@@ -1086,6 +1086,34 @@ class TIP
     }
 
     /**
+     * Stringify a value to its raw representation
+     *
+     * Converts the given $value to its raw representation. This is
+     * different from a simple (string) cast: booleans, for instance,
+     * are converted to 'true' or 'false', not to '1' or ''.
+     *
+     * Useful on expanding values for eval()ued code.
+     *
+     * @param  mixed  $value The value to convert
+     * @return string        The converted value 
+     */
+    static public function toRaw($value)
+    {
+        if (is_bool($value)) {
+            return $value ? 'true' : 'false';
+        } elseif (is_numeric($value)) {
+            return (string) $value;
+        } elseif (is_string($value)) {
+            return $value;
+        } elseif (is_array($value)) {
+            // Canonicalize the name
+            return TIP::toRaw(implode(',', $value));
+        }
+
+        return '';
+    }
+
+    /**
      * Function wrapper of the 'echo' construct
      *
      * @param mixed $buffer The buffer to echo
