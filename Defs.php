@@ -95,6 +95,7 @@ define('TIP_FORM_BUTTON_OK',      32);
 define('TIP_FORM_RENDER_HERE',    1);
 define('TIP_FORM_RENDER_IN_PAGE', 2);
 define('TIP_FORM_RENDER_NOTHING', 3);
+define('TIP_FORM_RENDER_REDIRECT',4);
 /**#@-*/
 
 /**#@-*/

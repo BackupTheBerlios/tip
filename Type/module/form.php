@@ -418,6 +418,20 @@ class TIP_Form extends TIP_Module
         $mode = $valid === false ? $this->invalid_render : $this->valid_render;
         if ($mode == TIP_FORM_RENDER_NOTHING) {
             return true;
+        } elseif ($mode == TIP_FORM_RENDER_REDIRECT) {
+            // Pass a notification message throught the session
+            if ($valid === false) {
+                $notify = array(TIP_SEVERITY_ERROR, $this->action_id);
+            } elseif ($this->notify_done) {
+                $notify = array(TIP_SEVERITY_INFO, 'done');
+            }
+            isset($notify) && HTTP_Session2::set('notify', $notify);
+
+            // Forcibly close the current session
+            HTTP_Session2::pause();
+
+            // Perform the redirection
+            HTTP::redirect($this->follower, true);
         }
 
         if ($this->_stage > 1) {

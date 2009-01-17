@@ -512,6 +512,15 @@ class TIP_Application extends TIP_Module
      */
     protected function tagPage($params)
     {
+        // Check for a notification request (from a redirection, from instance)
+        $notify = HTTP_Session2::get('notify');
+        if (isset($notify)) {
+            // Show the notification and remove it from the session data
+            list($severity, $id) = $notify;
+            $this->notify($severity, $id);
+            HTTP_Session2::set('notify', null);
+        }
+
         return empty($this->content) ? $this->tagRun($this->default_template) : $this->content;
     }
 
