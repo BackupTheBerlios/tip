@@ -49,6 +49,12 @@ class TIP_Bucket extends TIP_Data_Engine
     //}}}
     //{{{ TIP_Data_Engine implementation
 
+    public function query()
+    {
+        TIP::warning('query()');
+        return null;
+    }
+
     public function fillFields(&$data)
     {
         TIP::warning("fillFields($data)");

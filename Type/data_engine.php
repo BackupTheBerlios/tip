@@ -119,6 +119,17 @@ abstract class TIP_Data_Engine extends TIP_Type
     }
 
     /**
+     * Perform a query
+     *
+     * This is the core function of a database engine. Any list
+     * of arguments should be accepted, usually imploding their
+     * string representation using a space as glue.
+     *
+     * @return resource  The result of the query (engine dependent)
+     */
+    abstract public function query();
+
+    /**
      * Fill the fields structure
      *
      * Fills the $_fields internal property of the TIP_Data object: read the

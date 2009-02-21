@@ -101,7 +101,7 @@ class TIP_Mysql extends TIP_Data_Engine
         if (!$this->_connection || !mysql_select_db($this->database, $this->_connection)) {
             TIP::error(mysql_error($this->_connection));
         } else {
-            $this->_query('SET CHARACTER SET utf8');
+            $this->query('SET CHARACTER SET utf8');
         }
     }
 
@@ -140,9 +140,20 @@ class TIP_Mysql extends TIP_Data_Engine
         return null;
     }
 
+    public function query()
+    {
+        $pieces = func_get_args();
+        $query = implode(' ', $pieces);
+        $result = mysql_query($query, $this->_connection);
+        if ($result === false) {
+            TIP::error(mysql_error($this->_connection) . " ($query)");
+        }
+        return $result;
+    }
+
     public function fillFields(&$data)
     {
-        $result = $this->_query('SHOW FULL COLUMNS FROM', $this->preparedName($data->getProperty('path')));
+        $result = $this->query('SHOW FULL COLUMNS FROM', $this->preparedName($data->getProperty('path')));
         if (!$result) {
             return false;
         }
@@ -207,7 +218,7 @@ class TIP_Mysql extends TIP_Data_Engine
             $source = $this->preparedName($table);
         }
 
-        $result = $this->_query('SELECT', $fieldset, 'FROM', $source, $filter);
+        $result = $this->query('SELECT', $fieldset, 'FROM', $source, $filter);
         if ($result === false) {
             $result = null;
             return $result;
@@ -234,9 +245,9 @@ class TIP_Mysql extends TIP_Data_Engine
             $fields = '';
         }
 
-        $result = $this->_query('INSERT INTO', $this->preparedName($data->getProperty('path')),
-                                '(' . $fields . ')',
-                                'VALUES', $this->_preparedContent($rows));
+        $result = $this->query('INSERT INTO', $this->preparedName($data->getProperty('path')),
+                               '(' . $fields . ')',
+                               'VALUES', $this->_preparedContent($rows));
         if ($result === false) {
             return null;
         }
@@ -246,20 +257,20 @@ class TIP_Mysql extends TIP_Data_Engine
 
     public function update(&$data, $filter, &$row)
     {
-        return $this->_query('UPDATE', $this->preparedName($data->getProperty('path')),
-                             'SET', $this->_preparedSet(array_keys($row), $row),
-                             $filter);
+        return $this->query('UPDATE', $this->preparedName($data->getProperty('path')),
+                            'SET', $this->_preparedSet(array_keys($row), $row),
+                            $filter);
     }
 
     public function delete(&$data, $filter)
     {
-        return $this->_query('DELETE FROM', $this->preparedName($data->getProperty('path')),
-                             $filter);
+        return $this->query('DELETE FROM', $this->preparedName($data->getProperty('path')),
+                            $filter);
     }
 
     public function dump($root)
     {
-        $result =& $this->_query('SHOW TABLES');
+        $result =& $this->query('SHOW TABLES');
         if ($result === false) {
             return false;
         }
@@ -278,7 +289,7 @@ class TIP_Mysql extends TIP_Data_Engine
             if (file_exists($file)) {
                 unlink($file);
             }
-            if ($this->_query("SELECT * INTO OUTFILE '$file' $this->dump_format FROM `$table`") === false) {
+            if ($this->query("SELECT * INTO OUTFILE '$file' $this->dump_format FROM `$table`") === false) {
                 return false;
             }
         }
@@ -293,7 +304,7 @@ class TIP_Mysql extends TIP_Data_Engine
             TIP_TRANSACTION_COMMIT   => 'COMMIT',
             TIP_TRANSACTION_ROLLBACK => 'ROLLBACK'
         );
-        return $this->_query($query[$action]);
+        return $this->query($query[$action]);
     }
 
     //}}}
@@ -308,17 +319,6 @@ class TIP_Mysql extends TIP_Data_Engine
 
     //}}}
     //{{{ Internal methods
-
-    private function _query()
-    {
-        $pieces = func_get_args();
-        $query = implode(' ', $pieces);
-        $result = mysql_query($query, $this->_connection);
-        if ($result === false) {
-            TIP::error(mysql_error($this->_connection) . " ($query)");
-        }
-        return $result;
-    }
 
     private function _mapType(&$field, $type)
     {
