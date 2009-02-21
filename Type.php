@@ -155,6 +155,18 @@ abstract class TIP_Type
         if (array_key_exists($type, $flat_register)) {
             // Hierarchy yet defined
             $list =& $flat_register[$type];
+        } elseif (array_key_exists('include', $options)) {
+            // Explicit include file: suppose the parents are yet defined
+            if (include_once $options['include']) {
+                $list[$type] = array();
+                $flat_register[$type] =& $list[$type];
+            } else {
+                // Definition impossible: this avoid next attempts
+                die("cazzo!\n");
+                $list[$type] = $flat_register[$type] = null;
+                return $list[$type];
+            }
+            $list =& $list[$type];
         } else {
             // Hierarchy to be defined
             $path = TIP::buildLogicPath('Type');
