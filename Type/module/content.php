@@ -1161,6 +1161,8 @@ class TIP_Content extends TIP_Module
             $filter = $query_template;
         }
 
+        $filter .= $this->getData()->order($this->default_order);
+
         if ($pager) {
             $offset = TIP::getGet('pg_offset', 'int');
             $offset > 0 || $offset = 0;
