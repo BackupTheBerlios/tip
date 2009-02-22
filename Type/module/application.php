@@ -541,7 +541,7 @@ class TIP_Application extends TIP_Module
 
         // Show logged messages
         $logger =& $this->getSharedModule('logger');
-        if (is_object($logger)) {
+        if (is_object($logger) && $logger->keys['IS_UNTRUSTED']) {
             $logger->dumpLogs();
         }
 
