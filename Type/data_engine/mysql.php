@@ -96,7 +96,7 @@ class TIP_Mysql extends TIP_Data_Engine
     protected function __construct($options)
     {
         parent::__construct($options);
-        $this->_connection = mysql_pconnect($this->server, $this->user, $this->password);
+        $this->_connection = mysql_connect($this->server, $this->user, $this->password);
 
         if (!$this->_connection || !mysql_select_db($this->database, $this->_connection)) {
             TIP::error(mysql_error($this->_connection));
