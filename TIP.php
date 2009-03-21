@@ -963,7 +963,7 @@ class TIP
     /**
      * Build an action (relative) URI
      * @param  string $tag            A string in the format
-     *                                'action,id[,arg1=value1,...]'
+     *                                'action[,id[,arg1=value1,...]]'
      * @param  string $default_module The module to use if not specified as arg
      * @return string                 The constructed URI
      */
