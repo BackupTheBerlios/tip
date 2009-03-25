@@ -1861,24 +1861,9 @@ class TIP_Content extends TIP_Module
             return $fake_null;
         }
 
-        // Work on a copy
+        // Duplicate the model and update the URLs on the copy
         $model = $this->_model;
-        foreach ($model as $id => &$row) {
-            if (isset($row['url'])) {
-                // Explicit action set
-                continue;
-            }
-
-            $url = array_key_exists('action', $row) ? $row['action'] : $action;
-            if (empty($url)) {
-                // No action specified
-                $row['url'] = null;
-                continue;
-            }
-
-            $url = str_replace('-id-', $id, $url);
-            $row['url'] = TIP::buildActionUriFromTag($url, $this->id);
-        }
+        $this->_updateModelUrl($model, $action);
 
         require_once 'HTML/Menu.php';
         $menu = new HTML_Menu($model);
@@ -1886,6 +1871,39 @@ class TIP_Content extends TIP_Module
         $renderer =& TIP_Renderer::getMenu();
         $menu->render($renderer, 'sitemap');
         return $renderer;
+    }
+
+    /**
+     * Update the URLs on a model
+     *
+     * Adds the 'url' field on every row of $model using $action as
+     * template string. Also, recurses in the 'sub' field if it exists
+     * and it is an array, as required for non-linear models
+     * (TIP_Hierarchy being an example).
+     *
+     * @param mixed  &$model   The model to update
+     * @param string  $action  The action template string
+     * @internal
+     */
+    protected function _updateModelUrl(&$model, $action)
+    {
+        foreach ($model as $id => &$row) {
+            if (isset($row['url'])) {
+                // Explicit URL set
+                continue;
+            }
+
+            // Try to use the action field (an URL that should be expanded
+            // substituting the -id- pattern)
+            $url = isset($row['action']) ? $row['action'] : $action;
+            $url = str_replace('-id-', $id, $url);
+            $row['url'] = TIP::buildActionUriFromTag($url, $this->id);
+            if (@is_array($row['sub'])) {
+                // Recurse in the 'sub' array, if it exists: this allows
+                // to work with non-linear models, like hierarchies
+                $this->_updateModelUrl($row['sub'], $action);
+            }
+        }
     }
 
     /**
