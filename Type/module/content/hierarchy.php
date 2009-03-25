@@ -269,7 +269,9 @@ class TIP_Hierarchy extends TIP_Content
      * Echo the hierarchy
      *
      * Overrides the default tagShow() to disable the page indexing
-     * if the current selected row is a container.
+     * if the current selected row is a container. In $params you can
+     * specify the custom action to use: if left empty, the default
+     * action (configured for this module) will be used.
      */
     protected function tagShow($params)
     {
@@ -305,11 +307,10 @@ class TIP_Hierarchy extends TIP_Content
      */
     protected function &_getRenderer($action)
     {
-        if (is_null($renderer = parent::_getRenderer($action))) {
-            return $renderer;
+        if (!is_null($renderer = parent::_getRenderer($action))) {
+            $renderer->setLevels($this->levels);
         }
 
-        $renderer->setLevels($this->levels);
         return $renderer;
     }
 
