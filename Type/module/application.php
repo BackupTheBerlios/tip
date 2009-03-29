@@ -254,19 +254,26 @@ class TIP_Application extends TIP_Module
         // Set $_request
         $module = TIP::getGet('module', 'string');
         $action = TIP::getGet('action', 'string');
-        $id     = TIP::getGet('id', 'int');
 
         if (!$action) {
             $module = TIP::getPost('module', 'string');
             $action = TIP::getPost('action', 'string');
-            $id     = TIP::getPost('id', 'int');
         }
+
+        // Force the id type casting: it defaults to integer but
+        // can be any type, if explicitely specified in the
+        // configuration options
+        $expanded_module = '';
+        isset($this->namespace) && $expanded_module = $this->namespace . '_';
+        $expanded_module .= $module;
+        $id_type = TIP::getOption($expanded_module, 'id_type');
+        isset($id_type) || $id_type = 'integer';
 
         $this->_request = array(
             'uri'    => @$_SERVER['REQUEST_URI'],
             'module' => @strtolower($module),
             'action' => @strtolower($action),
-            'id'     => $id
+            'id'     => TIP::getGetOrPost('id', $id_type)
         );
 
         $this->keys['REQUEST'] = $this->_request['uri'];
