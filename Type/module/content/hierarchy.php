@@ -152,18 +152,17 @@ class TIP_Hierarchy extends TIP_Content
             // Try to set the custom tooltip field
             if (isset($this->tooltip_field) && @$this->tooltip_field != 'tooltip') {
                 $row['tooltip'] = TIP::pickElement($this->tooltip_field, $row);
-            }
-
-            if (isset($this->count_field)) {
+            } if (isset($this->count_field)) {
                 $count = @$row[$this->count_field];
                 isset($row['COUNT']) || $row['COUNT'] = 0;
                 $row['COUNT'] += $count;
                 $total_count += $count;
             }
 
-            if (isset($this->parent_field) && $row[$this->parent_field]) {
-                while ($parent_id = $row[$this->parent_field]) {
-                    $parent =& $rows[$parent_id];
+            if (isset($this->parent_field, $row[$this->parent_field])
+                && !empty($row[$this->parent_field])) {
+                do {
+                    $parent =& $rows[$row[$this->parent_field]];
                     if (@$parent['CLASS'] != 'folder') {
                         if ($this->self_reference) {
                             $tmp = $parent;
@@ -177,7 +176,7 @@ class TIP_Hierarchy extends TIP_Content
                         $parent['COUNT'] += $count;
                     }
                     $row =& $parent;
-                }
+                } while (!empty($row[$this->parent_field]));
             } else {
                 $this->_model[$id] =& $row;
             }
