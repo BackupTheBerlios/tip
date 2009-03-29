@@ -165,8 +165,11 @@ class TIP_Hierarchy extends TIP_Content
                     $parent =& $rows[$row[$this->parent_field]];
                     if (@$parent['CLASS'] != 'folder') {
                         if ($this->self_reference) {
+                            // Autogenerate a new instance of parent
+                            // and put it as its child (so parent has
+                            // always itsself as child)
                             $tmp = $parent;
-                            $parent['sub']['SELF'] = $tmp;
+                            $parent['sub'][$row[$this->parent_field]] = $tmp;
                         }
                         $parent['CLASS'] = 'folder';
                     }
