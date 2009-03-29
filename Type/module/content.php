@@ -172,12 +172,12 @@ class TIP_Content extends TIP_Module
     /**
      * Default browse conditions
      *
-     * An array of "field id" => value used as base conditions for
-     * any browse action.
+     * A default filter, specified as string, or an array of
+     * "field id" => values to be applied on any browse action.
      *
-     * @var array
+     * @var array|string
      */
-    protected $default_conditions = array();
+    protected $default_conditions = null;
 
     /**
      * Default order field
@@ -523,7 +523,7 @@ class TIP_Content extends TIP_Module
         $data =& $options['data'];
 
         $model_filter = '';
-        if (!empty($this->default_conditions)) {
+        if (is_array($this->default_conditions)) {
             foreach ($this->default_conditions as $id => $value) {
                 if (empty($model_filter)) {
                     $model_filter = $data->filter($id, $value);
@@ -531,7 +531,10 @@ class TIP_Content extends TIP_Module
                     $model_filter .= $data()->addFilter('AND', $id, $value);
                 }
             }
+        } elseif (is_string($this->default_conditions)) {
+            $model_filter = $this->default_conditions;
         }
+
         $model_filter .= $data->order($this->default_order);
 
         // Apply default conditions and order if $filter is empty
