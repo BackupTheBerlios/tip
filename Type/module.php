@@ -795,6 +795,22 @@ abstract class TIP_Module extends TIP_Type
     }
 
     /**
+     * Plain copy a file content to stdout
+     *
+     * $params specifies the path (relative to this module data
+     * root) of the file to be fetched.
+     */
+    protected function tagFetch($params)
+    {
+        $file = TIP::buildDataPath($this->id, $params);
+        if (!is_readable($file)) {
+            return false;
+        }
+
+        return file_get_contents($file);
+    }
+
+    /**
      * Check if a value is in a list
      *
      * $params is a string in the form "needle,value1,value2,...".
