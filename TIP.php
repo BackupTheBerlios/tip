@@ -954,8 +954,8 @@ class TIP
             $module = substr($module, strlen($namespace)+1);
         }
 
-        $uri .= $module . '/' . $action . '/';
-        is_null($id) || $uri .= $id . '/';
+        $uri .= $module . '/' . $action;
+        is_null($id) || $uri .= '/' . $id;
         empty($args) || $uri .= '?' . http_build_query($args, '', '&');
         return $uri;
     }
