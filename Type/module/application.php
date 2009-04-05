@@ -264,7 +264,7 @@ class TIP_Application extends TIP_Module
         // can be any type, if explicitely specified in the
         // configuration options
         $expanded_module = '';
-        isset($this->namespace) && $expanded_module = $this->namespace . '_';
+        empty($this->namespace) || $expanded_module = $this->namespace . '_';
         $expanded_module .= $module;
         $id_type = TIP::getOption($expanded_module, 'id_type');
         isset($id_type) || $id_type = 'integer';
