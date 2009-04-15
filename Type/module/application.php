@@ -82,7 +82,7 @@ class TIP_Application extends TIP_Module
      * Page description
      * @var string
      */
-    protected $description = 'This is a generic TIP site';
+    protected $description = null;
 
     /**
      * Robots metatag
