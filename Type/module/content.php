@@ -1539,6 +1539,7 @@ class TIP_Content extends TIP_Module
                 return false;
             }
 
+            isset($conditions) || $conditions = '';
             return $this->actionBrowse($conditions);
 
         case 'search':
