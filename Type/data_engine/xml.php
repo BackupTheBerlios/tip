@@ -259,11 +259,6 @@ class TIP_XML extends TIP_Data_Engine
                 // Takes only the first element matching "base_xpath"
                 $xml = reset($xml_tree->xpath($this->base_xpath));
 
-                // Register the namespaces
-                foreach ($namespaces as $prefix => $uri) {
-                    $xml->registerXPathNamespace($prefix, $uri);
-                }
-
                 $this->_data =& $data;
                 if (empty($fields)) {
                     $this->_fields = array_keys($this->fields_xpath);
