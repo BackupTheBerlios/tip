@@ -35,20 +35,47 @@ class TIP_XML extends TIP_Data_Engine
     //{{{ Properties
 
     /**
-     * The base XPath to use while filtering rows
+     * The base XPath to use while filtering rows (defaults '/feed')
      * @var string
      */
-    protected $base_xpath = '/';
+    protected $base_xpath = '/feed';
 
     /**
-     * The row <container> item without braces: it defaults to 'record'
-     * and must be inside the provided $base_xpath.
+     * The row XPath, relative to the $base_xpath: it defaults to 'entry'
      * @var string
      */
-    protected $row_container = 'record';
+    protected $row_xpath = 'entry';
+
+    /**
+     * An associative array of 'fieldid' => 'XPath', relative to $row_path
+     * @var string
+     */
+    protected $fields_xpath = array();
+
+    /**
+     * The field id of the parent: leave it null for plain models
+     * @var string
+     */
+    protected $parent_field = null;
 
     //}}}
     //{{{ Costructor/destructor
+
+    /**
+     * Ensures the required 'fields_xpath' option is defined
+     *
+     * @param  array &$options Properties values
+     * @return bool            true on success or false on error
+     */
+    static protected function checkOptions(&$options)
+    {
+        if (!parent::checkOptions($options) ||
+            !@is_array($options['fields_xpath'])) {
+            return false;
+        }
+
+        return true;
+    }
 
     /**
      * Constructor
@@ -56,9 +83,12 @@ class TIP_XML extends TIP_Data_Engine
      * Initializes a TIP_XML instance.
      *
      * $options inherits the TIP_Type properties, and add the following:
-     * - $options['row_container']: the row container item, without
-     *                              braces (defaults is 'record', meaning
-     *                              <record> is the row container)
+     * - $options['base_xpath']:    the base xpath, that is the container
+     *                              of the rows (default is '/feed')
+     * - $options['row_xpath']:     the row xpath, relative to the
+     *                              base_xpath (defaults is 'entry')
+     * - $options['fields_xpath']:  an associative array of 'id' => 'xpath',
+     *                              where at least one field must be defined
      *
      * @param array $options Properties values
      */
@@ -79,37 +109,15 @@ class TIP_XML extends TIP_Data_Engine
 
     public function fillFields(&$data)
     {
-        $xml = $this->_getXML($data);
-        if ($xml === false) {
-            return false;
-        }
-
-        $rows = $xml->xpath('//' . $this->row_container);
-
-        // Use the first row found as template
-        $row = reset($rows);
         $fields =& $data->getFieldsRef();
 
-        // Consider the row attributes as fields
-        foreach ($row->attributes() as $id => $value) {
+        // Consider all fields as string
+        foreach (array_keys($this->fields_xpath) as $id) {
             $fields[$id] = array(
                 'type'   => 'string',
                 'widget' => null,
                 'length' => 0
             );
-        }
-
-        // Also, consider its internal nodes as fields
-        foreach ($row as $id => $value) {
-            if ($id != $this->row_container) {
-                // Ignore recursive fields, as the 'parent' field is
-                // always added (check below)
-                $fields[$id] = array(
-                    'type'   => 'string',
-                    'widget' => null,
-                    'length' => 0
-                );
-            }
         }
 
         $primary_key = $data->getProperty('primary_key');
@@ -124,28 +132,47 @@ class TIP_XML extends TIP_Data_Engine
             );
         }
 
-        // Always add a 'parent' field for non-linear models
-        // (tree and hierarchies) as this recursion can only be checked
-        // by traversing the whole model (and I want to avoid it)
-        $fields['parent'] = array(
-            'type'   => $fields[$primary_key]['type'],
-            'widget' => null,
-            'length' => $fields[$primary_key]['length']
-        );
+        if (isset($this->parent_field) &&
+            !array_key_exists($this->parent_field, $fields)) {
+            // The parent field is defined but need to be
+            // automatically calculated: this means the model
+            // is non-linear (trees and hierarchies) and the
+            // parent field must be set by checking row recursion
+            $fields[$this->parent_field] = array(
+                'type'   => $fields[$primary_key]['type'],
+                'widget' => null,
+                'length' => $fields[$primary_key]['length']
+            );
+        }
 
         return true;
     }
 
     public function &select(&$data, $filter, $fields)
     {
-        $xml = $this->_getXML($data);
-        if ($xml === false) {
-            return null;
+        $rows = $this->_getRows($data, $fields);
+        if (empty($rows)) {
+            return $rows;
         }
 
-        $nodes = $xml->xpath($this->base_xpath);
-        $this->_primary_key = $data->getProperty('primary_key');
-        $rows = $this->_nodesToRows($nodes);
+        // Enable basic SQL filtering. Currently filters in the format
+        // " WHERE field = value [LIMIT length[,offset]]"
+        // are recognized.
+        if (!empty($filter)) {
+            $path = $data->getProperty('path');
+            sscanf($filter, " WHERE $path.%s = %s LIMIT %d,%d",
+                   $field, $value, $length, $offset);
+
+            if (!empty($field) && !empty($value)) {
+                $callback = create_function('$row', "return \$row['$field'] == '$value';");
+                $rows = array_filter($rows, $callback);
+            }
+
+            if (!empty($length)) {
+                isset($offset) || $offset = 0;
+                $rows = array_slice($rows, $offset, $length);
+            }
+        }
 
         return $rows;
     }
@@ -187,83 +214,158 @@ class TIP_XML extends TIP_Data_Engine
     //{{{ Internal properties
 
     /**
-     * The cached array of SimpleXML objects
+     * The cached rows returned by SimpleXML parsing
      * @var array
      * @internal
      **/
-    private $_xmls = array();
+    private $_rows = array();
 
     /**
-     * The primary key id, used internally
-     * @var string
+     * The current TIP_Data object
+     * @var TIP_Data
      * @internal
      **/
-    private $_primary_key = null;
+    private $_data = null;
+
+    /**
+     * The fields to retrieve
+     * @var array
+     * @internal
+     **/
+    private $_fields = null;
 
     //}}}
     //{{{ Internal methods
 
-    private function &_getXML(&$data)
+    private function &_getRows(&$data, $fields)
     {
-        $file = TIP::buildDataPath($data->getProperty('path'));
+        $path = $data->getProperty('path');
 
-        if (!array_key_exists($file, $this->_xmls)) {
-            // Work-around to let SimpleXML be happy with the fucking
-            // default namespace
-            $xml_data = file_get_contents($file);
-            if (is_string($xml_data)) {
-                $xml_data = str_replace('xmlns=', 'fakens=', $xml_data);
-                $xml = simplexml_load_string($xml_data);
+        if (!array_key_exists($path, $this->_rows)) {
+            if (strncmp($path, 'http://', 7) == 0) {
+                $uri = $path;
             } else {
-                $xml = false;
+                $uri = TIP::buildDataPath($data->getProperty('path'));
+            }
+            $xml_data = file_get_contents($uri);
+
+            if (is_string($xml_data)) {
+                // Work-around to let SimpleXML be happy with the fucking
+                // default namespace
+                $xml_data = str_replace(' xmlns=', ' fakens=', $xml_data);
+                $xml_tree = simplexml_load_string($xml_data);
+                $namespaces = $xml_tree->getNamespaces();
+
+                // Takes only the first element matching "base_xpath"
+                $xml = reset($xml_tree->xpath($this->base_xpath));
+
+                // Register the namespaces
+                foreach ($namespaces as $prefix => $uri) {
+                    $xml->registerXPathNamespace($prefix, $uri);
+                }
+
+                $this->_data =& $data;
+                if (empty($fields)) {
+                    $this->_fields = array_keys($this->fields_xpath);
+                } else {
+                    $this->_fields = $fields;
+                }
+                $nodes = $xml->xpath($this->row_xpath);
+                $rows = $this->_nodesToRows($nodes);
+                unset($nodes, $this->_fields, $this->_data);
+            } else {
+                $rows = array();
+                TIP::error("failed to load XML file ($uri)");
             }
 
-            $this->_xmls[$file] = $xml;
-            if ($xml === false) {
-                TIP::error("failed to load XML file ($file)");
-            }
+            $this->_rows[$path] = $rows;
         }
 
-        return $this->_xmls[$file];
+        return $this->_rows[$path];
     }
 
     private function &_nodesToRows($nodes, $parent = null)
     {
+        static $autoincrement = 0;
+
+        // Stop recursion
+        $rows = null;
+        if (empty($nodes)) {
+            return $rows;
+        }
+
+        if (is_null($parent)) {
+            $autoincrement = 1;
+        }
+
+        $primary_key = $this->_data->getProperty('primary_key');
         $rows = array();
-        foreach ($nodes as $node) {
-            foreach ($node->{$this->row_container} as $row) {
-                $subnodes = false;
-                $new_row = array();
-                foreach ($row->attributes() as $id => $value) {
-                    $new_row[$id] = (string) $value;
-                }
-                foreach ($row->children() as $id => $value) {
-                    if ($id == $this->row_container) {
-                        $subnodes = true;
-                    } else {
-                        $new_row[$id] = (string) $value;
-                    }
-                }
-                isset($parent) && $new_row['parent'] = $parent;
-                if (array_key_exists($this->_primary_key, $new_row)) {
-                    $row_id = $new_row[$this->_primary_key];
-                } else {
-                    $row_id = count($rows);
-                    $new_row[$this->_primary_key] = $row_id;
-                }
 
-                $rows[$row_id] = $new_row;
+        while (list(, $node) = each($nodes)) {
+            unset($row);
+            $row = $this->_nodeToRow($node);
+            if (!is_array($row)) {
+                // Invalid row: silently skip it
+                continue;
+            }
 
-                if ($subnodes) {
-                    // This is a recursive node, used by tree models
-                    $subrows =& $this->_nodesToRows(array($row), $row_id);
-                    $rows = array_merge($rows, $subrows);
-                    unset($subrows);
-                }
+            if (!array_key_exists($primary_key, $row)) {
+                // The primary key must be autogenerated
+                $row[$primary_key] = $autoincrement;
+                ++ $autoincrement;
+            }
+
+            $id = $row[$primary_key];
+            $rows[$id] =& $row;
+
+            if (!isset($this->parent_field)) {
+                // No recursion needed
+                continue;
+            }
+
+            if (!array_key_exists($this->parent_field, $row)) {
+                // Parent field not explicitely set by the model
+                $rows[$id][$this->parent_field] = $parent;
+            }
+
+            $subrows =& $this->_nodesToRows($node->xpath($this->row_xpath), $id);
+            if (isset($subrows)) {
+                $rows = array_merge($rows, $subrows);
+                unset($subrows);
             }
         }
 
         return $rows;
+    }
+
+    /**
+     * Convert an XML node to a row
+     *
+     * Given a node, try to convert it to a row, that is an associative
+     * array of fieldid => values, by using the XPaths defined in the
+     * "fields_xpath" option.
+     *
+     * @param SimpleXMLElement $node  The node
+     * @return array                  The node converted to a plain row,
+     *                                or null on errors
+     * @internal
+     **/
+    private function &_nodeToRow(&$node)
+    {
+        $row = array();
+
+        foreach ($this->_fields as $field_id) {
+            $field_xpath = $this->fields_xpath[$field_id];
+            $xml = $node->xpath($field_xpath);
+            if (!is_array($xml) || empty($xml)) {
+                $row[$field_id] = '';
+            } else {
+                // Get only the first matching xpath
+                $row[$field_id] = (string) reset($xml);
+            }
+        }
+
+        return $row;
     }
 
     //}}}
