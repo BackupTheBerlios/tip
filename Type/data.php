@@ -633,7 +633,7 @@ class TIP_Data extends TIP_Type
     {
         if (array_key_exists($key, $this->_fields)) {
             $field =& $this->_fields[$key];
-            if ((!is_null($value) || !$field['can_be_null']) && !settype($value, $field['type'])) {
+            if ((!is_null($value) || !@$field['can_be_null']) && !settype($value, $field['type'])) {
                 TIP::warning("invalid type for field['$key'] => $value ($field[type])");
             }
         }
