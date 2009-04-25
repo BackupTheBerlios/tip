@@ -260,26 +260,21 @@ class TIP_Application extends TIP_Module
             $action = TIP::getPost('action', 'string');
         }
 
-        // Force the id type casting: it defaults to integer but
-        // can be any type, if explicitely specified in the
-        // configuration options
-        $expanded_module = '';
-        empty($this->namespace) || $expanded_module = $this->namespace . '_';
-        $expanded_module .= $module;
-        $id_type = TIP::getOption($expanded_module, 'id_type');
-        isset($id_type) || $id_type = 'integer';
-
         $this->_request = array(
             'uri'    => @$_SERVER['REQUEST_URI'],
             'module' => @strtolower($module),
             'action' => @strtolower($action),
-            'id'     => TIP::getGetOrPost('id', $id_type)
+            'id'     => TIP::getGetOrPost('id', 'string')
         );
 
         $this->keys['REQUEST'] = $this->_request['uri'];
         $this->keys['MODULE']  = $this->_request['module'];
         $this->keys['ACTION']  = $this->_request['action'];
-        $this->keys['ID']      = $this->_request['id'];
+
+        // The ID global key will be assigned when the requested module
+        // is loaded, so a type casting can be forced (because the id_type
+        // of the module is known)
+        $this->keys['ID']      = '';
 
         // Start the session
         TIP_AHAH || $this->_startSession();
@@ -438,8 +433,18 @@ class TIP_Application extends TIP_Module
         if ($this->_request['module'] && $this->_request['action']) {
             if (is_null($module =& TIP_Type::getInstance($this->_request['module'], false))) {
                 TIP::notifyError('module');
-            } elseif (is_null($module->callAction($this->_request['action']))) {
-                TIP::notifyError(is_null(TIP::getUserId()) ? 'reserved' : 'denied');
+            } else {
+                if (isset($this->_request['id'])) {
+                    // Now the module is loaded: force id type casting
+                    $id_type = $module->getProperty('id_type');
+                    isset($id_type) || $id_type = 'integer';
+                    settype($this->_request['id'], $id_type);
+                    $this->keys['ID'] = $this->_request['id'];
+                }
+
+                if (is_null($module->callAction($this->_request['action']))) {
+                    TIP::notifyError(is_null(TIP::getUserId()) ? 'reserved' : 'denied');
+                }
             }
         } elseif ($this->_request['module']) {
             TIP::notifyError('noaction');
