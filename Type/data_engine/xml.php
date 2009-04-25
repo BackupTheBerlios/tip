@@ -32,6 +32,10 @@
  *
  * WHERE field {=|<>|>|<} value [LIMIT length[,offset]]
  *
+ * The default options are arranged to access standard atom 1 feeds,
+ * although the "fields_xpath" property should be anyway explicitely
+ * configured.
+ *
  * @package TIP
  */
 class TIP_XML extends TIP_Data_Engine
