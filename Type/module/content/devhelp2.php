@@ -77,7 +77,6 @@ class TIP_Devhelp2 extends TIP_Content
             return false;
         }
 
-        TIP::arrayDefault($options, 'parent_field', 'parent');
         TIP::arrayDefault($options, 'id_type', 'string');
         TIP::arrayDefault($options['data'], 'primary_key', 'link');
         TIP::arrayDefault($options['data'], 'data_engine', array(
