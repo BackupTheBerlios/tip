@@ -79,7 +79,6 @@ class TIP_Devhelp2 extends TIP_Content
 
         TIP::arrayDefault($options, 'parent_field', 'parent');
         TIP::arrayDefault($options, 'id_type', 'string');
-        TIP::arrayDefault($options['data'], 'id_type', 'string');
         TIP::arrayDefault($options['data'], 'primary_key', 'link');
         TIP::arrayDefault($options['data'], 'data_engine', array(
             'id'            => 'devhelp2',
