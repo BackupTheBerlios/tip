@@ -25,8 +25,10 @@
  * underlying XML file.
  *
  * The "path" property of TIP_Data should specify a file path relative to
- * the data root directory. The filter used in select operations must be
- * empty or a valid XPath espression.
+ * the data root directory or an absolute URI beginning with "http://".
+ * The filter used in select operations is allowed to be a simple
+ * "WHERE x=y [LIMIT length[,offset]]" condition. Any other filter
+ * will result in an empty set returned.
  *
  * @package TIP
  */
@@ -156,17 +158,25 @@ class TIP_XML extends TIP_Data_Engine
         }
 
         // Enable basic SQL filtering. Currently filters in the format
-        // " WHERE field = value [LIMIT length[,offset]]"
+        // "WHERE field = value [LIMIT length[,offset]]"
         // are recognized.
         if (!empty($filter)) {
             $path = $data->getProperty('path');
-            sscanf($filter, " WHERE $path.%s = %s LIMIT %d,%d",
+            sscanf(trim($filter), "WHERE $path.%s=%s LIMIT %d,%d",
                    $field, $value, $length, $offset);
 
-            if (!empty($field) && !empty($value)) {
-                $callback = create_function('$row', "return \$row['$field'] == '$value';");
-                $rows = array_filter($rows, $callback);
+            // Get rid of prepended/appended blank spaces
+            $field = trim($field);
+            $value = trim($value);
+
+            if (empty($field) || empty($value)) {
+                // Invalid query: returns an empty set
+                $rows = array();
+                return $rows;
             }
+
+            $callback = create_function('$row', "return \$row['$field'] == '$value';");
+            $rows = array_filter($rows, $callback);
 
             if (!empty($length)) {
                 isset($offset) || $offset = 0;
