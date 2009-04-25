@@ -26,9 +26,11 @@
  *
  * The "path" property of TIP_Data should specify a file path relative to
  * the data root directory or an absolute URI beginning with "http://".
- * The filter used in select operations is allowed to be a simple
- * "WHERE x=y [LIMIT length[,offset]]" condition. Any other filter
- * will result in an empty set returned.
+ *
+ * The XML data engine provides a basic SQL filtering, allowing the
+ * following "where" syntax:
+ *
+ * WHERE field {=|<>|>|<} value [LIMIT length[,offset]]
  *
  * @package TIP
  */
@@ -152,33 +154,36 @@ class TIP_XML extends TIP_Data_Engine
 
     public function &select(&$data, $filter, $fields)
     {
+        // Always work on a copy of the cached rows
         $rows = $this->_getRows($data, $fields);
         if (empty($rows)) {
             return $rows;
         }
 
-        // Enable basic SQL filtering. Currently filters in the format
-        // "WHERE field = value [LIMIT length[,offset]]"
-        // are recognized.
         if (!empty($filter)) {
+            // Provide basic SQL filtering
             $path = $data->getProperty('path');
-            sscanf(trim($filter), "WHERE $path.%s=%s LIMIT %d,%d",
-                   $field, $value, $length, $offset);
-
-            // Get rid of prepended/appended blank spaces
-            $field = trim($field);
-            $value = trim($value);
-
-            if (empty($field) || empty($value)) {
-                // Invalid query: returns an empty set
+            if (!preg_match("'WHERE\s+(?:$path\.)?(\S+?)\s*(=|<>|>|<)\s*(\S+)(?:\s+LIMIT\s*(\d+)(?:\s*,\s*(\d+))?)?'i", $filter, $matches)) {
+                // Unrecognized query: returns an empty set
                 $rows = array();
                 return $rows;
             }
 
-            $callback = create_function('$row', "return \$row['$field'] == '$value';");
+            $field = $matches[1];
+            $operator = $matches[2];
+            $value = $matches[3];
+            $length = @$matches[4];
+            $offset = @$matches[5];
+
+            // Change the assignment to the (expected) comparison operator
+            $operator == '=' && $operator = '==';
+
+            // Array filtering
+            $callback = create_function('$row', "return \$row['$field']$operator'$value';");
             $rows = array_filter($rows, $callback);
 
             if (!empty($length)) {
+                // Optional array reduction (the LIMIT clause)
                 isset($offset) || $offset = 0;
                 $rows = array_slice($rows, $offset, $length);
             }
