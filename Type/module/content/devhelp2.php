@@ -28,24 +28,25 @@
  * To be able to use this module, it suffices to configure a
  * devhelp2 module and feed it with the .devhelp2 file:
  *
-<informalexample>
-$cfg = array(
-    ...
-    'api'      => array(
-        'type' => array('module', 'content', 'devhelp2'),
-        'data' => 'api/adg.devhelp2'
-    )
-    ...
-);
-</informalexample>
+ * <code>
+ * $cfg = array(
+ *     ...
+ *     'api'      => array(
+ *         'type' => array('module', 'content', 'devhelp2'),
+ *         'data' => 'api/adg.devhelp2'
+ *     ),
+ *     ...
+ * );
+ * </code>
  *
  * After that, the template system can use the hierarcy generated
  * by the "show" tag in the same way the TIP_Hierarchy module is
  * used, for instance (using the TIP_RcbtNG engine):
  *
-<informalexample>
-<ul class="article">{API.show(view,-id-)}</ul>
-</informalexample>
+ * <code>
+ * <ul class="article">{API.show(view,-id-)}
+ * </ul>
+ * </code>
  *
  * The actionView() method is overriden so that, on a view request,
  * the corresponding html file (searched in the data directory of
