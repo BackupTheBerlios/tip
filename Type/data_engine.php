@@ -101,10 +101,7 @@ abstract class TIP_Data_Engine extends TIP_Type
      * @param  string|null  $domain The domain $name is part of
      * @return string               $name prepared for the query
      */
-    public function preparedName($name, $domain = null)
-    {
-        return is_array($name) ? implode(',', $name) : $name;
-    }
+    abstract public function preparedName($name, $domain = null);
 
     /**
      * Prepare values for a query
@@ -119,10 +116,7 @@ abstract class TIP_Data_Engine extends TIP_Type
      * @param  mixed|array $value The value or array of values to prepare
      * @return string             $value prepared for the query
      */
-    public function preparedValue($value)
-    {
-        return $value;
-    }
+    abstract public function preparedValue($value);
 
     /**
      * Perform a query
