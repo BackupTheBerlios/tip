@@ -86,18 +86,24 @@ abstract class TIP_Data_Engine extends TIP_Type
      * Prepare names for a query
      *
      * Prepares one or more identifiers to be inserted in a query.
-     * The TIP_Mysql instance, for example, backtick the identifier and
-     * the backticks yet presents.
+     * The TIP_Mysql::preparedName() method, for example, backticks
+     * $name if $name does not start yet with a backtick.
      *
-     * If $name is an array, a comma separated string of prepared names is
-     * returned.
+     * If $name is an array, the preparedName() process is applied
+     * recursively for every item and a comma separated string of
+     * prepared names is returned.
      *
-     * @param  string|array $name The name or array of names to prepare
-     * @return string             $name prepared for the query
+     * The $domain value is a engine depended feature to identify
+     * the context where $name is significant. In SQL based engines,
+     * for instance, it is the table name.
+     *
+     * @param  string|array $name   The name or array of names to prepare
+     * @param  string|null  $domain The domain $name is part of
+     * @return string               $name prepared for the query
      */
-    public function preparedName($name)
+    public function preparedName($name, $domain = null)
     {
-        return $name;
+        return is_array($name) ? implode(',', $name) : $name;
     }
 
     /**
