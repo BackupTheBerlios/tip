@@ -108,6 +108,16 @@ class TIP_XML extends TIP_Data_Engine
     //}}}
     //{{{ TIP_Data_Engine implementation
 
+    public function preparedName($name, $domain = null)
+    {
+        return is_array($name) ? implode(',', $name) : $name;
+    }
+
+    public function preparedValue($value)
+    {
+        return $value;
+    }
+
     public function query()
     {
         // Not implemented
