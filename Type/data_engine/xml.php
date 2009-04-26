@@ -192,7 +192,7 @@ class TIP_XML extends TIP_Data_Engine
 
         if (!empty($filter)) {
             // Provide basic SQL filtering
-            if (!preg_match("'(?:WHERE\s+(\S+?)\s*(=|<>|>|<)\s*(\S+))?(?:\s*LIMIT\s*(\d+)(?:\s*,\s*(\d+))?)?'i", $filter, $matches)) {
+            if (!preg_match('"^\s*(?:WHERE\s+(\S+?)\s*(=|<>|>|<)\s*(\S+))?\s*(?:LIMIT\s*(\d+)(?:\s*,\s*(\d+))?)?\s*$"i', $filter, $matches)) {
                 // Unrecognized query: raise a warning and returns an empty set
                 TIP::warning("query not recognized ($filter)");
                 $rows = array();
