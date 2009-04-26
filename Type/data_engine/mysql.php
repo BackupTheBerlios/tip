@@ -23,7 +23,7 @@
  *
  * Interface to the MySql database.
  *
- * Some methods could be static, but I preferred to define them all as
+ * Some methods could be static, but I prefer to define them all as
  * non-static to avoid confusion (for instance, preparedName() could be
  * static but preparedValue not, because the connection property is needed).
  *
@@ -108,16 +108,33 @@ class TIP_Mysql extends TIP_Data_Engine
     //}}}
     //{{{ TIP_Data_Engine implementation
 
-    public function preparedName($name)
+    public function preparedName($name, $domain = null)
     {
         if (is_array($name)) {
-            $self = array(&$this, __FUNCTION__);
-            return implode(',', array_map($self, $name));
-        } elseif ($name == '*') {
-            // These special names must not be backticked
+            // Recursive call to prepare every item: to be able to
+            // pass throught the $domain parameter, a temporary array
+            // of the same size of $name is created with array_fill()
+            return implode(',', array_map(array(&$this, __FUNCTION__), $name),
+                           array_fill(0, count($name), $domain));
+        }
+
+        // Names starting with a backtick are considered "raw" names:
+        // they are passed-throught without taking $domain into account
+        if ($name[0] == '`') {
             return $name;
         }
-        return '`' . str_replace('`', '``', $name) . '`';
+
+        // Domains starting with a backtick are "raw" domains
+        if (!empty($domain) && $domain[0] != '`') {
+            $domain = '`' . str_replace('`', '``', $domain) . '`';
+        }
+
+        // The "*" special name is not backticked
+        if ($name != '*') {
+            $name = '`' . str_replace('`', '``', $name) . '`';
+        }
+
+        return empty($domain) ? $name : $domain . '.' . $name;
     }
 
     public function preparedValue($value)
@@ -127,8 +144,7 @@ class TIP_Mysql extends TIP_Data_Engine
         } elseif (is_string($value)) {
             return "'" . mysql_real_escape_string($value, $this->_connection) . "'";
         } elseif (is_array($value)) {
-            $self = array(&$this, __FUNCTION__);
-            return implode(',', array_map($self, $value));
+            return implode(',', array_map(array(&$this, __FUNCTION__), $value));
         } elseif (is_null($value)) {
             return 'NULL';
         } elseif (is_bool($value)) {
@@ -553,19 +569,12 @@ class TIP_Mysql extends TIP_Data_Engine
             return implode(',', array_map($self, $field, $table, $alias));
         }
 
-        if ($field{0} == '@') {
-            // Raw field
-            $result = substr($field, 1);
-        } else {
-            $result = $this->preparedName($field);
-            if (!empty($table)) {
-                $result = $this->preparedName($table) . '.' . $result;
-            }
-        }
+        $result = $this->preparedName($field, $table);
 
         if (is_string($alias)) {
             $result .= ' AS ' . $this->preparedName($alias);
         }
+
         return $result;
     }
 
