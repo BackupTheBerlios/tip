@@ -196,15 +196,13 @@ class TIP_Data extends TIP_Type
             $condition = $condition == '=' ? 'IS' : 'IS NOT';
         }
 
-        if ($name{0} == '@') {
-            $name = substr($name, 1);
-        } else {
-            $name = $this->engine->preparedName($name);
-            $path = $this->engine->preparedName($this->path);
-            $name = $path . '.' . $name;
-        }
+        // addFilter() accepts only scalar values
+        is_array($name) && $name = reset($name);
+        is_array($value) && $value = reset($value);
 
-        $value = is_array($value) ? reset($value) : $this->engine->preparedValue($value);
+        $name = $this->engine->preparedName($name, $this->path);
+        $value = $this->engine->preparedValue($value);
+
         return ' ' . $connector . ' '. $name . ' ' . $condition . ' ' . $value;
     }
 
@@ -227,7 +225,7 @@ class TIP_Data extends TIP_Type
         if ($name{0} == '@') {
             $name = substr($name, 1);
         } else {
-            $name = $this->engine->preparedName($name);
+            $name = $this->engine->preparedName($name, $this->path);
         }
 
         $tail = $descending ? ' DESC' : '';
