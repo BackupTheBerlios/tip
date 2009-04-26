@@ -293,10 +293,27 @@ class TIP_XML extends TIP_Data_Engine
         if (!array_key_exists($path, $this->_rows)) {
             if (strncmp($path, 'http://', 7) == 0) {
                 $uri = $path;
+
+                if (function_exists('curl_init')) {
+                    // CURL extension available: this should be the
+                    // first attempt because the dumb 'open_basedir'
+                    // directive can fuck up file_get_contents()
+                    $curl = curl_init();
+                    curl_setopt($curl, CURLOPT_URL, $uri);
+                    curl_setopt($curl, CURLOPT_RETURNTRANSFER, 1);
+                    $xml_data = curl_exec($curl);
+                    curl_close($curl);
+                } else if (in_array('http', stream_get_wrappers())) {
+                    // http wrapper present
+                    $xml_data = file_get_contents($uri);
+                } else {
+                    // No viable way to use the http protocol
+                    $xml_data = false;
+                }
             } else {
                 $uri = TIP::buildDataPath($data->getProperty('path'));
+                $xml_data = file_get_contents($uri);
             }
-            $xml_data = file_get_contents($uri);
 
             if (is_string($xml_data)) {
                 // Work-around to let SimpleXML be happy with the fucking
