@@ -32,25 +32,27 @@
  * The XML data engine provides a basic SQL filtering, allowing the
  * following query syntax:
  *
+ * <code>
  * [WHERE field {=|<>|>|<} value] [LIMIT length[,offset]]
+ * </code>
  *
  * so the following tags are all valids:
  *
-<informalexample>
-{forSelect(LIMIT 20,40)}...{}
-{forSelect(WHERE rating > 123}...{}
-{forSelect(WHERE id=abcde LIMIT 1)}...{}
-{forSelect(WHERE title <> 0)}...{}
-</informalexample>
+ * <code>
+ * {forSelect(LIMIT 20,40)}...{}
+ * {forSelect(WHERE rating > 123}...{}
+ * {forSelect(WHERE id=abcde LIMIT 1)}...{}
+ * {forSelect(WHERE title <> 0)}...{}
+ * </code>
  *
  * while the ones are not valid (this can change in the future):
  *
-<informalexample>
-{forSelect(ORDER BY id)}...{}
-{forSelect(WHERE title LIKE abc}...{}
-{forSelect(WHERE rating IS NULL)}...{}
-{forSelect(WHERE raters < > 4)}...{}
-</informalexample>
+ * <code>
+ * {forSelect(ORDER BY id)}...{}
+ * {forSelect(WHERE title LIKE abc}...{}
+ * {forSelect(WHERE rating IS NULL)}...{}
+ * {forSelect(WHERE raters < > 4)}...{}
+ * </code>
  *
  * @package TIP
  */
