@@ -22,19 +22,35 @@
  * The XML data engine
  *
  * Interface to an XML file. It uses the SimpleXML object to access the
- * underlying XML file.
+ * underlying XML file. The default options are arranged to parse
+ * standard atom 1 feeds, although the "fields_xpath" property should be
+ * anyway explicitely configured.
  *
  * The "path" property of TIP_Data should specify a file path relative to
  * the data root directory or an absolute URI beginning with "http://".
  *
  * The XML data engine provides a basic SQL filtering, allowing the
- * following "where" syntax:
+ * following query syntax:
  *
- * WHERE field {=|<>|>|<} value [LIMIT length[,offset]]
+ * [WHERE field {=|<>|>|<} value] [LIMIT length[,offset]]
  *
- * The default options are arranged to access standard atom 1 feeds,
- * although the "fields_xpath" property should be anyway explicitely
- * configured.
+ * so the following tags are all valids:
+ *
+<informalexample>
+{forSelect(LIMIT 20,40)}...{}
+{forSelect(WHERE rating > 123}...{}
+{forSelect(WHERE id=abcde LIMIT 1)}...{}
+{forSelect(WHERE title <> 0)}...{}
+</informalexample>
+ *
+ * while the ones are not valid (this can change in the future):
+ *
+<informalexample>
+{forSelect(ORDER BY id)}...{}
+{forSelect(WHERE title LIKE abc}...{}
+{forSelect(WHERE rating IS NULL)}...{}
+{forSelect(WHERE raters < > 4)}...{}
+</informalexample>
  *
  * @package TIP
  */
@@ -176,28 +192,32 @@ class TIP_XML extends TIP_Data_Engine
 
         if (!empty($filter)) {
             // Provide basic SQL filtering
-            $path = $data->getProperty('path');
-            if (!preg_match("'WHERE\s+(?:$path\.)?(\S+?)\s*(=|<>|>|<)\s*(\S+)(?:\s+LIMIT\s*(\d+)(?:\s*,\s*(\d+))?)?'i", $filter, $matches)) {
-                // Unrecognized query: returns an empty set
+            if (!preg_match("'(?:WHERE\s+(\S+?)\s*(=|<>|>|<)\s*(\S+))?(?:\s*LIMIT\s*(\d+)(?:\s*,\s*(\d+))?)?'i", $filter, $matches)) {
+                // Unrecognized query: raise a warning and returns an empty set
+                TIP::warning("query not recognized ($filter)");
                 $rows = array();
                 return $rows;
             }
 
-            $field = $matches[1];
-            $operator = $matches[2];
-            $value = $matches[3];
-            $length = @$matches[4];
-            $offset = @$matches[5];
+            $field    = @$matches[1];
+            $operator = @$matches[2];
+            $value    = @$matches[3];
+            $length   = @$matches[4];
+            $offset   = @$matches[5];
 
-            // Change the assignment to the (expected) comparison operator
-            $operator == '=' && $operator = '==';
+            // Apply the WHERE clause
+            if (!empty($field)) {
+                // Change the assignment to the (expected) comparison operator
+                $operator == '=' && $operator = '==';
 
-            // Array filtering
-            $callback = create_function('$row', "return \$row['$field']$operator'$value';");
-            $rows = array_filter($rows, $callback);
+                // Array filtering
+                $callback = create_function('$row', "return \$row['$field']$operator'$value';");
+                $rows = array_filter($rows, $callback);
+            }
 
+            // Apply the LIMIT clause
             if (!empty($length)) {
-                // Optional array reduction (the LIMIT clause)
+                // array reduction (the LIMIT clause)
                 isset($offset) || $offset = 0;
                 $rows = array_slice($rows, $offset, $length);
             }
