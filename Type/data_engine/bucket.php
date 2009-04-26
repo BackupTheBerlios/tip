@@ -49,6 +49,18 @@ class TIP_Bucket extends TIP_Data_Engine
     //}}}
     //{{{ TIP_Data_Engine implementation
 
+    public function preparedName($name, $domain = null)
+    {
+        TIP::warning("preparedName($name, $domain)");
+        return $name;
+    }
+
+    public function preparedValue($value)
+    {
+        TIP::warning("preparedValue($value)");
+        return $value;
+    }
+
     public function query()
     {
         TIP::warning('query()');
