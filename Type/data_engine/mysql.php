@@ -114,8 +114,11 @@ class TIP_Mysql extends TIP_Data_Engine
             // Recursive call to prepare every item: to be able to
             // pass throught the $domain parameter, a temporary array
             // of the same size of $name is created with array_fill()
-            return implode(',', array_map(array(&$this, __FUNCTION__), $name),
-                           array_fill(0, count($name), $domain));
+            $self = array(&$this, __FUNCTION__);
+            if (!is_array($domain)) {
+                $domain = array_fill(0, count($name), $domain);
+            }
+            return implode(',', array_map($self, $name, $domain));
         }
 
         // Names starting with a backtick are considered "raw" names:
@@ -144,7 +147,8 @@ class TIP_Mysql extends TIP_Data_Engine
         } elseif (is_string($value)) {
             return "'" . mysql_real_escape_string($value, $this->_connection) . "'";
         } elseif (is_array($value)) {
-            return implode(',', array_map(array(&$this, __FUNCTION__), $value));
+            $self = array(&$this, __FUNCTION__);
+            return implode(',', array_map($self, $value));
         } elseif (is_null($value)) {
             return 'NULL';
         } elseif (is_bool($value)) {
