@@ -109,10 +109,18 @@ class TIP_Comments extends TIP_Content
             return null;
         }
 
+        // Check for default options defined in configuration
+        if (isset($this->form_options['tagadd'])) {
+            $options = $this->form_options['tagadd'];
+        } else {
+            $options = array();
+        }
+
         $options['defaults'][$this->browse_field] = (int) $params;
-        $options['buttons'] = TIP_FORM_BUTTON_SUBMIT;
-        $options['invalid_render'] = TIP_FORM_RENDER_HERE;
-        $options['valid_render'] = TIP_FORM_RENDER_IN_PAGE;
+
+        TIP::arrayDefault($options, 'buttons', TIP_FORM_BUTTON_SUBMIT);
+        TIP::arrayDefault($options, 'invalid_render', TIP_FORM_RENDER_HERE);
+        TIP::arrayDefault($options, 'valid_render', TIP_FORM_RENDER_IN_PAGE);
 
         ob_start();
         if ($this->actionAdd(null, $options)) {
