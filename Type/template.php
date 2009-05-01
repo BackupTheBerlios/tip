@@ -55,7 +55,11 @@ class TIP_Template extends TIP_Type
      */
     static protected function checkOptions(&$options)
     {
-        if (!isset($options['path'], $options['engine']) ||
+        if (!isset($options['engine'])) {
+            $options['engine'] =& TIP_Application::getGlobal('engine');
+        }
+
+        if (!isset($options['path']) ||
             !$options['engine'] instanceof TIP_Template_Engine) {
             return false;
         }
