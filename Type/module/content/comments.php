@@ -165,9 +165,7 @@ class TIP_Comments extends TIP_Content
             $parent_id = $options['defaults'][$this->browse_field];
         }
 
-        if (!array_key_exists('follower', $options)) {
-            $options['follower'] = TIP::buildActionUri($this->id, 'browse', $parent_id);
-        }
+        TIP::arrayDefault($options, 'follower', TIP::buildActionUri($this->master, 'view', $parent_id));
 
         return parent::actionAdd($id, $options);
     }
