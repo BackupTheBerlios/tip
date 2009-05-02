@@ -1071,18 +1071,18 @@ class TIP_Content extends TIP_Module
     }
 
     /**
-     * Browse the content throught a cronology interface
+     * Browse the content throught a chronology interface
      *
-     * Renders the whole data content in a cronology tree. The options must be
+     * Renders the whole data content in a chronology tree. The options must be
      * specified in the $params argument as a comma-separated list of field ids
      * in the following sequence:
      *
      * date_field,title_field,tooltip_field,count_field,base_action
      *
-     * All the fields are optionals, in which case the TIP_Cronology default
+     * All the fields are optionals, in which case the TIP_Chronology default
      * value is used.
      */
-    protected function tagCronology($params)
+    protected function tagChronology($params)
     {
         @list(
             $options['date_field'],
@@ -1095,7 +1095,7 @@ class TIP_Content extends TIP_Module
 
         // Delete null values
         $options = array_filter($options, 'is_string');
-        $id = $this->id . '_cronology';
+        $id = $this->id . '_chronology';
         if (empty($options['date_field'])) {
             unset($options['date_field']);
         } else {
@@ -1107,7 +1107,7 @@ class TIP_Content extends TIP_Module
         array_key_exists($id, $GLOBALS['cfg']) && $options += $GLOBALS['cfg'][$id];
 
         // Set required defaults
-        TIP::arrayDefault($options, 'type', array('cronology'));
+        TIP::arrayDefault($options, 'type', array('chronology'));
         TIP::arrayDefault($options, 'master', $this);
         TIP::arrayDefault($options, 'date_field', $this->creation_field);
 
