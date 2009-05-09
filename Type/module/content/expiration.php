@@ -2,7 +2,7 @@
 /* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
- * TIP_Expirable definition file
+ * TIP_Expiration definition file
  *
  * LICENSE: This source file is subject to the New BSD license that is 
  * available through the world-wide-web at the following URI:
@@ -19,11 +19,11 @@
  */
 
 /**
- * Expirable module
+ * Expiration module
  *
  * @package TIP
  */
-class TIP_Expirable extends TIP_Content
+class TIP_Expiration extends TIP_Content
 {
     //{{{ Properties
 
@@ -65,7 +65,7 @@ class TIP_Expirable extends TIP_Content
     /**
      * Constructor
      *
-     * Initializes a TIP_Expirable instance.
+     * Initializes a TIP_Expiration instance.
      *
      * @param array $options Properties values
      */
