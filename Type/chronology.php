@@ -2,7 +2,7 @@
 /* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
- * TIP_Cronology definition file
+ * TIP_Chronology definition file
  *
  * LICENSE: This source file is subject to the New BSD license that is 
  * available through the world-wide-web at the following URI:
@@ -23,7 +23,7 @@
  *
  * @package TIP
  */
-class TIP_Cronology extends TIP_Type
+class TIP_Chronology extends TIP_Type
 {
     //{{{ Properties
 
@@ -69,7 +69,7 @@ class TIP_Cronology extends TIP_Type
     protected $count_field = '_count';
 
     /**
-     * The action for this cronology
+     * The action for this chronology
      * @var string
      */
     protected $action = null;
@@ -105,7 +105,7 @@ class TIP_Cronology extends TIP_Type
     /**
      * Constructor
      *
-     * Initializes a TIP_Cronology instance.
+     * Initializes a TIP_Chronology instance.
      *
      * @param array $options Properties values
      */
@@ -118,7 +118,7 @@ class TIP_Cronology extends TIP_Type
     //{{{ Methods
 
     /**
-     * Render this cronology in XHTML format
+     * Render this chronology in XHTML format
      * @return string The rendered html
      */
     public function toHtml()
