@@ -21,6 +21,18 @@
 /**
  * Expiration module
  *
+ * Extends the content module by implementing the additional
+ * "expiration" feature. Any row has an "EXPIRED" calculated boolean
+ * field based on the "expiration_field" (a date field) and the
+ * "expiration" value (a time displacement in any format accepted
+ * by the strtotime() function).
+ *
+ * Additionaly, a flag system is available, although not enabled
+ * by default. This feature allows the "flag" and "unflag" actions,
+ * useful for instance to signal suspicious content. The flag
+ * system has full statistical hooks for keeping track of counter
+ * values on a user basis.
+ *
  * @package TIP
  */
 class TIP_Expiration extends TIP_Content
@@ -28,16 +40,56 @@ class TIP_Expiration extends TIP_Content
     //{{{ Properties
 
     /**
-     * The field with the boolean public flag
-     * @var string
-     */
-    protected $public_field = '_public';
-
-    /**
      * The field owning the expiration time
      * @var string
      */
     protected $expiration_field = '_expiration';
+
+    /**
+     * The field containing the optional boolean flag
+     * @var string
+     */
+    protected $flag_field = null;
+
+    /**
+     * The field referring to the user who flagged
+     * @var string
+     */
+    protected $flagger_field = null;
+
+    /**
+     * The field containing the flagging date
+     * @var string
+     */
+    protected $flagon_field = null;
+
+    /**
+     * The field in user containing statistic on how many time the
+     * user performed a flag action
+     * @var string
+     */
+    protected $flaggee_field = null;
+
+    /**
+     * The field in user containing statistic on how many time a
+     * user received a flag action
+     * @var string
+     */
+    protected $flagged_field = null;
+
+    /**
+     * The field in user containing statistic on how many time the
+     * user performed an unflag action
+     * @var string
+     */
+    protected $unflaggee_field = null;
+
+    /**
+     * The field in user containing statistic on how many time a
+     * user received an unflag action
+     * @var string
+     */
+    protected $unflagged_field = null;
 
     /**
      * The default expiration time
@@ -47,20 +99,6 @@ class TIP_Expiration extends TIP_Content
 
     //}}}
     //{{{ Construction/destruction
-
-    static protected function checkOptions(&$options)
-    {
-        if (!parent::checkOptions($options)) {
-            return false;
-        }
-
-        isset($options['browsable_fields']) || $options['browsable_fields'] = array(
-            TIP_PRIVILEGE_NONE    => array('group'),
-            TIP_PRIVILEGE_TRUSTED => array('_user'),
-            TIP_PRIVILEGE_ADMIN   => array('_check', '_public', '__ALL__')
-        );
-        return true;
-    }
 
     /**
      * Constructor
@@ -88,15 +126,8 @@ class TIP_Expiration extends TIP_Content
      */
     public function _onDataRow(&$row)
     {
-        $row['EXPIRED'] = TIP::getTimestamp($row[$this->expiration_field]) < time();
-        if ($row['EXPIRED'] && @$row[$this->public_field] == 'yes') {
-            // The row has expired: update accordling
-            $new_row = array($this->public_field => 'no');
-            if ($this->_onDbAction('Edit', $new_row, $row) && !$this->data->updateRow($new_row, $row)) {
-                TIP::notifyError('update');
-            }
-        }
-        return true;
+        $row['EXPIRED'] = TIP::getTimestamp($row[$this->expiration_field], 'sql') < time();
+        return parent::_onDataRow($row);
     }
 
     /**
@@ -109,100 +140,149 @@ class TIP_Expiration extends TIP_Content
      */
     public function _onAdd(&$row)
     {
-        isset($this->expiration_field) &&
-            empty($row[$this->expiration_field]) &&
-            $row[$this->expiration_field] = TIP::formatDate('datetime_sql', strtotime($this->expiration));
+        if (isset($this->expiration_field)) {
+            TIP::arrayDefault($row, $this->expiration_field,
+                TIP::formatDate('datetime_sql', strtotime($this->expiration)));
+        }
+
         return parent::_onAdd($row);
     }
 
-
-    public function _onCheck(&$old_row)
-    {
-        $row['_check'] = 'yes';
-        $row['_check_on'] = TIP::formatDate('datetime_sql');
-        $row['_check_by'] = TIP::getUserId();
-
-        if (!$this->data->updateRow($row, $old_row)) {
-            TIP::notifyError('update');
-            TIP::warning("unable to update a row ($id)");
-            return false;
-        }
-
-        $signaled = $old_row['_user'];
-        $user = TIP_Application::getSharedModule('user');
-
-        // Update statistics of the signaling user
-        if (!is_null($user)) {
-            $user->increment('_checked');
-        }
-
-        // Update statistics of the signaled user
-        if ($signaled && !is_null($user) &&
-            !is_null($view = $user->startDataView($user->getProperty('data')->rowFilter($signaled)))) {
-            $row = $view->current();
-            $user->endView();
-            if (!is_null($row)) {
-                $old_row = $row;
-                ++ $row['_own_checked'];
-                $user->getProperty('data')->updateRow($row, $old_row);
-            }
-        }
-
-        return true;
-    }
-
-    public function _onRestore(&$old_row)
-    {
-        $row['_check'] = 'no';
-        if (!$this->data->updateRow($row, $old_row)) {
-            TIP::notifyError('update');
-            TIP::warning("unable to update a row ($id)");
-            return false;
-        }
-
-        $signaling = $old_row['_check_by'];
-        $signaled = $old_row['_user'];
-        $user = TIP_Application::getSharedModule('user');
-
-        // Update statistics of the signaling user
-        if ($signaling && !is_null($user) &&
-            !is_null($view = $user->startDataView($user->getProperty('data')->rowFilter($signaling)))) {
-            $row = $view->current();
-            $user->endView();
-            if (!is_null($row)) {
-                $old_row = $row;
-                ++ $row['_unchecked'];
-                $user->getProperty('data')->updateRow($row, $old_row);
-            }
-        }
-
-        // Update statistics of the signaled user
-        if ($signaled && !is_null($user) &&
-            !is_null($view = $user->startDataView($user->getProperty('data')->rowFilter($signaled)))) {
-            $row = $view->current();
-            $user->endView();
-            if (!is_null($row)) {
-                $old_row = $row;
-                ++ $row['_own_unchecked'];
-                $user->getProperty('data')->updateRow($row, $old_row);
-            }
-        }
-
-        return true;
-    }
-
+    /**
+     * 'on_process' callback for refresh actions
+     *
+     * Posticipates the expiration date using the current date as
+     * reference.
+     *
+     * @param  array &$row The row to update
+     * @return bool        true on success or false on errors
+     */
     public function _onRefresh(&$old_row)
     {
-        if (isset($this->expiration_field, $this->expiration)) {
-            $expiration = strtotime($this->expiration);
-            if ($expiration === false) {
-                return false;
+        if (!isset($this->expiration_field)) {
+            // Undefined expiration field: returns true silently
+            return true;
+        }
+
+        $expiration = strtotime($this->expiration);
+        if ($expiration === false) {
+            TIP::error("invalid expiration value ($this->expiration)");
+            return false;
+        }
+
+        $row[$this->expiration_field] = TIP::formatDate('datetime_sql', $expiration);
+        return $this->_onEdit($row, $old_row);
+    }
+
+    /**
+     * 'on_process' callback for flag actions
+     *
+     * Flags this row, that is set an enum "yes/no" field to "yes".
+     * The flagging operation can be useful, for instance, for
+     * signaling suspected content.
+     *
+     * @param  array &$row The row to flag
+     * @return bool        true on success or false on errors
+     */
+    public function _onFlag(&$old_row)
+    {
+        if (!isset($this->flag_field)) {
+            // No flag field defined: silently returns true
+            return true;
+        }
+
+        $flagger = TIP::getUserId();
+        $flagged = @$old_row[$this->owner_field];
+
+        $row[$this->flag_field] = 'yes';
+        if (isset($this->flagger_field)) {
+            $row[$this->flagger_field] = $flagger;
+        }
+        if (isset($this->flagon_field)) {
+            $row[$this->flagon_field] = TIP::formatDate('datetime_sql');
+        }
+
+        if (!$this->data->updateRow($row, $old_row)) {
+            return false;
+        }
+
+        $user = TIP_Application::getSharedModule('user');
+        if (!$user) {
+            // User module not available: no statistic update required
+            return true;
+        }
+
+        // Update statistics of the flagging user
+        if (isset($flagger, $this->flaggee_field)) {
+            $user->increment($this->flaggee_field);
+        }
+
+        // Update statistics of the flagged user
+        if (isset($flagged, $this->flagged_field) &&
+            !is_null($view = $user->startDataView($user->getProperty('data')->rowFilter($flagged)))) {
+            $row = $view->current();
+            $user->endView();
+            if (!is_null($row)) {
+                $old_row = $row;
+                ++ $row[$this->flagged_field];
+                $user->getProperty('data')->updateRow($row, $old_row);
             }
-            $row[$this->expiration_field] = TIP::formatDate('datetime_sql', $expiration);
-            isset($this->public_field) && $row[$this->public_field] = 'yes';
-            if ($this->_onDbAction('Edit', $row, $old_row) && !$this->data->updateRow($row, $old_row)) {
-                TIP::notifyError('update');
-                return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * 'on_process' callback for unflag actions
+     *
+     * This is the reverse operation of _onFlag(), and set the
+     * flag field to "no".
+     *
+     * @param  array &$row The row to flag
+     * @return bool        true on success or false on errors
+     */
+    public function _onUnflag(&$old_row)
+    {
+        if (!isset($this->flag_field)) {
+            // No flag field defined: silently returns true
+            return true;
+        }
+
+        $flagger = @$old_row[$this->flagger_field];
+        $flagged = @$old_row[$this->owner_field];
+
+        $row[$this->flag_field] = 'no';
+        if (!$this->data->updateRow($row, $old_row)) {
+            return false;
+        }
+
+        $user = TIP_Application::getSharedModule('user');
+        if (!$user) {
+            // User module not available: no statistic update required
+            return true;
+        }
+
+        // Update statistics of the flagging user
+        if (isset($flagger, $this->unflaggee_field) &&
+            !is_null($view = $user->startDataView($user->getProperty('data')->rowFilter($flagger)))) {
+            $row = $view->current();
+            $user->endView();
+            if (!is_null($row)) {
+                $old_row = $row;
+                ++ $row[$this->unflaggee_field];
+                $user->getProperty('data')->updateRow($row, $old_row);
+            }
+        }
+
+        // Update statistics of the flagged user
+        if (isset($flagged, $this->unflagged_field) &&
+            !is_null($view = $user->startDataView($user->getProperty('data')->rowFilter($flagged)))) {
+            $row = $view->current();
+            $user->endView();
+            if (!is_null($row)) {
+                $old_row = $row;
+                ++ $row[$this->unflagged_field];
+                $user->getProperty('data')->updateRow($row, $old_row);
             }
         }
 
@@ -212,39 +292,22 @@ class TIP_Expiration extends TIP_Content
     //}}}
     //{{{ Actions
 
-    /**
-     * Perform a browse action
-     *
-     * Overrides the default browse action, imposing the browsing of only
-     * non-expired rows for non-admin users.
-     *
-     * @param  array &$conditions The browse conditions
-     * @return bool               true on success or false on errors
-     */
-    protected function actionBrowse(&$conditions)
-    {
-        if ($this->privilege < TIP_PRIVILEGE_ADMIN && !isset($conditions[$this->public_field])) {
-            $conditions[$this->public_field] = 'yes';
-        }
-        return parent::actionBrowse($conditions);
-    }
-
-    protected function actionCheck($id, $options = null)
+    protected function actionFlag($id, $options = null)
     {
         isset($options) || $options = array(
-            'action_id'  => 'check',
+            'action_id'  => 'flag',
             'buttons'    => TIP_FORM_BUTTON_OK|TIP_FORM_BUTTON_CANCEL,
-            'on_process' => array(&$this, '_onCheck')
+            'on_process' => array(&$this, '_onFlag')
         );
         return !is_null($this->form(TIP_FORM_ACTION_CUSTOM, $id, $options));
     }
 
-    protected function actionRestore($id, $options = null)
+    protected function actionUnflag($id, $options = null)
     {
         isset($options) || $options = array(
-            'action_id'  => 'restore',
+            'action_id'  => 'unflag',
             'buttons'    => TIP_FORM_BUTTON_OK|TIP_FORM_BUTTON_CANCEL,
-            'on_process' => array(&$this, '_onRestore')
+            'on_process' => array(&$this, '_onUnflag')
         );
         return !is_null($this->form(TIP_FORM_ACTION_CUSTOM, $id, $options));
     }
@@ -264,10 +327,10 @@ class TIP_Expiration extends TIP_Content
     {
         switch ($action) {
 
-        case 'restore':
+        case 'unflag':
             return
                 !is_null($id = $this->fromGetOrPost()) &&
-                $this->actionRestore($id);
+                $this->actionUnflag($id);
 
         case 'refresh':
             return
@@ -282,11 +345,11 @@ class TIP_Expiration extends TIP_Content
     {
         switch ($action) {
 
-        case 'check':
+        case 'flag':
             return
                 !is_null($id = $this->fromGetOrPost()) &&
                 $this->isNotOwner($id) &&
-                $this->actionCheck($id);
+                $this->actionFlag($id);
 
         case 'refresh':
             return
