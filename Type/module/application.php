@@ -52,7 +52,7 @@ class TIP_Application extends TIP_Module
      * Page begin string (incipit)
      * @var string
      */
-    protected $incipit = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"it-IT\" lang=\"it-IT\">\n\n";
+    protected $incipit = "<!DOCTYPE html PUBLIC \"-//W3C//DTD XHTML 1.0 Strict//EN\" \"http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd\">\n<html xmlns=\"http://www.w3.org/1999/xhtml\" xml:lang=\"{locale}\" lang=\"{locale}\">\n\n";
 
     /**
      * Page end string (explicit)
@@ -466,7 +466,7 @@ class TIP_Application extends TIP_Module
         // some head tags can be modified by body templates
         $body = $this->tagRun($this->body_template);
 
-        echo $this->incipit;
+        echo str_replace('{locale}', TIP::getLocaleId('-'), $this->incipit);
         $this->run($this->head_template);
         echo $body . $this->explicit;
 
