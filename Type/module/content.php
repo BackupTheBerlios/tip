@@ -1607,8 +1607,8 @@ class TIP_Content extends TIP_Module
      */
     public function _onEdit(&$row, $old_row)
     {
-        TIP::arrayDefault($row, $this->edited_field, TIP::formatDate('datetime_sql'));
-        TIP::arrayDefault($row, $this->editor_field, TIP::getUserId());
+        $row[$this->edited_field] = TIP::formatDate('datetime_sql');
+        $row[$this->editor_field] = TIP::getUserId();
         isset($this->edits_field) &&
             array_key_exists($this->edits_field, $row) &&
             ++ $row[$this->edits_field];
