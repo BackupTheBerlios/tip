@@ -57,9 +57,22 @@
  *
  * For more customizations, the "view_template" is still available,
  * although disabled if not explicitely set in the configuration.
- * In this case, the whole file content is kept in the global
- * key "CONTENT", so can be accessed using the tag {CONTENT} from
- * the source template.
+ * In this case, the 'id' and 'content' keys are generated with
+ * the proper content and the "title_field", "creation_field" and
+ * "edited_field" are honored. This means if the magic fields are
+ * left to their default values, the following (virtual) fields
+ * are available to the template engine:
+ *
+ * - <b>id</b>, the gtk-doc fragment file name
+ * - <b>title</b>, same as <b>id</b>, but without the <kbd>.html</kbd> suffix
+ * - <b>content</b>, the whole file content: it should be noted this tag
+ *   yet includes html tags so, in order to get the proper styled content,
+ *   <var>{raw(content)}</var> tag should be used instead of the more usual
+ *   <var>{content}</var>
+ * - <b>_creation</b>, an SQL datetime representing the creation time, as
+ *   returned by the filectime() function
+ * - <b>_edited</b>, an SQL datetime representing the last modification time,
+ *   as returned by the filemtime() function
  *
  * @package TIP
  */
@@ -103,8 +116,8 @@ class TIP_Devhelp2 extends TIP_Content
      */
     protected function __construct($options)
     {
-        // By default use the built-in template, overridable
-        // if explicitely set by the $options array
+        // By default, do not use a built-in template: if needed,
+        // it must be explicitely set in the $options array
         $this->view_template = null;
         parent::__construct($options);
     }
@@ -201,7 +214,7 @@ class TIP_Devhelp2 extends TIP_Content
             return false;
         }
 
-        // Check for the html file existence
+        // Check for html file existence
         $file = TIP::buildDataPath($this->id, $id);
         if (!is_readable($file)) {
             $this->endView();
@@ -210,19 +223,27 @@ class TIP_Devhelp2 extends TIP_Content
 
         $content =& TIP_Application::getGlobal('content');
 
+        $this->keys['id'] = $id;
+        $this->keys[$this->title_field] = str_replace('.html', '', $id);
+        $this->keys['content'] = file_get_contents($file);
+        $this->keys[$this->creation_field] =
+            TIP::formatDate('datetime_sql', filectime($file));
+        $this->keys[$this->edited_field] =
+            TIP::formatDate('datetime_sql', filemtime($file));
+
         if (empty($this->view_template)) {
             // On empty template, output the whole html file content
             // and set a viable "title" metatag
-            $content .= file_get_contents($file);
+            $content .= $this->keys['content'];
             $title =& TIP_Application::getGlobal('title');
-            $title = str_replace('.html', '', $id) . ' (' . $title . ')';
+            $title = $this->keys[$this->title_field] . ' (' . $title . ')';
         } else {
             // Use a custom template
-            $this->keys['CONTENT'] = file_get_contents($file);
             $content .= $this->tagRun($this->view_template);
-            // Don't keep the whole content in memory
-            unset($this->keys['CONTENT']);
         }
+
+        // Discard the generated content to decrease memory consumption
+        unset($this->keys);
 
         $this->endView();
         return true;
