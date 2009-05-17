@@ -89,61 +89,61 @@ class TIP_Content extends TIP_Module
     protected $atom_template = 'atom.xml';
 
     /**
-     * The field containing the creation datetime
+     * The magic field id containing the creation datetime
      * @var string
      */
     protected $creation_field = '_creation';
 
     /**
-     * The field containing to owner user id
+     * The magic field id containing to owner user id
      * @var string
      */
     protected $owner_field = '_user';
 
     /**
-     * The default field to use for browse actions
+     * The magic field id to use by default on browse actions
      * @var string
      */
     protected $browse_field = '_parent';
 
     /**
-     * The field containing the last edit datetime
+     * The magic field id containing the last edit datetime
      * @var string
      */
-    protected $last_edit_field = '_edit_on';
+    protected $edited_field = '_edited';
 
     /**
-     * The field containing the last editor id
+     * The magic field id containing the user id of the last editor
      * @var string
      */
-    protected $editor_field = '_edit_by';
+    protected $editor_field = '_editor';
 
     /**
-     * The field containing the counter of edit performed a row
+     * The magic field id containing the counter of edits performed a row
      * @var string
      */
-    protected $edits_field = '_edit_count';
+    protected $edits_field = '_edits';
 
     /**
-     * The field containing the counter of actionView
+     * The magic field id containing the counter of actionView
      * @var string
      */
     protected $hits_field = '_hits';
 
     /**
-     * The field specifying the title for rendering operations
+     * The magic field id specifying the title for rendering operations
      * @var string
      */
     protected $title_field = 'title';
 
     /**
-     * The field specifying the tooltip for rendering operations
+     * The magic field id specifying the tooltip for rendering operations
      * @var string|null
      */
     protected $tooltip_field = null;
 
     /**
-     * The field containing the date of the last actionView
+     * The magic field containing the date of the last actionView
      * @var string
      */
     protected $last_hit_field = '_lasthit';
@@ -1607,8 +1607,8 @@ class TIP_Content extends TIP_Module
      */
     public function _onEdit(&$row, $old_row)
     {
-        TIP::arrayDefault($row, $this->last_edit_field, TIP::formatDate('datetime_sql'));
-        TIP::arrayDefault($row, $this->editor_field, TIP::getUserId());
+        $row[$this->edited_field] = TIP::formatDate('datetime_sql');
+        $row[$this->editor_field] = TIP::getUserId();
         isset($this->edits_field) &&
             array_key_exists($this->edits_field, $row) &&
             ++ $row[$this->edits_field];

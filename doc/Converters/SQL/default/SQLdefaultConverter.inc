@@ -35,9 +35,12 @@
 define('PHPDOC_TYPE_CLASS', 1);
 define('PHPDOC_TYPE_VAR', 2);
 define('PHPDOC_TYPE_METHOD', 3);
-define('PHPDOC_SQL_PREAMBLE', "DROP TABLE IF EXISTS `tip_api`;
+
+define('PHPDOC_SQL_PREAMBLE', "
+DROP TABLE IF EXISTS `tip_api`;
 CREATE TABLE IF NOT EXISTS `tip_api` (
   `id` char(40) character set latin1 NOT NULL,
+  `_edited` datetime NOT NULL,
   `parent` char(40) character set latin1 NOT NULL,
   `content` text NOT NULL COMMENT 'widget_args=Delimiter,Code,Raw,Anchor,Heading,Toc,Horiz,Blockquote,List,Deflist,Table,Image,Center,Newline,Url,Strong,Emphasis,Tt,Superscript,Subscript,Freelink',
   PRIMARY KEY  (`id`),
@@ -47,6 +50,10 @@ CREATE TABLE IF NOT EXISTS `tip_api` (
 INSERT INTO `tip_api`
   (`id`,`parent`,`content`)
   VALUES ");
+
+define('PHPDOC_SQL_CLOSURE', ";
+
+UPDATE `tip_api` SET `_edited`=NOW();");
 
 /**
  * SQL output converter.
@@ -165,7 +172,8 @@ class SQLdefaultConverter extends Converter
         }
 
         $handle = fopen('tip.sql', 'w');
-        fwrite($handle, PHPDOC_SQL_PREAMBLE .implode(",\n", $this->_rows));
+        fwrite($handle, PHPDOC_SQL_PREAMBLE . implode(",\n", $this->_rows));
+        fwrite($handle, PHPDOC_SQL_CLOSURE);
         fclose($handle);
     }
 

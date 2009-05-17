@@ -328,7 +328,7 @@ class TIP_Form extends TIP_Module
         $this->_data =& $module->getProperty('data');
 
         // Initialize or merge the new fields in "fields" property
-        if ($module == $this->master) {
+        if ($module === $this->master) {
             $this->_stage = 0;
             isset($this->fields) || $this->fields = $this->_data->getFields();
         } else {

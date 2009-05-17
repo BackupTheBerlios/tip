@@ -257,9 +257,12 @@ class TIP
 
     /**
      * Get the current locale, such as 'en_US' or 'it_IT'
-     * @return string The current locale
+     *
+     * @param  string $separator The optional glue to use between language
+     *                           and territory parts
+     * @return string            The current locale
      */
-    static public function getLocaleId()
+    static public function getLocaleId($separator = '_')
     {
         static $locale = null;
         if (is_null($locale)) {
@@ -268,7 +271,9 @@ class TIP
         }
 
         // Fallback to en_US, so ensure the locale is set anyway
-        return isset($locale) ? $locale : 'en_US';
+        isset($locale) || $locale = 'en_US';
+
+        return str_replace('_', $separator, $locale);
     }
 
     /**
