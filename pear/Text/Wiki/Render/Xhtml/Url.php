@@ -30,6 +30,8 @@ class Text_Wiki_Render_Xhtml_Url extends Text_Wiki_Render {
         'target' => '_blank',
         'images' => true,
         'img_ext' => array('jpg', 'jpeg', 'gif', 'png'),
+        'movies' => true,
+        'movie_regex' => '|http://www.youtube.com/v/|',
         'css_inline' => null,
         'css_footnote' => null,
         'css_descr' => null,
@@ -60,6 +62,7 @@ class Text_Wiki_Render_Xhtml_Url extends Text_Wiki_Render {
         $pos = strrpos($href, '.');
         $ext = strtolower(substr($href, $pos + 1));
         $href = $this->textEncode($href);
+        $movie_regex = $this->getConf('movie_regex', '');
 
         // does the filename extension indicate an image file?
         if ($this->getConf('images') &&
@@ -75,6 +78,24 @@ class Text_Wiki_Render_Xhtml_Url extends Text_Wiki_Render {
             $css = $this->formatConf(' class="%s"', 'css_img');
             $start = "<img$css src=\"$href\" alt=\"$text\" title=\"$text\" /><!-- ";
             $end = " -->";
+
+        } elseif ($this->getConf('movies') &&
+                  preg_match($movie_regex, $href)) {
+
+            $start = <<<EOT
+<div class="movie">
+  <div>
+  <object width="425" height="355">
+    <param name="movie" value="$href"></param>
+    <embed src="
+EOT;
+            $text = $href;
+            $end = <<<EOT
+" type="application/x-shockwave-flash" width="425" height="355"></embed>
+  </object>
+  </div>
+</div>
+EOT;
 
         } else {
 
