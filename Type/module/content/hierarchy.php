@@ -59,13 +59,6 @@ class TIP_Hierarchy extends TIP_Content
     protected $action = null;
 
     /**
-     * Default order field: use "default_order" instead
-     * @var string
-     * @deprecated
-     */
-    protected $order_field = null;
-
-    /**
      * Maximum number of levels to keep online (before enabling AHAH)
      *
      * Leave it null to not use AHAH at all. This means the whole tree is
@@ -102,8 +95,6 @@ class TIP_Hierarchy extends TIP_Content
         }
 
         isset($options['action']) || $options['action'] = 'browse,-id-';
-        TIP::arrayDefault($options, 'order_field', 'order');
-        TIP::arrayDefault($options, 'default_order', $options['order_field']);
 
         return true;
     }
