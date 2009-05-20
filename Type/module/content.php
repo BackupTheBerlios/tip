@@ -1093,20 +1093,31 @@ class TIP_Content extends TIP_Module
             $options['levels']
         ) = explode(',', $params);
 
-        // Delete null values
-        $options = array_filter($options, 'is_string');
-        $id = $this->id . '_chronology';
-        if (empty($options['date_field'])) {
-            unset($options['date_field']);
-        } else {
-            $id .= $options['date_field'];
+        // Remove empty options
+        $options = array_filter($options);
+
+        // Look for a TIP_Chronology defined in the configuration options
+        // that has a 'master' value matching this module id
+        global $cfg;
+        foreach ($cfg as $module_id => &$module_options) {
+            if (@$module_options['master'] == $this->id &&
+                $module_options['type'] == array('chronology')) {
+                $id = $module_id;
+                break;
+            }
         }
 
-        // Merge with the configuration options
-        $options['id'] = $id;
-        array_key_exists($id, $GLOBALS['cfg']) && $options += $GLOBALS['cfg'][$id];
+        if (isset($id)) {
+            // Merge the explicit options with the configuration options
+            $options += $module_options;
+        } else {
+            // Fallback the id to a reasonable default value:
+            // this chronology will implicitily use all fallback options
+            $id = $this->id . '_chronology';
+        }
 
         // Set required defaults
+        TIP::arrayDefault($options, 'id', $id);
         TIP::arrayDefault($options, 'type', array('chronology'));
         TIP::arrayDefault($options, 'master', $this);
         TIP::arrayDefault($options, 'date_field', $this->creation_field);
