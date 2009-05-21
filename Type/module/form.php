@@ -233,8 +233,11 @@ class TIP_Form extends TIP_Module
             return false;
         }
 
+        // Force the current form id to the binded module id
+        // (the "master" module)
+        $options['id'] = $options['master']->getProperty('id');
+
         // Default values
-        TIP::arrayDefault($options, 'id', $options['master']->getProperty('id'));
         TIP::arrayDefault($options, 'locale_prefix', 'form');
         TIP::arrayDefault($options, 'action_id', $options['action']);
         isset($options['referer']) || $options['referer'] = TIP::getRefererUri();
@@ -1551,34 +1554,35 @@ class TIP_Form extends TIP_Module
         $info = TIP::getLocale('comment.' . $id, $this->locale_prefix);
 
         if (empty($args)) {
-            // Try to get the hierarchy master module from the $cfg array
+            // Try to get the hierarchy module from the $cfg array
             global $cfg;
-            foreach ($cfg as $module_id => &$options) {
-                if (isset($options['master']) && $options['master'] == $this->id) {
-                    $master_id = $module_id;
+            foreach ($cfg as $module_id => &$module_options) {
+                if (@$module_options['master'] == $this->id &&
+                    end($module_options['type']) == 'hierarchy') {
+                    $hierarchy_id = $module_id;
                     break;
                 }
             }
         } else {
             // Explicitely defined in the widget args
-            $master_id = $args;
+            $hierarchy_id = $args;
         }
 
-        // On master field not found, build a default one
+        // On hierarchy module not found, build a default one
         // by appending '_hierarchy' to this module id
-        isset($master_id) || $master_id = $this->id . '_hierarchy';
+        isset($hierarchy_id) || $hierarchy_id = $this->id . '_hierarchy';
 
         ++ $this->_tabindex;
         $element =& $this->_form->addElement('select', $id, $label, null, array('tabindex' => $this->_tabindex, 'class' => 'expand'));
         $element->setInfo($info);
-        $this->_addPrerender($id, array(&$this, '_populateHierarchy'), $master_id);
+        $this->_addPrerender($id, array(&$this, '_populateHierarchy'), $hierarchy_id);
         return $element;
     }
 
-    private function _populateHierarchy($id, $master_module)
+    private function _populateHierarchy($id, $hierarchy_id)
     {
         $element =& $this->_form->getElement($id);
-        $hierarchy =& TIP_Type::getInstance($master_module);
+        $hierarchy =& TIP_Type::getInstance($hierarchy_id);
 
         if ($element->isFrozen()) {
             // No need to execute a complete query: get only the selected row(s)
@@ -1600,22 +1604,23 @@ class TIP_Form extends TIP_Module
         $info = TIP::getLocale('comment.' . $id, $this->locale_prefix);
 
         if (empty($args)) {
-            // Try to get the lookup master module from the $cfg array
+            // Try to get the lookup module from the $cfg array
             global $cfg;
-            foreach ($cfg as $module_id => &$options) {
-                if (isset($options['master']) && $options['master'] == $this->id) {
-                    $master_id = $module_id;
+            foreach ($cfg as $module_id => &$module_options) {
+                if (@$module_options['master'] == $this->id &&
+                    end($module_options['type']) == 'hierarchy') {
+                    $lookup_id = $module_id;
                     break;
                 }
             }
         } else {
             // Explicitely defined in the widget args
-            $master_id = $args;
+            $lookup_id = $args;
         }
 
-        // On master field not found, build a default one
+        // On lookup module not found, build a default one
         // by appending '_hierarchy' to this module id
-        isset($master_id) || $master_id = $this->id . '_hierarchy';
+        isset($lookup_id) || $lookup_id = $this->id . '_hierarchy';
 
         ++ $this->_tabindex;
         $element =& $this->_addElement('text', $id, array('size' => 8, 'maxlength' => 8));
@@ -1625,12 +1630,12 @@ class TIP_Form extends TIP_Module
             // Add JSON params, if needed
             $params = array(
                 'sWidget'  => 'lookup',
-                'sUriView' => TIP::buildActionUri($master_id, 'view')
+                'sUriView' => TIP::buildActionUri($lookup_id, 'view')
             );
 
-            if (!is_null(TIP::getOption($master_id, 'search_field'))) {
+            if (!is_null(TIP::getOption($lookup_id, 'search_field'))) {
                 // Enable search URI
-                $params['sUriSearch'] = TIP::buildActionUri($master_id, 'search');
+                $params['sUriSearch'] = TIP::buildActionUri($lookup_id, 'search');
             }
 
             $element->setComment(json_encode($params));
