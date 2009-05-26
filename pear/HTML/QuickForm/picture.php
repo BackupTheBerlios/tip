@@ -295,7 +295,8 @@ class HTML_QuickForm_picture extends HTML_QuickForm_attachment
 
         // Autoresize the image
         $picture = $this->getBasePath() . $file;
-        if (!is_uploaded_file($tmp) || !$this->_resizeImage($tmp, $picture, $box)) {
+        if (!is_uploaded_file($tmp) ||
+            !$this->_resizeImage($tmp, $picture, $box)) {
             return false;
         }
 
@@ -324,23 +325,22 @@ class HTML_QuickForm_picture extends HTML_QuickForm_attachment
             return false;
         }
 
-        list($org_width, $org_height, $type) = $info;
-        list($max_width, $max_height) = $box;
+        list($src_width, $src_height, $type) = $info;
+        list($dst_width, $dst_height) = $box;
 
         // Check for valid dimensions
-        if ($org_width <= 0 || $org_height <= 0 ||
-            $max_width <= 0 || $max_height <= 0) {
+        if ($src_width <= 0 || $src_height <= 0 ||
+            $dst_width <= 0 || $dst_height <= 0) {
             return false;
         }
 
         // Calculate the final picture size (retaining the aspect ratio)
-        $ratio = $org_width / $org_height;
-        if ($ratio > $max_width / $max_height) {
-            $width  = $max_width;
-            $height = $width / $ratio;
+        $src_ratio = $src_width / $src_height;
+        $dst_ratio = $dst_width / $dst_height;
+        if ($src_ratio > $dst_ratio) {
+            $dst_height = $dst_width / $src_ratio;
         } else {
-            $height = $max_height;
-            $width  = $height * $ratio;
+            $dst_width = $dst_height * $src_ratio;
         }
 
         // Try to acquire the source image
@@ -350,7 +350,7 @@ class HTML_QuickForm_picture extends HTML_QuickForm_attachment
         }
 
         // Create the destination image
-        $dst = imagecreatetruecolor($width, $height);
+        $dst = imagecreatetruecolor($dst_width, $dst_height);
         if (!$dst) {
             imagedestroy($src);
             return false;
@@ -358,13 +358,15 @@ class HTML_QuickForm_picture extends HTML_QuickForm_attachment
 
         // The real work: use imageToFile() to retain the same image type
         // of the original one (who knows...)
-        $done = imagecopyresampled($dst, $src, 0, 0, 0, 0, $max_width, $max_height, $org_width, $org_height);
+        $done = imagecopyresampled($dst, $src, 0, 0, 0, 0,
+                                   $dst_width, $dst_height,
+                                   $src_width, $src_height);
         imagedestroy($src);
 
         if ($done) {
             if ($this->imageToFile($dst, $type, $to)) {
                 // Success! The new image size is stored in $box
-                $box = array($width, $height);
+                $box = array($dst_width, $dst_height);
             } else {
                 // Failure in serialization
                 @unlink($to);
