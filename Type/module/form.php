@@ -1133,8 +1133,7 @@ class TIP_Form extends TIP_Module
         $is_upload = in_array($widget, array('attachment', 'picture', 'thumbnail'));
 
         if (@$this->fields[$id]['category'] == 'required') {
-            $this->_addRule($id, 'required');
-            $is_upload && $this->_addRule($id, 'requiredupload');
+            $this->_addRule($id, $is_upload ? 'requiredupload' : 'required');
         }
 
         if ($is_upload) {
@@ -1293,11 +1292,6 @@ class TIP_Form extends TIP_Module
             return TIP::getGet('process', 'int') == 1;
         }
 
-        // Perform uploads (if needed)
-        if (is_callable(array('HTML_QuickForm_attachment', 'doUploads'))) {
-            HTML_QuickForm_attachment::doUploads($this->_form);
-        }
-
         // Add element and form rules
         isset($this->validator) && $this->_form->addFormRule($this->validator);
         foreach (array_keys($this->fields) as $id)
@@ -1319,6 +1313,11 @@ class TIP_Form extends TIP_Module
         } else {                                // Validation
             $this->_form->applyFilter('__ALL__', array('TIP', 'extendedTrim'));
             $valid = $this->_form->validate();
+        }
+
+        // Perform uploads (if needed)
+        if (is_callable(array('HTML_QuickForm_attachment', 'doUploads'))) {
+            HTML_QuickForm_attachment::doUploads($this->_form);
         }
 
         return $valid;
