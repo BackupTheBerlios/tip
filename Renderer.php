@@ -87,7 +87,10 @@ class TIP_Renderer
              */
             $renderer->setFormatConf('Xhtml', 'translate', HTML_SPECIALCHARS);
             $renderer->setRenderConf('Xhtml', 'url', array(
-                'target'   => ''
+                'target' => ''
+            ));
+            $renderer->setRenderConf('Xhtml', 'code', array(
+                'css' => 'programlisting'
             ));
             $renderer->setRenderConf('Xhtml', 'toc', array(
                 'title'    => '<p><strong>' . $toc_title . '</strong></p>',
