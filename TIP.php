@@ -1069,7 +1069,7 @@ class TIP
     /**
      * Convert to HTML a value
      *
-     * Converts the $value content in HTML safe manner, accordling to its type.
+     * Converts the $value content in HTML safe manner, according to its type.
      *
      * @param  mixed  $value The value to convert
      * @return string        The converted value 

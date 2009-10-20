@@ -321,7 +321,7 @@ class TIP_User extends TIP_Content
     /**
      * Perform a login action
      *
-     * Presents a login form and process the submitted fields accordling.
+     * Presents a login form and process the submitted fields according.
      *
      * @param  array $options Options to pass to the form() call
      * @return bool           true on success or false on errors

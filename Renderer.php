@@ -81,7 +81,7 @@ class TIP_Renderer
             isset($toc_title) || $toc_title = TIP::getLocale('index', 'wiki');
             $renderer =& Text_Wiki::singleton('Default');
             $renderer->setFormatConf('Xhtml', 'charset', 'UTF-8');
-            /* Accordling to the following comment:
+            /* According to the following comment:
              * http://php.net/manual/function.htmlentities.php#78509
              * "There's no sane reason to use htmlentities() instead of htmlspecialchars()"
              */

@@ -163,7 +163,7 @@ class TIP_Form extends TIP_Module
      * the form and "on_process" is still undefined, an error is raised.
      *
      * The return value must be %true on success or %false on error.
-     * Accordling to the return value, a notification message (error or
+     * According to the return value, a notification message (error or
      * info) will be generated.
      *
      * @var callback
@@ -287,7 +287,7 @@ class TIP_Form extends TIP_Module
     /**
      * Run the form
      *
-     * Executes the requested action, accordling to the properties values set
+     * Executes the requested action, according to the properties values set
      * in the constructor.
      *
      * @return bool|null true if the action is performed,

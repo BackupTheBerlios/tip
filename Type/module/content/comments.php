@@ -176,7 +176,7 @@ class TIP_Comments extends TIP_Content
     /**
      * Update statistic on the master module
      *
-     * Updates the counter of the linked row in the master module accordling
+     * Updates the counter of the linked row in the master module according
      * to the specified $offset.
      *
      * This is an high level method that raises errors and notify them to the

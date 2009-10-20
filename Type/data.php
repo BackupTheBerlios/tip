@@ -21,7 +21,7 @@
 /**
  * A generic data provider
  *
- * All the queries are "prepared" accordling to the data engine used.
+ * All the queries are "prepared" according to the data engine used.
  * This means the parameters are modified by calling preparedName() and
  * preparedValue() of the TIP_Data_Engine object.
  *
@@ -518,7 +518,7 @@ class TIP_Data extends TIP_Type
     /**
      * Update more rows
      *
-     * Updates the rows that match the $filter conditions accordling to the
+     * Updates the rows that match the $filter conditions according to the
      * $row array, which must be a collection of "fieldid => value" to change.
      * The syntax of $filter is data engine dependent: no assumptions are made
      * by the TIP_Data class. This also means the $filter parameter must be

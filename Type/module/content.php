@@ -888,7 +888,7 @@ class TIP_Content extends TIP_Module
      * Wikize the field specified in $params
      *
      * The value of the field with $params id is parsed and rendered by the
-     * Text_Wiki renderer accordling to the wiki rules defined in the
+     * Text_Wiki renderer according to the wiki rules defined in the
      * widget args of this field.
      */
     protected function tagWiki($params)
