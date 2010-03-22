@@ -27,7 +27,7 @@
  * Now I have too many PHP-4 dependencies that cannot be updated (PEAR overall,
  * but also Text_Wiki, HTML_QuickForm and HTML_Menu).
  */
-error_reporting(E_ALL);
+error_reporting(E_ERROR | E_WARNING | E_PARSE | E_NOTICE);
 
 /**
  * The default encoding for TIP based sites is utf8.
