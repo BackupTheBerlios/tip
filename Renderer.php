@@ -42,7 +42,7 @@ class TIP_Renderer
 
         if (is_null($renderer)) {
             require_once 'HTML/Menu/TipRenderer.php';
-            $renderer =& new HTML_Menu_TipRenderer();
+            $renderer = new HTML_Menu_TipRenderer();
         }
 
         $renderer->setLevels($levels);
@@ -134,7 +134,7 @@ class TIP_Renderer
 
         if (is_null($renderer)) {
             require_once 'HTML/QuickForm/Renderer/Tip.php';
-            $renderer =& new HTML_QuickForm_Renderer_Tip();
+            $renderer = new HTML_QuickForm_Renderer_Tip();
         }
 
         return $renderer;
