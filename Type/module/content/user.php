@@ -449,11 +449,11 @@ class TIP_User extends TIP_Content
 
     /**
      * Called by the login form to validate user and password
-     * @param  array      &$row The data row
-     * @return true|array       true on success or an associative array in the
-     *                          form array(field => error_message)
+     * @param  array      $row The data row
+     * @return true|array      true on success or an associative array in the
+     *                         form array(field => error_message)
      */
-    public function _checkLogin(&$row)
+    public function _checkLogin($row)
     {
         $filter = $this->data->filter('user', $row['user']) . ' LIMIT 1';
         if (is_null($view =& $this->startDataView($filter))) {

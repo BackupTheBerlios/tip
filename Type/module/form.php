@@ -311,7 +311,7 @@ class TIP_Form extends TIP_Module
     public function validate()
     {
         // Create the form
-        $this->_form =& new HTML_QuickForm('__tip_' . $this->id, TIP_FORM_METHOD_POST, $_SERVER['REQUEST_URI'], '', null, true);
+        $this->_form = new HTML_QuickForm('__tip_' . $this->id, TIP_FORM_METHOD_POST, $_SERVER['REQUEST_URI'], '', null, true);
         $this->_form->removeAttribute('name');
         $this->_form->addElement('hidden', 'module', $this->id);
         $this->_form->addElement('hidden', 'action', $this->action_id);
@@ -830,7 +830,7 @@ class TIP_Form extends TIP_Module
         return true;
     }
 
-    public function _processRow(&$row)
+    public function _processRow($row)
     {
         // Processed row null by default
         $this->_row = null;

@@ -30,6 +30,7 @@ class Text_Wiki_Render_Xhtml_Url extends Text_Wiki_Render {
         'target' => '_blank',
         'images' => true,
         'img_ext' => array('jpg', 'jpeg', 'gif', 'png'),
+        'regexes' => array(),
         'movies' => true,
         'movie_regex' => '|http://www.youtube.com/v/|',
         'css_inline' => null,
@@ -63,6 +64,17 @@ class Text_Wiki_Render_Xhtml_Url extends Text_Wiki_Render {
         $ext = strtolower(substr($href, $pos + 1));
         $href = $this->textEncode($href);
         $movie_regex = $this->getConf('movie_regex', '');
+        $regexes = $this->getConf('regexes');
+
+        // Compare against custom regexes
+        foreach ($regexes as $pattern => $callback) {
+            $matches = array();
+            if (preg_match($pattern, $href, $matches)) {
+                $output = call_user_func_array($callback, $matches);
+                if (is_string($output))
+                    return $output;
+            }
+        }
 
         // does the filename extension indicate an image file?
         if ($this->getConf('images') &&
