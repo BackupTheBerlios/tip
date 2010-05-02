@@ -489,13 +489,13 @@ class TIP_RcbtNG extends TIP_Template_Engine
  
     public function compileBuffer(&$template)
     {
-        isset($template->_instance) || $template->_instance =& new TIP_RcbtNG_Instance($template->_buffer);
+        isset($template->_instance) || $template->_instance = new TIP_RcbtNG_Instance($template->_buffer);
         return $template->_instance->compile();
     }
 
     public function runBuffer(&$template, &$caller)
     {
-        isset($template->_instance) || $template->_instance =& new TIP_RcbtNG_Instance($template->_buffer);
+        isset($template->_instance) || $template->_instance = new TIP_RcbtNG_Instance($template->_buffer);
 
         if (!$template->_instance->run($caller)) {
             return $template->_instance->error;
