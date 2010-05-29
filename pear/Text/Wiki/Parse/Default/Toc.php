@@ -96,27 +96,22 @@ class Text_Wiki_Parse_Toc extends Text_Wiki_Parse {
             if ($val[1]['type'] != 'start') {
                 continue;
             }
-            
+
             $options = array(
-                'type'  => 'item_start',
                 'id'    => $val[1]['id'],
                 'level' => $val[1]['level'],
+                'text'  => $val[1]['text'],
                 'count' => $count ++
             );
-            
+
+            $options['type'] = 'item_start';
             $output .= $this->wiki->addToken($this->rule, $options);
-            
-            $output .= $val[1]['text'];
-            
-            $output .= $this->wiki->addToken(
-                $this->rule,
-                array(
-                    'type' => 'item_end',
-                    'level' => $val[1]['level']
-                )
-            );
+            $options['type'] = 'item';
+            $output .= $this->wiki->addToken($this->rule, $options);
+            $options['type'] = 'item_end';
+            $output .= $this->wiki->addToken($this->rule, $options);
         }
-        
+
         $output .= $this->wiki->addToken(
             $this->rule, array(
                 'type' => 'list_end',
