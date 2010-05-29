@@ -59,12 +59,9 @@
  * - **title** ({{media:group/media:title[@type="plain"]}})
  * - **description** ({{media:group/media:description[@type="plain"]}})
  * - **imageurl** ({{media:group/media:content[@medium="image"]/@url}})
- * - **thumbnail72** ({{media:group/media:thumbnail[@width="72"]/@url}})
- * - **thumbnail72height** ({{media:group/media:thumbnail[@width="72"]/@height}})
- * - **thumbnail144** ({{media:group/media:thumbnail[@width="144"]/@url}})
- * - **thumbnail144height** ({{media:group/media:thumbnail[@width="144"]/@height}})
- * - **thumbnail288** ({{media:group/media:thumbnail[@width="288"]/@url}})
- * - **thumbnail288height** ({{media:group/media:thumbnail[@width="288"]/@height}})
+ * - **thumbnail** ({{media:group/media:thumbnail[3]/@url}})
+ * - **thumbnail_width** ({{media:group/media:thumbnail[3]/@width}})
+ * - **thumbnail_height** ({{media:group/media:thumbnail[3]/@height}})
  * - **date** ({{published}})
  * - **author** ({{../author/name}})
  * - **uploader** ({{media:group/media:credit}})
@@ -79,7 +76,7 @@
  * <code>
  * <ul class="picture">{picture.forSelect(LIMIT 5)}
  *   <li><a href="{imageurl}">
- *     <img src="{thumbnail288}" width="288" height="{thumbnail288height}" alt="{description}" />
+ *     <img src="{thumbnail}" width="{thumbnail_width}" height="{thumbnail_height}" alt="{description}" />
  *   </li>{}
  * </ul>
  * </code>
@@ -116,12 +113,9 @@ class TIP_Picasa2 extends TIP_Content
                 'title'             => 'media:group/media:title[@type="plain"]',
                 'description'       => 'media:group/media:description[@type="plain"]',
                 'imageurl'          => 'media:group/media:content[@medium="image"]/@url',
-                'thumbnail72'       => 'media:group/media:thumbnail[@width="72"]/@url',
-                'thumbnail72height' => 'media:group/media:thumbnail[@width="72"]/@height',
-                'thumbnail144'      => 'media:group/media:thumbnail[@width="144"]/@url',
-                'thumbnail144height'=> 'media:group/media:thumbnail[@width="144"]/@height',
-                'thumbnail288'      => 'media:group/media:thumbnail[@width="288"]/@url',
-                'thumbnail288height'=> 'media:group/media:thumbnail[@width="288"]/@height',
+                'thumbnail'         => 'media:group/media:thumbnail[3]/@url',
+                'thumbnail_width'   => 'media:group/media:thumbnail[3]/@width',
+                'thumbnail_height'  => 'media:group/media:thumbnail[3]/@height',
                 'date'              => 'published',
                 'author'            => '../author/name',
                 'uploader'          => 'media:group/media:credit'
@@ -173,8 +167,9 @@ class TIP_Picasa2 extends TIP_Content
 
         $output = '<a href="' . TIP::toHtml($row['id']) . '" class="picasa2" title="' .
             TIP::toHtml($row['description']) . '"><img src="' .
-            TIP::toHtml($row['thumbnail288']) . '" width="288" height="' .
-            TIP::toHtml($row['thumbnail288height']) . '" alt="' .
+            TIP::toHtml($row['thumbnail']) . '" width="' .
+            TIP::toHtml($row['thumbnail_width']) . '" height="' .
+            TIP::toHtml($row['thumbnail_height']) . '" alt="' .
             TIP::toHtml($row['description']) . '" /></a>';
 
         return $output;
