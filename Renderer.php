@@ -91,7 +91,10 @@ class TIP_Renderer
             ));
             $renderer->setRenderConf('Xhtml', 'code', array(
                 'css' => 'programlisting'
+                'target'   => '',
+                'regexes'  => array('|http://picasaweb\.google\.com/.*|' => array('TIP_Renderer', 'picasa2Callback'))
             ));
+
             $renderer->setRenderConf('Xhtml', 'toc', array(
                 'title'    => '<p><strong>' . $toc_title . '</strong></p>',
                 'div_id'   => 'idToc',
@@ -138,6 +141,30 @@ class TIP_Renderer
         }
 
         return $renderer;
+    }
+
+    /**
+     * Render to html a picasa uri
+     *
+     * Checks if there are registered picasa2 modules and
+     * sequentially tries to render $uri by calling the
+     * TIP_Picasa2::toHtml() method on every module found.
+     *
+     * @param  string       $uri The PicasaWeb uri
+     * @return string|false      The string to render or false if not found
+     */
+    static public function picasa2Callback($uri)
+    {
+        global $cfg;
+        foreach ($cfg as $id => $options) {
+            if (end($options['type']) == 'picasa2') {
+                $instance = TIP_Type::getInstance($id);
+                $output = $instance->toHtml($uri);
+                if (is_string($output))
+                    return $output;
+            }
+        }
+        return false;
     }
 
     //}}}

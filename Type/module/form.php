@@ -830,7 +830,7 @@ class TIP_Form extends TIP_Module
         return true;
     }
 
-    public function _processRow(&$row)
+    public function _processRow($row)
     {
         // Processed row null by default
         $this->_row = null;

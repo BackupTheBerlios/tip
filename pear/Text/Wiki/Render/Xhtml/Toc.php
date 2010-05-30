@@ -59,14 +59,13 @@ class Text_Wiki_Render_Xhtml_Toc extends Text_Wiki_Render {
         extract($options);
 
         $use_ul = $this->getConf('use_ul');
+        $html = '';
 
         switch ($type) {
 
         case 'list_start':
-            $css = $this->getConf('css_list');
-            $html = '';
-
             // collapse div within a table?
+            $css = $this->getConf('css_list');
             if ($this->getConf('collapse')) {
                 $html .= '<table border="0" cellspacing="0" cellpadding="0">';
                 $html .= "<tr><td>\n";
@@ -91,7 +90,6 @@ class Text_Wiki_Render_Xhtml_Toc extends Text_Wiki_Render {
             break;
 
         case 'list_end':
-            $html = '';
             if ($use_ul) {
                 // Close all pending levels
                 $last_level >= $this->min && $html .= '</li>';
@@ -113,6 +111,9 @@ class Text_Wiki_Render_Xhtml_Toc extends Text_Wiki_Render {
             break;
 
         case 'item_start':
+            if ($level < $this->min)
+                break;
+
             $indent = str_repeat('    ', $level-$this->min+1);
 
             if ($use_ul) {
@@ -148,8 +149,13 @@ class Text_Wiki_Render_Xhtml_Toc extends Text_Wiki_Render {
             break;
 
         case 'item_end':
-            $html = '</a>';
-            $use_ul || $html .= '</div>';
+            if ($level >= $this->min)
+                $html = $use_ul ? '</a>' : '</a></div>';
+            break;
+
+        case 'item':
+            if ($level >= $this->min)
+                $html = $text;
             break;
         }
 
