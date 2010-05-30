@@ -80,6 +80,7 @@ class TIP_Renderer
             require_once 'Text/Wiki.php';
             isset($toc_title) || $toc_title = TIP::getLocale('index', 'wiki');
             $renderer =& Text_Wiki::singleton('Default');
+            $renderer->disable = array();
             $renderer->setFormatConf('Xhtml', 'charset', 'UTF-8');
             /* Accordling to the following comment:
              * http://php.net/manual/function.htmlentities.php#78509
