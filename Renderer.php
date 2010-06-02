@@ -88,12 +88,11 @@ class TIP_Renderer
              */
             $renderer->setFormatConf('Xhtml', 'translate', HTML_SPECIALCHARS);
             $renderer->setRenderConf('Xhtml', 'url', array(
-                'target' => ''
+                'target'   => '',
+                'regexes'  => array('|http://picasaweb\.google\.com/.*|' => array('TIP_Renderer', 'picasa2Callback'))
             ));
             $renderer->setRenderConf('Xhtml', 'code', array(
                 'css' => 'programlisting'
-                'target'   => '',
-                'regexes'  => array('|http://picasaweb\.google\.com/.*|' => array('TIP_Renderer', 'picasa2Callback'))
             ));
 
             $renderer->setRenderConf('Xhtml', 'toc', array(
