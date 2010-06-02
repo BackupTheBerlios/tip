@@ -317,13 +317,15 @@ class TIP_XML extends TIP_Data_Engine
                 $xml_data = file_get_contents($uri);
             }
 
+            $xml_tree = false;
             if (is_string($xml_data)) {
                 // Work-around to let SimpleXML be happy with the fucking
                 // default namespace
                 $xml_data = str_replace(' xmlns=', ' fakens=', $xml_data);
-                $xml_tree = simplexml_load_string($xml_data);
-                $namespaces = $xml_tree->getNamespaces();
+                $xml_tree = @simplexml_load_string($xml_data);
+            }
 
+            if ($xml_tree) {
                 // Takes only the first element matching "base_xpath"
                 $xml = reset($xml_tree->xpath($this->base_xpath));
 
