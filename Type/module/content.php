@@ -1678,7 +1678,9 @@ class TIP_Content extends TIP_Module
     {
         $old_row = $row;
 
-        TIP::arrayDefault($row, $this->last_hit_field, TIP::formatDate('datetime_sql'));
+        isset($this->last_hit_field) &&
+            array_key_exists($this->last_hit_field, $row) &&
+            $row[$this->last_hit_field] = TIP::formatDate('datetime_sql');
         isset($this->hits_field) &&
             array_key_exists($this->hits_field, $row) &&
             ++ $row[$this->hits_field];
