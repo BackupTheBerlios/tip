@@ -89,7 +89,7 @@ class TIP_Renderer
             $renderer->setFormatConf('Xhtml', 'translate', HTML_SPECIALCHARS);
             $renderer->setRenderConf('Xhtml', 'url', array(
                 'target'   => '',
-                'regexes'  => array('|http://picasaweb\.google\.com/.*|' => array('TIP_Renderer', 'picasa2Callback'))
+                'regexes'  => array('|http://picasaweb\.google\.com/lh/photo/.*|' => array('TIP_Renderer', 'picasa2Callback'))
             ));
             $renderer->setRenderConf('Xhtml', 'code', array(
                 'css' => 'programlisting'
@@ -144,7 +144,7 @@ class TIP_Renderer
     }
 
     /**
-     * Render to html a picasa uri
+     * Render to html the URI of a picasa photo
      *
      * Checks if there are registered picasa2 modules and
      * sequentially tries to render $uri by calling the

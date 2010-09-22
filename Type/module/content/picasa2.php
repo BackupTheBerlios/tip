@@ -2,7 +2,7 @@
 /* vim: set expandtab shiftwidth=4 softtabstop=4 tabstop=4 foldmethod=marker: */
 
 /**
- * TIP_Picasa2 definition file
+ * TIP_Picasa2 photo access
  *
  * LICENSE: This source file is subject to the New BSD license that is 
  * available through the world-wide-web at the following URI:
@@ -19,10 +19,11 @@
  */
 
 /**
- * A content module to access picasa version 2 album feeds
+ * A content module to access picasa version 2 photo throught its album feed
  *
  * A TIP_Content implementation that sets a default data engine
- * capable to directly parse picasa album feeds (version 2).
+ * capable to directly parse picasa album feed (version 2) to get
+ * metadata of photos.
  *
  * To be able to use this module, you should configure a picasa2
  * module in your configuration options and feed it with the URI
@@ -149,7 +150,7 @@ class TIP_Picasa2 extends TIP_Content
      * This method starts (and ends) a view to find the row, so any
      * further request is cached.
      *
-     * @param  string       $id  The PicasaWeb uri
+     * @param  string       $id  The PicasaWeb URI of the photo
      * @return string|false      The string to render or false on errors
      */
     public function toHtml($id)
