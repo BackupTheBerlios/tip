@@ -89,7 +89,10 @@ class TIP_Renderer
             $renderer->setFormatConf('Xhtml', 'translate', HTML_SPECIALCHARS);
             $renderer->setRenderConf('Xhtml', 'url', array(
                 'target'   => '',
-                'regexes'  => array('|http://picasaweb\.google\.com/lh/photo/.*|' => array('TIP_Renderer', 'picasa2Callback'))
+                'regexes'  => array(
+                    '|http://picasaweb\.google\.com/.*/photo/.*|' => array('TIP_Renderer', 'picasa2PhotoCallback'),
+                    '|http://picasaweb\.google\.com/.*/albumid/.*|' => array('TIP_Renderer', 'picasa2AlbumCallback')
+                )
             ));
             $renderer->setRenderConf('Xhtml', 'code', array(
                 'css' => 'programlisting'
@@ -148,12 +151,12 @@ class TIP_Renderer
      *
      * Checks if there are registered picasa2 modules and
      * sequentially tries to render $uri by calling the
-     * TIP_Picasa2::toHtml() method on every module found.
+     * toHtml() method from every picasa2 module found.
      *
      * @param  string       $uri The PicasaWeb uri
      * @return string|false      The string to render or false if not found
      */
-    static public function picasa2Callback($uri)
+    static public function picasa2PhotoCallback($uri)
     {
         global $cfg;
         foreach ($cfg as $id => $options) {
@@ -165,6 +168,32 @@ class TIP_Renderer
             }
         }
         return false;
+    }
+
+    /**
+     * Render to html the URI of a picasa album feed
+     *
+     * Creates a temporary picasa2 module with $uri as
+     * data property and render the result by calling the
+     * toHtmlAlbum() method.
+     *
+     * @param  string       $uri The uri of the album feed
+     * @return string|false      The string to render or false on errors
+     */
+    static public function picasa2AlbumCallback($uri)
+    {
+        global $cfg;
+
+        $id = 'picasa2::' . $uri;
+        isset($cfg[$id]) || $cfg[$id] = array(
+            'type' => array('module', 'content', 'picasa2'),
+            'data' => $uri
+        );
+
+        $instance = TIP_Type::getInstance($id);
+        $output = $instance->toHtmlAlbum();
+
+        return is_string($output) ? $output : false;
     }
 
     //}}}

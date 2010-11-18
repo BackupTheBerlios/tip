@@ -164,16 +164,86 @@ class TIP_Picasa2 extends TIP_Content
         if (!@array_key_exists($id, $rows))
             return false;
 
-        $row =& $rows[$id];
+        return self::_renderRow($rows[$id], array('class' => 'picasa2'));
+    }
 
-        $output = '<a href="' . TIP::toHtml($row['id']) . '" class="picasa2" title="' .
-            TIP::toHtml($row['description']) . '"><img src="' .
-            TIP::toHtml($row['thumbnail']) . '" width="' .
-            TIP::toHtml($row['thumbnail_width']) . '" height="' .
-            TIP::toHtml($row['thumbnail_height']) . '" alt="' .
-            TIP::toHtml($row['description']) . '" /></a>';
+    /**
+     * Get the html code for the whole PicasaWeb album
+     *
+     * Renders all the photo included by this album.
+     *
+     * @return string|false  The string to render or false on errors
+     */
+    public function toHtmlAlbum()
+    {
+        static $cnt = 1;
+
+        if (is_null($view =& $this->startDataView())) {
+            TIP::notifyError('select');
+            return false;
+        }
+
+        $rows =& $view->getProperty('rows');
+        $output = '';
+        $max_width = 0;
+        $max_height = 0;
+        $options = array(
+            'max-width' => &$max_width,
+            'max-height' => &$max_height
+        );
+
+        foreach ($rows as $row) {
+            $output .= '  <li>' . self::_renderRow($row, $options) . '</li>';
+        }
+
+        if (empty($output))
+            return false;
+
+        $id = 'Album' . $cnt;
+        ++$cnt;
+
+        $output = "<ul id=\"$id\">\n$output</ul>\n";
+        $output = <<<EOT
+<div class="caption" style="float: right">
+<ul id="$id">
+$output
+</ul>
+<p class="caption-title"><a id="$id-prev" href="#">« PRECEDENTE</a> <a id="$id-next" href="#">SEGUENTE »</a></p>
+</div>
+<script type="text/javascript">
+    jQuery(function() {
+        jQuery('#$id').ulslide({
+            width: $max_width,
+            height: $max_height,
+            bprev: '#$id-prev',
+            bnext: '#$id-next',
+            axis: 'x'
+        });
+    });
+</script>
+EOT;
 
         return $output;
+    }
+
+    static private function _renderRow($row, $options = null)
+    {
+        $id = TIP::toHtml($row['id']);
+        $description = TIP::toHtml($row['description']);
+        $src = TIP::toHtml($row['thumbnail']);
+        $width = (int) $row['thumbnail_width'];
+        $height = (int) $row['thumbnail_height'];
+
+        $attrs = 'href="' . $id . '"';
+        empty($description) || $attrs .= ' title="' . $description . '"';
+        isset($options['class']) && $attrs .= ' class="' . $options['class'] . '"';
+
+        if (isset($options['max-width']) && $width > $options['max-width'])
+            $options['max-width'] = $width;
+        if (isset($options['max-height']) && $height > $options['max-height'])
+            $options['max-height'] = $height;
+
+        return "<a $attrs><img src=\"$src\" width=\"$width\" height=\"$height\" alt=\"$description\" /></a>\n";
     }
 
     //}}}
