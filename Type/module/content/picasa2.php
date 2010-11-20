@@ -202,7 +202,6 @@ class TIP_Picasa2 extends TIP_Content
         $id = 'Album' . $cnt;
         ++$cnt;
 
-        $output = "<ul id=\"$id\">\n$output</ul>\n";
         $output = <<<EOT
 <div class="caption" style="float: right">
 <ul id="$id">
